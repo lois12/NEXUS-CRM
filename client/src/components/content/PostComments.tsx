@@ -56,7 +56,7 @@ export default function PostComments({ postId }: { postId: string }) {
             <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden"
               style={{ border: '1px solid rgba(255,255,255,0.1)' }}>
               {c.authorAvatar ? (
-                <img loading="lazy" decoding="async" src={`http://localhost:3001${c.authorAvatar}`} alt="" className="w-full h-full object-cover" />
+                <img loading="lazy" decoding="async" src={c.authorAvatar} alt="" className="w-full h-full object-cover" />
               ) : (
                 <span className="text-[8px] font-mono font-bold" style={{ color: 'var(--color-primary)' }}>
                   {c.authorName?.charAt(0) || '?'}

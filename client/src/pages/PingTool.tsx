@@ -37,7 +37,7 @@ export default function PingTool() {
     const timeStr = formatTimeKR(now);
     try {
       const start = performance.now();
-      await fetch(`http://${target}`, { method: 'HEAD', mode: 'no-cors', cache: 'no-store' });
+      await fetch(`https://${target}`, { method: 'HEAD', mode: 'no-cors', cache: 'no-store' });
       const ms = Math.round(performance.now() - start);
       return { time: timeStr, host: target, status: 'ok' as const, ms };
     } catch {

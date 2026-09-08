@@ -25,7 +25,7 @@ export default function ApprovalStatus({ approvals }: { approvals: ContentApprov
               <div className="w-5 h-5 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0"
                 style={{ border: `1px solid ${config.color}30` }}>
                 {a.approverAvatar ? (
-                  <img loading="lazy" decoding="async" src={`http://localhost:3001${a.approverAvatar}`} alt="" className="w-full h-full object-cover" />
+                  <img loading="lazy" decoding="async" src={a.approverAvatar} alt="" className="w-full h-full object-cover" />
                 ) : (
                   <span className="text-[7px] font-mono font-bold" style={{ color: config.color }}>
                     {a.approverName?.charAt(0) || '?'}
