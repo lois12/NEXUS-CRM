@@ -164,6 +164,26 @@
     .btn-danger { background: rgba(255,59,48,0.1); color: #ff3b30; border: 1px solid rgba(255,59,48,0.2); }
     .btn-danger:hover:not(:disabled) { background: rgba(255,59,48,0.2); }
     .btn-full { grid-column: 1 / -1; }
+    .btn-deploy {
+      background: linear-gradient(135deg, rgba(0,212,255,0.15), rgba(0,255,136,0.15));
+      color: #00d4ff;
+      border: 1px solid rgba(0,212,255,0.25);
+      position: relative;
+      overflow: hidden;
+    }
+    .btn-deploy:hover:not(:disabled) {
+      background: linear-gradient(135deg, rgba(0,212,255,0.25), rgba(0,255,136,0.25));
+      box-shadow: 0 0 20px rgba(0,212,255,0.2);
+      transform: translateY(-1px);
+    }
+    .btn-deploy:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-deploy.running {
+      animation: deploy-pulse 1.5s ease-in-out infinite;
+    }
+    @keyframes deploy-pulse {
+      0%, 100% { border-color: rgba(0,212,255,0.25); }
+      50% { border-color: rgba(0,212,255,0.6); box-shadow: 0 0 15px rgba(0,212,255,0.15); }
+    }
     .btn-ghost {
       background: none; border: 1px solid rgba(255,255,255,0.06);
       color: var(--text-dim); font-size: 9px; padding: 4px 8px;
@@ -385,6 +405,10 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
           BE
         </button>
+        <button class="btn btn-deploy btn-full" id="btn-deploy" title="Тесты → Git push → Деплой на VPS">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
+          ДЕПЛОЙ
+        </button>
         <button class="btn btn-secondary btn-full" id="btn-open" disabled>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
           ОТКРЫТЬ В БРАУЗЕРЕ
@@ -442,6 +466,7 @@
         </a>
         <span class="hotkey-hint">Ctrl+Shift+N — показать</span>
         <span class="hotkey-hint">Ctrl+Enter — запуск</span>
+        <span class="hotkey-hint">Ctrl+D — деплой</span>
       </div>
     </div>
     <div class="resize-handle"></div>
@@ -509,6 +534,30 @@
     });
     btnOpen.addEventListener('click', () => ipcRenderer.send('open-browser'));
 
+    // ── Deploy ──
+    const btnDeploy = document.getElementById('btn-deploy');
+    btnDeploy.addEventListener('click', () => {
+      ipcRenderer.send('deploy');
+      btnDeploy.disabled = true;
+      btnDeploy.classList.add('running');
+      btnDeploy.querySelector('svg + *') || null;
+    });
+
+    ipcRenderer.on('deploy-status', (_, status) => {
+      if (status === 'running') {
+        btnDeploy.disabled = true;
+        btnDeploy.classList.add('running');
+      } else {
+        btnDeploy.disabled = false;
+        btnDeploy.classList.remove('running');
+        if (status === 'success') {
+          addLog('[DEPLOY] Успешно! Сайт обновлён.', 'success');
+        } else if (status === 'failed') {
+          addLog('[DEPLOY] Провален. Проверь логи.', 'error');
+        }
+      }
+    });
+
     // ── Quick links ──
     document.getElementById('ql-uploads').addEventListener('click', () => ipcRenderer.send('open-uploads'));
     document.getElementById('ql-db').addEventListener('click', () => ipcRenderer.send('open-db'));
@@ -556,6 +605,15 @@
         e.preventDefault();
         ipcRenderer.send('restart-all');
         addLog('Рестарт (Ctrl+R)', 'system');
+      }
+      if (e.ctrlKey && e.key === 'd') {
+        e.preventDefault();
+        if (!btnDeploy.disabled) {
+          ipcRenderer.send('deploy');
+          btnDeploy.disabled = true;
+          btnDeploy.classList.add('running');
+          addLog('Деплой (Ctrl+D)', 'system');
+        }
       }
     });
 

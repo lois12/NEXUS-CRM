@@ -21,3 +21,10 @@ earth-info.json
 NEXUS LAUNCHER.bat
 NEXUS LAUNCHER.vbs
 server/models/
+ssh_deploy.py
+ssh_cmd.py
+*.pyc
+create_deploy_script.py
+fix_nginx_ip.py
+fix_ssl.py
+setup_nginx.py

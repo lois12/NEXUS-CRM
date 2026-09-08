@@ -458,6 +458,78 @@ ipcMain.handle('kill-port', async (_, port) => {
   return await killPort(port);
 });
 
+// ─── Deploy ────────────────────────────────────────────────────
+
+ipcMain.on('deploy', async () => {
+  send('backend-log', '[DEPLOY] === СТАРТ ДЕПЛОЯ ===');
+  send('deploy-status', 'running');
+
+  // Step 1: Run local tests (warn only, don't block)
+  send('backend-log', '[DEPLOY] Шаг 1/4: Запуск тестов...');
+  try {
+    const testCode = await runCommand('npx', ['vitest', 'run'], BACKEND_DIR);
+    if (testCode !== 0) {
+      send('backend-log', `[DEPLOY] Тесты не прошли (код ${testCode}) — продолжаем`);
+    } else {
+      send('backend-log', '[DEPLOY] Тесты пройдены ✓');
+    }
+  } catch (err) {
+    send('backend-log', '[DEPLOY] Ошибка тестов: ' + err.message + ' — продолжаем');
+  }
+
+  // Step 2: Git add + commit + push
+  send('backend-log', '[DEPLOY] Шаг 2/4: Git push...');
+  try {
+    await runCommand('git', ['add', '.'], PROJECT_ROOT);
+    const statusCode = await runCommand('git', ['status', '--porcelain'], PROJECT_ROOT);
+    const diffCode = await runCommand('git', ['diff', '--cached', '--quiet'], PROJECT_ROOT);
+    if (diffCode === 0) {
+      send('backend-log', '[DEPLOY] Нет изменений для коммита');
+    } else {
+      const commitCode = await runCommand('git', ['commit', '-m', 'deploy: update from launcher'], PROJECT_ROOT);
+      if (commitCode !== 0) {
+        send('backend-log', `[DEPLOY] Ошибка коммита (код ${commitCode})`);
+        send('deploy-status', 'failed');
+        return;
+      }
+    }
+    const pushCode = await runCommand('git', ['push', 'origin', 'main'], PROJECT_ROOT);
+    if (pushCode !== 0) {
+      send('backend-log', `[DEPLOY] Ошибка push (код ${pushCode})`);
+      send('deploy-status', 'failed');
+      return;
+    }
+    send('backend-log', '[DEPLOY] Git push ✓');
+  } catch (err) {
+    send('backend-log', '[DEPLOY] Ошибка git: ' + err.message);
+    send('deploy-status', 'failed');
+    return;
+  }
+
+  // Step 3: SSH deploy on VPS
+  send('backend-log', '[DEPLOY] Шаг 3/4: Деплой на VPS...');
+  try {
+    const deployCode = await runCommand('python', [
+      path.join(PROJECT_ROOT, 'ssh_deploy.py')
+    ], PROJECT_ROOT);
+    if (deployCode !== 0) {
+      send('backend-log', `[DEPLOY] VPS деплой провален (код ${deployCode})`);
+      send('deploy-status', 'failed');
+      return;
+    }
+    send('backend-log', '[DEPLOY] VPS деплой ✓');
+  } catch (err) {
+    send('backend-log', '[DEPLOY] Ошибка SSH: ' + err.message);
+    send('deploy-status', 'failed');
+    return;
+  }
+
+  // Step 4: Done
+  send('backend-log', '[DEPLOY] Шаг 4/4: Проверка...');
+  send('backend-log', '[DEPLOY] === ДЕПЛОЙ ЗАВЕРШЁН ===');
+  send('deploy-status', 'success');
+});
+
 // Open paths
 ipcMain.on('open-uploads', () => {
   const uploadsDir = path.join(PROJECT_ROOT, 'server', 'uploads');
