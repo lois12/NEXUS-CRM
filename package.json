@@ -1,0 +1,21 @@
+{
+  "name": "nexus-crm",
+  "version": "1.0.0",
+  "description": "NEXUS CRM - Локальная CRM-система для маленькой организации",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"npm run dev:client\" \"npm run dev:server\"",
+    "dev:client": "cd client && npm run dev",
+    "dev:server": "cd server && npm run dev",
+    "build": "cd client && npm run build && cd ../server && npm run build",
+    "start": "cd server && npm start",
+    "start:prod": "npm run build && npm start",
+    "install:all": "npm install && cd client && npm install && cd ../server && npm install",
+    "launcher": "cd launcher && npm start"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.0"
+  },
+  "keywords": ["crm", "cyberpunk", "react", "typescript"],
+  "license": "MIT"
+}

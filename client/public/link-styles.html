@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>NEXUS — 100 Стилей связей</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #05050a; color: #e0e0e0; font-family: 'JetBrains Mono', monospace; padding: 40px 20px; }
+  h1 { text-align: center; font-size: 24px; color: #00ff88; text-shadow: 0 0 20px rgba(0,255,136,0.4); margin-bottom: 6px; }
+  .subtitle { text-align: center; color: #555; font-size: 11px; margin-bottom: 10px; }
+  .cat { text-align: center; font-size: 14px; color: #00d4ff; margin: 30px 0 16px; border-bottom: 1px solid rgba(0,212,255,0.1); padding-bottom: 8px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; max-width: 1600px; margin: 0 auto 30px; }
+  .card { background: rgba(15,15,25,0.8); border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; padding: 16px; display: flex; flex-direction: column; align-items: center; gap: 10px; transition: all 0.3s; }
+  .card:hover { border-color: rgba(0,255,136,0.2); transform: translateY(-2px); }
+  .preview { width: 100%; height: 50px; position: relative; display: flex; align-items: center; overflow: hidden; }
+  .node { width: 20px; height: 20px; border-radius: 50%; background: #00ff88; box-shadow: 0 0 8px rgba(0,255,136,0.5); position: absolute; z-index: 2; top: 50%; transform: translateY(-50%); }
+  .node.r { right: 10px; } .node.l { left: 10px; }
+  .link { position: absolute; left: 30px; right: 30px; top: 50%; transform: translateY(-50%); }
+  .label { font-size: 10px; font-weight: 600; color: #00ff88; text-transform: uppercase; letter-spacing: 0.05em; }
+  .pick-btn { padding: 4px 12px; border-radius: 6px; border: 1px solid rgba(0,255,136,0.3); background: rgba(0,255,136,0.08); color: #00ff88; font-family: inherit; font-size: 10px; cursor: pointer; transition: all 0.2s; }
+  .pick-btn:hover { background: rgba(0,255,136,0.2); }
+  .pick-btn.sel { background: rgba(0,255,136,0.3); }
+
+  /* ===== 100 LINK STYLES ===== */
+
+  /* --- BASIC (1-10) --- */
+  .l1{height:2px;background:#00ff88;box-shadow:0 0 6px #00ff88,0 0 12px rgba(0,255,136,0.3)}
+  .l2{height:2px;background:repeating-linear-gradient(90deg,#00ff88 0 8px,transparent 8px 14px);animation:l2 1s linear infinite}
+  @keyframes l2{0%{background-position:0 0}100%{background-position:14px 0}}
+  .l3{height:2px;background:repeating-linear-gradient(90deg,#00d4ff 0 3px,transparent 3px 8px);animation:l3 0.8s linear infinite}
+  @keyframes l3{0%{background-position:0 0}100%{background-position:8px 0}}
+  .l4{height:2px;background:linear-gradient(90deg,#00ff88,#00d4ff,#bf00ff);background-size:200% 100%;animation:l4 3s linear infinite}
+  @keyframes l4{0%{background-position:0% 0}100%{background-position:200% 0}}
+  .l5{height:2px;background:#00ff88;animation:l5 2s ease-in-out infinite}
+  @keyframes l5{0%,100%{opacity:0.3;box-shadow:0 0 4px #00ff88}50%{opacity:1;box-shadow:0 0 12px #00ff88,0 0 24px rgba(0,255,136,0.3)}}
+  .l6{height:2px;background:linear-gradient(90deg,transparent 0%,#00ff88 20%,#00ff88 80%,transparent 100%);background-size:200% 100%;animation:l6 2s linear infinite}
+  @keyframes l6{0%{background-position:200% 0}100%{background-position:-200% 0}}
+  .l7{height:3px;background:#00d4ff;box-shadow:0 0 8px #00d4ff,0 0 16px rgba(0,212,255,0.3);animation:l7 0.15s ease-in-out infinite alternate}
+  @keyframes l7{0%{opacity:0.7}100%{opacity:1}}
+  .l8{height:2px;background:transparent;border-bottom:2px wavy #bf00ff}
+  .l9{height:2px;background:repeating-linear-gradient(90deg,#888 0 6px,transparent 6px 8px,#888 8px 10px,transparent 10px 16px);animation:l9 2s linear infinite}
+  @keyframes l9{0%{background-position:0 0}100%{background-position:16px 0}}
+  .l10{height:2px;background:linear-gradient(90deg,transparent,#fff 10%,#00ff88 50%,#fff 90%,transparent);box-shadow:0 0 10px #00ff88;animation:l10 1.5s ease-in-out infinite}
+  @keyframes l10{0%,100%{opacity:0.6}50%{opacity:1}}
+
+  /* --- GLOW (11-20) --- */
+  .l11{height:6px;background:transparent;border-top:2px solid #00ff88;border-bottom:2px solid #00ff88}
+  .l12{height:4px;background:#00ff88;box-shadow:0 0 15px #00ff88,0 0 30px rgba(0,255,136,0.2),0 0 45px rgba(0,255,136,0.1);border-radius:2px}
+  .l13{height:2px;background:repeating-linear-gradient(90deg,#00ff88 0 12px,transparent 12px 18px);box-shadow:0 0 6px rgba(0,255,136,0.3);animation:l13 1.2s linear infinite}
+  @keyframes l13{0%{background-position:0 0}100%{background-position:18px 0}}
+  .l14{height:2px;background:linear-gradient(90deg,#ff00ff,#00d4ff,#00ff88);background-size:200% 100%;animation:l14 3s linear infinite}
+  @keyframes l14{0%{background-position:0% 0}100%{background-position:200% 0}}
+  .l15{height:2px;background:repeating-linear-gradient(90deg,#00ff88 0 4px,transparent 4px 10px);box-shadow:0 0 4px rgba(0,255,136,0.4);animation:l15 0.6s linear infinite}
+  @keyframes l15{0%{background-position:0 0}100%{background-position:10px 0}}
+  .l16{height:2px;background:#ff00ff;box-shadow:0 0 6px #ff00ff,0 0 12px rgba(255,0,255,0.3)}
+  .l17{height:2px;background:#00d4ff;box-shadow:0 0 6px #00d4ff,0 0 12px rgba(0,212,255,0.3)}
+  .l18{height:2px;background:#ff6600;box-shadow:0 0 6px #ff6600,0 0 12px rgba(255,102,0,0.3)}
+  .l19{height:2px;background:#bf00ff;box-shadow:0 0 6px #bf00ff,0 0 12px rgba(191,0,255,0.3)}
+  .l20{height:2px;background:repeating-linear-gradient(90deg,#00ff88 0 4px,#008844 4px 8px);animation:l20 1s linear infinite}
+  @keyframes l20{0%{background-position:0 0}100%{background-position:8px 0}}
+
+  /* --- ANIMATED (21-40) --- */
+  .l21{height:2px;background:repeating-linear-gradient(45deg,transparent,transparent 3px,rgba(0,255,136,0.2) 3px,rgba(0,255,136,0.2) 4px),repeating-linear-gradient(-45deg,transparent,transparent 3px,rgba(0,255,136,0.2) 3px,rgba(0,255,136,0.2) 4px);border-top:1px solid rgba(0,255,136,0.3);border-bottom:1px solid rgba(0,255,136,0.3)}
+  .l22{height:2px;background:repeating-linear-gradient(90deg,#00ff88 0 2px,transparent 2px 6px);animation:l22 1.5s linear infinite}
+  @keyframes l22{0%{background-position:0 0}100%{background-position:100px 0}}
+  .l23{height:2px;background:#00ff88;animation:l23 3s ease-in-out infinite}
+  @keyframes l23{0%,100%{transform:translateY(-50%) scaleY(1);opacity:0.5}50%{transform:translateY(-50%) scaleY(2.5);opacity:1}}
+  .l24{height:10px;background:linear-gradient(135deg,#00ff88 25%,transparent 25%) -10px 0/20px 10px,linear-gradient(225deg,#00ff88 25%,transparent 25%) -10px 0/20px 10px,linear-gradient(315deg,#00ff88 25%,transparent 25%)/20px 10px,linear-gradient(45deg,#00ff88 25%,transparent 25%)/20px 10px;background-color:transparent}
+  .l25{height:2px;background:transparent;overflow:hidden}
+  .l25::before{content:'';position:absolute;width:8px;height:8px;background:#00ff88;border-radius:50%;top:50%;transform:translateY(-50%);animation:l25 2s linear infinite;box-shadow:0 0 10px #00ff88}
+  @keyframes l25{0%{left:0}100%{left:calc(100% - 8px)}}
+  .l26{height:2px;background:transparent}
+  .l26::before{content:'';position:absolute;left:0;right:0;top:50%;height:2px;transform:translateY(-50%);background:repeating-linear-gradient(90deg,#00ff88 0 6px,transparent 6px 16px)}
+  .l27{height:2px;background:linear-gradient(90deg,#ff6600,#ffcc00,#ff6600);box-shadow:0 0 8px #ff6600,0 0 16px rgba(255,102,0,0.3);animation:l27 0.2s ease-in-out infinite alternate}
+  @keyframes l27{0%{filter:brightness(0.8)}100%{filter:brightness(1.2)}}
+  .l28{height:2px;background:linear-gradient(90deg,transparent,#88ddff 20%,#fff 50%,#88ddff 80%,transparent);box-shadow:0 0 8px rgba(136,221,255,0.3)}
+  .l29{height:2px;background:#00ff88;box-shadow:0 0 4px #00ff88;animation:l29 0.1s steps(2) infinite}
+  @keyframes l29{0%{opacity:0.6}50%{opacity:1}100%{opacity:0.8}}
+  .l30{height:12px;background:transparent;border-top:2px solid #00ff88;border-radius:50%/100%;border-bottom:none}
+  .l31{height:2px;background:linear-gradient(90deg,#00ffff 0%,#ff00ff 50%,#00ffff 100%);background-size:200% 100%;animation:l31 2s linear infinite}
+  @keyframes l31{0%{background-position:0% 0}100%{background-position:200% 0}}
+  .l32{height:12px;background:transparent;border-top:1px dashed rgba(0,212,255,0.3);border-bottom:1px dashed rgba(0,212,255,0.3)}
+  .l33{height:8px;background:linear-gradient(90deg,#00ff88,#00d4ff);border-radius:4px;box-shadow:0 2px 4px rgba(0,0,0,0.3)}
+  .l34{height:1px;background:#888;box-shadow:0 1px 0 #555}
+  .l35{height:6px;background:linear-gradient(90deg,#bf00ff,#00d4ff,#00ff88,#00d4ff,#bf00ff);background-size:300% 100%;animation:l35 3s linear infinite;border-radius:3px;box-shadow:0 0 10px rgba(0,212,255,0.3)}
+  @keyframes l35{0%{background-position:0% 0}100%{background-position:300% 0}}
+  .l36{height:2px;background:repeating-linear-gradient(90deg,#00ff88 0 1px,transparent 1px 3px);animation:l36 0.5s linear infinite}
+  @keyframes l36{0%{background-position:0 0}100%{background-position:10px 0}}
+  .l37{height:2px;background:transparent}
+  .l37::before{content:'';position:absolute;left:0;right:0;top:50%;height:4px;transform:translateY(-50%);background:#00ff88;border-radius:2px;animation:l37 1.5s ease-in-out infinite}
+  @keyframes l37{0%,100%{transform:translateY(-50%) scaleY(1);opacity:0.5}50%{transform:translateY(-50%) scaleY(2.5);opacity:1}}
+  .l38{height:2px;background:linear-gradient(90deg,#ff0000,#ff8800,#ffff00,#00ff00,#00ffff,#0000ff,#ff00ff)}
+  .l39{height:2px;background:#00d4ff;box-shadow:0 0 8px #00d4ff;animation:l39 0.08s steps(3) infinite}
+  @keyframes l39{0%{opacity:0.3}50%{opacity:1}100%{opacity:0.5}}
+  .l40{height:2px;background:transparent;overflow:hidden}
+  .l40::before{content:'';position:absolute;left:0;right:0;top:50%;height:2px;transform:translateY(-50%);background:linear-gradient(90deg,transparent,#00ff88,transparent);animation:l40 2s ease-in-out infinite}
+  @keyframes l40{0%{transform:translateY(-50%) translateX(-100%)}100%{transform:translateY(-50%) translateX(100%)}}
+
+  /* --- PARTICLE (41-60) --- */
+  .l41{height:2px;background:#00ff88;box-shadow:0 0 4px #00ff88;animation:l41 2s ease-in-out infinite}
+  @keyframes l41{0%,100%{box-shadow:0 0 4px #00ff88;height:2px}50%{box-shadow:0 0 15px #00ff88,0 0 30px rgba(0,255,136,0.2);height:4px}}
+  .l42{height:2px;background:transparent}
+  .l42::before,.l42::after{content:'';position:absolute;width:6px;height:6px;background:#00ff88;border-radius:50%;top:50%;transform:translateY(-50%);box-shadow:0 0 8px #00ff88}
+  .l42::before{animation:l42a 3s ease-in-out infinite}
+  .l42::after{animation:l42b 3s ease-in-out infinite 1.5s}
+  @keyframes l42a{0%{left:0;opacity:0}10%{opacity:1}90%{opacity:1}100%{left:calc(100% - 6px);opacity:0}}
+  @keyframes l42b{0%{left:0;opacity:0}10%{opacity:1}90%{opacity:1}100%{left:calc(100% - 6px);opacity:0}}
+  .l43{height:2px;background:transparent}
+  .l43::before{content:'';position:absolute;width:4px;height:4px;background:#00ff88;border-radius:50%;top:50%;transform:translateY(-50%);animation:l43 1.5s linear infinite;box-shadow:0 0 6px #00ff88}
+  @keyframes l43{0%{left:0;opacity:0}10%{opacity:1}90%{opacity:1}100%{left:calc(100% - 4px);opacity:0}}
+  .l44{height:2px;background:transparent}
+  .l44::before{content:'';position:absolute;left:0;right:0;top:50%;height:2px;transform:translateY(-50%);background:linear-gradient(90deg,transparent,#00ff88 10%,transparent 20%,#00ff88 30%,transparent 40%,#00ff88 50%,transparent 60%,#00ff88 70%,transparent 80%,#00ff88 90%,transparent);background-size:200% 100%;animation:l44 3s linear infinite}
+  @keyframes l44{0%{background-position:200% 0}100%{background-position:0% 0}}
+  .l45{height:2px;background:transparent}
+  .l45::before{content:'';position:absolute;left:0;right:0;top:50%;height:2px;transform:translateY(-50%);background:linear-gradient(90deg,transparent,#00d4ff,transparent);background-size:100% 100%;animation:l45 2s ease-in-out infinite}
+  @keyframes l45{0%{opacity:0;transform:translateY(-50%) scaleX(0)}50%{opacity:1;transform:translateY(-50%) scaleX(1)}100%{opacity:0;transform:translateY(-50%) scaleX(0)}}
+  .l46{height:2px;background:linear-gradient(90deg,transparent,#ff00ff44,transparent);animation:l46 3s ease-in-out infinite}
+  @keyframes l46{0%,100%{opacity:0.3}50%{opacity:1}}
+  .l47{height:2px;background:transparent}
+  .l47::before{content:'';position:absolute;left:0;right:0;top:50%;height:2px;transform:translateY(-50%);background:linear-gradient(90deg,transparent 0%,#00ff88 15%,transparent 30%,#00d4ff 45%,transparent 60%,#bf00ff 75%,transparent 90%);background-size:200% 100%;animation:l47 4s linear infinite}
+  @keyframes l47{0%{background-position:200% 0}100%{background-position:-200% 0}}
+  .l48{height:2px;background:transparent}
+  .l48::before,.l48::after{content:'';position:absolute;height:2px;top:50%;transform:translateY(-50%);background:#00ff88;box-shadow:0 0 6px #00ff88}
+  .l48::before{left:0;width:30%;animation:l48a 2s ease-in-out infinite}
+  .l48::after{right:0;width:30%;animation:l48b 2s ease-in-out infinite}
+  @keyframes l48a{0%,100%{opacity:0.3;width:30%}50%{opacity:1;width:50%}}
+  @keyframes l48b{0%,100%{opacity:0.3;width:30%}50%{opacity:1;width:50%}}
+  .l49{height:2px;background:#00ff88;position:relative;animation:l49 1s ease-in-out infinite}
+  @keyframes l49{0%{clip-path:inset(0 100% 0 0)}50%{clip-path:inset(0 0 0 0)}100%{clip-path:inset(0 0 0 100%)}}
+  .l50{height:2px;background:transparent}
+  .l50::before{content:'';position:absolute;left:0;right:0;top:50%;height:2px;transform:translateY(-50%);background:repeating-linear-gradient(90deg,#00ff88 0 4px,transparent 4px 8px);animation:l50 0.8s steps(2) infinite}
+  @keyframes l50{0%{opacity:0.5}50%{opacity:1}100%{opacity:0.5}}
+
+  /* --- SPECIAL (51-75) --- */
+  .l51{height:3px;background:linear-gradient(90deg,#ff6600,#ffcc00);box-shadow:0 0 10px #ff6600;animation:l51 2s ease-in-out infinite}
+  @keyframes l51{0%,100%{filter:brightness(1)}50%{filter:brightness(1.5)}}
+  .l52{height:2px;background:#fff;box-shadow:0 0 8px #fff,0 0 16px rgba(255,255,255,0.3);animation:l52 0.5s ease-in-out infinite}
+  @keyframes l52{0%,100%{opacity:0.5}50%{opacity:1}}
+  .l53{height:2px;background:linear-gradient(90deg,#00ff8833,#00ff88,#00ff8833);animation:l53 2s ease-in-out infinite}
+  @keyframes l53{0%{background-position:-100% 0}100%{background-position:200% 0}}
+  .l54{height:2px;background:repeating-linear-gradient(90deg,#bf00ff 0 5px,#6600aa 5px 10px,transparent 10px 15px);animation:l54 1.5s linear infinite}
+  @keyframes l54{0%{background-position:0 0}100%{background-position:15px 0}}
+  .l55{height:4px;background:linear-gradient(90deg,transparent,#00ff88 20%,#00d4ff 50%,#bf00ff 80%,transparent);border-radius:2px;animation:l55 3s linear infinite}
+  @keyframes l55{0%{filter:hue-rotate(0deg)}100%{filter:hue-rotate(360deg)}}
+  .l56{height:2px;background:transparent}
+  .l56::before{content:'';position:absolute;left:0;right:0;top:50%;height:6px;transform:translateY(-50%);border:1px solid #00ff8844;border-radius:3px}
+  .l56::after{content:'';position:absolute;left:0;top:50%;width:30%;height:6px;transform:translateY(-50%);background:#00ff8822;border-radius:3px;animation:l56 2s ease-in-out infinite}
+  @keyframes l56{0%{width:0%}50%{width:100%}100%{width:0%}}
+  .l57{height:2px;background:linear-gradient(90deg,#00ff88,#00d4ff);animation:l57 1s linear infinite}
+  @keyframes l57{0%{transform:translateY(-50%) scaleX(0);transform-origin:left}50%{transform:translateY(-50%) scaleX(1);transform-origin:left}50.01%{transform-origin:right}100%{transform:translateY(-50%) scaleX(0);transform-origin:right}}
+  .l58{height:2px;background:transparent}
+  .l58::before{content:'';position:absolute;left:0;right:0;top:50%;height:2px;transform:translateY(-50%);background:linear-gradient(90deg,transparent,#00ff88 30%,#00ff88 70%,transparent);animation:l58 2s ease-in-out infinite}
+  @keyframes l58{0%{transform:translateY(-50%) translateX(-30%)}50%{transform:translateY(-50%) translateX(30%)}100%{transform:translateY(-50%) translateX(-30%)}}
+  .l59{height:2px;background:#00ff88;animation:l59 3s linear infinite}
+  @keyframes l59{0%{clip-path:polygon(0 0,5% 0,5% 100%,0 100%)}100%{clip-path:polygon(95% 0,100% 0,100% 100%,95% 100%)}}
+  .l60{height:2px;background:transparent}
+  .l60::before{content:'';position:absolute;left:0;right:0;top:50%;height:2px;transform:translateY(-50%);background:linear-gradient(90deg,transparent,#00ff88 5%,transparent 10%,#00d4ff 15%,transparent 20%,#bf00ff 25%,transparent 30%);background-size:400% 100%;animation:l60 4s linear infinite}
+  @keyframes l60{0%{background-position:400% 0}100%{background-position:0% 0}}
+
+  /* --- COMPLEX (61-80) --- */
+  .l61{height:2px;background:transparent}
+  .l61::before{content:'';position:absolute;left:0;right:0;top:50%;height:2px;transform:translateY(-50%);background:linear-gradient(90deg,transparent,#00ff88 10%,#fff 15%,#00ff88 20%,transparent 30%);background-size:300% 100%;animation:l61 2s ease-in-out infinite}
+  @keyframes l61{0%{background-position:300% 0}100%{background-position:-100% 0}}
+  .l62{height:2px;background:linear-gradient(90deg,#00ff88,#00d4ff);background-size:200% 100%;animation:l62 2s ease-in-out infinite}
+  @keyframes l62{0%{background-position:0% 0}50%{background-position:100% 0}100%{background-position:0% 0}}
+  .l63{height:2px;background:transparent}
+  .l63::before{content:'';position:absolute;left:0;right:0;top:50%;height:2px;transform:translateY(-50%);background:linear-gradient(90deg,transparent,#00ff88,transparent);animation:l63 1.5s ease-in-out infinite}
+  @keyframes l63{0%{transform:translateY(-50%) scaleX(0);opacity:0}50%{transform:translateY(-50%) scaleX(1);opacity:1}100%{transform:translateY(-50%) scaleX(0);opacity:0}}
+  .l64{height:2px;background:#00ff88;animation:l64 2s ease-in-out infinite}
+  @keyframes l64{0%{transform:translateY(-50%) rotate(0deg)}25%{transform:translateY(-50%) rotate(2deg)}50%{transform:translateY(-50%) rotate(0deg)}75%{transform:translateY(-50%) rotate(-2deg)}100%{transform:translateY(-50%) rotate(0deg)}}
+  .l65{height:2px;background:transparent}
+  .l65::before{content:'';position:absolute;left:0;right:0;top:50%;height:2px;transform:translateY(-50%);background:linear-gradient(90deg,transparent 0%,#00ff88 20%,transparent 40%,#00ff88 60%,transparent 80%,#00ff88 100%);background-size:200% 100%;animation:l65 3s linear infinite}
+  @keyframes l65{0%{background-position:200% 0}100%{background-position:-200% 0}}
+  .l66{height:3px;background:linear-gradient(90deg,#00ff88,#fff,#00ff88);box-shadow:0 0 8px #00ff88;animation:l66 1s ease-in-out infinite}
+  @keyframes l66{0%,100%{filter:brightness(1)}50%{filter:brightness(1.5)}}
+  .l67{height:2px;background:transparent}
+  .l67::before{content:'';position:absolute;left:0;right:0;top:50%;height:2px;transform:translateY(-50%);background:linear-gradient(90deg,transparent,#bf00ff 20%,#00d4ff 50%,#00ff88 80%,transparent);background-size:200% 100%;animation:l67 3s linear infinite}
+  @keyframes l67{0%{background-position:0% 0}100%{background-position:200% 0}}
+  .l68{height:2px;background:#00ff88;box-shadow:0 0 4px #00ff88;animation:l68 0.5s steps(3) infinite}
+  @keyframes l68{0%{opacity:0.3}33%{opacity:0.7}66%{opacity:1}100%{opacity:0.3}}
+  .l69{height:2px;background:linear-gradient(90deg,transparent,#00ff88 25%,transparent 50%,#00d4ff 75%,transparent);background-size:200% 100%;animation:l69 2s linear infinite}
+  @keyframes l69{0%{background-position:0% 0}100%{background-position:200% 0}}
+  .l70{height:2px;background:transparent}
+  .l70::before{content:'';position:absolute;left:0;right:0;top:50%;height:2px;transform:translateY(-50%);background:linear-gradient(90deg,transparent,#00ff88 5%,#fff 7%,#00ff88 9%,transparent 14%,transparent);background-size:200% 100%;animation:l70 1.5s linear infinite}
+  @keyframes l70{0%{background-position:200% 0}100%{background-position:-100% 0}}
+  .l71{height:2px;background:linear-gradient(90deg,#00ff8866,#00ff88,#00ff8866);animation:l71 2s ease-in-out infinite}
+  @keyframes l71{0%,100%{opacity:0.5}50%{opacity:1}}
+  .l72{height:2px;background:transparent}
+  .l72::before{content:'';position:absolute;left:0;right:0;top:50%;height:2px;transform:translateY(-50%);background:linear-gradient(90deg,transparent,#00ff88 10%,#00d4ff 30%,#bf00ff 50%,#00d4ff 70%,#00ff88 90%,transparent);background-size:200% 100%;animation:l72 4s linear infinite}
+  @keyframes l72{0%{background-position:0% 0}100%{background-position:200% 0}}
+  .l73{height:2px;background:#00ff88;animation:l73 2s ease-in-out infinite}
+  @keyframes l73{0%,100%{transform:translateY(-50%) skewX(0deg)}25%{transform:translateY(-50%) skewX(5deg)}75%{transform:translateY(-50%) skewX(-5deg)}}
+  .l74{height:2px;background:transparent}
+  .l74::before{content:'';position:absolute;left:0;right:0;top:50%;height:2px;transform:translateY(-50%);background:linear-gradient(90deg,transparent,#00ff88 20%,transparent 21%,transparent 39%,#00d4ff 40%,transparent 41%,transparent 59%,#bf00ff 60%,transparent 61%,transparent 79%,#00ff88 80%,transparent 81%)}
+  .l75{height:2px;background:#00ff88;box-shadow:0 0 6px #00ff88;animation:l75 3s ease-in-out infinite}
+  @keyframes l75{0%{transform:translateY(-50%) scaleX(1);transform-origin:left}50%{transform:translateY(-50%) scaleX(0.5);transform-origin:center}100%{transform:translateY(-50%) scaleX(1);transform-origin:right}}
+
+  /* --- ULTIMATE (76-100) --- */
+  .l76{height:2px;background:linear-gradient(90deg,#ff0000,#ff8800,#ffff00,#00ff00,#00ffff,#0088ff,#8800ff);background-size:200% 100%;animation:l76 3s linear infinite}
+  @keyframes l76{0%{background-position:0% 0}100%{background-position:200% 0}}
+  .l77{height:2px;background:transparent}
+  .l77::before{content:'';position:absolute;left:0;right:0;top:50%;height:2px;transform:translateY(-50%);background:linear-gradient(90deg,transparent,#00ff88 15%,transparent 30%);background-size:300% 100%;animation:l77 1.5s linear infinite}
+  @keyframes l77{0%{background-position:300% 0}100%{background-position:0% 0}}
+  .l78{height:2px;background:linear-gradient(90deg,#00ff88,#00d4ff);animation:l78 0.5s ease-in-out infinite}
+  @keyframes l78{0%,100%{opacity:0.4;transform:translateY(-50%) scale(1)}50%{opacity:1;transform:translateY(-50%) scale(1.02)}}
+  .l79{height:2px;background:transparent}
+  .l79::before{content:'';position:absolute;left:0;right:0;top:50%;height:4px;transform:translateY(-50%);border-top:1px solid #00ff88;border-bottom:1px solid #00ff88;opacity:0.5}
+  .l79::after{content:'';position:absolute;left:0;right:0;top:50%;height:2px;transform:translateY(-50%);background:#00ff88;animation:l79 2s ease-in-out infinite}
+  @keyframes l79{0%,100%{opacity:0.3}50%{opacity:1}}
+  .l80{height:2px;background:linear-gradient(90deg,transparent,#00ff88 5%,#fff 10%,#00ff88 15%,transparent 20%);background-size:500% 100%;animation:l80 2s linear infinite}
+  @keyframes l80{0%{background-position:500% 0}100%{background-position:0% 0}}
+  .l81{height:2px;background:transparent}
+  .l81::before{content:'';position:absolute;left:0;right:0;top:50%;height:2px;transform:translateY(-50%);background:linear-gradient(90deg,transparent,#00ff88 20%,#00ff88 30%,transparent 50%,#00d4ff 50%,#00d4ff 70%,transparent 90%);background-size:200% 100%;animation:l81 3s linear infinite}
+  @keyframes l81{0%{background-position:200% 0}100%{background-position:0% 0}}
+  .l82{height:2px;background:linear-gradient(90deg,#00ff88,#bf00ff);background-size:200% 100%;animation:l82 2s linear infinite}
+  @keyframes l82{0%{background-position:0% 0}100%{background-position:200% 0}}
+  .l83{height:2px;background:transparent}
+  .l83::before{content:'';position:absolute;left:0;right:0;top:50%;height:2px;transform:translateY(-50%);background:linear-gradient(90deg,transparent,#00ff88,transparent);animation:l83 3s ease-in-out infinite}
+  @keyframes l83{0%{transform:translateY(-50%) scaleX(0);opacity:0}30%{transform:translateY(-50%) scaleX(1);opacity:1}70%{transform:translateY(-50%) scaleX(1);opacity:1}100%{transform:translateY(-50%) scaleX(0);opacity:0}}
+  .l84{height:2px;background:#00ff88;animation:l84 4s linear infinite}
+  @keyframes l84{0%{transform:translateY(-50%) rotate(0deg) scaleX(1)}25%{transform:translateY(-50%) rotate(1deg) scaleX(0.98)}50%{transform:translateY(-50%) rotate(0deg) scaleX(1)}75%{transform:translateY(-50%) rotate(-1deg) scaleX(0.98)}100%{transform:translateY(-50%) rotate(0deg) scaleX(1)}}
+  .l85{height:2px;background:transparent}
+  .l85::before{content:'';position:absolute;left:0;right:0;top:50%;height:2px;transform:translateY(-50%);background:linear-gradient(90deg,transparent,#00ff88 10%,#00d4ff 20%,#bf00ff 30%,#ff00ff 40%,#bf00ff 50%,#00d4ff 60%,#00ff88 70%,transparent 80%);background-size:200% 100%;animation:l85 5s linear infinite}
+  @keyframes l85{0%{background-position:0% 0}100%{background-position:200% 0}}
+  .l86{height:2px;background:linear-gradient(90deg,#00ff88,#fff,#00ff88);background-size:200% 100%;animation:l86 1s linear infinite}
+  @keyframes l86{0%{background-position:0% 0}100%{background-position:200% 0}}
+  .l87{height:2px;background:transparent}
+  .l87::before{content:'';position:absolute;left:0;right:0;top:50%;height:3px;transform:translateY(-50%);background:linear-gradient(90deg,transparent,#00ff88 5%,transparent 6%,transparent 14%,#00d4ff 15%,transparent 16%,transparent 24%,#bf00ff 25%,transparent 26%);background-size:200% 100%;animation:l87 2s linear infinite}
+  @keyframes l87{0%{background-position:200% 0}100%{background-position:0% 0}}
+  .l88{height:2px;background:linear-gradient(90deg,#00ff88,#00d4ff,#bf00ff,#ff00ff,#bf00ff,#00d4ff,#00ff88);background-size:400% 100%;animation:l88 4s linear infinite}
+  @keyframes l88{0%{background-position:0% 0}100%{background-position:400% 0}}
+  .l89{height:2px;background:transparent}
+  .l89::before{content:'';position:absolute;left:0;right:0;top:50%;height:2px;transform:translateY(-50%);background:linear-gradient(90deg,transparent,#00ff88 8%,#fff 12%,#00ff88 16%,transparent 24%,transparent 32%,#00d4ff 40%,#fff 44%,#00d4ff 48%,transparent 56%);background-size:200% 100%;animation:l89 3s linear infinite}
+  @keyframes l89{0%{background-position:200% 0}100%{background-position:0% 0}}
+  .l90{height:2px;background:#00ff88;box-shadow:0 0 8px #00ff88;animation:l90 2s ease-in-out infinite}
+  @keyframes l90{0%,100%{transform:translateY(-50%) translateX(0)}25%{transform:translateY(-50%) translateX(3px)}75%{transform:translateY(-50%) translateX(-3px)}}
+  .l91{height:2px;background:transparent}
+  .l91::before{content:'';position:absolute;left:0;right:0;top:50%;height:2px;transform:translateY(-50%);background:linear-gradient(90deg,transparent,#00ff88 25%,transparent 50%,#00d4ff 75%,transparent);background-size:400% 100%;animation:l91 3s linear infinite}
+  @keyframes l91{0%{background-position:400% 0}100%{background-position:0% 0}}
+  .l92{height:2px;background:linear-gradient(90deg,#00ff88,#00d4ff);border-radius:1px;box-shadow:0 0 6px #00ff8844;animation:l92 2s ease-in-out infinite}
+  @keyframes l92{0%,100%{transform:translateY(-50%) scale(1)}50%{transform:translateY(-50%) scale(1.01)}}
+  .l93{height:2px;background:transparent}
+  .l93::before{content:'';position:absolute;left:0;right:0;top:50%;height:2px;transform:translateY(-50%);background:linear-gradient(90deg,transparent,#00ff88 5%,#fff 8%,#00ff88 11%,transparent 16%,transparent 24%,#00d4ff 29%,#fff 32%,#00d4ff 35%,transparent 40%,transparent 48%,#bf00ff 53%,#fff 56%,#bf00ff 59%,transparent 64%);background-size:200% 100%;animation:l93 4s linear infinite}
+  @keyframes l93{0%{background-position:200% 0}100%{background-position:0% 0}}
+  .l94{height:2px;background:linear-gradient(90deg,#00ff88,#00d4ff,#bf00ff);background-size:300% 100%;animation:l94 2s linear infinite;box-shadow:0 0 8px rgba(0,255,136,0.2)}
+  @keyframes l94{0%{background-position:0% 0}100%{background-position:300% 0}}
+  .l95{height:2px;background:transparent}
+  .l95::before{content:'';position:absolute;left:0;right:0;top:50%;height:2px;transform:translateY(-50%);background:linear-gradient(90deg,transparent,#00ff88 10%,transparent 20%,transparent 30%,#00d4ff 40%,transparent 50%,transparent 60%,#bf00ff 70%,transparent 80%);background-size:200% 100%;animation:l95 3s linear infinite}
+  @keyframes l95{0%{background-position:200% 0}100%{background-position:0% 0}}
+  .l96{height:3px;background:linear-gradient(90deg,#00ff88,#fff);box-shadow:0 0 10px #00ff88,0 0 20px rgba(0,255,136,0.2);animation:l96 1.5s ease-in-out infinite}
+  @keyframes l96{0%,100%{opacity:0.6}50%{opacity:1}}
+  .l97{height:2px;background:transparent}
+  .l97::before{content:'';position:absolute;left:0;right:0;top:50%;height:2px;transform:translateY(-50%);background:linear-gradient(90deg,transparent,#00ff88 5%,#00d4ff 15%,#bf00ff 25%,#ff00ff 35%,#bf00ff 45%,#00d4ff 55%,#00ff88 65%,transparent 75%);background-size:300% 100%;animation:l97 5s linear infinite}
+  @keyframes l97{0%{background-position:0% 0}100%{background-position:300% 0}}
+  .l98{height:2px;background:linear-gradient(90deg,#00ff88,#00d4ff,#bf00ff,#ff00ff);background-size:400% 100%;animation:l98 3s linear infinite;box-shadow:0 0 6px rgba(0,255,136,0.15)}
+  @keyframes l98{0%{background-position:0% 0}100%{background-position:400% 0}}
+  .l99{height:2px;background:transparent}
+  .l99::before{content:'';position:absolute;left:0;right:0;top:50%;height:2px;transform:translateY(-50%);background:linear-gradient(90deg,transparent,#00ff88 3%,#fff 5%,#00ff88 7%,transparent 10%,transparent 13%,#00d4ff 16%,#fff 18%,#00d4ff 20%,transparent 23%);background-size:300% 100%;animation:l99 2s linear infinite}
+  @keyframes l99{0%{background-position:300% 0}100%{background-position:0% 0}}
+  .l100{height:3px;background:conic-gradient(from 0deg,#00ff88,#00d4ff,#bf00ff,#ff00ff,#bf00ff,#00d4ff,#00ff88);background-size:200% 100%;animation:l100 3s linear infinite;border-radius:1.5px;box-shadow:0 0 10px rgba(0,255,136,0.2)}
+  @keyframes l100{0%{background-position:0% 0}100%{background-position:200% 0}}
+
+  /* --- FLOWING EXTRA (101-130) --- */
+  .l101{height:2px;background:linear-gradient(90deg,transparent,#00ff88 10%,#00d4ff 30%,#bf00ff 50%,#00d4ff 70%,#00ff88 90%,transparent);background-size:300% 100%;animation:l101 3s linear infinite}
+  @keyframes l101{0%{background-position:300% 0}100%{background-position:0% 0}}
+  .l102{height:2px;background:transparent}
+  .l102::before{content:'';position:absolute;left:0;right:0;top:50%;height:2px;transform:translateY(-50%);background:linear-gradient(90deg,transparent,#00ff88 5%,transparent 10%,#00d4ff 15%,transparent 20%,#bf00ff 25%,transparent 30%,#ff00ff 35%,transparent 40%,#bf00ff 45%,transparent 50%,#00d4ff 55%,transparent 60%,#00ff88 65%,transparent 70%);background-size:400% 100%;animation:l102 4s linear infinite}
+  @keyframes l102{0%{background-position:400% 0}100%{background-position:0% 0}}
+  .l103{height:2px;background:linear-gradient(90deg,#00ff88,#00d4ff,#bf00ff,#ff00ff,#bf00ff,#00d4ff,#00ff88);background-size:600% 100%;animation:l103 6s linear infinite}
+  @keyframes l103{0%{background-position:0% 0}100%{background-position:600% 0}}
+  .l104{height:2px;background:transparent}
+  .l104::before{content:'';position:absolute;left:0;right:0;top:50%;height:2px;transform:translateY(-50%);background:linear-gradient(90deg,transparent,#00ff88 3%,#fff 5%,#00ff88 7%,transparent 10%,transparent 13%,#00d4ff 16%,#fff 18%,#00d4ff 20%,transparent 23%,transparent 26%,#bf00ff 29%,#fff 31%,#bf00ff 33%,transparent 36%);background-size:300% 100%;animation:l104 3s linear infinite}
+  @keyframes l104{0%{background-position:300% 0}100%{background-position:0% 0}}
+  .l105{height:3px;background:linear-gradient(90deg,#00ff88,#00d4ff,#bf00ff);background-size:200% 100%;animation:l105 2s linear infinite;box-shadow:0 0 12px rgba(0,255,136,0.2),0 0 24px rgba(0,212,255,0.1)}
+  @keyframes l105{0%{background-position:0% 0}100%{background-position:200% 0}}
+  .l106{height:2px;background:transparent}
+  .l106::before{content:'';position:absolute;left:0;right:0;top:50%;height:2px;transform:translateY(-50%);background:linear-gradient(90deg,transparent,#00ff88 8%,#00d4ff 16%,#bf00ff 24%,#ff00ff 32%,#bf00ff 40%,#00d4ff 48%,#00ff88 56%,transparent 64%,transparent 72%,#00ff88 80%,#00d4ff 88%,transparent 96%);background-size:400% 100%;animation:l106 5s linear infinite}
+  @keyframes l106{0%{background-position:400% 0}100%{background-position:0% 0}}
+  .l107{height:2px;background:linear-gradient(90deg,transparent,#00ff88 15%,#fff 20%,#00ff88 25%,transparent 35%,transparent 45%,#00d4ff 55%,#fff 60%,#00d4ff 65%,transparent 75%);background-size:200% 100%;animation:l107 3s ease-in-out infinite}
+  @keyframes l107{0%{background-position:200% 0}100%{background-position:0% 0}}
+  .l108{height:2px;background:transparent}
+  .l108::before{content:'';position:absolute;left:0;right:0;top:50%;height:2px;transform:translateY(-50%);background:linear-gradient(90deg,transparent 0%,#00ff88 5%,transparent 10%,transparent 15%,#00d4ff 20%,transparent 25%,transparent 30%,#bf00ff 35%,transparent 40%,transparent 45%,#ff00ff 50%,transparent 55%,transparent 60%,#bf00ff 65%,transparent 70%,transparent 75%,#00d4ff 80%,transparent 85%,transparent 90%,#00ff88 95%,transparent 100%);background-size:500% 100%;animation:l108 5s linear infinite}
+  @keyframes l108{0%{background-position:500% 0}100%{background-position:0% 0}}
+  .l109{height:2px;background:linear-gradient(90deg,#00ff88,#00d4ff,#bf00ff,#ff00ff,#ff6b9d,#ff00ff,#bf00ff,#00d4ff,#00ff88);background-size:800% 100%;animation:l109 8s linear infinite}
+  @keyframes l109{0%{background-position:0% 0}100%{background-position:800% 0}}
+  .l110{height:2px;background:transparent}
+  .l110::before{content:'';position:absolute;left:0;right:0;top:50%;height:3px;transform:translateY(-50%);background:linear-gradient(90deg,transparent,#00ff88 5%,#00d4ff 15%,#bf00ff 25%,#ff00ff 35%,#ff6b9d 45%,#ff00ff 55%,#bf00ff 65%,#00d4ff 75%,#00ff88 85%,transparent 95%);background-size:300% 100%;animation:l110 4s linear infinite}
+  @keyframes l110{0%{background-position:300% 0}100%{background-position:0% 0}}
+  .l111{height:2px;background:linear-gradient(90deg,transparent,#00ff88 20%,transparent 40%,#00d4ff 60%,transparent 80%);background-size:200% 100%;animation:l111 2s linear infinite}
+  @keyframes l111{0%{background-position:200% 0}100%{background-position:0% 0}}
+  .l112{height:2px;background:transparent}
+  .l112::before{content:'';position:absolute;left:0;right:0;top:50%;height:2px;transform:translateY(-50%);background:linear-gradient(90deg,transparent,#00ff88 10%,#fff 15%,#00ff88 20%,transparent 30%,transparent 40%,#00d4ff 50%,#fff 55%,#00d4ff 60%,transparent 70%);background-size:300% 100%;animation:l112 3s linear infinite}
+  @keyframes l112{0%{background-position:300% 0}100%{background-position:0% 0}}
+  .l113{height:2px;background:linear-gradient(90deg,#00ff88,#00d4ff,#00ff88);background-size:200% 100%;animation:l113 1.5s linear infinite}
+  @keyframes l113{0%{background-position:0% 0}100%{background-position:200% 0}}
+  .l114{height:2px;background:transparent}
+  .l114::before{content:'';position:absolute;left:0;right:0;top:50%;height:2px;transform:translateY(-50%);background:linear-gradient(90deg,transparent,#00ff88 5%,transparent 8%,transparent 12%,#00d4ff 15%,transparent 18%,transparent 22%,#bf00ff 25%,transparent 28%,transparent 32%,#ff00ff 35%,transparent 38%);background-size:300% 100%;animation:l114 3s linear infinite}
+  @keyframes l114{0%{background-position:300% 0}100%{background-position:0% 0}}
+  .l115{height:2px;background:linear-gradient(90deg,transparent,#00ff88 25%,#fff 30%,#00ff88 35%,transparent 50%,transparent 65%,#00d4ff 70%,#fff 75%,#00d4ff 80%,transparent 95%);background-size:200% 100%;animation:l115 2.5s linear infinite}
+  @keyframes l115{0%{background-position:200% 0}100%{background-position:0% 0}}
+  .l116{height:2px;background:linear-gradient(90deg,#00ff88,#00d4ff,#bf00ff,#ff00ff,#bf00ff,#00d4ff);background-size:500% 100%;animation:l116 5s linear infinite}
+  @keyframes l116{0%{background-position:0% 0}100%{background-position:500% 0}}
+  .l117{height:2px;background:transparent}
+  .l117::before{content:'';position:absolute;left:0;right:0;top:50%;height:2px;transform:translateY(-50%);background:linear-gradient(90deg,transparent,#00ff88 4%,#00d4ff 8%,#bf00ff 12%,#ff00ff 16%,#bf00ff 20%,#00d4ff 24%,#00ff88 28%,transparent 32%,transparent 36%,#00ff88 40%,#00d4ff 44%,#bf00ff 48%,#ff00ff 52%,#bf00ff 56%,#00d4ff 60%,#00ff88 64%,transparent 68%);background-size:500% 100%;animation:l117 6s linear infinite}
+  @keyframes l117{0%{background-position:500% 0}100%{background-position:0% 0}}
+  .l118{height:2px;background:linear-gradient(90deg,transparent,#00ff88 10%,#00d4ff 20%,#bf00ff 30%,#ff00ff 40%,#bf00ff 50%,#00d4ff 60%,#00ff88 70%,transparent 80%);background-size:200% 100%;animation:l118 3s linear infinite}
+  @keyframes l118{0%{background-position:200% 0}100%{background-position:0% 0}}
+  .l119{height:2px;background:linear-gradient(90deg,#00ff88,#00d4ff,#bf00ff);background-size:300% 100%;animation:l119 2s linear infinite;box-shadow:0 0 8px rgba(0,255,136,0.15),0 0 16px rgba(0,212,255,0.08)}
+  @keyframes l119{0%{background-position:0% 0}100%{background-position:300% 0}}
+  .l120{height:2px;background:transparent}
+  .l120::before{content:'';position:absolute;left:0;right:0;top:50%;height:2px;transform:translateY(-50%);background:linear-gradient(90deg,transparent,#00ff88 3%,#fff 5%,#00ff88 7%,transparent 10%,transparent 20%,#00d4ff 23%,#fff 25%,#00d4ff 27%,transparent 30%,transparent 40%,#bf00ff 43%,#fff 45%,#bf00ff 47%,transparent 50%,transparent 60%,#ff00ff 63%,#fff 65%,#ff00ff 67%,transparent 70%);background-size:400% 100%;animation:l120 5s linear infinite}
+  @keyframes l120{0%{background-position:400% 0}100%{background-position:0% 0}}
+</style>
+</head>
+<body>
+<h1>NEXUS LINK STYLES</h1>
+<p class="subtitle">// 130 АНИМИРОВАННЫХ СТИЛЕЙ СВЯЗЕЙ — ВЫБЕРИ КАКАЯ ЛИНИЯ СОЕДИНЯЕТ ИДЕИ</p>
+
+<div class="cat">БАЗОВЫЕ (1-10)</div>
+<div class="grid" id="g1"></div>
+<div class="cat">СВЕЧЕНИЕ (11-20)</div>
+<div class="grid" id="g2"></div>
+<div class="cat">АНИМАЦИЯ (21-40)</div>
+<div class="grid" id="g3"></div>
+<div class="cat">ЧАСТИЦЫ (41-60)</div>
+<div class="grid" id="g4"></div>
+<div class="cat">СПЕЦИАЛЬНЫЕ (61-80)</div>
+<div class="grid" id="g5"></div>
+<div class="cat">УЛЬТИМАТИВНЫЕ (81-100)</div>
+<div class="grid" id="g6"></div>
+<div class="cat">ПОТОКОВЫЕ (101-130)</div>
+<div class="grid" id="g7"></div>
+
+<script>
+const all = [
+  {s:'l1',n:'Неон'},{s:'l2',n:'Пунктир'},{s:'l3',n:'Точки'},{s:'l4',n:'Градиент'},{s:'l5',n:'Пульсация'},
+  {s:'l6',n:'Поток'},{s:'l7',n:'Электричество'},{s:'l8',n:'Волна'},{s:'l9',n:'Цепь'},{s:'l10',n:'Луч'},
+  {s:'l11',n:'Двойная'},{s:'l12',n:'Толстое свечение'},{s:'l13',n:'Пунктир+свечение'},{s:'l14',n:'Градиент-поток'},{s:'l15',n:'Точки+свечение'},
+  {s:'l16',n:'Розовый неон'},{s:'l17',n:'Голубой неон'},{s:'l18',n:'Оранжевый неон'},{s:'l19',n:'Фиолетовый неон'},{s:'l20',n:'Полосатая'},
+  {s:'l21',n:'Крест-накрест'},{s:'l22',n:'Сканлайн'},{s:'l23',n:'Дыхание'},{s:'l24',n:'Зигзаг'},{s:'l25',n:'Бегущая точка'},
+  {s:'l26',n:'Множество точек'},{s:'l27',n:'Огонь'},{s:'l28',n:'Лёд'},{s:'l29',n:'Матрица'},{s:'l30',n:'Пружина'},
+  {s:'l31',n:'ДНК'},{s:'l32',n:'Магнитное поле'},{s:'l33',n:'Лента'},{s:'l34',n:'Провод'},{s:'l35',n:'Плазма'},
+  {s:'l36',n:'Поток данных'},{s:'l37',n:'Пульс-волна'},{s:'l38',n:'Спектр'},{s:'l39',n:'Тазер'},{s:'l40',n:'Волна-пульс'},
+  {s:'l41',n:'Дыхание+свечение'},{s:'l42',n:'Двойной шар'},{s:'l43',n:'Шар'},{s:'l44',n:'Мульти-шар'},{s:'l45',n:'Волна-масштаб'},
+  {s:'l46',n:'Мерцание'},{s:'l47',n:'Радужный поток'},{s:'l48',n:'Двойной конец'},{s:'l49',n:'Затвор'},{s:'l50',n:'Стробоскоп'},
+  {s:'l51',n:'Пламя'},{s:'l52',n:'Яркий'},{s:'l53',n:'Бегущий градиент'},{s:'l54',n:'Фиолетовые полосы'},{s:'l55',n:'Радужная'},
+  {s:'l56',n:'Прогресс-бар'},{s:'l57',n:'Масштаб-волна'},{s:'l58',n:'Поперечная волна'},{s:'l59',n:'Слайдер'},{s:'l60',n:'Мульти-волна'},
+  {s:'l61',n:'Хвост кометы'},{s:'l62',n:'Пульс-градиент'},{s:'l63',n:'Раскрытие'},{s:'l64',n:'Тряска'},{s:'l65',n:'Тройной поток'},
+  {s:'l66',n:'Вспышка'},{s:'l67',n:'Тройной градиент'},{s:'l68',n:'Строб'},{s:'l69',n:'Двойной поток'},{s:'l70',n:'Кометный хвост'},
+  {s:'l71',n:'Пульс-яркость'},{s:'l72',n:'Полный спектр'},{s:'l73',n:'Качели'},{s:'l74',n:'Мульти-точки'},{s:'l75',n:'Масштаб-центр'},
+  {s:'l76',n:'Полная радуга'},{s:'l77',n:'Быстрый поток'},{s:'l78',n:'Пульс-масштаб'},{s:'l79',n:'Контуры'},{s:'l80',n:'Комета'},
+  {s:'l81',n:'Двойной градиент'},{s:'l82',n:'Зелёный-фиолетовый'},{s:'l83',n:'Раскрытие-волна'},{s:'l84',n:'Покачивание'},{s:'l85',n:'Полный спектр-поток'},
+  {s:'l86',n:'Бегущий белый'},{s:'l87',n:'Тройные точки'},{s:'l88',n:'Супер-радуга'},{s:'l89',n:'Двойные кометы'},{s:'l90',n:'Боковой сдвиг'},
+  {s:'l91',n:'Четверной поток'},{s:'l92',n:'Пульс-градиент-2'},{s:'l93',n:'Тройные кометы'},{s:'l94',n:'Тройной градиент-2'},{s:'l95',n:'Мульти-градиент'},
+  {s:'l96',n:'Яркий луч'},{s:'l97',n:'Полный спектр-2'},{s:'l98',n:'Четверной градиент'},{s:'l99',n:'Двойные точки-2'},{s:'l100',n:'Конический градиент'},
+  {s:'l101',n:'Поток-спектр'},{s:'l102',n:'Мульти-волна-2'},{s:'l103',n:'Супер-поток'},{s:'l104',n:'Тройные кометы-2'},{s:'l105',n:'Тройной градиент-3'},
+  {s:'l106',n:'Семи-волна'},{s:'l107',n:'Пульс-волна-2'},{s:'l108',n:'Мульти-точки-2'},{s:'l109',n:'Девяти-спектр'},{s:'l110',n:'Полный спектр-3'},
+  {s:'l111',n:'Двойной поток-2'},{s:'l112',n:'Двойные кометы-2'},{s:'l113',n:'Зелёный-голубой'},{s:'l114',n:'Четверные точки'},{s:'l115',n:'Тройной поток-2'},
+  {s:'l116',n:'Пяти-градиент'},{s:'l117',n:'Семи-градиент'},{s:'l118',n:'Восьми-спектр'},{s:'l119',n:'Тройной градиент-4'},{s:'l120',n:'Четверные кометы'},
+];
+
+const groups = [
+  {id:'g1', items:all.slice(0,10)},
+  {id:'g2', items:all.slice(10,20)},
+  {id:'g3', items:all.slice(20,40)},
+  {id:'g4', items:all.slice(40,60)},
+  {id:'g5', items:all.slice(60,80)},
+  {id:'g6', items:all.slice(80,100)},
+  {id:'g7', items:all.slice(100,130)},
+];
+
+function card(item) {
+  return `<div class="card"><div class="preview"><div class="node l"></div><div class="link ${item.s}"></div><div class="node r"></div></div><div class="label">${item.n}</div><button class="pick-btn" onclick="pick(this,'${item.s}')">ВЫБРАТЬ</button></div>`;
+}
+
+groups.forEach(g => { document.getElementById(g.id).innerHTML = g.items.map(card).join(''); });
+
+function pick(btn, cls) {
+  document.querySelectorAll('.pick-btn').forEach(b => { b.textContent = 'ВЫБРАТЬ'; b.classList.remove('sel'); });
+  btn.textContent = '✓ ВЫБРАНО';
+  btn.classList.add('sel');
+}
+</script>
+</body>
+</html>

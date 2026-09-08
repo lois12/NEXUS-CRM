@@ -1,0 +1,34 @@
+<svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="fav-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00ff88" />
+      <stop offset="100%" stop-color="#00d4ff" />
+    </linearGradient>
+    <linearGradient id="fav-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0d0d15" />
+      <stop offset="100%" stop-color="#0a0a0f" />
+    </linearGradient>
+  </defs>
+
+  <!-- Rounded square background -->
+  <rect width="48" height="48" rx="10" fill="url(#fav-bg)" />
+  <rect x="1" y="1" width="46" height="46" rx="9" stroke="url(#fav-grad)" stroke-width="0.5" fill="none" opacity="0.3" />
+
+  <!-- Hexagon -->
+  <polygon
+    points="24,6 40,15 40,33 24,42 8,33 8,15"
+    stroke="url(#fav-grad)"
+    stroke-width="1.5"
+    fill="none"
+  />
+
+  <!-- N letter - clean geometric -->
+  <path
+    d="M16 34V14L32 34V14"
+    stroke="url(#fav-grad)"
+    stroke-width="2.5"
+    stroke-linecap="square"
+    stroke-linejoin="miter"
+    fill="none"
+  />
+</svg>

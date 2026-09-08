@@ -1,0 +1,23 @@
+node_modules/
+dist/
+.env
+*.log
+uploads/
+*.db
+*.db.bak
+launcher-settings.json
+.vscode/
+.mimocode/
+1/
+*.glb
+*.png
+*.jpg
+check.py
+giga.txt
+ai.txt
+api tail.txt
+cyberpunk-nodes.css
+earth-info.json
+NEXUS LAUNCHER.bat
+NEXUS LAUNCHER.vbs
+server/models/

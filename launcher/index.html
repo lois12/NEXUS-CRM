@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NEXUS LAUNCHER</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --primary: #00ff88;
+      --primary-dim: rgba(0, 255, 136, 0.15);
+      --glow: rgba(0, 255, 136, 0.3);
+      --bg: #0a0a0f;
+      --border: rgba(0, 255, 136, 0.12);
+      --text: #e0e0e0;
+      --text-dim: #6b7280;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: transparent;
+      color: var(--text);
+      overflow: hidden;
+      user-select: none;
+    }
+
+    .window {
+      width: 560px; height: 100vh;
+      background: var(--bg);
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      overflow: hidden;
+      position: relative;
+      display: flex; flex-direction: column;
+      box-shadow: 0 0 40px rgba(0,0,0,0.6), 0 0 80px rgba(0,255,136,0.05);
+    }
+
+    .window::before {
+      content: '';
+      position: absolute; inset: 0;
+      background-image: linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px);
+      background-size: 40px 40px; opacity: 0.3; pointer-events: none;
+    }
+
+    /* ── Titlebar ── */
+    .titlebar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 14px;
+      background: rgba(10, 10, 15, 0.95);
+      border-bottom: 1px solid var(--border);
+      -webkit-app-region: drag; position: relative; z-index: 10; flex-shrink: 0;
+    }
+    .titlebar-left { display: flex; align-items: center; gap: 8px; }
+    .titlebar-icon { width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; }
+    .titlebar-icon svg { width: 16px; height: 16px; color: var(--primary); filter: drop-shadow(0 0 6px var(--glow)); }
+    .titlebar-title {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px; font-weight: 600;
+      color: var(--primary); letter-spacing: 0.1em;
+      text-shadow: 0 0 10px var(--glow);
+    }
+    .titlebar-controls { display: flex; gap: 6px; -webkit-app-region: no-drag; }
+    .titlebar-btn {
+      width: 26px; height: 26px; border-radius: 6px;
+      border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03);
+      color: var(--text-dim); cursor: pointer;
+      display: flex; align-items: center; justify-content: center; transition: all 0.15s;
+    }
+    .titlebar-btn:hover { background: rgba(255,255,255,0.08); color: var(--text); }
+    .titlebar-btn.close:hover { background: rgba(255,59,48,0.2); color: #ff3b30; border-color: rgba(255,59,48,0.3); }
+    .titlebar-btn svg { width: 12px; height: 12px; }
+
+    /* ── Content ── */
+    .content {
+      padding: 14px; position: relative; z-index: 5;
+      display: flex; flex-direction: column; gap: 10px;
+      flex: 1; min-height: 0; overflow: hidden;
+    }
+
+    /* ── Logo ── */
+    .logo-section { text-align: center; padding: 4px 0 2px; flex-shrink: 0; }
+    .logo-icon {
+      width: 40px; height: 40px; margin: 0 auto 8px;
+      border-radius: 10px; display: flex; align-items: center; justify-content: center; position: relative;
+    }
+    .logo-icon::before {
+      content: ''; position: absolute; inset: -2px;
+      border-radius: inherit; padding: 2px;
+      background: linear-gradient(135deg, var(--primary), #00d4ff, #bf00ff, var(--primary));
+      background-size: 300% 100%; animation: border-flow 3s linear infinite;
+      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor; mask-composite: exclude;
+    }
+    @keyframes border-flow { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+    .logo-icon svg { width: 20px; height: 20px; color: var(--primary); filter: drop-shadow(0 0 10px var(--glow)); }
+    .logo-title {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 20px; font-weight: 700; color: var(--primary);
+      letter-spacing: 0.15em; text-shadow: 0 0 20px var(--glow), 0 0 40px var(--glow); margin-bottom: 1px;
+    }
+    .logo-sub { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--text-dim); letter-spacing: 0.2em; }
+
+    /* ── Glass ── */
+    .glass {
+      background: linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01));
+      backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 10px; padding: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); flex-shrink: 0;
+    }
+
+    /* ── Server cards ── */
+    .server-cards { display: flex; gap: 8px; flex-shrink: 0; }
+    .server-card { flex: 1; display: flex; align-items: center; gap: 8px; transition: all 0.2s; }
+    .server-card:hover { border-color: var(--border); box-shadow: 0 0 15px var(--primary-dim); }
+
+    .server-icon {
+      width: 32px; height: 32px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .server-icon svg { width: 16px; height: 16px; }
+    .server-icon.backend { background: rgba(0,212,255,0.1); border: 1px solid rgba(0,212,255,0.2); }
+    .server-icon.backend svg { color: #00d4ff; }
+    .server-icon.frontend { background: rgba(191,0,255,0.1); border: 1px solid rgba(191,0,255,0.2); }
+    .server-icon.frontend svg { color: #bf00ff; }
+
+    .server-info { flex: 1; min-width: 0; }
+    .server-name { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; color: var(--text); }
+    .server-meta { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--text-dim); }
+    .server-uptime { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--primary); opacity: 0.7; }
+
+    .server-status {
+      display: flex; align-items: center; gap: 4px;
+      font-family: 'JetBrains Mono', monospace; font-size: 9px;
+      padding: 2px 7px; border-radius: 10px; flex-shrink: 0;
+    }
+    .status-dot { width: 5px; height: 5px; border-radius: 50%; }
+    .server-status.stopped { background: rgba(107,114,128,0.15); color: #6b7280; }
+    .server-status.stopped .status-dot { background: #6b7280; }
+    .server-status.starting { background: rgba(234,179,8,0.15); color: #eab308; }
+    .server-status.starting .status-dot { background: #eab308; animation: pulse 1s ease-in-out infinite; }
+    .server-status.building { background: rgba(0,212,255,0.15); color: #00d4ff; }
+    .server-status.building .status-dot { background: #00d4ff; animation: pulse 0.8s ease-in-out infinite; }
+    .server-status.running { background: rgba(0,255,136,0.1); color: var(--primary); }
+    .server-status.running .status-dot { background: var(--primary); box-shadow: 0 0 6px var(--glow); }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+    /* ── Buttons ── */
+    .actions { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr 1fr; gap: 6px; flex-shrink: 0; }
+    .actions .btn-full { grid-column: 1 / -1; }
+    .btn {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px; font-weight: 600; letter-spacing: 0.05em;
+      padding: 8px 10px; border-radius: 8px; border: none; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 5px; transition: all 0.2s;
+    }
+    .btn svg { width: 12px; height: 12px; }
+    .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+    .btn-primary { background: var(--primary); color: #000; box-shadow: 0 0 15px var(--primary-dim); }
+    .btn-primary:hover:not(:disabled) { box-shadow: 0 0 25px var(--glow); transform: translateY(-1px); }
+    .btn-secondary { background: rgba(255,255,255,0.05); color: var(--text); border: 1px solid rgba(255,255,255,0.08); }
+    .btn-secondary:hover:not(:disabled) { background: rgba(255,255,255,0.08); }
+    .btn-danger { background: rgba(255,59,48,0.1); color: #ff3b30; border: 1px solid rgba(255,59,48,0.2); }
+    .btn-danger:hover:not(:disabled) { background: rgba(255,59,48,0.2); }
+    .btn-full { grid-column: 1 / -1; }
+    .btn-ghost {
+      background: none; border: 1px solid rgba(255,255,255,0.06);
+      color: var(--text-dim); font-size: 9px; padding: 4px 8px;
+    }
+    .btn-ghost:hover:not(:disabled) { background: rgba(255,255,255,0.05); color: var(--text); }
+
+    /* ── Quick links ── */
+    .quick-links { display: flex; gap: 4px; flex-shrink: 0; flex-wrap: wrap; }
+    .quick-link {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px; color: var(--text-dim);
+      background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 6px; padding: 4px 8px;
+      cursor: pointer; transition: all 0.15s;
+      display: flex; align-items: center; gap: 4px;
+    }
+    .quick-link:hover { background: rgba(255,255,255,0.06); color: var(--text); border-color: rgba(255,255,255,0.12); }
+    .quick-link svg { width: 10px; height: 10px; }
+
+    /* ── Settings row ── */
+    .settings-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 6px 10px; border-radius: 8px;
+      background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04);
+      flex-shrink: 0;
+    }
+    .settings-row label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px; color: var(--text-dim); cursor: pointer;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .settings-row input[type="checkbox"] {
+      accent-color: var(--primary); width: 14px; height: 14px; cursor: pointer;
+    }
+
+    /* ── DB info ── */
+    .db-info {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px; color: var(--text-dim);
+      display: flex; align-items: center; gap: 4px;
+    }
+    .db-info .size { color: var(--primary); opacity: 0.8; }
+
+    /* ── Log area ── */
+    .log-section { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+    .log-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 4px; flex-shrink: 0;
+    }
+    .log-title {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px; color: var(--primary); letter-spacing: 0.1em;
+      display: flex; align-items: center; gap: 4px;
+    }
+    .log-title svg { width: 10px; height: 10px; }
+    .log-controls { display: flex; gap: 3px; align-items: center; }
+    .log-tab {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 8px; font-weight: 600; color: var(--text-dim);
+      background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 3px; padding: 2px 5px; cursor: pointer; transition: all 0.15s;
+    }
+    .log-tab:hover { background: rgba(255,255,255,0.06); color: var(--text); }
+    .log-tab.active { background: var(--primary-dim); color: var(--primary); border-color: var(--border); }
+    .log-clear {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 8px; color: var(--text-dim); background: none; border: none;
+      cursor: pointer; padding: 2px 4px; border-radius: 3px; transition: all 0.15s;
+    }
+    .log-clear:hover { color: var(--text); background: rgba(255,255,255,0.05); }
+
+    .log-area {
+      background: rgba(0,0,0,0.45); border: 1px solid rgba(255,255,255,0.04);
+      border-radius: 6px; padding: 6px 8px;
+      flex: 1; min-height: 0; overflow-y: auto;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px; line-height: 1.5; color: var(--text-dim);
+      word-break: break-all; overflow-wrap: break-word; white-space: pre-wrap;
+    }
+    .log-area::-webkit-scrollbar { width: 3px; }
+    .log-area::-webkit-scrollbar-thumb { background: var(--primary); opacity: 0.3; border-radius: 2px; }
+    .log-line { padding: 1px 0; }
+    .log-line .time { color: #4a4a60; margin-right: 3px; }
+    .log-line.info { color: #60a5fa; }
+    .log-line.success { color: var(--primary); }
+    .log-line.error { color: #ff3b30; }
+    .log-line.warn { color: #eab308; }
+    .log-line.system { color: #a78bfa; }
+
+    /* ── Footer ── */
+    .footer {
+      display: flex; align-items: center; justify-content: space-between;
+      padding-top: 6px; border-top: 1px solid rgba(255,255,255,0.04); flex-shrink: 0;
+    }
+    .footer-link {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px; color: var(--text-dim); text-decoration: none; cursor: pointer;
+      display: flex; align-items: center; gap: 3px; padding: 3px 6px; border-radius: 5px;
+      transition: all 0.15s;
+    }
+    .footer-link:hover { color: var(--primary); background: var(--primary-dim); }
+    .footer-link svg { width: 10px; height: 10px; }
+
+    .hotkey-hint {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 8px; color: #3a3a50; letter-spacing: 0.05em;
+    }
+
+    /* ── Scanline ── */
+    .scanline {
+      position: absolute; inset: 0; z-index: 100; pointer-events: none; overflow: hidden;
+    }
+    .scanline::before {
+      content: ''; position: absolute; left: 0; right: 0; height: 2px;
+      background: linear-gradient(90deg, transparent, var(--primary), transparent);
+      box-shadow: 0 0 10px var(--primary), 0 0 20px var(--glow);
+      animation: sweep 1.5s ease-out forwards;
+    }
+    @keyframes sweep { 0% { top: -2px; opacity: 1; } 100% { top: 100%; opacity: 0; } }
+
+    /* ── Kill port button ── */
+    .port-warning {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px; color: #eab308;
+      display: none; align-items: center; gap: 6px;
+      padding: 6px 10px; border-radius: 6px;
+      background: rgba(234,179,8,0.08); border: 1px solid rgba(234,179,8,0.15);
+      flex-shrink: 0;
+    }
+    .port-warning.visible { display: flex; }
+
+    .resize-handle {
+      position: absolute; bottom: 0; right: 0; width: 14px; height: 14px;
+      cursor: nwse-resize; z-index: 20;
+    }
+    .resize-handle::before {
+      content: ''; position: absolute; bottom: 3px; right: 3px;
+      width: 6px; height: 6px;
+      border-right: 2px solid rgba(255,255,255,0.12); border-bottom: 2px solid rgba(255,255,255,0.12);
+    }
+  </style>
+</head>
+<body>
+  <div class="window" id="window">
+    <div class="scanline" id="scanline"></div>
+
+    <!-- Titlebar -->
+    <div class="titlebar">
+      <div class="titlebar-left">
+        <div class="titlebar-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        </div>
+        <span class="titlebar-title">NEXUS LAUNCHER</span>
+      </div>
+      <div class="titlebar-controls">
+        <button class="titlebar-btn" id="btn-min" title="Свернуть">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+        <button class="titlebar-btn close" id="btn-close" title="Закрыть (свернуть в трей)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="content">
+      <!-- Logo -->
+      <div class="logo-section">
+        <div class="logo-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        </div>
+        <div class="logo-title">NEXUS</div>
+        <div class="logo-sub">CRM // LAUNCHER</div>
+      </div>
+
+      <!-- Server Card -->
+      <div class="server-cards">
+        <div class="glass server-card">
+          <div class="server-icon backend">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+          </div>
+          <div class="server-info">
+            <div class="server-name">NEXUS CRM</div>
+            <div class="server-meta">:8080</div>
+            <div class="server-uptime" id="be-uptime"></div>
+          </div>
+          <div class="server-status stopped" id="backend-status">
+            <span class="status-dot"></span>
+            <span id="backend-status-text">OFFLINE</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Port warning -->
+      <div class="port-warning" id="port-warning">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <span id="port-warning-text">Порт занят</span>
+        <button class="btn-ghost" id="btn-kill-port">ОСВОБОДИТЬ</button>
+      </div>
+
+      <!-- Actions -->
+      <div class="actions">
+        <button class="btn btn-primary" id="btn-start-all">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          ЗАПУСК
+        </button>
+        <button class="btn btn-danger" id="btn-stop-all">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>
+          СТОП
+        </button>
+        <button class="btn btn-secondary" id="btn-restart">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+          РЕСТАРТ
+        </button>
+        <button class="btn btn-secondary" id="btn-build-fe" title="Пересобрать фронтенд">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          FE
+        </button>
+        <button class="btn btn-secondary" id="btn-build-be" title="Пересобрать бэкенд">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+          BE
+        </button>
+        <button class="btn btn-secondary btn-full" id="btn-open" disabled>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          ОТКРЫТЬ В БРАУЗЕРЕ
+        </button>
+      </div>
+
+      <!-- Quick links -->
+      <div class="quick-links">
+        <button class="quick-link" id="ql-uploads" title="Папка uploads">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+          uploads
+        </button>
+        <button class="quick-link" id="ql-db" title="Файл базы данных">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+          nexus.db <span class="db-info"><span class="size" id="db-size">—</span></span>
+        </button>
+        <button class="quick-link" id="ql-editor" title="Открыть в редакторе">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          VS Code
+        </button>
+      </div>
+
+      <!-- Settings -->
+      <div class="settings-row">
+        <label><input type="checkbox" id="chk-autostart"> Автозапуск серверов</label>
+        <label><input type="checkbox" id="chk-tray" checked> Сворачивать в трей</label>
+      </div>
+
+      <!-- Logs -->
+      <div class="log-section">
+        <div class="log-header">
+          <div class="log-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+            // LOG
+          </div>
+          <div class="log-controls">
+            <button class="log-tab active" data-filter="all">ALL</button>
+            <button class="log-tab" data-filter="be">BE</button>
+            <button class="log-tab" data-filter="fe">FE</button>
+            <button class="log-tab" data-filter="error">ERR</button>
+            <button class="log-clear" id="btn-export-log" title="Экспорт лога">EXP</button>
+            <button class="log-clear" id="btn-clear-log">CLR</button>
+          </div>
+        </div>
+        <div class="log-area" id="log-area">
+          <div class="log-line system">// NEXUS LAUNCHER ИНИЦИАЛИЗИРОВАН</div>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="footer">
+        <a class="footer-link" id="link-app">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
+          localhost:8080
+        </a>
+        <span class="hotkey-hint">Ctrl+Shift+N — показать</span>
+        <span class="hotkey-hint">Ctrl+Enter — запуск</span>
+      </div>
+    </div>
+    <div class="resize-handle"></div>
+  </div>
+
+  <script>
+    const { ipcRenderer, shell } = require('electron');
+
+    // ── Elements ──
+    const backendStatus = document.getElementById('backend-status');
+    const backendStatusText = document.getElementById('backend-status-text');
+    const logArea = document.getElementById('log-area');
+    const btnOpen = document.getElementById('btn-open');
+    const beUptime = document.getElementById('be-uptime');
+    const dbSizeEl = document.getElementById('db-size');
+    const portWarning = document.getElementById('port-warning');
+    const portWarningText = document.getElementById('port-warning-text');
+
+    // ── State ──
+    let currentFilter = 'all';
+    let allLogs = [];
+    let settings = ipcRenderer.sendSync('get-settings');
+    let uptimeTimers = {};
+
+    // ── Init settings ──
+    document.getElementById('chk-autostart').checked = settings.autoStart || false;
+    document.getElementById('chk-tray').checked = settings.minimizeToTray !== false;
+
+    document.getElementById('chk-autostart').addEventListener('change', (e) => {
+      settings.autoStart = e.target.checked;
+      ipcRenderer.send('save-settings', settings);
+    });
+    document.getElementById('chk-tray').addEventListener('change', (e) => {
+      settings.minimizeToTray = e.target.checked;
+      ipcRenderer.send('save-settings', settings);
+    });
+
+    // ── Scanline ──
+    setTimeout(() => document.getElementById('scanline').style.display = 'none', 1600);
+
+    // ── Window ──
+    document.getElementById('btn-min').addEventListener('click', () => ipcRenderer.send('minimize-window'));
+    document.getElementById('btn-close').addEventListener('click', () => ipcRenderer.send('close-window'));
+
+    // ── Main buttons ──
+    document.getElementById('btn-start-all').addEventListener('click', () => {
+      ipcRenderer.send('start-all');
+      addLog('Запуск серверов...', 'system');
+    });
+    document.getElementById('btn-stop-all').addEventListener('click', () => {
+      ipcRenderer.send('stop-all');
+      addLog('Остановка серверов...', 'warn');
+    });
+    document.getElementById('btn-restart').addEventListener('click', () => {
+      ipcRenderer.send('restart-all');
+      addLog('Рестарт серверов...', 'system');
+    });
+    document.getElementById('btn-build-fe').addEventListener('click', () => {
+      ipcRenderer.send('build-frontend');
+      addLog('Сборка фронтенда...', 'system');
+    });
+    document.getElementById('btn-build-be').addEventListener('click', () => {
+      ipcRenderer.send('build-backend');
+      addLog('Сборка бэкенда...', 'system');
+    });
+    btnOpen.addEventListener('click', () => ipcRenderer.send('open-browser'));
+
+    // ── Quick links ──
+    document.getElementById('ql-uploads').addEventListener('click', () => ipcRenderer.send('open-uploads'));
+    document.getElementById('ql-db').addEventListener('click', () => ipcRenderer.send('open-db'));
+    document.getElementById('ql-editor').addEventListener('click', () => ipcRenderer.send('open-in-editor'));
+
+    // ── Footer links ──
+    document.getElementById('link-app').addEventListener('click', () => ipcRenderer.send('open-browser'));
+
+    // ── Log tabs ──
+    document.querySelectorAll('.log-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.log-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        currentFilter = tab.dataset.filter;
+        renderLogs();
+      });
+    });
+
+    document.getElementById('btn-clear-log').addEventListener('click', () => {
+      allLogs = [];
+      logArea.innerHTML = '<div class="log-line system">// LOG ОЧИЩЕН</div>';
+    });
+
+    // ── Export logs ──
+    document.getElementById('btn-export-log').addEventListener('click', () => {
+      const content = allLogs.map(l => `${l.time} [${l.source || 'SYS'}] ${l.text}`).join('\n');
+      ipcRenderer.invoke('export-logs', content).then(ok => {
+        if (ok) addLog('Лог сохранён', 'system');
+      });
+    });
+
+    // ── Hotkeys ──
+    document.addEventListener('keydown', (e) => {
+      if (e.ctrlKey && e.key === 'Enter') {
+        e.preventDefault();
+        ipcRenderer.send('start-all');
+        addLog('Запуск (Ctrl+Enter)', 'system');
+      }
+      if (e.ctrlKey && e.key === 'q') {
+        e.preventDefault();
+        ipcRenderer.send('stop-all');
+        addLog('Стоп (Ctrl+Q)', 'warn');
+      }
+      if (e.ctrlKey && e.key === 'r' && !e.shiftKey) {
+        e.preventDefault();
+        ipcRenderer.send('restart-all');
+        addLog('Рестарт (Ctrl+R)', 'system');
+      }
+    });
+
+    // ── Status ──
+    function updateStatus(el, textEl, status) {
+      el.className = 'server-status ' + status;
+      textEl.textContent = { stopped: 'OFFLINE', building: 'СБОРКА...', starting: 'ЗАПУСК...', running: 'ONLINE' }[status] || status;
+      checkBothRunning();
+    }
+
+    function checkBothRunning() {
+      const be = backendStatus.classList.contains('running');
+      btnOpen.disabled = !be;
+    }
+
+    ipcRenderer.on('backend-status', (_, s) => {
+      updateStatus(backendStatus, backendStatusText, s);
+      if (s === 'running') {
+        addLog('NEXUS CRM ONLINE', 'success', 'be');
+        startUptime('be');
+      }
+      if (s === 'building') {
+        addLog('Сборка фронтенда...', 'system', 'be');
+      }
+      if (s === 'stopped') {
+        addLog('NEXUS CRM OFFLINE', 'warn', 'be');
+        stopUptime('be');
+      }
+    });
+
+    // ── Auto-start trigger ──
+    ipcRenderer.on('auto-start-triggered', () => {
+      addLog('[SYSTEM] Автозапуск серверов...', 'system');
+    });
+
+    // ── Uptime ──
+    function startUptime(id) {
+      const el = id === 'be' ? beUptime : null;
+      if (!el) return;
+      // Clear any existing timer to prevent duplicates
+      if (uptimeTimers[id]) clearInterval(uptimeTimers[id]);
+      const start = Date.now();
+      uptimeTimers[id] = setInterval(() => {
+        const diff = Date.now() - start;
+        const h = Math.floor(diff / 3600000);
+        const m = Math.floor((diff % 3600000) / 60000);
+        const s = Math.floor((diff % 60000) / 1000);
+        el.textContent = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+      }, 1000);
+    }
+
+    function stopUptime(id) {
+      if (uptimeTimers[id]) {
+        clearInterval(uptimeTimers[id]);
+        delete uptimeTimers[id];
+      }
+      const el = id === 'be' ? beUptime : null;
+      if (el) el.textContent = '';
+    }
+
+    // ── DB size ──
+    function updateDbSize(bytes) {
+      if (bytes === 0) { dbSizeEl.textContent = '—'; return; }
+      const k = 1024;
+      const sizes = ['B', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      dbSizeEl.textContent = parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+    }
+
+    ipcRenderer.on('db-size-update', (_, bytes) => updateDbSize(bytes));
+
+    // Initial DB size
+    updateDbSize(ipcRenderer.sendSync('get-db-size'));
+
+    // ── Port kill ──
+    document.getElementById('btn-kill-port').addEventListener('click', async () => {
+      const port = 8080;
+      addLog(`Освобождение порта ${port}...`, 'warn');
+      const ok = await ipcRenderer.invoke('kill-port', port);
+      if (ok) {
+        addLog(`Порт ${port} освобождён`, 'success');
+        portWarning.classList.remove('visible');
+      } else {
+        addLog(`Не удалось освободить порт ${port}`, 'error');
+      }
+    });
+
+    // ── Logs ──
+    function addLog(text, type = '', source = '') {
+      const time = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      allLogs.push({ text, type, source, time });
+      if (allLogs.length > 300) allLogs = allLogs.slice(-300);
+      if (shouldShow(type, source)) appendLogLine(text, type, source, time);
+    }
+
+    function shouldShow(type, source) {
+      if (currentFilter === 'all') return true;
+      if (currentFilter === 'be') return source === 'be';
+      if (currentFilter === 'fe') return source === 'fe';
+      if (currentFilter === 'error') return type === 'error';
+      return true;
+    }
+
+    function appendLogLine(text, type, source, time) {
+      const line = document.createElement('div');
+      line.className = 'log-line' + (type ? ' ' + type : '');
+      const prefix = source ? `[${source.toUpperCase()}] ` : '';
+      line.innerHTML = `<span class="time">${time}</span>${prefix}${escapeHtml(text)}`;
+      logArea.appendChild(line);
+      logArea.scrollTop = logArea.scrollHeight;
+      while (logArea.children.length > 300) logArea.removeChild(logArea.firstChild);
+    }
+
+    function renderLogs() {
+      logArea.innerHTML = '';
+      allLogs.forEach(l => {
+        if (shouldShow(l.type, l.source)) appendLogLine(l.text, l.type, l.source, l.time);
+      });
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    ipcRenderer.on('backend-log', (_, data) => {
+      data.split('\n').filter(l => l.trim()).forEach(line => {
+        let type = '';
+        if (line.includes('Error') || line.includes('error')) type = 'error';
+        else if (line.includes('warn')) type = 'warn';
+        else if (line.includes('listening') || line.includes('started') || line.includes('Server')) type = 'success';
+        else if (line.includes('[SYSTEM]')) type = 'system';
+        addLog(line.trim(), type, 'be');
+      });
+    });
+
+    ipcRenderer.on('frontend-log', (_, data) => {
+      data.split('\n').filter(l => l.trim()).forEach(line => {
+        let type = '';
+        if (line.includes('error') || line.includes('Error')) type = 'error';
+        else if (line.includes('Local:') || line.includes('ready')) type = 'success';
+        else if (line.includes('[SYSTEM]')) type = 'system';
+        addLog(line.trim(), type, 'fe');
+      });
+    });
+  </script>
+</body>
+</html>
