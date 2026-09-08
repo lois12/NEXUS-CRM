@@ -28,3 +28,7 @@ create_deploy_script.py
 fix_nginx_ip.py
 fix_ssl.py
 setup_nginx.py
+upload_models.py
+upload_db.py
+upload_files.py
+check_paths.py

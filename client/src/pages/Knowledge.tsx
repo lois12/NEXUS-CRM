@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+﻿import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, Search, Edit3, Trash2, BookOpen, Clock, Eye } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
@@ -127,7 +127,7 @@ export default function Knowledge() {
   }
 
   return (
-    <div className="h-[calc(100vh-4rem)] flex flex-col gap-3">
+    <div className="h-dvh-minus-header flex flex-col gap-3">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold font-mono neon-text flex items-center gap-3" style={{ color: 'var(--color-primary)' }}>

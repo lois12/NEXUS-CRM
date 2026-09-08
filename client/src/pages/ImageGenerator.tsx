@@ -326,7 +326,7 @@ export default function ImageGenerator() {
           {/* Style Selection */}
           <div className="glass rounded-xl p-4">
             <h2 className="text-sm font-medium text-gray-300 mb-3">СТИЛЬ ГЕНЕРАЦИИ</h2>
-            <div className="grid grid-cols-4 gap-1.5">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
               {styleOptions.map((opt) => (
                 <motion.button
                   key={opt.value}

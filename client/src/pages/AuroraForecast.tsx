@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, RefreshCw, MapPin, Clock, AlertTriangle } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
@@ -83,7 +83,7 @@ export default function AuroraForecast() {
   const nextLevel = getKpLevel(nextMax);
 
   return (
-    <div className="relative min-h-[calc(100vh-4rem)] overflow-hidden">
+    <div className="relative min-h-dvh-minus-header overflow-hidden">
       {/* Aurora animated background */}
       <div className="aurora-bg" />
 
@@ -203,7 +203,7 @@ export default function AuroraForecast() {
           </h2>
           {fcTable.length > 0 ? (
             <div className="overflow-x-auto -mx-2 px-2">
-              <div className="grid grid-cols-4 gap-2" style={{ minWidth: 420 }}>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {/* Header */}
                 <div className="font-mono text-[10px] text-gray-500 px-2 py-1">ВРЕМЯ</div>
                 <div className="font-mono text-[10px] text-gray-500 text-center px-2 py-1">СЕГОДНЯ</div>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+﻿import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Lightbulb, Zap, Unlink, Expand, Minimize2 } from 'lucide-react';
 import { Idea, IdeaLink, IdeaType } from '../types';
@@ -264,7 +264,7 @@ export default function IdeaMap() {
   // Mobile warning
   if (isMobile) {
     return (
-      <div className="h-[calc(100vh-4rem)] flex items-center justify-center p-6">
+      <div className="h-dvh-minus-header flex items-center justify-center p-6">
         <div className="text-center max-w-sm">
           <div className="w-16 h-16 mx-auto mb-4 rounded-2xl flex items-center justify-center"
             style={{ background: 'rgba(0,255,136,0.1)', border: '1px solid rgba(0,255,136,0.3)' }}>
@@ -290,7 +290,7 @@ export default function IdeaMap() {
   }
 
   return (
-    <div className="h-[calc(100vh-4rem)] flex flex-col gap-3" style={{ backgroundImage: 'none' }}>
+    <div className="h-dvh-minus-header flex flex-col gap-3" style={{ backgroundImage: 'none' }}>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>

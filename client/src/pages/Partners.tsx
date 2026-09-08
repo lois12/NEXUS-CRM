@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+﻿import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Search, Edit3, Trash2, X, Building2, Mail, Phone, MapPin, Send, ArrowLeft } from 'lucide-react';
 import { Partner } from '../types';
@@ -141,7 +141,7 @@ export default function Partners() {
   // Category tiles view
   if (!activeCategory) {
     return (
-      <div className="h-[calc(100vh-4rem)] flex flex-col gap-4">
+      <div className="h-dvh-minus-header flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold font-mono neon-text flex items-center gap-3" style={{ color: 'var(--color-primary)' }}>
@@ -232,7 +232,7 @@ export default function Partners() {
 
   // Partners list inside category
   return (
-    <div className="h-[calc(100vh-4rem)] flex flex-col gap-3">
+    <div className="h-dvh-minus-header flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <button onClick={() => setActiveCategory(null)} className="p-2 rounded-lg glass hover:bg-white/10">
@@ -249,7 +249,7 @@ export default function Partners() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="ПОИСК..."
-              className="pl-9 pr-4 py-2 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)] w-48" />
+              className="pl-9 pr-4 py-2 rounded-lg focus:border-[var(--color-primary)] w-full sm:w-48" />
           </div>
           <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-sm font-bold"
             style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}>

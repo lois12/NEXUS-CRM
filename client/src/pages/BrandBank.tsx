@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+﻿import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Search, Trash2, X, Download, Upload, Image, FileText, Film, Music, Edit3, Grid, List, Sliders } from 'lucide-react';
 import { brandApi } from '../services/api';
@@ -154,7 +154,7 @@ export default function BrandBank() {
   if (isLoading) return <div className="flex items-center justify-center h-full"><Upload className="w-12 h-12 animate-pulse" style={{ color: 'var(--color-primary)' }} /></div>;
 
   return (
-    <div className="h-[calc(100vh-4rem)] flex flex-col gap-3">
+    <div className="h-dvh-minus-header flex flex-col gap-3">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>

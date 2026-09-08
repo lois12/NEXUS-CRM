@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+﻿import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Search, Edit3, Trash2, X, Package, MapPin, LayoutGrid, List, FolderPlus } from 'lucide-react';
 import { InventoryItem, InventoryType, InventoryStatus } from '../types';
@@ -178,7 +178,7 @@ export default function Inventory() {
   if (isLoading) return <div className="flex items-center justify-center h-full"><Package className="w-12 h-12 animate-pulse" style={{ color: 'var(--color-primary)' }} /></div>;
 
   return (
-    <div className="h-[calc(100vh-4rem)] flex flex-col gap-3">
+    <div className="h-dvh-minus-header flex flex-col gap-3">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
@@ -290,7 +290,7 @@ export default function Inventory() {
               const isOver = dragOverLoc === loc;
               return (
                 <div key={loc}
-                  className="flex flex-col min-h-0 w-[270px] flex-shrink-0 rounded-xl transition-all duration-300"
+                  className="flex flex-col min-h-0 w-[200px] sm:w-[240px] md:w-[270px] flex-shrink-0 rounded-xl transition-all duration-300"
                   style={{
                     background: isOver
                       ? `linear-gradient(180deg, ${color}12 0%, ${color}06 100%)`

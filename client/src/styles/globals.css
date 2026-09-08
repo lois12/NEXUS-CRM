@@ -1613,3 +1613,24 @@ input[type="file"]::file-selector-button:hover {
     radial-gradient(ellipse at 25% 15%, rgba(0, 212, 255, 0.1) 0%, transparent 40%),
     radial-gradient(ellipse at 80% 20%, rgba(255, 0, 255, 0.08) 0%, transparent 35%);
 }
+
+/* ── Mobile touch fix: show hover-only elements on touch devices ── */
+@media (hover: none) and (pointer: coarse) {
+  .group:hover .group-hover\:opacity-100,
+  .group .group-hover\:opacity-100 {
+    opacity: 1 !important;
+  }
+  .hover\:opacity-100 {
+    opacity: 1 !important;
+  }
+}
+
+/* ── Dynamic viewport height for iOS Safari ── */
+.h-dvh {
+  height: 100vh;
+  height: 100dvh;
+}
+.h-dvh-minus-header {
+  height: calc(100vh - 4rem);
+  height: calc(100dvh - 4rem);
+}

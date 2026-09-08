@@ -56,6 +56,7 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<{ id: string; title: string; subtitle: string; type: string; link: string; avatar?: string }[]>([]);
   const [showSearch, setShowSearch] = useState(false);
+  const [showMobileSearch, setShowMobileSearch] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -79,6 +80,7 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
   }, [searchQuery]);
 
   return (
+    <>
     <header className="h-14 md:h-16 glass-frost flex items-center justify-between px-3 md:px-6 border-b border-white/5 relative z-40">
       {/* Left: hamburger + search */}
       <div className="flex items-center gap-2 flex-1">
@@ -87,6 +89,14 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
           className="p-2 rounded-xl hover:bg-white/5 transition-colors md:hidden"
         >
           <Menu className="w-5 h-5 text-gray-400" />
+        </button>
+
+        {/* Mobile search button */}
+        <button
+          onClick={() => setShowMobileSearch(true)}
+          className="p-2 rounded-xl hover:bg-white/5 transition-colors sm:hidden"
+        >
+          <Search className="w-5 h-5 text-gray-400" />
         </button>
 
         <div className="flex-1 max-w-md hidden sm:block relative" ref={searchRef}>
@@ -233,5 +243,56 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
         </a>
       </div>
     </header>
+
+    {/* Mobile search overlay */}
+    {showMobileSearch && (
+      <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm sm:hidden" onClick={() => setShowMobileSearch(false)}>
+        <div className="p-3" onClick={e => e.stopPropagation()}>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={e => { setSearchQuery(e.target.value); setShowSearch(true); }}
+              onFocus={() => searchQuery.length >= 2 && setShowSearch(true)}
+              placeholder="Поиск..."
+              autoFocus
+              className="w-full pl-10 pr-10 py-3 bg-white/10 border border-white/20 rounded-xl text-sm text-gray-200 placeholder:text-gray-500"
+            />
+            <button onClick={() => { setShowMobileSearch(false); setSearchQuery(''); setShowSearch(false); }}
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-1">
+              <X className="w-4 h-4 text-gray-400" />
+            </button>
+          </div>
+          {showSearch && searchResults.length > 0 && (
+            <div className="mt-2 glass-frost rounded-xl overflow-hidden max-h-[70vh] overflow-y-auto" style={{ border: '1px solid rgba(255,255,255,0.1)' }}>
+              {searchResults.slice(0, 15).map(r => {
+                const Icon = typeIcons[r.type] || Search;
+                return (
+                  <button key={`${r.type}-${r.id}`} onClick={() => { navigate(r.link); setShowMobileSearch(false); setShowSearch(false); setSearchQuery(''); }}
+                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/5 transition-colors text-left">
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                      style={{ background: 'color-mix(in srgb, var(--color-primary) 10%, transparent)' }}>
+                      {r.avatar ? <img src={r.avatar} alt="" className="w-full h-full object-cover rounded-lg" />
+                      : <Icon className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm text-gray-200 truncate block">{r.title}</span>
+                      <span className="text-[10px] font-mono text-gray-500">{typeLabels[r.type]}{r.subtitle ? ` · ${r.subtitle}` : ''}</span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          {showSearch && searchQuery.length >= 2 && searchResults.length === 0 && (
+            <div className="mt-2 glass-frost rounded-xl p-4 text-center" style={{ border: '1px solid rgba(255,255,255,0.1)' }}>
+              <span className="text-xs font-mono text-gray-500">Не найдено</span>
+            </div>
+          )}
+        </div>
+      </div>
+    )}
+    </>
   );
 }

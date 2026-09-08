@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Bot, User, Loader2, Copy, CheckCheck, Sparkles, Plus, MessageSquare, X } from 'lucide-react';
+import { Send, Bot, User, Loader2, Copy, CheckCheck, Sparkles, Plus, MessageSquare, X, Menu } from 'lucide-react';
 import { formatTimeKR } from '../utils/timezone';
 
 interface Message {
@@ -57,6 +57,7 @@ export default function AIChat() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [showSidebar, setShowSidebar] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -182,9 +183,16 @@ export default function AIChat() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-100px)] cyber-grid gap-3">
+    <div className="flex h-dvh-minus-header cyber-grid gap-3 relative">
+      {/* Mobile sidebar toggle */}
+      <button onClick={() => setShowSidebar(!showSidebar)}
+        className="md:hidden fixed top-20 left-3 z-50 p-2 rounded-lg glass"
+        style={{ border: '1px solid rgba(255,255,255,0.1)' }}>
+        <Menu className="w-5 h-5 text-gray-400" />
+      </button>
+
       {/* Chat list sidebar */}
-      <div className="w-56 flex-shrink-0 glass rounded-xl flex flex-col overflow-hidden">
+      <div className={`${showSidebar ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 absolute md:relative z-40 w-56 flex-shrink-0 glass rounded-xl flex flex-col overflow-hidden transition-transform h-full`}>
         <div className="p-3 border-b border-white/5">
           <button onClick={createNewChat}
             className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg font-mono text-xs font-medium transition-all"
@@ -195,7 +203,7 @@ export default function AIChat() {
         </div>
         <div className="flex-1 overflow-y-auto p-2 space-y-1">
           {chats.slice().reverse().map(chat => (
-            <button key={chat.id} onClick={() => setActiveChatId(chat.id)}
+            <button key={chat.id} onClick={() => { setActiveChatId(chat.id); setShowSidebar(false); }}
               className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-left text-xs transition-all group ${
                 chat.id === activeChatId ? 'bg-white/10 text-white' : 'text-gray-400 hover:bg-white/5 hover:text-gray-200'
               }`}>

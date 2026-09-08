@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+﻿import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Trash2, Edit3, Calendar, Flag, X, Archive, ArchiveRestore, Paperclip, Upload, FileText, Image, File, Download, GripVertical } from 'lucide-react';
 import { KanbanTask, KanbanStatus, KanbanPriority, KANBAN_COLUMNS } from '../types';
@@ -149,7 +149,7 @@ function DroppableColumn({
   return (
     <div
       ref={setNodeRef}
-      className={`flex flex-col min-h-0 w-[260px] md:w-auto md:flex-1 flex-shrink-0 rounded-xl border-2 transition-colors duration-300 ${isOver ? 'border-dashed' : ''}`}
+      className={`flex flex-col min-h-0 w-[200px] sm:w-[240px] md:w-auto md:flex-1 flex-shrink-0 rounded-xl border-2 transition-colors duration-300 ${isOver ? 'border-dashed' : ''}`}
       style={{
         backgroundColor: isOver ? `${column.color}15` : 'rgba(15,15,25,0.85)',
         borderColor: isOver ? column.color : 'rgba(255,255,255,0.08)',
@@ -376,7 +376,7 @@ export default function Kanban() {
   }
 
   return (
-    <div className="h-[calc(100vh-4rem)] flex flex-col gap-3">
+    <div className="h-dvh-minus-header flex flex-col gap-3">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>

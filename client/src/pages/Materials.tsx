@@ -397,7 +397,7 @@ export default function Materials() {
           </AnimatePresence>
         </div>
       ) : (
-        <div className="glass rounded-xl overflow-hidden">
+        <div className="glass rounded-xl overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="border-b border-white/5">

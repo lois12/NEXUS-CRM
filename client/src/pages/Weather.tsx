@@ -596,7 +596,7 @@ export default function Weather() {
               <h2 className="text-sm font-mono font-bold mb-4" style={{ color: 'var(--color-primary)' }}>
                 ПРОГНОЗ НА 7 ДНЕЙ <span className="font-normal text-gray-500">(кликни для почасового)</span>
               </h2>
-              <div className="grid grid-cols-7 gap-2">
+              <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
                 {forecast.map((day, i) => {
                   const Icon = getWeatherIcon(day.weatherCode);
                   const today = isToday(day.date);

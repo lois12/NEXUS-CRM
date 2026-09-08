@@ -648,22 +648,22 @@ export default function ContentPlan() {
             </div>
 
             {/* Days of Week Header */}
-            <div className="grid grid-cols-7 gap-2 mb-3">
+            <div className="grid grid-cols-7 gap-1 sm:gap-2 mb-2 sm:mb-3">
               {DAYS_OF_WEEK.map((day, index) => (
                 <div 
                   key={day} 
-                  className={`text-center text-xs font-mono font-bold py-2 rounded-lg ${
+                  className={`text-center text-[10px] sm:text-xs font-mono font-bold py-1.5 sm:py-2 rounded-lg ${
                     index >= 5 ? 'weekend-text bg-red-500/5' : 'text-gray-500'
                   }`}
                   style={index >= 5 ? { color: '#ff6b6b' } : {}}
                 >
-                  {day}
+                  {day.slice(0, 2)}
                 </div>
               ))}
             </div>
 
             {/* Calendar Grid */}
-            <div className="grid grid-cols-7 gap-2">{renderCalendar()}</div>
+            <div className="grid grid-cols-7 gap-1 sm:gap-2">{renderCalendar()}</div>
 
             {/* Legend */}
             <div className="flex flex-wrap items-center gap-4 mt-6 pt-4 border-t border-white/5">

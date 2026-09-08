@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+﻿import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, Search, Edit3, Trash2, CalendarDays, Check, XIcon, Clock } from 'lucide-react';
 import { Vacation, VacationType, VacationStatus } from '../types';
@@ -98,7 +98,7 @@ export default function Vacations() {
   if (isLoading) return <div className="flex items-center justify-center h-full"><CalendarDays className="w-12 h-12 animate-pulse" style={{ color: 'var(--color-primary)' }} /></div>;
 
   return (
-    <div className="h-[calc(100vh-4rem)] flex flex-col gap-3">
+    <div className="h-dvh-minus-header flex flex-col gap-3">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold font-mono neon-text flex items-center gap-3" style={{ color: 'var(--color-primary)' }}>
@@ -110,7 +110,7 @@ export default function Vacations() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="ПОИСК..."
-              className="pl-9 pr-4 py-2 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)] w-48" />
+              className="pl-9 pr-4 py-2 rounded-lg focus:border-[var(--color-primary)] w-full sm:w-48" />
           </div>
           <select value={filterStatus} onChange={e => setFilterStatus(e.target.value as any)}
             className="px-3 py-2 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none">

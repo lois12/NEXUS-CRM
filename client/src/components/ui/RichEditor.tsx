@@ -209,7 +209,7 @@ export default function RichEditor({ content, onChange, placeholder = '// ВВЕ
                 initial={{ opacity: 0, y: -5 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -5 }}
-                className="absolute top-full left-0 mt-2 p-3 glass-frost rounded-xl z-50 shadow-2xl w-[220px]"
+                className="absolute top-full left-0 mt-2 p-3 glass-frost rounded-xl z-50 shadow-2xl w-[220px] max-w-[calc(100vw-32px)]"
                 style={{ border: '1px solid var(--color-border)' }}
               >
                 <p className="text-[10px] font-mono mb-2" style={{ color: 'var(--color-primary)' }}>// БЫСТРЫЙ ВЫБОР</p>
@@ -264,7 +264,7 @@ export default function RichEditor({ content, onChange, placeholder = '// ВВЕ
                 initial={{ opacity: 0, y: -5 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -5 }}
-                className="absolute top-full left-0 mt-2 p-3 glass-frost rounded-xl z-50 shadow-2xl w-[220px]"
+                className="absolute top-full left-0 mt-2 p-3 glass-frost rounded-xl z-50 shadow-2xl w-[220px] max-w-[calc(100vw-32px)]"
                 style={{ border: '1px solid var(--color-border)' }}
               >
                 <p className="text-[10px] font-mono mb-2" style={{ color: 'var(--color-primary)' }}>// БЫСТРЫЙ ВЫБОР</p>

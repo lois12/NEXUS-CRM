@@ -766,7 +766,7 @@ export default function ChatWidget() {
   };
 
   const SidePanel = ({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) => (
-    <div className="w-72 flex flex-col flex-shrink-0" style={{ background: glassBg, borderLeft: glassBorder, backdropFilter: glassBlur }}>
+    <div className="w-full sm:w-72 flex flex-col flex-shrink-0 absolute sm:relative inset-0 sm:inset-auto z-10 sm:z-auto" style={{ background: glassBg, borderLeft: glassBorder, backdropFilter: glassBlur }}>
       <div className="flex items-center justify-between px-4 py-3.5" style={{ borderBottom: glassBorder }}>
         <span className="text-[10px] font-mono font-bold tracking-wider" style={{ color: 'var(--color-primary)', textShadow: '0 0 8px rgba(0,255,136,0.3)' }}>{title}</span>
         <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/5 transition-colors"><X className="w-3.5 h-3.5" style={{ color: '#6a6a80' }} /></button>
