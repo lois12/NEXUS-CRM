@@ -1,57 +1,50 @@
 import paramiko, os
 
-VPS_HOST = '89.108.66.185'
-VPS_USER = 'root'
-VPS_PASS = 'WmAyrvzAaj4iQv4c'
-LOCAL_DIR = r'G:\CRT THE NEXUS CRM\uploads'
-REMOTE_DIR = '/var/www/NEXUS-CRM/uploads'
-
 client = paramiko.SSHClient()
 client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-client.connect(VPS_HOST, username=VPS_USER, password=VPS_PASS, timeout=15)
+client.connect('89.108.66.185', username='root', password='WmAyrvzAaj4iQv4c', timeout=15)
 
-stdin, stdout, stderr = client.exec_command('pm2 stop nexus-crm', timeout=10)
-stdout.read()
+# Stop server and WAIT for full exit (sql.js flushes DB to disk on SIGTERM)
+stdin, stdout, stderr = client.exec_command('pm2 stop nexus-crm && sleep 3 && echo "stopped"', timeout=30)
+print(stdout.read().decode())
 
 sftp = client.open_sftp()
 
-# Clean old wrong uploads
-stdin, stdout, stderr = client.exec_command(f'rm -rf {REMOTE_DIR}/*', timeout=10)
-stdout.read()
+# Upload DB
+LOCAL_DB = r'G:\CRT THE NEXUS CRM\server\nexus.db'
+REMOTE_DB = '/var/www/NEXUS-CRM/server/nexus.db'
+sftp.put(LOCAL_DB, REMOTE_DB)
+print(f"DB uploaded: {os.path.getsize(LOCAL_DB)/1024:.0f}KB")
 
-# Create thumbs dir
-try:
-    sftp.mkdir(f'{REMOTE_DIR}/thumbs')
-except:
-    pass
+# Check what files VPS has
+existing = set()
+for f in sftp.listdir_attr('/var/www/NEXUS-CRM/uploads'):
+    if f.filename != 'thumbs':
+        existing.add(f.filename)
 
-# Upload all files
+# Upload missing files from correct dir
+LOCAL_UPLOADS = r'G:\CRT THE NEXUS CRM\uploads'
 uploaded = 0
-for fname in os.listdir(LOCAL_DIR):
-    local_path = os.path.join(LOCAL_DIR, fname)
-    if os.path.isfile(local_path):
-        remote_path = f'{REMOTE_DIR}/{fname}'
-        sftp.put(local_path, remote_path)
+for fname in os.listdir(LOCAL_UPLOADS):
+    local_path = os.path.join(LOCAL_UPLOADS, fname)
+    if os.path.isfile(local_path) and fname not in existing:
+        sftp.put(local_path, f'/var/www/NEXUS-CRM/uploads/{fname}')
         uploaded += 1
-        if uploaded % 20 == 0:
-            print(f'  [{uploaded}] {fname}')
 
 # Upload thumbs
-thumbs_local = os.path.join(LOCAL_DIR, 'thumbs')
+thumbs_local = os.path.join(LOCAL_UPLOADS, 'thumbs')
 if os.path.exists(thumbs_local):
     for fname in os.listdir(thumbs_local):
         local_path = os.path.join(thumbs_local, fname)
         if os.path.isfile(local_path):
-            remote_path = f'{REMOTE_DIR}/thumbs/{fname}'
-            sftp.put(local_path, remote_path)
-            uploaded += 1
+            sftp.put(local_path, f'/var/www/NEXUS-CRM/uploads/thumbs/{fname}')
 
 sftp.close()
 
-# Verify
-stdin, stdout, stderr = client.exec_command(f'ls {REMOTE_DIR}/ | wc -l && echo "---" && du -sh {REMOTE_DIR}/', timeout=10)
-print(f'\nUploaded {uploaded} files')
-print(stdout.read().decode())
+# Count final
+stdin, stdout, stderr = client.exec_command('ls /var/www/NEXUS-CRM/uploads/ | wc -l', timeout=10)
+count = stdout.read().decode().strip()
+print(f"Uploaded {uploaded} missing files. Total on VPS: {count}")
 
 # Restart
 stdin, stdout, stderr = client.exec_command('pm2 restart nexus-crm', timeout=10)
@@ -63,4 +56,4 @@ stdin, stdout, stderr = client.exec_command('curl -sf http://localhost:8080/api/
 print("Health:", stdout.read().decode())
 
 client.close()
-print("Done!")
+print("Restored!")
