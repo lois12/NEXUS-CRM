@@ -496,7 +496,7 @@ ipcMain.on('deploy', async () => {
   send('backend-log', '[DEPLOY] Шаг 2/2: Деплой на VPS...');
   try {
     const sshScript = path.join(PROJECT_ROOT, 'ssh_deploy.py');
-    const deployCode = await runCommand('python', [sshScript], PROJECT_ROOT);
+    const deployCode = await runCommand('python', [`"${sshScript}"`], PROJECT_ROOT);
     if (deployCode !== 0) {
       send('backend-log', `[DEPLOY] VPS деплой провален (код ${deployCode})`);
       send('deploy-status', 'failed');
