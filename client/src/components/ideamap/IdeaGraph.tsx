@@ -209,7 +209,6 @@ export default function IdeaGraph({
   }, [selectedId]);
 
   const handleNodeClick = useCallback((node: any) => {
-    console.log('[IdeaGraph] node click:', node?.id, 'linkMode:', linkMode, 'linkSource:', linkSource);
     if (linkMode) {
       if (!linkSource) { onLinkSource(node.id); }
       else if (linkSource !== node.id) { onLinkTarget(node.id); onLinkSource(null); }
@@ -220,7 +219,6 @@ export default function IdeaGraph({
 
   const lastClickRef = useRef<{ id: string; time: number } | null>(null);
   const handleNodeClickWithDouble = useCallback((node: any) => {
-    console.log('[IdeaGraph] click with double:', node?.id);
     const now = Date.now(), last = lastClickRef.current;
     if (last && last.id === node.id && now - last.time < 400) { onDrillDown(node.id); lastClickRef.current = null; return; }
     lastClickRef.current = { id: node.id, time: now }; handleNodeClick(node);
@@ -258,7 +256,6 @@ export default function IdeaGraph({
 
   // Right-click context menu
   const handleNodeRightClick = useCallback((node: any, event: MouseEvent) => {
-    console.log('[IdeaGraph] right-click:', node?.id, event);
     event.preventDefault();
     setContextMenu({ x: event.clientX, y: event.clientY, node });
     onSelect(node.id);
