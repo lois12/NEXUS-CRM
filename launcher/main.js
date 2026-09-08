@@ -466,15 +466,18 @@ ipcMain.on('deploy', async () => {
 
   // Step 1: Run local tests (warn only, don't block)
   send('backend-log', '[DEPLOY] Шаг 1/4: Запуск тестов...');
+  let testsPassed = true;
   try {
     const testCode = await runCommand('npx', ['vitest', 'run'], BACKEND_DIR);
     if (testCode !== 0) {
       send('backend-log', `[DEPLOY] Тесты не прошли (код ${testCode}) — продолжаем`);
+      testsPassed = false;
     } else {
       send('backend-log', '[DEPLOY] Тесты пройдены ✓');
     }
   } catch (err) {
     send('backend-log', '[DEPLOY] Ошибка тестов: ' + err.message + ' — продолжаем');
+    testsPassed = false;
   }
 
   // Step 2: Git add + commit + push
@@ -509,9 +512,10 @@ ipcMain.on('deploy', async () => {
   // Step 3: SSH deploy on VPS
   send('backend-log', '[DEPLOY] Шаг 3/4: Деплой на VPS...');
   try {
-    const deployCode = await runCommand('python', [
-      path.join(PROJECT_ROOT, 'ssh_deploy.py')
-    ], PROJECT_ROOT);
+    const sshScript = path.join(PROJECT_ROOT, 'ssh_deploy.py');
+    send('backend-log', `[DEPLOY] Запуск: python ${sshScript}`);
+    const deployCode = await runCommand('python', [sshScript], PROJECT_ROOT);
+    send('backend-log', `[DEPLOY] SSH exit code: ${deployCode}`);
     if (deployCode !== 0) {
       send('backend-log', `[DEPLOY] VPS деплой провален (код ${deployCode})`);
       send('deploy-status', 'failed');
