@@ -73,8 +73,17 @@ app.get('/api/docs.json', (req, res) => res.json(swaggerSpec));
 // Static files for uploads (cache 1 day)
 app.use('/uploads', express.static(UPLOADS_DIR, { maxAge: '1d', etag: true }));
 
-// Serve frontend in production (cache hashed assets aggressively)
-app.use(express.static(CLIENT_DIST, { maxAge: '7d', etag: true, index: 'index.html' }));
+// Serve frontend in production (cache hashed assets aggressively, no cache for HTML)
+app.use(express.static(CLIENT_DIST, {
+  maxAge: '7d',
+  etag: true,
+  index: 'index.html',
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.html')) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    }
+  },
+}));
 
 // Serve ML models (cache 30 days — large files)
 app.use('/models', express.static(MODELS_DIR, { maxAge: '30d', etag: true }));
