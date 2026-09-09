@@ -2,7 +2,7 @@ import { Resend } from 'resend';
 import { RESEND_API_KEY } from '../config';
 
 const resend = RESEND_API_KEY ? new Resend(RESEND_API_KEY) : null;
-const FROM = 'NEXUS CRM <onboarding@resend.dev>';
+const FROM = 'NEXUS CRM <noreply@nexus-liberty.online>';
 // When domain verified: const FROM = 'NEXUS CRM <noreply@nexus-liberty.online>';
 
 function isEnabled(): boolean {
