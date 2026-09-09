@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nexus-crm-v2.13';
+const CACHE_NAME = 'nexus-crm-v2.14';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -57,7 +57,7 @@ self.addEventListener('fetch', (event) => {
         if (request.mode === 'navigate') {
           return caches.match('/index.html');
         }
-        return caches.match(request);
+        return caches.match(request).then(cached => cached || new Response('Offline', { status: 503 }));
       })
   );
 });
