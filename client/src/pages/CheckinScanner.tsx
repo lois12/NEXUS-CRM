@@ -183,7 +183,7 @@ export default function CheckinScanner() {
   };
 
   const resultColors = { confirmed: '#00ff88', already: '#eab308', error: '#ff3b30' };
-  const resultIcons = { confirmed: null, already: Clock, error: XCircle };
+  const resultIcons = { confirmed: CheckCircle, already: Clock, error: XCircle };
 
   return (
     <div className="space-y-6">
