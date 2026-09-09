@@ -227,8 +227,10 @@ export const createField = (req: AuthRequest, res: Response) => {
     const maxPos = get('SELECT MAX(position) as maxPos FROM registration_fields WHERE registrationId = ?', [id]);
     const pos = position ?? ((maxPos?.maxPos ?? -1) + 1);
 
+    const optStr = typeof options === 'string' ? options : JSON.stringify(options || []);
+    const setStr = typeof settings === 'string' ? settings : JSON.stringify(settings || {});
     run('INSERT INTO registration_fields (id, registrationId, type, label, placeholder, required, options, settings, position) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [fieldId, id, type, label, placeholder || '', required ? 1 : 0, JSON.stringify(options || []), JSON.stringify(settings || {}), pos]);
+      [fieldId, id, type, label, placeholder || '', required ? 1 : 0, optStr, setStr, pos]);
 
     const field = get('SELECT * FROM registration_fields WHERE id = ?', [fieldId]);
     res.status(201).json({ success: true, data: field });
@@ -252,8 +254,8 @@ export const updateField = (req: AuthRequest, res: Response) => {
     if (label !== undefined) { updates.push('label = ?'); params.push(label); }
     if (placeholder !== undefined) { updates.push('placeholder = ?'); params.push(placeholder); }
     if (required !== undefined) { updates.push('required = ?'); params.push(required ? 1 : 0); }
-    if (options !== undefined) { updates.push('options = ?'); params.push(JSON.stringify(options)); }
-    if (settings !== undefined) { updates.push('settings = ?'); params.push(JSON.stringify(settings)); }
+    if (options !== undefined) { updates.push('options = ?'); params.push(typeof options === 'string' ? options : JSON.stringify(options)); }
+    if (settings !== undefined) { updates.push('settings = ?'); params.push(typeof settings === 'string' ? settings : JSON.stringify(settings)); }
     if (position !== undefined) { updates.push('position = ?'); params.push(position); }
 
     params.push(fieldId);
