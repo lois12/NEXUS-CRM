@@ -89,8 +89,8 @@ export default function AdminMonitoring() {
     return (
       <div className="space-y-6">
         <div className="space-y-2">
-          <div className="h-8 w-64 rounded-lg animate-pulse" style={{ backgroundColor: 'rgba(255,255,255,0.06)' }} />
-          <div className="h-4 w-96 rounded-lg animate-pulse" style={{ backgroundColor: 'rgba(255,255,255,0.06)' }} />
+          <div className="h-8 w-full max-w-64 rounded-lg animate-pulse" style={{ backgroundColor: 'rgba(255,255,255,0.06)' }} />
+          <div className="h-4 w-full max-w-96 rounded-lg animate-pulse" style={{ backgroundColor: 'rgba(255,255,255,0.06)' }} />
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {Array.from({ length: 8 }).map((_, i) => (
@@ -115,15 +115,15 @@ export default function AdminMonitoring() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold font-mono neon-text flex items-center gap-3" style={{ color: 'var(--color-primary)' }}>
             <Activity className="w-7 h-7 md:w-8 md:h-8" />
             УПРАВЛЕНИЕ NEXUS
           </h1>
-          <p className="text-gray-400 mt-1 font-mono text-sm">// МОНИТОРИНГ СЕРВЕРА И СИСТЕМЫ</p>
+          <p className="text-gray-400 mt-1 font-mono text-xs sm:text-sm">// МОНИТОРИНГ СЕРВЕРА И СИСТЕМЫ</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-shrink-0">
           <button
             onClick={fetchHealth}
             className="p-2 rounded-lg transition-colors"
@@ -187,7 +187,7 @@ export default function AdminMonitoring() {
 
         <div className="glass rounded-xl p-4 space-y-3">
           <h3 className="font-mono text-xs font-bold tracking-wider" style={{ color: '#6b7280' }}>CPU</h3>
-          <div className="text-xs font-mono mb-2" style={{ color: '#4a4a60' }}>{health.cpu.model}</div>
+          <div className="text-xs font-mono mb-2 truncate" style={{ color: '#4a4a60' }}>{health.cpu.model}</div>
           {health.cpu.loadAvg.map((load: number, i: number) => (
             <ProgressBar key={i} value={load} max={health.cpu.cores} color={i === 0 ? '#00ff88' : i === 1 ? '#eab308' : '#ff6b6b'} label={`Load ${i === 0 ? '1m' : i === 1 ? '5m' : '15m'}`} />
           ))}

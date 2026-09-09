@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Trash2, Edit3, Calendar, Flag, X, Archive, ArchiveRestore, Paperclip, Upload, FileText, Image, File, Download, GripVertical } from 'lucide-react';
 import { KanbanTask, KanbanStatus, KanbanPriority, KANBAN_COLUMNS } from '../types';
@@ -383,15 +383,15 @@ export default function Kanban() {
           <h1 className="text-2xl md:text-3xl font-bold font-mono neon-text" style={{ color: 'var(--color-primary)' }}>ЗАДАЧИ</h1>
           <p className="text-gray-400 font-mono text-sm mt-1">// {tasks.length} АКТИВНЫХ • {archived.length} В АРХИВЕ</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <div className="flex rounded-lg overflow-hidden border border-gray-700">
-            <button onClick={() => setTab('active')} className={`px-4 py-2 font-mono text-xs font-bold transition-all ${tab === 'active' ? 'text-black' : 'text-gray-400 hover:text-gray-200'}`} style={tab === 'active' ? { backgroundColor: 'var(--color-primary)' } : {}}>АКТИВНЫЕ</button>
-            <button onClick={() => setTab('archive')} className={`px-4 py-2 font-mono text-xs font-bold transition-all flex items-center gap-1 ${tab === 'archive' ? 'text-black' : 'text-gray-400 hover:text-gray-200'}`} style={tab === 'archive' ? { backgroundColor: 'var(--color-primary)' } : {}}>
+            <button onClick={() => setTab('active')} className={`px-3 sm:px-4 py-2 font-mono text-[10px] sm:text-xs font-bold transition-all ${tab === 'active' ? 'text-black' : 'text-gray-400 hover:text-gray-200'}`} style={tab === 'active' ? { backgroundColor: 'var(--color-primary)' } : {}}>АКТИВНЫЕ</button>
+            <button onClick={() => setTab('archive')} className={`px-3 sm:px-4 py-2 font-mono text-[10px] sm:text-xs font-bold transition-all flex items-center gap-1 ${tab === 'archive' ? 'text-black' : 'text-gray-400 hover:text-gray-200'}`} style={tab === 'archive' ? { backgroundColor: 'var(--color-primary)' } : {}}>
               <Archive className="w-3 h-3" /> АРХИВ ({archived.length})
             </button>
           </div>
           {tab === 'active' && (
-            <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-sm font-bold" style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}>
+            <button onClick={openCreate} className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg font-mono text-xs sm:text-sm font-bold" style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}>
               <Plus className="w-4 h-4" /> СОЗДАТЬ
             </button>
           )}

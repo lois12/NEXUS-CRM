@@ -7,14 +7,15 @@ client.connect('89.108.66.185', username='root', password='WmAyrvzAaj4iQv4c', ti
 script = """const { sendRegistrationConfirm } = require('./dist/utils/email');
 sendRegistrationConfirm('89135267702@mail.ru', {
   name: 'Иванов Иван Иванович',
-  eventTitle: 'Конференция NEXUS 2026',
-  eventDate: '15 сентября 2026',
-  eventTime: '14:00',
-  location: 'Москва, ул. Тверская, д. 1',
-  mapCoords: '{"lat":55.7558,"lng":37.6173}',
+  eventTitle: 'Экспедиция на Плато Путорана',
+  eventDate: '15 октября 2026',
+  eventTime: '09:00',
+  location: 'Норильск, Кайеркан, аэропорт Алыкель',
+  mapCoords: '{"lat":69.3137,"lng":88.1628}',
   status: 'registered',
-  checkinToken: 'test-checkin-token-123',
-  cancelToken: 'test-cancel-token-456',
+  checkinToken: 'test-checkin-token-789',
+  confirmCode: '7391',
+  cancelToken: 'test-cancel-token-012',
   origin: 'https://nexus-liberty.online',
 }).then(r => console.log('RESULT:', r)).catch(e => console.log('ERROR:', e.message));
 """
