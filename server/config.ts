@@ -18,3 +18,4 @@ export const GIGACHAT_API_KEY = process.env.GIGACHAT_API_KEY || '';
 export const JWT_SECRET = process.env.JWT_SECRET || '';
 export const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || '';
 export const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || '';
+export const RESEND_API_KEY = process.env.RESEND_API_KEY || '';

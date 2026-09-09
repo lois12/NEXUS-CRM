@@ -5,6 +5,8 @@ import fs from 'fs';
 import { query, get, run } from '../db/database';
 import { AuthRequest } from '../middleware/auth';
 import { UPLOADS_DIR } from '../paths';
+import { sendRegistrationConfirm, sendAdminNotification, sendWaitlistPromotion } from '../utils/email';
+import { createNotification } from './notificationController';
 
 // ── Registrations CRUD ──
 
@@ -370,6 +372,37 @@ export const submitRegistration = (req: AuthRequest, res: Response) => {
 
     const submission = get('SELECT * FROM registration_submissions WHERE id = ?', [id]);
     res.status(201).json({ success: true, data: { ...submission, cancelToken, checkinToken } });
+
+    // ── Notifications (fire-and-forget, don't block response) ──
+    (async () => {
+      try {
+        // 1. Email пользователю
+        if (contactEmail) {
+          await sendRegistrationConfirm(contactEmail, {
+            name: contactName || 'Участник',
+            eventTitle: reg.title,
+            eventDate: reg.eventDate,
+            status: status as 'confirmed' | 'waitlist',
+            position: status === 'waitlist' ? position : undefined,
+          });
+        }
+
+        // 2. Уведомить админов (in-app + email)
+        const admins = query("SELECT id, username FROM users WHERE role IN ('администратор', 'admin') OR roles LIKE '%admin%'");
+        for (const admin of admins) {
+          const statusText = status === 'waitlist' ? 'лист ожидания' : 'подтверждена';
+          createNotification({
+            userId: admin.id,
+            type: 'registration',
+            title: 'Новая регистрация',
+            body: `${contactName || 'Участник'} → "${reg.title}" (${statusText})`,
+            link: '/registrations',
+          });
+        }
+      } catch (notifErr) {
+        console.error('[Registration] notification error:', notifErr);
+      }
+    })();
   } catch (error) {
     console.error('SubmitRegistration error:', error);
     res.status(500).json({ success: false, error: 'Ошибка сервера' });
@@ -415,6 +448,31 @@ export const cancelSubmission = (req: AuthRequest, res: Response) => {
         waitlist.forEach((w: any, i: number) => {
           run('UPDATE registration_submissions SET position = ? WHERE id = ?', [i + 1, w.id]);
         });
+
+        // Notify promoted user
+        const promoted = get('SELECT * FROM registration_submissions WHERE id = ?', [firstWaitlist.id]);
+        const regInfo = get('SELECT title, eventDate FROM registrations WHERE id = ?', [sub.registrationId]);
+        if (promoted && regInfo) {
+          (async () => {
+            try {
+              if (promoted.contactEmail) {
+                await sendWaitlistPromotion(promoted.contactEmail, {
+                  name: promoted.contactName || 'Участник',
+                  eventTitle: regInfo.title,
+                  eventDate: regInfo.eventDate,
+                });
+              }
+              if (promoted.userId) {
+                createNotification({
+                  userId: promoted.userId, type: 'registration',
+                  title: 'Вы в активном списке!',
+                  body: `Место освободилось. Вы переведены из листа ожидания в "${regInfo.title}"`,
+                  link: '/registrations',
+                });
+              }
+            } catch (e) { console.error('[Registration] promotion notify error:', e); }
+          })();
+        }
       }
     }
 
@@ -444,6 +502,31 @@ export const cancelByToken = (req: AuthRequest, res: Response) => {
         waitlist.forEach((w: any, i: number) => {
           run('UPDATE registration_submissions SET position = ? WHERE id = ?', [i + 1, w.id]);
         });
+
+        // Notify promoted user
+        const promoted = get('SELECT * FROM registration_submissions WHERE id = ?', [firstWaitlist.id]);
+        const regInfo = get('SELECT title, eventDate FROM registrations WHERE id = ?', [sub.registrationId]);
+        if (promoted && regInfo) {
+          (async () => {
+            try {
+              if (promoted.contactEmail) {
+                await sendWaitlistPromotion(promoted.contactEmail, {
+                  name: promoted.contactName || 'Участник',
+                  eventTitle: regInfo.title,
+                  eventDate: regInfo.eventDate,
+                });
+              }
+              if (promoted.userId) {
+                createNotification({
+                  userId: promoted.userId, type: 'registration',
+                  title: 'Вы в активном списке!',
+                  body: `Место освободилось. Вы переведены из листа ожидания в "${regInfo.title}"`,
+                  link: '/registrations',
+                });
+              }
+            } catch (e) { console.error('[Registration] promotion notify error:', e); }
+          })();
+        }
       }
     }
 
