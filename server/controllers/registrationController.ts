@@ -365,13 +365,14 @@ export const submitRegistration = (req: AuthRequest, res: Response) => {
     const id = uuidv4();
     const cancelToken = uuidv4();
     const checkinToken = uuidv4();
+    const confirmCode = String(Math.floor(1000 + Math.random() * 9000));
 
-    run(`INSERT INTO registration_submissions (id, registrationId, userId, answers, contactName, contactEmail, contactPhone, status, cancelToken, checkinToken, position)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [id, reg.id, req.user?.id || null, JSON.stringify(answers || {}), contactName || '', contactEmail || '', contactPhone || '', status, cancelToken, checkinToken, position]);
+    run(`INSERT INTO registration_submissions (id, registrationId, userId, answers, contactName, contactEmail, contactPhone, status, cancelToken, checkinToken, confirmCode, position)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [id, reg.id, req.user?.id || null, JSON.stringify(answers || {}), contactName || '', contactEmail || '', contactPhone || '', status, cancelToken, checkinToken, confirmCode, position]);
 
     const submission = get('SELECT * FROM registration_submissions WHERE id = ?', [id]);
-    res.status(201).json({ success: true, data: { ...submission, cancelToken, checkinToken } });
+    res.status(201).json({ success: true, data: { ...submission, cancelToken, checkinToken, confirmCode } });
 
     // ── Notifications (fire-and-forget, don't block response) ──
     (async () => {
@@ -390,6 +391,7 @@ export const submitRegistration = (req: AuthRequest, res: Response) => {
             status: status as 'registered' | 'waitlist',
             position: status === 'waitlist' ? position : undefined,
             checkinToken: status === 'registered' ? checkinToken : undefined,
+            confirmCode: status === 'registered' ? confirmCode : undefined,
             cancelToken,
             origin,
           });
@@ -472,6 +474,7 @@ export const cancelSubmission = (req: AuthRequest, res: Response) => {
                   location: regInfo.location,
                   mapCoords: regInfo.mapCoords,
                   checkinToken: promoted.checkinToken || '',
+                  confirmCode: promoted.confirmCode || '',
                   cancelToken: promoted.cancelToken || '',
                   origin: `${req.protocol}://${req.get('host')}`,
                 });
@@ -532,6 +535,7 @@ export const cancelByToken = (req: AuthRequest, res: Response) => {
                   location: regInfo.location,
                   mapCoords: regInfo.mapCoords,
                   checkinToken: promoted.checkinToken || '',
+                  confirmCode: promoted.confirmCode || '',
                   cancelToken: promoted.cancelToken || '',
                   origin: `${req.protocol}://${req.get('host')}`,
                 });
@@ -633,6 +637,25 @@ export const checkinPost = (req: AuthRequest, res: Response) => {
     res.json({ success: true, data: { ...updated, alreadyCheckedIn: false } });
   } catch (error) {
     console.error('CheckinPost error:', error);
+    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+  }
+};
+
+// ── Checkin by 4-digit code ──
+
+export const checkinByCode = (req: AuthRequest, res: Response) => {
+  try {
+    const { registrationId, code } = req.params;
+    const sub = get(`
+      SELECT rs.*, r.title as regTitle, r.eventDate, r.eventTime, r.location, r.imageUrl as regImageUrl
+      FROM registration_submissions rs
+      JOIN registrations r ON rs.registrationId = r.id
+      WHERE rs.registrationId = ? AND rs.confirmCode = ?
+    `, [registrationId, code]);
+    if (!sub) return res.status(404).json({ success: false, error: 'Код не найден' });
+    res.json({ success: true, data: sub });
+  } catch (error) {
+    console.error('CheckinByCode error:', error);
     res.status(500).json({ success: false, error: 'Ошибка сервера' });
   }
 };

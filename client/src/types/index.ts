@@ -421,7 +421,7 @@ export interface RegistrationSubmission {
   contactName: string;
   contactEmail: string;
   contactPhone: string;
-  status: 'confirmed' | 'waitlist' | 'cancelled';
+  status: 'registered' | 'confirmed' | 'waitlist' | 'cancelled';
   cancelToken: string;
   position: number;
   userName?: string;

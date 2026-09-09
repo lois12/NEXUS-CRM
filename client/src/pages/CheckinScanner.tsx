@@ -148,14 +148,42 @@ export default function CheckinScanner() {
     }
   };
 
-  const handleManualSubmit = () => {
-    if (!manualToken.trim()) return;
-    handleScan(manualToken.trim());
+  const handleManualSubmit = async () => {
+    const val = manualToken.trim();
+    if (!val) return;
     setManualToken('');
+
+    // 4-digit code → look up by code
+    if (/^\d{4}$/.test(val) && selectedReg) {
+      try {
+        const getRes = await publicRegApi.checkinByCode(selectedReg.id, val);
+        if (getRes.success && getRes.data) {
+          const sub = getRes.data;
+          if (sub.status === 'cancelled') { setResult({ type: 'error', message: 'Заявка отменена' }); setFullscreen({ type: 'error', message: 'Заявка отменена' }); return; }
+          if (sub.status === 'confirmed') { setResult({ type: 'already', data: sub, message: `${sub.contactName} — уже подтверждён` }); setFullscreen({ type: 'already', data: sub, message: `${sub.contactName} — уже подтверждён` }); return; }
+          if (sub.status === 'waitlist') { setResult({ type: 'error', data: sub, message: `${sub.contactName} — в листе ожидания` }); setFullscreen({ type: 'error', data: sub, message: `${sub.contactName} — в листе ожидания` }); return; }
+
+          // Confirm via QR token
+          const postRes = await publicRegApi.checkinPost(sub.checkinToken);
+          if (postRes.success) {
+            setResult({ type: 'confirmed', data: sub, message: `${sub.contactName} — ПОДТВЕРЖДЁН` });
+            setFullscreen({ type: 'confirmed', data: sub, message: `${sub.contactName} — ПОДТВЕРЖДЁН` });
+          }
+          return;
+        }
+      } catch (e: any) {
+        setResult({ type: 'error', message: e?.response?.data?.error || 'Код не найден' });
+        setFullscreen({ type: 'error', message: 'Код не найден' });
+        return;
+      }
+    }
+
+    // Otherwise treat as QR token/URL
+    handleScan(val);
   };
 
   const resultColors = { confirmed: '#00ff88', already: '#eab308', error: '#ff3b30' };
-  const resultIcons = { confirmed: CheckCircle, already: Clock, error: XCircle };
+  const resultIcons = { confirmed: null, already: Clock, error: XCircle };
 
   return (
     <div className="space-y-6">
@@ -188,7 +216,16 @@ export default function CheckinScanner() {
                 const color = resultColors[fullscreen.type];
                 return (
                   <>
-                    <Icon className="w-24 h-24 mx-auto" style={{ color, filter: `drop-shadow(0 0 20px ${color})` }} />
+                    {fullscreen.type === 'confirmed' ? (
+                      <svg viewBox="0 0 120 120" width="96" height="96" className="mx-auto" style={{ filter: `drop-shadow(0 0 20px ${color})` }}>
+                        <polygon points="60,8 108,32 108,88 60,112 12,88 12,32" fill="none" stroke="#00ff88" strokeWidth="3" opacity="0.6"/>
+                        <polygon points="60,20 96,38 96,82 60,100 24,82 24,38" fill="none" stroke="#00d4ff" strokeWidth="1.5" opacity="0.3"/>
+                        <path d="M48,50 L56,70 L72,45 L60,65 L52,55 Z" fill="#00ff88" opacity="0.8"/>
+                        <circle cx="60" cy="58" r="3" fill="#00ff88"/>
+                      </svg>
+                    ) : (
+                      <Icon className="w-24 h-24 mx-auto" style={{ color, filter: `drop-shadow(0 0 20px ${color})` }} />
+                    )}
                     <h2 className="font-mono text-2xl font-bold" style={{ color, textShadow: `0 0 20px ${color}` }}>
                       {fullscreen.type === 'confirmed' ? 'ПОДТВЕРЖДЕНО' : fullscreen.type === 'already' ? 'УЖЕ ПОДТВЕРЖДЕНО' : 'ОШИБКА'}
                     </h2>
@@ -282,11 +319,11 @@ export default function CheckinScanner() {
 
           {/* Manual input */}
           <div className="border-t border-white/5 pt-3">
-            <p className="font-mono text-[10px] text-gray-500 mb-2">ИЛИ ВВЕДИТЕ ТОКЕН ВРУЧНУЮ:</p>
+            <p className="font-mono text-[10px] text-gray-500 mb-2">ВВЕДИТЕ 4-ЗНАЧНЫЙ КОД ИЛИ QR-ТОКЕН:</p>
             <div className="flex gap-2">
               <input value={manualToken} onChange={e => setManualToken(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleManualSubmit()}
-                placeholder="// checkin-token"
+                placeholder="// код или токен"
                 className="flex-1 px-3 py-2 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)]" />
               <button onClick={handleManualSubmit}
                 className="px-4 py-2 rounded-lg font-mono text-xs font-bold"
@@ -313,7 +350,16 @@ export default function CheckinScanner() {
                   const color = resultColors[result.type];
                   return (
                     <>
-                      <Icon className="w-16 h-16 mx-auto" style={{ color }} />
+                      {result.type === 'confirmed' ? (
+                        <svg viewBox="0 0 120 120" width="64" height="64" className="mx-auto">
+                          <polygon points="60,8 108,32 108,88 60,112 12,88 12,32" fill="none" stroke="#00ff88" strokeWidth="3" opacity="0.6"/>
+                          <polygon points="60,20 96,38 96,82 60,100 24,82 24,38" fill="none" stroke="#00d4ff" strokeWidth="1.5" opacity="0.3"/>
+                          <path d="M48,50 L56,70 L72,45 L60,65 L52,55 Z" fill="#00ff88" opacity="0.8"/>
+                          <circle cx="60" cy="58" r="3" fill="#00ff88"/>
+                        </svg>
+                      ) : (
+                        <Icon className="w-16 h-16 mx-auto" style={{ color }} />
+                      )}
                       <h3 className="font-mono text-lg font-bold" style={{ color }}>{result.message}</h3>
                       {result.data && (
                         <div className="rounded-xl p-3 text-left space-y-1" style={{ background: `${color}08`, border: `1px solid ${color}20` }}>

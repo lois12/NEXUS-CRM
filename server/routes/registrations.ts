@@ -4,7 +4,7 @@ import {
   uploadImage, uploadVideo, createField, updateField, deleteField, reorderFields,
   getBySlug, submitRegistration, getSubmissions, cancelSubmission, cancelByToken, exportCSV,
   getMedia, uploadMedia, deleteMedia,
-  checkinGet, checkinPost, getParticipants, toggleAttended,
+  checkinGet, checkinPost, checkinByCode, getParticipants, toggleAttended,
 } from '../controllers/registrationController';
 import { authenticateToken, requireRole } from '../middleware/auth';
 import { upload } from '../middleware/upload';
@@ -17,6 +17,7 @@ router.post('/reg/:slug', submitRegistration);
 router.delete('/reg/cancel/:token', cancelByToken);
 router.get('/reg/checkin/:token', checkinGet);
 router.post('/reg/checkin/:token', checkinPost);
+router.get('/reg/checkin-code/:registrationId/:code', checkinByCode);
 
 // ── Authenticated routes ──
 const authRouter = Router();

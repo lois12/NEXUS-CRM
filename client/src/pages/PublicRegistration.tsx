@@ -49,7 +49,7 @@ export default function PublicRegistration() {
   const [privacyConsent, setPrivacyConsent] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
-  const [result, setResult] = useState<{ status: string; position: number; cancelToken: string; checkinToken: string } | null>(null);
+  const [result, setResult] = useState<{ status: string; position: number; cancelToken: string; checkinToken: string; confirmCode?: string } | null>(null);
   const [timeLeft, setTimeLeft] = useState<TimeLeft | null>(null);
   const [timerType, setTimerType] = useState<'before' | 'during' | null>(null);
   const [activeMediaIdx, setActiveMediaIdx] = useState(0);
@@ -201,7 +201,7 @@ export default function PublicRegistration() {
     try {
       const res = await publicRegApi.submit(slug, { answers, contactName, contactEmail, contactPhone });
       if (res.success && res.data) {
-        setResult({ status: res.data.status, position: res.data.position, cancelToken: res.data.cancelToken, checkinToken: res.data.checkinToken });
+        setResult({ status: res.data.status, position: res.data.position, cancelToken: res.data.cancelToken, checkinToken: res.data.checkinToken, confirmCode: res.data.confirmCode });
         // Update local count
         setReg((prev: any) => prev ? {
           ...prev,
@@ -366,9 +366,18 @@ export default function PublicRegistration() {
           {/* Checkin QR code */}
           {result.checkinToken && (
             <div className="pt-3 border-t" style={{ borderColor: 'rgba(0,255,136,0.08)' }}>
-              <p className="font-mono text-[10px] text-gray-500 mb-3 text-center">Покажите этот QR-код контролёру при входе:</p>
+              <p className="font-mono text-[10px] text-gray-500 mb-3 text-center">Покажите этот QR-код организатору при входе:</p>
               <div className="inline-block p-3 bg-white rounded-xl mx-auto block" style={{ width: 'fit-content' }}>
                 <QRCodeSVG value={`${window.location.origin}/reg/checkin/${result.checkinToken}`} size={160} />
+              </div>
+            </div>
+          )}
+          {/* 4-digit confirm code */}
+          {result.confirmCode && (
+            <div className="pt-3 border-t text-center" style={{ borderColor: 'rgba(0,255,136,0.08)' }}>
+              <p className="font-mono text-[10px] text-gray-500 mb-2">Или назовите этот код организатору:</p>
+              <div className="inline-flex items-center gap-3 px-6 py-3 rounded-xl" style={{ background: 'rgba(0,212,255,0.08)', border: '1px solid rgba(0,212,255,0.2)' }}>
+                <span className="font-mono text-3xl font-bold tracking-[0.3em]" style={{ color: '#00d4ff' }}>{result.confirmCode}</span>
               </div>
             </div>
           )}

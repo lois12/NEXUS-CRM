@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { CheckCircle, XCircle, Clock } from 'lucide-react';
+import { XCircle, Clock } from 'lucide-react';
 import { publicRegApi } from '../services/api';
 
 export default function CheckinPage() {
@@ -17,7 +17,7 @@ export default function CheckinPage() {
         const res = await publicRegApi.checkinGet(token);
         if (res.success && res.data) {
           setData(res.data);
-          if (res.data.attended) {
+          if (res.data.status === 'confirmed') {
             setState('already');
           } else {
             setState('info');
@@ -36,7 +36,7 @@ export default function CheckinPage() {
     try {
       const res = await publicRegApi.checkinPost(token);
       if (res.success && res.data) {
-        setData((prev: any) => ({ ...prev, attended: 1, attendedAt: res.data.attendedAt }));
+        setData((prev: any) => ({ ...prev, status: 'confirmed' }));
         if (res.data.alreadyCheckedIn) {
           setState('already');
         } else {
@@ -94,8 +94,13 @@ export default function CheckinPage() {
           <>
             <motion.div initial={{ scale: 0, rotate: -180 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: 'spring', stiffness: 200, damping: 15 }}
               className="w-20 h-20 mx-auto flex items-center justify-center rounded-2xl"
-              style={{ background: 'rgba(0,255,136,0.08)', border: '2px solid rgba(0,255,136,0.3)', boxShadow: '0 0 30px rgba(0,255,136,0.2)' }}>
-              <CheckCircle className="w-10 h-10" style={{ color: 'var(--color-primary)' }} />
+              style={{ background: 'rgba(0,255,136,0.08)', border: '2px solid rgba(0,255,136,0.3)', boxShadow: '0 0 30px rgba(0,255,136,0.2), inset 0 0 20px rgba(0,255,136,0.05)' }}>
+              <svg viewBox="0 0 120 120" width="40" height="40">
+                <polygon points="60,8 108,32 108,88 60,112 12,88 12,32" fill="none" stroke="#00ff88" strokeWidth="3" opacity="0.6"/>
+                <polygon points="60,20 96,38 96,82 60,100 24,82 24,38" fill="none" stroke="#00d4ff" strokeWidth="1.5" opacity="0.3"/>
+                <path d="M48,50 L56,70 L72,45 L60,65 L52,55 Z" fill="#00ff88" opacity="0.8"/>
+                <circle cx="60" cy="58" r="3" fill="#00ff88"/>
+              </svg>
             </motion.div>
             <h2 className="font-mono text-xl font-bold" style={{ color: 'var(--color-primary)', textShadow: '0 0 20px rgba(0,255,136,0.4)' }}>ПОДТВЕРЖДЕНО</h2>
             <p className="font-mono text-sm text-gray-200">{data.contactName}</p>
@@ -110,7 +115,7 @@ export default function CheckinPage() {
             </div>
             <h2 className="font-mono text-lg font-bold" style={{ color: '#eab308' }}>УЖЕ ПОДТВЕРЖДЕНО</h2>
             <p className="font-mono text-sm text-gray-200">{data.contactName}</p>
-            {data.attendedAt && <p className="font-mono text-xs text-gray-400">Время: {new Date(data.attendedAt).toLocaleString('ru-RU')}</p>}
+            {data.updatedAt && <p className="font-mono text-xs text-gray-400">Время: {new Date(data.updatedAt).toLocaleString('ru-RU')}</p>}
           </>
         )}
       </motion.div>

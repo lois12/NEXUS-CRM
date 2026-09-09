@@ -584,6 +584,8 @@ export const publicRegApi = {
     api.get(`/reg/checkin/${token}`).then((res) => res.data),
   checkinPost: (token: string): Promise<ApiResponse<any>> =>
     api.post(`/reg/checkin/${token}`).then((res) => res.data),
+  checkinByCode: (registrationId: string, code: string): Promise<ApiResponse<any>> =>
+    api.get(`/reg/checkin-code/${registrationId}/${code}`).then((res) => res.data),
   getQRUrl: (slug: string): string => `/api/reg/${slug}/qr`,
 };
 
