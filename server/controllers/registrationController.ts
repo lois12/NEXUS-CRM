@@ -15,7 +15,7 @@ export const getRegistrations = (req: AuthRequest, res: Response) => {
     const limit = Math.min(parseInt(req.query.limit as string) || 200, 500);
     const regs = query(`
       SELECT r.*, u.fullName as creatorName,
-        (SELECT COUNT(*) FROM registration_submissions rs WHERE rs.registrationId = r.id AND rs.status = 'confirmed') as confirmedCount,
+        (SELECT COUNT(*) FROM registration_submissions rs WHERE rs.registrationId = r.id AND rs.status IN ('registered', 'confirmed')) as confirmedCount,
         (SELECT COUNT(*) FROM registration_submissions rs WHERE rs.registrationId = r.id AND rs.status = 'waitlist') as waitlistCount
       FROM registrations r
       LEFT JOIN users u ON r.createdBy = u.id
@@ -33,7 +33,7 @@ export const getRegistrationById = (req: AuthRequest, res: Response) => {
     const { id } = req.params;
     const reg = get(`
       SELECT r.*, u.fullName as creatorName,
-        (SELECT COUNT(*) FROM registration_submissions rs WHERE rs.registrationId = r.id AND rs.status = 'confirmed') as confirmedCount,
+        (SELECT COUNT(*) FROM registration_submissions rs WHERE rs.registrationId = r.id AND rs.status IN ('registered', 'confirmed')) as confirmedCount,
         (SELECT COUNT(*) FROM registration_submissions rs WHERE rs.registrationId = r.id AND rs.status = 'waitlist') as waitlistCount
       FROM registrations r
       LEFT JOIN users u ON r.createdBy = u.id
@@ -310,7 +310,7 @@ export const getBySlug = (req: AuthRequest, res: Response) => {
     const { slug } = req.params;
     const reg = get(`
       SELECT r.*,
-        (SELECT COUNT(*) FROM registration_submissions rs WHERE rs.registrationId = r.id AND rs.status = 'confirmed') as confirmedCount,
+        (SELECT COUNT(*) FROM registration_submissions rs WHERE rs.registrationId = r.id AND rs.status IN ('registered', 'confirmed')) as confirmedCount,
         (SELECT COUNT(*) FROM registration_submissions rs WHERE rs.registrationId = r.id AND rs.status = 'waitlist') as waitlistCount
       FROM registrations r WHERE r.publicSlug = ?
     `, [slug]);
@@ -352,11 +352,11 @@ export const submitRegistration = (req: AuthRequest, res: Response) => {
     }
 
     // Determine status based on limit
-    const confirmedCount = get('SELECT COUNT(*) as cnt FROM registration_submissions WHERE registrationId = ? AND status = ?', [reg.id, 'confirmed'])?.cnt || 0;
-    let status = 'confirmed';
+    const registeredCount = get('SELECT COUNT(*) as cnt FROM registration_submissions WHERE registrationId = ? AND status IN (?, ?)', [reg.id, 'registered', 'confirmed'])?.cnt || 0;
+    let status = 'registered';
     let position = 0;
 
-    if (reg.maxParticipants > 0 && confirmedCount >= reg.maxParticipants) {
+    if (reg.maxParticipants > 0 && registeredCount >= reg.maxParticipants) {
       status = 'waitlist';
       const waitlistCount = get('SELECT COUNT(*) as cnt FROM registration_submissions WHERE registrationId = ? AND status = ?', [reg.id, 'waitlist'])?.cnt || 0;
       position = waitlistCount + 1;
@@ -376,21 +376,29 @@ export const submitRegistration = (req: AuthRequest, res: Response) => {
     // ── Notifications (fire-and-forget, don't block response) ──
     (async () => {
       try {
+        const origin = `${req.protocol}://${req.get('host')}`;
+
         // 1. Email пользователю
         if (contactEmail) {
           await sendRegistrationConfirm(contactEmail, {
             name: contactName || 'Участник',
             eventTitle: reg.title,
             eventDate: reg.eventDate,
-            status: status as 'confirmed' | 'waitlist',
+            eventTime: reg.eventTime,
+            location: reg.location,
+            mapCoords: reg.mapCoords,
+            status: status as 'registered' | 'waitlist',
             position: status === 'waitlist' ? position : undefined,
+            checkinToken: status === 'registered' ? checkinToken : undefined,
+            cancelToken,
+            origin,
           });
         }
 
         // 2. Уведомить админов (in-app + email)
         const admins = query("SELECT id, username FROM users WHERE role IN ('администратор', 'admin') OR roles LIKE '%admin%'");
         for (const admin of admins) {
-          const statusText = status === 'waitlist' ? 'лист ожидания' : 'подтверждена';
+          const statusText = status === 'waitlist' ? 'лист ожидания' : 'зарегистрирован';
           createNotification({
             userId: admin.id,
             type: 'registration',
@@ -438,11 +446,11 @@ export const cancelSubmission = (req: AuthRequest, res: Response) => {
 
     run("UPDATE registration_submissions SET status = 'cancelled', updatedAt = datetime('now') WHERE id = ?", [subId]);
 
-    // If it was confirmed, promote first waitlist
-    if (sub.status === 'confirmed') {
+    // If it was registered, promote first waitlist
+    if (sub.status === 'registered') {
       const firstWaitlist = get("SELECT id FROM registration_submissions WHERE registrationId = ? AND status = 'waitlist' ORDER BY position ASC LIMIT 1", [sub.registrationId]);
       if (firstWaitlist) {
-        run("UPDATE registration_submissions SET status = 'confirmed', position = 0, updatedAt = datetime('now') WHERE id = ?", [firstWaitlist.id]);
+        run("UPDATE registration_submissions SET status = 'registered', position = 0, updatedAt = datetime('now') WHERE id = ?", [firstWaitlist.id]);
         // Recalculate waitlist positions
         const waitlist = query("SELECT id FROM registration_submissions WHERE registrationId = ? AND status = 'waitlist' ORDER BY position ASC", [sub.registrationId]);
         waitlist.forEach((w: any, i: number) => {
@@ -451,7 +459,7 @@ export const cancelSubmission = (req: AuthRequest, res: Response) => {
 
         // Notify promoted user
         const promoted = get('SELECT * FROM registration_submissions WHERE id = ?', [firstWaitlist.id]);
-        const regInfo = get('SELECT title, eventDate FROM registrations WHERE id = ?', [sub.registrationId]);
+        const regInfo = get('SELECT title, eventDate, eventTime, location, mapCoords FROM registrations WHERE id = ?', [sub.registrationId]);
         if (promoted && regInfo) {
           (async () => {
             try {
@@ -460,12 +468,18 @@ export const cancelSubmission = (req: AuthRequest, res: Response) => {
                   name: promoted.contactName || 'Участник',
                   eventTitle: regInfo.title,
                   eventDate: regInfo.eventDate,
+                  eventTime: regInfo.eventTime,
+                  location: regInfo.location,
+                  mapCoords: regInfo.mapCoords,
+                  checkinToken: promoted.checkinToken || '',
+                  cancelToken: promoted.cancelToken || '',
+                  origin: `${req.protocol}://${req.get('host')}`,
                 });
               }
               if (promoted.userId) {
                 createNotification({
                   userId: promoted.userId, type: 'registration',
-                  title: 'Вы в активном списке!',
+                  title: 'Вы зарегистрированы!',
                   body: `Место освободилось. Вы переведены из листа ожидания в "${regInfo.title}"`,
                   link: '/registrations',
                 });
@@ -494,10 +508,10 @@ export const cancelByToken = (req: AuthRequest, res: Response) => {
     run("UPDATE registration_submissions SET status = 'cancelled', updatedAt = datetime('now') WHERE id = ?", [sub.id]);
 
     // Promote waitlist
-    if (sub.status === 'confirmed') {
+    if (sub.status === 'registered') {
       const firstWaitlist = get("SELECT id FROM registration_submissions WHERE registrationId = ? AND status = 'waitlist' ORDER BY position ASC LIMIT 1", [sub.registrationId]);
       if (firstWaitlist) {
-        run("UPDATE registration_submissions SET status = 'confirmed', position = 0, updatedAt = datetime('now') WHERE id = ?", [firstWaitlist.id]);
+        run("UPDATE registration_submissions SET status = 'registered', position = 0, updatedAt = datetime('now') WHERE id = ?", [firstWaitlist.id]);
         const waitlist = query("SELECT id FROM registration_submissions WHERE registrationId = ? AND status = 'waitlist' ORDER BY position ASC", [sub.registrationId]);
         waitlist.forEach((w: any, i: number) => {
           run('UPDATE registration_submissions SET position = ? WHERE id = ?', [i + 1, w.id]);
@@ -505,7 +519,7 @@ export const cancelByToken = (req: AuthRequest, res: Response) => {
 
         // Notify promoted user
         const promoted = get('SELECT * FROM registration_submissions WHERE id = ?', [firstWaitlist.id]);
-        const regInfo = get('SELECT title, eventDate FROM registrations WHERE id = ?', [sub.registrationId]);
+        const regInfo = get('SELECT title, eventDate, eventTime, location, mapCoords FROM registrations WHERE id = ?', [sub.registrationId]);
         if (promoted && regInfo) {
           (async () => {
             try {
@@ -514,12 +528,18 @@ export const cancelByToken = (req: AuthRequest, res: Response) => {
                   name: promoted.contactName || 'Участник',
                   eventTitle: regInfo.title,
                   eventDate: regInfo.eventDate,
+                  eventTime: regInfo.eventTime,
+                  location: regInfo.location,
+                  mapCoords: regInfo.mapCoords,
+                  checkinToken: promoted.checkinToken || '',
+                  cancelToken: promoted.cancelToken || '',
+                  origin: `${req.protocol}://${req.get('host')}`,
                 });
               }
               if (promoted.userId) {
                 createNotification({
                   userId: promoted.userId, type: 'registration',
-                  title: 'Вы в активном списке!',
+                  title: 'Вы зарегистрированы!',
                   body: `Место освободилось. Вы переведены из листа ожидания в "${regInfo.title}"`,
                   link: '/registrations',
                 });
@@ -605,9 +625,10 @@ export const checkinPost = (req: AuthRequest, res: Response) => {
     const sub = get('SELECT * FROM registration_submissions WHERE checkinToken = ?', [token]);
     if (!sub) return res.status(404).json({ success: false, error: 'QR-код не найден' });
     if (sub.status === 'cancelled') return res.status(400).json({ success: false, error: 'Заявка отменена' });
-    if (sub.attended) return res.json({ success: true, data: { attended: true, attendedAt: sub.attendedAt, alreadyCheckedIn: true } });
+    if (sub.status === 'waitlist') return res.status(400).json({ success: false, error: 'Участник в листе ожидания' });
+    if (sub.status === 'confirmed') return res.json({ success: true, data: { status: 'confirmed', alreadyCheckedIn: true } });
 
-    run("UPDATE registration_submissions SET attended = 1, attendedAt = datetime('now') WHERE id = ?", [sub.id]);
+    run("UPDATE registration_submissions SET status = 'confirmed', updatedAt = datetime('now') WHERE id = ?", [sub.id]);
     const updated = get('SELECT * FROM registration_submissions WHERE id = ?', [sub.id]);
     res.json({ success: true, data: { ...updated, alreadyCheckedIn: false } });
   } catch (error) {

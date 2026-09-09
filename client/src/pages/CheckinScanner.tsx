@@ -121,7 +121,14 @@ export default function CheckinScanner() {
         return;
       }
 
-      if (sub.attended) {
+      if (sub.status === 'waitlist') {
+        const errResult: ScanResult = { type: 'error', message: `${sub.contactName} — в листе ожидания` };
+        setResult(errResult);
+        setFullscreen(errResult);
+        return;
+      }
+
+      if (sub.status === 'confirmed') {
         const alreadyResult: ScanResult = { type: 'already', data: sub, message: `${sub.contactName} — уже подтверждён` };
         setResult(alreadyResult);
         setFullscreen(alreadyResult);

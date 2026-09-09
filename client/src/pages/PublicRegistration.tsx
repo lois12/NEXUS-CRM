@@ -205,7 +205,7 @@ export default function PublicRegistration() {
         // Update local count
         setReg((prev: any) => prev ? {
           ...prev,
-          confirmedCount: res.data.status === 'confirmed' ? (prev.confirmedCount || 0) + 1 : prev.confirmedCount,
+          confirmedCount: res.data.status === 'registered' ? (prev.confirmedCount || 0) + 1 : prev.confirmedCount,
           waitlistCount: res.data.status === 'waitlist' ? (prev.waitlistCount || 0) + 1 : prev.waitlistCount,
         } : prev);
         setState('success');
@@ -312,7 +312,7 @@ export default function PublicRegistration() {
 
   // ── Success ──
   if (state === 'success' && result) {
-    const isConfirmed = result.status === 'confirmed';
+    const isRegistered = result.status === 'registered';
     const cancelUrl = `${window.location.origin}/reg/cancel/${result.cancelToken}`;
 
     return (
@@ -320,7 +320,7 @@ export default function PublicRegistration() {
         <motion.div initial={{ opacity: 0, y: 20, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }}
           className="rounded-2xl p-8 text-center max-w-md w-full space-y-5"
           style={{ background: 'linear-gradient(135deg, rgba(15,15,25,0.95), rgba(10,10,20,0.98))', border: '1px solid rgba(0,255,136,0.15)', boxShadow: '0 0 40px rgba(0,255,136,0.08), 0 16px 48px rgba(0,0,0,0.4)' }}>
-          {isConfirmed ? (
+          {isRegistered ? (
             <>
               {/* NEXUS hexagon logo */}
               <motion.div initial={{ scale: 0, rotate: -180 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: 'spring', stiffness: 200, damping: 15, delay: 0.2 }}
@@ -366,12 +366,21 @@ export default function PublicRegistration() {
           {/* Checkin QR code */}
           {result.checkinToken && (
             <div className="pt-3 border-t" style={{ borderColor: 'rgba(0,255,136,0.08)' }}>
-              <p className="font-mono text-[10px] text-gray-500 mb-3 text-center">Покажите этот QR-код организатору для подтверждения участия:</p>
+              <p className="font-mono text-[10px] text-gray-500 mb-3 text-center">Покажите этот QR-код контролёру при входе:</p>
               <div className="inline-block p-3 bg-white rounded-xl mx-auto block" style={{ width: 'fit-content' }}>
                 <QRCodeSVG value={`${window.location.origin}/reg/checkin/${result.checkinToken}`} size={160} />
               </div>
             </div>
           )}
+          {/* Email notification */}
+          <div className="pt-3 border-t text-center" style={{ borderColor: 'rgba(0,255,136,0.08)' }}>
+            <p className="font-mono text-[10px] text-gray-500">
+              Подробная информация о регистрации направлена на вашу почту:
+            </p>
+            <p className="font-mono text-xs font-bold mt-1" style={{ color: 'var(--color-primary)' }}>
+              {contactEmail}
+            </p>
+          </div>
         </motion.div>
       </div>
     );

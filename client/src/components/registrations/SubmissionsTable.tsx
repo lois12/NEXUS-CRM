@@ -13,8 +13,9 @@ interface SubmissionsTableProps {
 }
 
 const STATUS_CONFIG = {
-  confirmed: { label: 'Подтверждено', color: '#00ff88', icon: CheckCircle },
-  waitlist: { label: 'Очередь', color: '#eab308', icon: Clock },
+  registered: { label: 'Зарегистрирован', color: '#00ff88', icon: CheckCircle },
+  waitlist: { label: 'Ожидание', color: '#eab308', icon: Clock },
+  confirmed: { label: 'Подтверждён', color: '#00d4ff', icon: CheckCircle },
   cancelled: { label: 'Отменено', color: '#6b7280', icon: XCircle },
 };
 
