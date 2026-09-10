@@ -21,6 +21,9 @@ export async function initDatabase(testMode = false): Promise<void> {
   } else {
     db = new SQL.Database();
   }
+
+  // Enable foreign key constraints (sqlite default is OFF)
+  db.run('PRAGMA foreign_keys = ON');
 }
 
 // Debounced save — batches writes every 500ms

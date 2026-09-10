@@ -8,12 +8,13 @@ import {
 } from '../controllers/registrationController';
 import { authenticateToken, requireRole } from '../middleware/auth';
 import { upload } from '../middleware/upload';
+import { rateLimitRegistration } from '../middleware/rateLimit';
 
 const router = Router();
 
 // ── Public routes (no auth) ──
 router.get('/reg/:slug', getBySlug);
-router.post('/reg/:slug', submitRegistration);
+router.post('/reg/:slug', rateLimitRegistration, submitRegistration);
 router.delete('/reg/cancel/:token', cancelByToken);
 router.get('/reg/checkin/:token', checkinGet);
 router.post('/reg/checkin/:token', checkinPost);

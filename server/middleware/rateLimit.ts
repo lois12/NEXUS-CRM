@@ -80,3 +80,31 @@ export function recordFailedAttempt(ip: string) {
 export function recordSuccessfulLogin(ip: string) {
   attempts.delete(ip);
 }
+
+// ── Registration rate limit: 5 per IP per hour ──
+
+const regAttempts = new Map<string, { count: number; windowStart: number }>();
+const REG_MAX = 5;
+const REG_WINDOW = 60 * 60 * 1000; // 1 hour
+
+export function rateLimitRegistration(req: Request, res: Response, next: NextFunction) {
+  const ip = req.ip || req.socket.remoteAddress || 'unknown';
+  const now = Date.now();
+
+  let entry = regAttempts.get(ip);
+  if (!entry || (now - entry.windowStart > REG_WINDOW)) {
+    entry = { count: 0, windowStart: now };
+    regAttempts.set(ip, entry);
+  }
+
+  if (entry.count >= REG_MAX) {
+    const retryMin = Math.ceil((REG_WINDOW - (now - entry.windowStart)) / 60000);
+    return res.status(429).json({
+      success: false,
+      error: `Слишком много регистраций. Попробуйте через ${retryMin} мин.`,
+    });
+  }
+
+  entry.count++;
+  next();
+}

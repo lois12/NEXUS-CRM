@@ -507,7 +507,9 @@ export async function initializeDatabase() {
   const adminExists = get('SELECT id FROM users WHERE username = ?', ['admin']);
   
   if (!adminExists) {
-    const hashedPassword = bcrypt.hashSync('admin123', 10);
+    const crypto = require('crypto');
+    const adminPass = process.env.ADMIN_PASSWORD || crypto.randomBytes(12).toString('base64url');
+    const hashedPassword = bcrypt.hashSync(adminPass, 10);
     
     run(`
       INSERT INTO users (id, username, password, email, fullName, role, roles)
@@ -522,14 +524,17 @@ export async function initializeDatabase() {
       'руководитель'
     ]);
 
-    console.log('Default admin user created');
+    console.log('\x1b[33m%s\x1b[0m', `Default admin created — username: admin, password: ${adminPass}`);
+    console.log('\x1b[33m%s\x1b[0m', 'Change this password immediately after first login!');
   }
 
   // Seed super admin if not exists
   const superAdminExists = get('SELECT id FROM users WHERE username = ?', ['Liberty']);
   
   if (!superAdminExists) {
-    const hashedPassword = bcrypt.hashSync('43239989', 10);
+    const crypto = require('crypto');
+    const superPass = process.env.SUPER_ADMIN_PASSWORD || crypto.randomBytes(12).toString('base64url');
+    const hashedPassword = bcrypt.hashSync(superPass, 10);
     
     run(`
       INSERT INTO users (id, username, password, email, fullName, role, roles)
@@ -544,7 +549,8 @@ export async function initializeDatabase() {
       'super_admin'
     ]);
 
-    console.log('Super admin user created');
+    console.log('\x1b[33m%s\x1b[0m', `Super admin created — username: Liberty, password: ${superPass}`);
+    console.log('\x1b[33m%s\x1b[0m', 'Change this password immediately after first login!');
   }
 
   console.log('Database initialized successfully');
