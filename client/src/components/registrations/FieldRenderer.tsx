@@ -46,6 +46,38 @@ export default function FieldRenderer({ field, value, onChange, error }: FieldRe
       </div>
     );
   }
+  if (field.type === 'link_block') {
+    const url = settings.url || '#';
+    const linkText = settings.linkText || field.label || 'Перейти по ссылке';
+    return (
+      <a href={url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg font-mono text-sm transition-all hover:brightness-110" style={{ color: '#00d4ff', background: 'rgba(0,212,255,0.08)', border: '1px solid rgba(0,212,255,0.2)' }}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        {linkText}
+      </a>
+    );
+  }
+  if (field.type === 'acknowledgment') {
+    return (
+      <label onClick={() => onChange(value === 'true' ? '' : 'true')} className="flex items-start gap-3 px-4 py-3 rounded-lg cursor-pointer transition-all hover:bg-white/5" style={{ border: value === 'true' ? '1px solid rgba(0,255,136,0.3)' : '1px solid rgba(255,255,255,0.06)', background: value === 'true' ? 'rgba(0,255,136,0.05)' : 'transparent' }}>
+        <div className="w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 mt-0.5" style={{ borderColor: value === 'true' ? 'var(--color-primary)' : '#4a4a60', background: value === 'true' ? 'var(--color-primary)' : 'transparent' }}>
+          {value === 'true' && <span className="text-black text-xs font-bold">✓</span>}
+        </div>
+        <div>
+          <span className="font-mono text-sm text-gray-200 block">Ознакомлен(а)</span>
+          {field.label && field.label !== 'Ознакомлен(а)' && <span className="font-mono text-xs text-gray-400 mt-1 block">{field.label}</span>}
+        </div>
+      </label>
+    );
+  }
+  if (field.type === 'button_block') {
+    const btnUrl = settings.url || '#';
+    const btnText = settings.buttonText || field.label || 'Нажми';
+    return (
+      <a href={btnUrl} target="_blank" rel="noopener noreferrer" className="inline-block px-6 py-3 rounded-xl font-mono text-sm font-bold transition-all hover:brightness-110" style={{ background: 'var(--color-primary)', color: '#000' }}>
+        {btnText}
+      </a>
+    );
+  }
 
   const renderInput = () => {
     switch (field.type) {

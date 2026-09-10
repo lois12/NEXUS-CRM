@@ -374,7 +374,7 @@ export type FieldType =
   | 'file' | 'multi_file' | 'signature'
   | 'checkbox' | 'rating'
   | 'url' | 'address' | 'heading' | 'paragraph' | 'divider' | 'page_break'
-  | 'map';
+  | 'map' | 'link_block' | 'acknowledgment' | 'button_block';
 
 export interface RegistrationField {
   id: string;
@@ -464,4 +464,7 @@ export const FIELD_TYPE_CONFIG: Record<FieldType, { label: string; icon: string;
   paragraph: { label: 'Параграф', icon: '¶', category: 'layout' },
   divider: { label: 'Разделитель', icon: '—', category: 'layout' },
   page_break: { label: 'Разрыв страницы', icon: '⏸️', category: 'layout' },
+  link_block: { label: 'Ссылка', icon: '🔗', category: 'layout' },
+  acknowledgment: { label: 'Ознакомлен(а)', icon: '✅', category: 'choice' },
+  button_block: { label: 'Кнопка', icon: '🔲', category: 'layout' },
 };

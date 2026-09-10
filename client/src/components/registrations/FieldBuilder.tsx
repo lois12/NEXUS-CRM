@@ -306,6 +306,48 @@ export default function FieldBuilder({ fields, onAdd, onUpdate, onDelete, onReor
                             className="w-full px-3 py-1.5 rounded-lg font-mono text-xs bg-black/30 border border-gray-700 text-gray-200 focus:outline-none" />
                         </div>
                       )}
+
+                      {/* Link block settings */}
+                      {field.type === 'link_block' && (
+                        <>
+                          <div>
+                            <label className="font-mono text-[10px] text-gray-500 mb-1 block">URL ССЫЛКИ</label>
+                            <input value={settings.url || ''} onChange={e => onUpdate(field.id, { settings: { ...settings, url: e.target.value } as any })}
+                              placeholder="https://..." className="w-full px-3 py-1.5 rounded-lg font-mono text-xs bg-black/30 border border-gray-700 text-gray-200 focus:outline-none" />
+                          </div>
+                          <div>
+                            <label className="font-mono text-[10px] text-gray-500 mb-1 block">ТЕКСТ ССЫЛКИ</label>
+                            <input value={settings.linkText || ''} onChange={e => onUpdate(field.id, { settings: { ...settings, linkText: e.target.value } as any })}
+                              placeholder="Перейти по ссылке" className="w-full px-3 py-1.5 rounded-lg font-mono text-xs bg-black/30 border border-gray-700 text-gray-200 focus:outline-none" />
+                          </div>
+                        </>
+                      )}
+
+                      {/* Button block settings */}
+                      {field.type === 'button_block' && (
+                        <>
+                          <div>
+                            <label className="font-mono text-[10px] text-gray-500 mb-1 block">URL КНОПКИ</label>
+                            <input value={settings.url || ''} onChange={e => onUpdate(field.id, { settings: { ...settings, url: e.target.value } as any })}
+                              placeholder="https://..." className="w-full px-3 py-1.5 rounded-lg font-mono text-xs bg-black/30 border border-gray-700 text-gray-200 focus:outline-none" />
+                          </div>
+                          <div>
+                            <label className="font-mono text-[10px] text-gray-500 mb-1 block">ТЕКСТ КНОПКИ</label>
+                            <input value={settings.buttonText || ''} onChange={e => onUpdate(field.id, { settings: { ...settings, buttonText: e.target.value } as any })}
+                              placeholder="Нажми" className="w-full px-3 py-1.5 rounded-lg font-mono text-xs bg-black/30 border border-gray-700 text-gray-200 focus:outline-none" />
+                          </div>
+                        </>
+                      )}
+
+                      {/* Acknowledgment settings */}
+                      {field.type === 'acknowledgment' && (
+                        <div>
+                          <label className="font-mono text-[10px] text-gray-500 mb-1 block">ТЕКСТ ДОКУМЕНТА</label>
+                          <textarea value={field.label || ''} onChange={e => onUpdate(field.id, { label: e.target.value })}
+                            placeholder="Я ознакомился(ась) с условиями..."
+                            rows={3} className="w-full px-3 py-1.5 rounded-lg font-mono text-xs bg-black/30 border border-gray-700 text-gray-200 focus:outline-none resize-none" />
+                        </div>
+                      )}
                     </div>
                   </motion.div>
                 )}
