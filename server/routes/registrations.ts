@@ -4,7 +4,7 @@ import {
   uploadImage, uploadVideo, createField, updateField, deleteField, reorderFields,
   getBySlug, submitRegistration, getSubmissions, cancelSubmission, cancelByToken, exportCSV,
   getMedia, uploadMedia, deleteMedia,
-  checkinGet, checkinPost, checkinByCode, getParticipants, toggleAttended,
+  checkinGet, checkinPost, checkinByCode, getParticipants, toggleAttended, updateAndNotify,
 } from '../controllers/registrationController';
 import { authenticateToken, requireRole } from '../middleware/auth';
 import { upload } from '../middleware/upload';
@@ -28,6 +28,7 @@ authRouter.get('/', getRegistrations);
 authRouter.get('/:id', getRegistrationById);
 authRouter.post('/', requireRole('super_admin', 'руководитель', 'редактор'), createRegistration);
 authRouter.put('/:id', requireRole('super_admin', 'руководитель', 'редактор'), updateRegistration);
+authRouter.put('/:id/notify', requireRole('super_admin', 'руководитель', 'редактор'), updateAndNotify);
 authRouter.delete('/:id', requireRole('super_admin', 'руководитель'), deleteRegistration);
 authRouter.post('/:id/image', requireRole('super_admin', 'руководитель', 'редактор'), upload.single('file'), uploadImage);
 authRouter.post('/:id/video', requireRole('super_admin', 'руководитель', 'редактор'), upload.single('file'), uploadVideo);

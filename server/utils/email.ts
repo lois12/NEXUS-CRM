@@ -227,3 +227,47 @@ export async function sendWaitlistPromotion(to: string, data: {
     return false;
   }
 }
+
+// ── Письмо 4: Уведомление об изменении мероприятия ──
+
+export async function sendEventUpdate(to: string, data: {
+  name: string;
+  eventTitle: string;
+  eventDate?: string;
+  eventTime?: string;
+  location?: string;
+  mapCoords?: string;
+  organizer?: string;
+  description?: string;
+  changes: string[];
+  cancelToken?: string;
+  origin: string;
+}): Promise<boolean> {
+  if (!isEnabled()) return false;
+  try {
+    const displayName = getDisplayName(data.name);
+    const cancelUrl = data.cancelToken ? `${data.origin}/reg/cancel/${data.cancelToken}` : '';
+
+    const changesHtml = data.changes.map(c =>
+      `<div style="display:flex;align-items:flex-start;gap:8px;padding:8px 12px;background:rgba(234,179,8,0.06);border-radius:8px;margin-bottom:6px;">
+        <span style="color:#eab308;font-size:14px;flex-shrink:0;">!</span>
+        <span style="font-family:monospace;font-size:13px;color:#e0e0e0;">${c}</span>
+      </div>`
+    ).join('');
+
+    const content = `
+      <p style="margin:0 0 16px;">Здравствуйте, <strong style="color:#e0e0e0;">${displayName}</strong>!</p>
+      <p style="margin:0 0 16px;">Платформа NEXUS оповещает вас об изменениях в мероприятии <strong style="color:#e0e0e0;">${data.eventTitle}</strong>:</p>
+      <div style="margin:16px 0;">${changesHtml}</div>
+      ${eventBlock(data.eventTitle, data.eventDate, data.eventTime, data.mapCoords, data.location, data.organizer, data.description)}
+      ${cancelUrl ? `<div style="text-align:center;margin:24px 0 0;">
+        <a href="${cancelUrl}" style="display:inline-block;padding:12px 32px;background:rgba(255,59,48,0.1);border:1px solid rgba(255,59,48,0.3);border-radius:10px;color:#ff6b6b;font-family:monospace;font-size:13px;font-weight:600;text-decoration:none;">Отменить регистрацию</a>
+      </div>` : ''}`;
+
+    await resend!.emails.send({ from: FROM, to, subject: `Изменение: ${data.eventTitle}`, html: wrap('ВНИМАНИЕ! ИЗМЕНЕНИЯ', content, '#eab308') });
+    return true;
+  } catch (err) {
+    console.error('[Email] sendEventUpdate failed:', err);
+    return false;
+  }
+}

@@ -206,6 +206,48 @@ export default function Registrations() {
     finally { setUploading(false); }
   };
 
+  const handleSaveAndNotify = async () => {
+    if (!editing) return;
+    if (!form.title.trim()) { showToast('Введите название', 'error'); return; }
+    try {
+      setUploading(true);
+      // Save fields first (same as handleSave)
+      const currentRes = await registrationsApi.getOne(editing.id);
+      if (currentRes.success && currentRes.data) {
+        const existingIds = currentRes.data.fields?.map((f: any) => f.id) || [];
+        for (const f of regFields) {
+          if (!existingIds.includes(f.id) && !f.id.startsWith('temp-')) continue;
+        }
+        for (const f of (currentRes.data.fields || [])) {
+          if (!regFields.find(rf => rf.id === f.id)) {
+            await registrationsApi.deleteField(editing.id, f.id);
+          }
+        }
+        for (let i = 0; i < regFields.length; i++) {
+          const field = regFields[i];
+          const fieldData = {
+            ...field, position: i,
+            options: Array.isArray(field.options) ? JSON.stringify(field.options) : (typeof field.options === 'string' ? field.options : '[]'),
+            settings: (typeof field.settings === 'object' && field.settings !== null && !Array.isArray(field.settings)) ? JSON.stringify(field.settings) : (typeof field.settings === 'string' ? field.settings : '{}'),
+          };
+          if (field.id.startsWith('temp-')) await registrationsApi.createField(editing.id, fieldData);
+          else await registrationsApi.updateField(editing.id, field.id, fieldData);
+        }
+      }
+
+      // Update and notify
+      const res = await registrationsApi.updateAndNotify(editing.id, form);
+      if (res.success) {
+        showToast(res.message || 'Обновлено и отправлено!', 'success');
+        setView('list');
+        fetchData();
+      } else {
+        showToast(res.error || 'Ошибка', 'error');
+      }
+    } catch { showToast('Ошибка сохранения', 'error'); }
+    finally { setUploading(false); }
+  };
+
   const handleDelete = (reg: Registration) => {
     showConfirm('УДАЛИТЬ?', `"${reg.title}" будет удалён безвозвратно.`, async () => {
       try { await registrationsApi.delete(reg.id); showToast('Удалено', 'success'); fetchData(); }
@@ -330,6 +372,14 @@ export default function Registrations() {
               style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}>
               {uploading ? 'СОХРАНЕНИЕ...' : 'СОХРАНИТЬ'}
             </button>
+            {editing && (
+              <button onClick={handleSaveAndNotify} disabled={uploading}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-sm font-bold disabled:opacity-50"
+                style={{ backgroundColor: 'rgba(234,179,8,0.15)', color: '#eab308', border: '1px solid rgba(234,179,8,0.3)' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4"><path d="M22 2L11 13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                ИЗМЕНИТЬ И ОПОВЕСТИТЬ
+              </button>
+            )}
           </div>
         </div>
 
