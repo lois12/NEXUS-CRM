@@ -707,7 +707,7 @@ export default function ChatWidget() {
               placeholder="Сообщение..." className="w-full px-3 md:px-4 py-2.5 md:py-3 rounded-xl text-sm outline-none"
               style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.06)', color: '#e0e0e0', fontFamily: "'JetBrains Mono', monospace", fontSize: '13px' }} />
           </div>
-          <button onClick={handleSend} disabled={!newMessage.trim() && attachedFiles.length === 0}
+          <button onClick={() => handleSend()} disabled={!newMessage.trim() && attachedFiles.length === 0}
             className="p-2.5 rounded-xl disabled:opacity-30 flex-shrink-0"
             style={{ background: 'linear-gradient(135deg, #00ff88, #00cc6a)', color: '#000', boxShadow: '0 0 20px var(--color-glow)', opacity: (newMessage.trim() || attachedFiles.length > 0) ? 1 : 0.3 }}>
             <Send className="w-4 h-4" />
