@@ -577,12 +577,28 @@ export default function PublicRegistration() {
         <div className="glass rounded-2xl p-6 space-y-5">
           <h2 className="font-mono text-sm font-bold" style={{ color: 'var(--color-primary)' }}>ФОРМА РЕГИСТРАЦИИ</h2>
 
-          {fields.map(field => (
-            <FieldRenderer key={field.id} field={field}
-              value={answers[field.id] || ''}
+          {fields.map(field => {
+            // Check conditional visibility (showIf)
+            const s = typeof field.settings === 'object' && field.settings !== null ? field.settings : (typeof field.settings === 'string' ? (() => { try { return JSON.parse(field.settings); } catch { return {}; } })() : {});
+            if (s.showIf && s.showIf.fieldId) {
+              const depValue = answers[s.showIf.fieldId] || '';
+              const op = s.showIf.operator || 'equals';
+              const target = s.showIf.value || '';
+              let visible = false;
+              if (op === 'equals') visible = depValue === target;
+              else if (op === 'not_equals') visible = depValue !== target;
+              else if (op === 'contains') visible = depValue.includes(target);
+              else if (op === 'not_empty') visible = depValue.length > 0;
+              else if (op === 'empty') visible = depValue.length === 0;
+              if (!visible) return null;
+            }
+            return (
+              <FieldRenderer key={field.id} field={field}
+                value={answers[field.id] || ''}
               onChange={val => setAnswers(prev => ({ ...prev, [field.id]: val }))}
               error={fieldErrors[field.id]} />
-          ))}
+            );
+          })}
 
           <div className="border-t border-white/5 pt-4 space-y-3">
             <h3 className="font-mono text-xs font-bold text-gray-400">КОНТАКТНЫЕ ДАННЫЕ</h3>

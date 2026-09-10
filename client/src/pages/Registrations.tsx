@@ -274,6 +274,24 @@ export default function Registrations() {
     setRegFields(prev => prev.filter(f => f.id !== fieldId));
   };
 
+  const duplicateField = (fieldId: string) => {
+    setRegFields(prev => {
+      const src = prev.find(f => f.id === fieldId);
+      if (!src) return prev;
+      const dup: RegistrationField = {
+        ...src,
+        id: `temp-${Date.now()}`,
+        label: src.label + ' (копия)',
+        position: prev.length,
+        createdAt: new Date().toISOString(),
+      };
+      const idx = prev.findIndex(f => f.id === fieldId);
+      const arr = [...prev];
+      arr.splice(idx + 1, 0, dup);
+      return arr;
+    });
+  };
+
   const reorderFields = (from: number, to: number) => {
     setRegFields(prev => {
       const arr = [...prev];
@@ -686,7 +704,7 @@ export default function Registrations() {
 
           {/* Right: Field Builder */}
           <div className="glass rounded-2xl p-6">
-            <FieldBuilder fields={regFields} onAdd={addField} onUpdate={updateField} onDelete={deleteField} onReorder={reorderFields} />
+            <FieldBuilder fields={regFields} onAdd={addField} onUpdate={updateField} onDelete={deleteField} onDuplicate={duplicateField} onReorder={reorderFields} />
           </div>
         </div>
 
