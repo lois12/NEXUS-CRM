@@ -163,7 +163,7 @@ export default function FieldRenderer({ field, value, onChange, error }: FieldRe
         return (
           <div className="space-y-2">
             {options.map((opt, i) => (
-              <label key={i} className="flex items-center gap-3 px-4 py-2.5 rounded-lg cursor-pointer transition-all hover:bg-white/5" style={{ border: value === opt ? '1px solid rgba(0,255,136,0.3)' : '1px solid rgba(255,255,255,0.06)', background: value === opt ? 'rgba(0,255,136,0.05)' : 'transparent' }}>
+              <label key={i} onClick={() => onChange(opt)} className="flex items-center gap-3 px-4 py-2.5 rounded-lg cursor-pointer transition-all hover:bg-white/5" style={{ border: value === opt ? '1px solid rgba(0,255,136,0.3)' : '1px solid rgba(255,255,255,0.06)', background: value === opt ? 'rgba(0,255,136,0.05)' : 'transparent' }}>
                 <div className="w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0" style={{ borderColor: value === opt ? 'var(--color-primary)' : '#4a4a60' }}>
                   {value === opt && <div className="w-2 h-2 rounded-full" style={{ background: 'var(--color-primary)' }} />}
                 </div>
@@ -278,7 +278,7 @@ export default function FieldRenderer({ field, value, onChange, error }: FieldRe
 
       case 'checkbox':
         return (
-          <label className="flex items-center gap-3 px-4 py-2.5 rounded-lg cursor-pointer transition-all hover:bg-white/5" style={{ border: value === 'true' ? '1px solid rgba(0,255,136,0.3)' : '1px solid rgba(255,255,255,0.06)' }}>
+          <label onClick={() => onChange(value === 'true' ? '' : 'true')} className="flex items-center gap-3 px-4 py-2.5 rounded-lg cursor-pointer transition-all hover:bg-white/5" style={{ border: value === 'true' ? '1px solid rgba(0,255,136,0.3)' : '1px solid rgba(255,255,255,0.06)' }}>
             <div className="w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0" style={{ borderColor: value === 'true' ? 'var(--color-primary)' : '#4a4a60', background: value === 'true' ? 'var(--color-primary)' : 'transparent' }}>
               {value === 'true' && <span className="text-black text-xs font-bold">✓</span>}
             </div>

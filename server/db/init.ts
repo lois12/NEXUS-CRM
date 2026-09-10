@@ -737,5 +737,6 @@ export async function initializeDatabase() {
   migrate('ALTER TABLE registration_submissions ADD COLUMN attended INTEGER NOT NULL DEFAULT 0');
   migrate('ALTER TABLE registration_submissions ADD COLUMN attendedAt TEXT');
   migrate('ALTER TABLE registration_submissions ADD COLUMN confirmCode TEXT DEFAULT ""');
+  migrate('ALTER TABLE registrations ADD COLUMN organizer TEXT DEFAULT ""');
   try { run('CREATE INDEX IF NOT EXISTS idx_reg_sub_checkin ON registration_submissions(checkinToken)'); } catch {}
 }

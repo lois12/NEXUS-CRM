@@ -45,11 +45,19 @@ function wrap(title: string, content: string, accent: string = '#00ff88'): strin
 </html>`;
 }
 
-function eventBlock(title: string, date?: string, time?: string, mapCoords?: string, location?: string): string {
+function eventBlock(title: string, date?: string, time?: string, mapCoords?: string, location?: string, organizer?: string, description?: string): string {
   const map = buildMapUrl(mapCoords, location);
   let html = `<div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:20px;margin:20px 0;">
     <div style="font-family:monospace;font-size:11px;color:#4a4a60;letter-spacing:2px;margin-bottom:12px;">МЕРОПРИЯТИЕ</div>
     <div style="font-size:18px;font-weight:700;color:#e0e0e0;margin-bottom:16px;">${title}</div>`;
+
+  if (organizer) {
+    html += `<div style="margin-bottom:12px;"><span style="font-family:monospace;font-size:10px;color:#4a4a60;">ОРГАНИЗАТОР</span><div style="color:#e0e0e0;margin-top:2px;">${organizer}</div></div>`;
+  }
+
+  if (description) {
+    html += `<div style="margin-bottom:12px;padding:12px;background:rgba(255,255,255,0.02);border-radius:8px;border:1px solid rgba(255,255,255,0.04);color:#a0a0b0;font-size:13px;line-height:1.6;white-space:pre-wrap;">${description}</div>`;
+  }
 
   if (date || time) {
     html += `<div style="display:flex;gap:20px;margin-bottom:12px;">`;
@@ -79,6 +87,8 @@ export async function sendRegistrationConfirm(to: string, data: {
   eventTime?: string;
   location?: string;
   mapCoords?: string;
+  organizer?: string;
+  description?: string;
   status: 'registered' | 'waitlist';
   position?: number;
   checkinToken?: string;
@@ -101,7 +111,7 @@ export async function sendRegistrationConfirm(to: string, data: {
           <div style="font-size:32px;font-weight:700;color:#eab308;font-family:monospace;">#${data.position}</div>
         </div>
         <p style="margin:0 0 20px;color:#8888a0;">Мы уведомим вас, если место освободится.</p>
-        ${eventBlock(data.eventTitle, data.eventDate, data.eventTime, data.mapCoords, data.location)}
+        ${eventBlock(data.eventTitle, data.eventDate, data.eventTime, data.mapCoords, data.location, data.organizer, data.description)}
         <div style="text-align:center;margin:24px 0 0;">
           <a href="${cancelUrl}" style="display:inline-block;padding:12px 32px;background:rgba(255,59,48,0.1);border:1px solid rgba(255,59,48,0.3);border-radius:10px;color:#ff6b6b;font-family:monospace;font-size:13px;font-weight:600;text-decoration:none;">Отменить регистрацию</a>
         </div>`;
@@ -117,7 +127,7 @@ export async function sendRegistrationConfirm(to: string, data: {
           <div style="font-family:monospace;font-size:11px;color:#00ff88;letter-spacing:2px;margin-bottom:6px;">СТАТУС</div>
           <div style="font-size:18px;font-weight:700;color:#00ff88;font-family:monospace;">ЗАРЕГИСТРИРОВАН ✓</div>
         </div>
-        ${eventBlock(data.eventTitle, data.eventDate, data.eventTime, data.mapCoords, data.location)}
+        ${eventBlock(data.eventTitle, data.eventDate, data.eventTime, data.mapCoords, data.location, data.organizer, data.description)}
         <div style="text-align:center;margin:24px 0;padding:20px;background:rgba(255,255,255,0.03);border-radius:12px;">
           <p style="font-family:monospace;font-size:11px;color:#4a4a60;margin:0 0 12px;">Покажите этот QR-код организатору при входе:</p>
           <img src="${qrDataUrl}" alt="QR Code" width="160" height="160" style="display:block;margin:0 auto;border-radius:8px;" />
@@ -176,6 +186,8 @@ export async function sendWaitlistPromotion(to: string, data: {
   eventTime?: string;
   location?: string;
   mapCoords?: string;
+  organizer?: string;
+  description?: string;
   checkinToken: string;
   confirmCode?: string;
   cancelToken: string;
@@ -195,7 +207,7 @@ export async function sendWaitlistPromotion(to: string, data: {
         <div style="font-family:monospace;font-size:11px;color:#00ff88;letter-spacing:2px;margin-bottom:8px;">СТАТУС ОБНОВЛЁН</div>
         <div style="font-size:18px;font-weight:700;color:#00ff88;font-family:monospace;">ВЫ ЗАРЕГИСТРИРОВАНЫ ✓</div>
       </div>
-      ${eventBlock(data.eventTitle, data.eventDate, data.eventTime, data.mapCoords, data.location)}
+      ${eventBlock(data.eventTitle, data.eventDate, data.eventTime, data.mapCoords, data.location, data.organizer, data.description)}
       <div style="text-align:center;margin:24px 0;padding:20px;background:rgba(255,255,255,0.03);border-radius:12px;">
         <p style="font-family:monospace;font-size:11px;color:#4a4a60;margin:0 0 12px;">Покажите этот QR-код организатору при входе:</p>
         <img src="${qrDataUrl}" alt="QR Code" width="160" height="160" style="display:block;margin:0 auto;border-radius:8px;" />

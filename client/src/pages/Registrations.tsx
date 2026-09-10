@@ -26,7 +26,7 @@ export default function Registrations() {
   const [filterStatus, setFilterStatus] = useState('');
   const [view, setView] = useState<'list' | 'constructor' | 'submissions'>('list');
   const [editing, setEditing] = useState<Registration | null>(null);
-  const [form, setForm] = useState({ title: '', description: '', eventDate: '', eventTime: '', location: '', videoUrl: '', maxParticipants: 0, status: 'draft' as string, registrationStart: '', registrationEnd: '', closedMessage: '', mapCoords: '', showLimit: 1, showTimer: 1 });
+  const [form, setForm] = useState({ title: '', description: '', eventDate: '', eventTime: '', location: '', videoUrl: '', maxParticipants: 0, status: 'draft' as string, registrationStart: '', registrationEnd: '', closedMessage: '', mapCoords: '', showLimit: 1, showTimer: 1, organizer: '' });
   const [regFields, setRegFields] = useState<RegistrationField[]>([]);
   const [submissions, setSubmissions] = useState<RegistrationSubmission[]>([]);
   const [showQR, setShowQR] = useState(false);
@@ -58,7 +58,7 @@ export default function Registrations() {
 
   const openCreate = () => {
     setEditing(null);
-    setForm({ title: '', description: '', eventDate: '', eventTime: '', location: '', videoUrl: '', maxParticipants: 0, status: 'draft', registrationStart: '', registrationEnd: '', closedMessage: '', mapCoords: '', showLimit: 1, showTimer: 1 });
+    setForm({ title: '', description: '', eventDate: '', eventTime: '', location: '', videoUrl: '', maxParticipants: 0, status: 'draft', registrationStart: '', registrationEnd: '', closedMessage: '', mapCoords: '', showLimit: 1, showTimer: 1, organizer: '' });
     setRegFields([]);
     setImageUrl('');
     setImageFiles([]);
@@ -107,6 +107,7 @@ export default function Registrations() {
           registrationStart: data.registrationStart || '', registrationEnd: data.registrationEnd || '',
           closedMessage: data.closedMessage || '', mapCoords: data.mapCoords || '',
           showLimit: data.showLimit ?? 1, showTimer: data.showTimer ?? 1,
+          organizer: data.organizer || '',
         });
         setRegFields(normalizeFields(data.fields));
         setImageUrl(data.imageUrl || '');
@@ -338,6 +339,8 @@ export default function Registrations() {
             <div className="glass rounded-2xl p-6 space-y-4">
               <h2 className="font-mono text-sm font-bold" style={{ color: 'var(--color-primary)' }}>ИНФОРМАЦИЯ</h2>
               <input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="// НАЗВАНИЕ МЕРОПРИЯТИЯ *"
+                className="w-full px-4 py-2.5 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)]" />
+              <input value={form.organizer} onChange={e => setForm({ ...form, organizer: e.target.value })} placeholder="// ОРГАНИЗАТОР"
                 className="w-full px-4 py-2.5 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)]" />
               <div className="grid grid-cols-2 gap-3">
                 <div>

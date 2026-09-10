@@ -51,14 +51,14 @@ export const getRegistrationById = (req: AuthRequest, res: Response) => {
 
 export const createRegistration = (req: AuthRequest, res: Response) => {
   try {
-    const { title, description, eventDate, eventTime, location, videoUrl, maxParticipants, status, registrationStart, registrationEnd, closedMessage, mapCoords, showLimit, showTimer } = req.body;
+    const { title, description, eventDate, eventTime, location, videoUrl, maxParticipants, status, registrationStart, registrationEnd, closedMessage, mapCoords, showLimit, showTimer, organizer } = req.body;
     if (!title) return res.status(400).json({ success: false, error: 'Название обязательно' });
 
     const id = uuidv4();
     const slug = uuidv4().slice(0, 8);
-    run(`INSERT INTO registrations (id, title, description, eventDate, eventTime, location, videoUrl, maxParticipants, status, publicSlug, createdBy, registrationStart, registrationEnd, closedMessage, mapCoords, showLimit, showTimer)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [id, title, description || '', eventDate || '', eventTime || '', location || '', videoUrl || '', maxParticipants || 0, status || 'draft', slug, req.user?.id, registrationStart || '', registrationEnd || '', closedMessage || '', mapCoords || '', showLimit ?? 1, showTimer ?? 1]);
+    run(`INSERT INTO registrations (id, title, description, eventDate, eventTime, location, videoUrl, maxParticipants, status, publicSlug, createdBy, registrationStart, registrationEnd, closedMessage, mapCoords, showLimit, showTimer, organizer)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [id, title, description || '', eventDate || '', eventTime || '', location || '', videoUrl || '', maxParticipants || 0, status || 'draft', slug, req.user?.id, registrationStart || '', registrationEnd || '', closedMessage || '', mapCoords || '', showLimit ?? 1, showTimer ?? 1, organizer || '']);
 
     const reg = get('SELECT * FROM registrations WHERE id = ?', [id]);
     res.status(201).json({ success: true, data: reg });
@@ -74,7 +74,7 @@ export const updateRegistration = (req: AuthRequest, res: Response) => {
     const reg = get('SELECT * FROM registrations WHERE id = ?', [id]);
     if (!reg) return res.status(404).json({ success: false, error: 'Регистрация не найдена' });
 
-    const { title, description, eventDate, eventTime, location, videoUrl, maxParticipants, status, imageUrl, registrationStart, registrationEnd, closedMessage, mapCoords, showLimit, showTimer } = req.body;
+    const { title, description, eventDate, eventTime, location, videoUrl, maxParticipants, status, imageUrl, registrationStart, registrationEnd, closedMessage, mapCoords, showLimit, showTimer, organizer } = req.body;
     const updates: string[] = [];
     const params: any[] = [];
 
@@ -93,6 +93,7 @@ export const updateRegistration = (req: AuthRequest, res: Response) => {
     if (mapCoords !== undefined) { updates.push('mapCoords = ?'); params.push(mapCoords); }
     if (showLimit !== undefined) { updates.push('showLimit = ?'); params.push(showLimit); }
     if (showTimer !== undefined) { updates.push('showTimer = ?'); params.push(showTimer); }
+    if (organizer !== undefined) { updates.push('organizer = ?'); params.push(organizer); }
 
     updates.push("updatedAt = datetime('now')");
     params.push(id);
@@ -388,6 +389,8 @@ export const submitRegistration = (req: AuthRequest, res: Response) => {
             eventTime: reg.eventTime,
             location: reg.location,
             mapCoords: reg.mapCoords,
+            organizer: reg.organizer,
+            description: reg.description,
             status: status as 'registered' | 'waitlist',
             position: status === 'waitlist' ? position : undefined,
             checkinToken: status === 'registered' ? checkinToken : undefined,
@@ -461,7 +464,7 @@ export const cancelSubmission = (req: AuthRequest, res: Response) => {
 
         // Notify promoted user
         const promoted = get('SELECT * FROM registration_submissions WHERE id = ?', [firstWaitlist.id]);
-        const regInfo = get('SELECT title, eventDate, eventTime, location, mapCoords FROM registrations WHERE id = ?', [sub.registrationId]);
+        const regInfo = get('SELECT title, eventDate, eventTime, location, mapCoords, organizer, description FROM registrations WHERE id = ?', [sub.registrationId]);
         if (promoted && regInfo) {
           (async () => {
             try {
@@ -473,6 +476,8 @@ export const cancelSubmission = (req: AuthRequest, res: Response) => {
                   eventTime: regInfo.eventTime,
                   location: regInfo.location,
                   mapCoords: regInfo.mapCoords,
+                  organizer: regInfo.organizer,
+                  description: regInfo.description,
                   checkinToken: promoted.checkinToken || '',
                   confirmCode: promoted.confirmCode || '',
                   cancelToken: promoted.cancelToken || '',
@@ -522,7 +527,7 @@ export const cancelByToken = (req: AuthRequest, res: Response) => {
 
         // Notify promoted user
         const promoted = get('SELECT * FROM registration_submissions WHERE id = ?', [firstWaitlist.id]);
-        const regInfo = get('SELECT title, eventDate, eventTime, location, mapCoords FROM registrations WHERE id = ?', [sub.registrationId]);
+        const regInfo = get('SELECT title, eventDate, eventTime, location, mapCoords, organizer, description FROM registrations WHERE id = ?', [sub.registrationId]);
         if (promoted && regInfo) {
           (async () => {
             try {
@@ -534,6 +539,8 @@ export const cancelByToken = (req: AuthRequest, res: Response) => {
                   eventTime: regInfo.eventTime,
                   location: regInfo.location,
                   mapCoords: regInfo.mapCoords,
+                  organizer: regInfo.organizer,
+                  description: regInfo.description,
                   checkinToken: promoted.checkinToken || '',
                   confirmCode: promoted.confirmCode || '',
                   cancelToken: promoted.cancelToken || '',
