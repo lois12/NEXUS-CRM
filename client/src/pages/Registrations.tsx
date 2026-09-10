@@ -351,30 +351,30 @@ export default function Registrations() {
             </button>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {editing && (
               <>
-                <button onClick={() => openSubmissions(editing)} className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-xs glass hover:bg-white/10">
+                <button onClick={() => openSubmissions(editing)} className="flex items-center gap-1.5 px-2 sm:px-3 py-2 rounded-lg font-mono text-[10px] sm:text-xs glass hover:bg-white/10">
                   <Eye className="w-3.5 h-3.5" /> ЗАЯВКИ ({editing.confirmedCount || 0})
                 </button>
-                <button onClick={() => setShowQR(true)} className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-xs glass hover:bg-white/10">
+                <button onClick={() => setShowQR(true)} className="flex items-center gap-1.5 px-2 sm:px-3 py-2 rounded-lg font-mono text-[10px] sm:text-xs glass hover:bg-white/10">
                   <QrCode className="w-3.5 h-3.5" /> QR
                 </button>
                 {publicUrl && (
-                  <button onClick={copyLink} className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-xs glass hover:bg-white/10">
+                  <button onClick={copyLink} className="flex items-center gap-1.5 px-2 sm:px-3 py-2 rounded-lg font-mono text-[10px] sm:text-xs glass hover:bg-white/10">
                     <Copy className="w-3.5 h-3.5" /> ССЫЛКА
                   </button>
                 )}
               </>
             )}
             <button onClick={handleSave} disabled={uploading}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-sm font-bold disabled:opacity-50"
+              className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg font-mono text-xs sm:text-sm font-bold disabled:opacity-50"
               style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}>
               {uploading ? 'СОХРАНЕНИЕ...' : 'СОХРАНИТЬ'}
             </button>
             {editing && (
               <button onClick={handleSaveAndNotify} disabled={uploading}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-sm font-bold disabled:opacity-50"
+                className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-lg font-mono text-[10px] sm:text-sm font-bold disabled:opacity-50"
                 style={{ backgroundColor: 'rgba(234,179,8,0.15)', color: '#eab308', border: '1px solid rgba(234,179,8,0.3)' }}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4"><path d="M22 2L11 13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
                 ИЗМЕНИТЬ И ОПОВЕСТИТЬ
