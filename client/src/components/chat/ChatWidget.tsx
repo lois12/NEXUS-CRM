@@ -240,19 +240,20 @@ export default function ChatWidget() {
     try { const res = await chatApi.createGroup({ name: groupName, memberIds: groupMembersIds }); if (res.success && res.data) { setShowGroupCreate(false); setGroupName(''); setGroupMembersIds([]); await fetchConversations(); openConversation(res.data); showToast('Группа создана', 'success'); } } catch { showToast('Ошибка', 'error'); }
   };
 
-  const handleSend = async () => {
+  const handleSend = async (overrideContent?: string) => {
     if (!activeConv) return;
+    const msgContent = overrideContent !== undefined ? overrideContent : newMessage;
     if (editingMsg) {
-      if (!newMessage.trim()) return;
-      try { await chatApi.editMessage(editingMsg.id, newMessage); setMessages(prev => prev.map(m => m.id === editingMsg.id ? { ...m, content: newMessage, editedAt: new Date().toISOString() } : m)); setEditingMsg(null); setNewMessage(''); } catch { showToast('Ошибка', 'error'); }
+      if (!msgContent.trim()) return;
+      try { await chatApi.editMessage(editingMsg.id, msgContent); setMessages(prev => prev.map(m => m.id === editingMsg.id ? { ...m, content: msgContent, editedAt: new Date().toISOString() } : m)); setEditingMsg(null); setNewMessage(''); } catch { showToast('Ошибка', 'error'); }
       return;
     }
 
-    const hasText = newMessage.trim().length > 0;
+    const hasText = msgContent.trim().length > 0;
     const hasFiles = attachedFiles.length > 0;
     if (!hasText && !hasFiles) return;
 
-    const mentionedIds = extractMentions(newMessage, users);
+    const mentionedIds = extractMentions(msgContent, users);
     const baseOpts = { replyToId: replyTo?.id, mentionedUserIds: mentionedIds.length > 0 ? mentionedIds.join(',') : undefined };
 
     try {
@@ -261,12 +262,12 @@ export default function ChatWidget() {
         for (let i = 0; i < attachedFiles.length; i++) {
           const f = attachedFiles[i];
           const isLast = i === attachedFiles.length - 1;
-          const caption = isLast && hasText ? newMessage.trim() : undefined;
+          const caption = isLast && hasText ? msgContent.trim() : undefined;
           await chatApi.sendMessage(activeConv.id, { content: f.url, type: f.type, ...baseOpts, caption });
         }
       } else if (hasText) {
         // Text only, no files
-        await chatApi.sendMessage(activeConv.id, { content: newMessage, type: 'text', ...baseOpts });
+        await chatApi.sendMessage(activeConv.id, { content: msgContent, type: 'text', ...baseOpts });
       }
       // Message will be added via socket 'chat:message' event
       setNewMessage('');
@@ -630,13 +631,9 @@ export default function ChatWidget() {
               <GifPicker
                 onSelect={(gifUrl) => {
                   if (gifUrl.startsWith('http')) {
-                    // It's a GIF URL - send as image
-                    handleSend();
-                    // For now, add to message as text (proper implementation would upload)
-                    setNewMessage(gifUrl);
+                    handleSend(gifUrl);
                   } else {
-                    // It's an emoji sticker
-                    setNewMessage(p => p + gifUrl);
+                    handleSend(gifUrl);
                   }
                   setShowGif(false);
                 }}
@@ -648,8 +645,7 @@ export default function ChatWidget() {
             <div className="relative mb-3">
               <StickerPicker
                 onSelect={(emoji) => {
-                  setNewMessage(emoji);
-                  handleSend();
+                  handleSend(emoji);
                   setShowSticker(false);
                 }}
                 onClose={() => setShowSticker(false)}

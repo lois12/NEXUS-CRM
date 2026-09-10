@@ -454,6 +454,14 @@ export const submitRegistration = (req: AuthRequest, res: Response) => {
       }
     }
 
+    // Check for duplicate registration (same email + same event)
+    if (contactEmail) {
+      const existing = get("SELECT id, status FROM registration_submissions WHERE registrationId = ? AND contactEmail = ? AND status != 'cancelled'", [reg.id, contactEmail]);
+      if (existing) {
+        return res.status(400).json({ success: false, error: 'Этот email уже зарегистрирован на мероприятие' });
+      }
+    }
+
     // Determine status based on limit
     const registeredCount = get('SELECT COUNT(*) as cnt FROM registration_submissions WHERE registrationId = ? AND status IN (?, ?)', [reg.id, 'registered', 'confirmed'])?.cnt || 0;
     let status = 'registered';
@@ -550,6 +558,13 @@ export const cancelSubmission = (req: AuthRequest, res: Response) => {
     const { subId } = req.params;
     const sub = get('SELECT * FROM registration_submissions WHERE id = ?', [subId]);
     if (!sub) return res.status(404).json({ success: false, error: 'Заявка не найдена' });
+
+    // Authorization: only owner or admin can cancel
+    const callerRoles = req.user?.roles || [req.user?.role || ''];
+    const isAdmin = callerRoles.some((r: string) => ['super_admin', 'руководитель', 'admin'].includes(r));
+    if (sub.userId && sub.userId !== req.user?.id && !isAdmin) {
+      return res.status(403).json({ success: false, error: 'Нет прав на отмену этой заявки' });
+    }
 
     run("UPDATE registration_submissions SET status = 'cancelled', updatedAt = datetime('now') WHERE id = ?", [subId]);
 

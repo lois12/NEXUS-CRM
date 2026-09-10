@@ -6,7 +6,7 @@ import jwt from 'jsonwebtoken';
 import './config';
 import { JWT_SECRET } from './config';
 import { Server as SocketIOServer } from 'socket.io';
-import { initDatabase } from './db/database';
+import { initDatabase, get } from './db/database';
 import { initializeDatabase } from './db/init';
 import { PROJECT_ROOT, SERVER_DIR, CLIENT_DIST, UPLOADS_DIR, MODELS_DIR } from './paths';
 import authRoutes from './routes/auth';
@@ -163,7 +163,12 @@ async function start() {
       io.emit('users:online', Array.from(new Set(onlineUsers.values())));
 
       socket.on('chat:join', (conversationId: string) => {
-        socket.join(`conv:${conversationId}`);
+        // Verify membership before joining room
+        const conv = get('SELECT * FROM chat_conversations WHERE id = ?', [conversationId]);
+        if (!conv) return;
+        const isMember = conv.user1Id === user.id || conv.user2Id === user.id ||
+          (conv.type === 'group' && !!get('SELECT 1 FROM chat_group_members WHERE conversationId = ? AND userId = ?', [conversationId, user.id]));
+        if (isMember) socket.join(`conv:${conversationId}`);
       });
 
       socket.on('chat:leave', (conversationId: string) => {

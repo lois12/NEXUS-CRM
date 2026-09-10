@@ -57,8 +57,15 @@ export const createUser = (req: AuthRequest, res: Response) => {
 
     const hashedPassword = bcrypt.hashSync(password, 10);
     const id = uuidv4();
-    const finalRole = role || (roles && roles[0]) || 'редактор';
-    const finalRoles = roles ? (Array.isArray(roles) ? roles.join(',') : roles) : finalRole;
+    // Only super_admin can create super_admin; others get 'редактор' default
+    const callerRoles = req.user?.roles || [req.user?.role || ''];
+    const isCallerSuperAdmin = callerRoles.includes('super_admin');
+    let finalRole = role || (roles && roles[0]) || 'редактор';
+    let finalRoles = roles ? (Array.isArray(roles) ? roles.join(',') : roles) : finalRole;
+    if (!isCallerSuperAdmin && (finalRole === 'super_admin' || (finalRoles && finalRoles.includes('super_admin')))) {
+      finalRole = 'редактор';
+      finalRoles = 'редактор';
+    }
 
     run('INSERT INTO users (id, username, password, email, fullName, role, roles) VALUES (?, ?, ?, ?, ?, ?, ?)',
       [id, username, hashedPassword, email, fullName, finalRole, finalRoles]);

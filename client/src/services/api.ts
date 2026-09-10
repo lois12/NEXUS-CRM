@@ -13,7 +13,7 @@ const api: AxiosInstance = axios.create({
 // Request interceptor to add auth token
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    const token = localStorage.getItem('nexus_token');
+    const token = localStorage.getItem('nexus_token') || sessionStorage.getItem('nexus_token');
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -31,6 +31,8 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       localStorage.removeItem('nexus_token');
       localStorage.removeItem('nexus_user');
+      sessionStorage.removeItem('nexus_token');
+      sessionStorage.removeItem('nexus_user');
       window.location.href = '/login';
       return Promise.reject(error);
     }

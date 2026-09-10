@@ -8,6 +8,11 @@ const FROM = 'NEXUS CRM <noreply@nexus-liberty.online>';
 
 function isEnabled(): boolean { return !!resend; }
 
+function escapeHtml(s: string): string {
+  if (!s) return '';
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 async function generateQRDataURL(text: string): Promise<string> {
   return QRCode.toDataURL(text, { width: 200, margin: 2, color: { dark: '#000000', light: '#ffffff' } });
 }
@@ -47,29 +52,33 @@ function wrap(title: string, content: string, accent: string = '#00ff88'): strin
 
 function eventBlock(title: string, date?: string, time?: string, mapCoords?: string, location?: string, organizer?: string, description?: string): string {
   const map = buildMapUrl(mapCoords, location);
+  const safeTitle = escapeHtml(title);
+  const safeDate = escapeHtml(date || '');
+  const safeTime = escapeHtml(time || '');
+  const safeOrganizer = escapeHtml(organizer || '');
   let html = `<div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:20px;margin:20px 0;">
     <div style="font-family:monospace;font-size:11px;color:#4a4a60;letter-spacing:2px;margin-bottom:12px;">МЕРОПРИЯТИЕ</div>
-    <div style="font-size:18px;font-weight:700;color:#e0e0e0;margin-bottom:16px;">${title}</div>`;
+    <div style="font-size:18px;font-weight:700;color:#e0e0e0;margin-bottom:16px;">${safeTitle}</div>`;
 
   if (organizer) {
-    html += `<div style="margin-bottom:12px;"><span style="font-family:monospace;font-size:10px;color:#4a4a60;">ОРГАНИЗАТОР</span><div style="color:#e0e0e0;margin-top:2px;">${organizer}</div></div>`;
+    html += `<div style="margin-bottom:12px;"><span style="font-family:monospace;font-size:10px;color:#4a4a60;">ОРГАНИЗАТОР</span><div style="color:#e0e0e0;margin-top:2px;">${safeOrganizer}</div></div>`;
   }
 
   if (description) {
-    html += `<div style="margin-bottom:12px;padding:12px;background:rgba(255,255,255,0.02);border-radius:8px;border:1px solid rgba(255,255,255,0.04);color:#a0a0b0;font-size:13px;line-height:1.6;white-space:pre-wrap;">${description}</div>`;
+    html += `<div style="margin-bottom:12px;padding:12px;background:rgba(255,255,255,0.02);border-radius:8px;border:1px solid rgba(255,255,255,0.04);color:#a0a0b0;font-size:13px;line-height:1.6;white-space:pre-wrap;">${escapeHtml(description)}</div>`;
   }
 
   if (date || time) {
     html += `<div style="display:flex;gap:20px;margin-bottom:12px;">`;
-    if (date) html += `<div><span style="font-family:monospace;font-size:10px;color:#4a4a60;">ДАТА</span><div style="color:#e0e0e0;font-weight:600;">${date}</div></div>`;
-    if (time) html += `<div><span style="font-family:monospace;font-size:10px;color:#4a4a60;">ВРЕМЯ</span><div style="color:#e0e0e0;font-weight:600;">${time}</div></div>`;
+    if (date) html += `<div><span style="font-family:monospace;font-size:10px;color:#4a4a60;">ДАТА</span><div style="color:#e0e0e0;font-weight:600;">${safeDate}</div></div>`;
+    if (time) html += `<div><span style="font-family:monospace;font-size:10px;color:#4a4a60;">ВРЕМЯ</span><div style="color:#e0e0e0;font-weight:600;">${safeTime}</div></div>`;
     html += `</div>`;
   }
 
   if (map) {
     html += `<div style="border-top:1px solid rgba(255,255,255,0.05);padding-top:12px;">
       <span style="font-family:monospace;font-size:10px;color:#4a4a60;">МЕСТО ПРОВЕДЕНИЯ</span>
-      <div style="color:#e0e0e0;margin-top:4px;">${map.text}</div>
+      <div style="color:#e0e0e0;margin-top:4px;">${escapeHtml(map.text)}</div>
       <a href="${map.url}" target="_blank" style="display:inline-block;margin-top:8px;padding:8px 16px;background:rgba(0,212,255,0.1);border:1px solid rgba(0,212,255,0.3);border-radius:8px;color:#00d4ff;font-family:monospace;font-size:12px;text-decoration:none;">Показать на карте</a>
     </div>`;
   }
@@ -98,7 +107,7 @@ export async function sendRegistrationConfirm(to: string, data: {
 }): Promise<boolean> {
   if (!isEnabled()) return false;
   try {
-    const displayName = getDisplayName(data.name);
+    const displayName = escapeHtml(getDisplayName(data.name));
     const cancelUrl = `${data.origin}/reg/cancel/${data.cancelToken}`;
 
     if (data.status === 'waitlist') {
@@ -157,7 +166,7 @@ export async function sendAdminNotification(to: string, data: {
 }): Promise<boolean> {
   if (!isEnabled()) return false;
   try {
-    const displayName = getDisplayName(data.participantName);
+    const displayName = escapeHtml(getDisplayName(data.participantName));
     const statusText = data.status === 'waitlist' ? 'ОЖИДАНИЕ' : 'ЗАРЕГИСТРИРОВАН';
     const statusColor = data.status === 'waitlist' ? '#eab308' : '#00ff88';
     const content = `
@@ -195,7 +204,7 @@ export async function sendWaitlistPromotion(to: string, data: {
 }): Promise<boolean> {
   if (!isEnabled()) return false;
   try {
-    const displayName = getDisplayName(data.name);
+    const displayName = escapeHtml(getDisplayName(data.name));
     const cancelUrl = `${data.origin}/reg/cancel/${data.cancelToken}`;
     const qrUrl = `${data.origin}/reg/checkin/${data.checkinToken}`;
     const qrDataUrl = await generateQRDataURL(qrUrl);
@@ -245,7 +254,7 @@ export async function sendEventUpdate(to: string, data: {
 }): Promise<boolean> {
   if (!isEnabled()) return false;
   try {
-    const displayName = getDisplayName(data.name);
+    const displayName = escapeHtml(getDisplayName(data.name));
     const cancelUrl = data.cancelToken ? `${data.origin}/reg/cancel/${data.cancelToken}` : '';
 
     const changesHtml = data.changes.map(c =>
