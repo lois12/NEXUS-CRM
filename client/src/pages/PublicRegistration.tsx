@@ -180,7 +180,7 @@ export default function PublicRegistration() {
     const fields: RegistrationField[] = reg?.fields || [];
 
     for (const field of fields) {
-      if (field.required === 1 && !['heading', 'paragraph'].includes(field.type)) {
+      if (field.required === 1 && !['heading', 'paragraph', 'divider', 'page_break', 'link_block', 'button_block'].includes(field.type)) {
         const val = answers[field.id];
         if (!val || (typeof val === 'string' && !val.trim())) {
           errors[field.id] = `Поле "${field.label}" обязательно`;

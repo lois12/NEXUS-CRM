@@ -156,7 +156,7 @@ export default function FieldBuilder({ fields, onAdd, onUpdate, onDelete, onDupl
                       )}
 
                       {/* Required toggle */}
-                      {!['heading', 'paragraph', 'divider', 'page_break'].includes(field.type) && (
+                      {!['heading', 'paragraph', 'divider', 'page_break', 'link_block', 'button_block'].includes(field.type) && (
                         <label className="flex items-center gap-3 cursor-pointer">
                           <div onClick={() => onUpdate(field.id, { required: field.required === 1 ? 0 : 1 })}
                             className={`w-10 h-5 rounded-full transition-colors relative cursor-pointer ${field.required === 1 ? '' : 'bg-gray-700'}`}
@@ -173,7 +173,23 @@ export default function FieldBuilder({ fields, onAdd, onUpdate, onDelete, onDupl
                           <label className="font-mono text-[10px] text-gray-500 block mb-1">ВАРИАНТЫ ОТВЕТОВ</label>
                           <div className="space-y-1.5">
                             {options.map((opt, i) => (
-                              <div key={i} className="flex items-center gap-2">
+                              <div key={i} className="flex items-center gap-1.5">
+                                <div className="flex flex-col gap-0.5">
+                                  <button disabled={i === 0} onClick={() => {
+                                    if (i === 0) return;
+                                    const newOpts = [...options];[newOpts[i - 1], newOpts[i]] = [newOpts[i], newOpts[i - 1]];
+                                    onUpdate(field.id, { options: newOpts as any });
+                                  }} className="p-0.5 rounded hover:bg-white/10 text-gray-500 hover:text-gray-300 disabled:opacity-20 disabled:cursor-default" title="Вверх">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3 h-3"><polyline points="18 15 12 9 6 15"/></svg>
+                                  </button>
+                                  <button disabled={i === options.length - 1} onClick={() => {
+                                    if (i === options.length - 1) return;
+                                    const newOpts = [...options];[newOpts[i], newOpts[i + 1]] = [newOpts[i + 1], newOpts[i]];
+                                    onUpdate(field.id, { options: newOpts as any });
+                                  }} className="p-0.5 rounded hover:bg-white/10 text-gray-500 hover:text-gray-300 disabled:opacity-20 disabled:cursor-default" title="Вниз">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3 h-3"><polyline points="6 9 12 15 18 9"/></svg>
+                                  </button>
+                                </div>
                                 <input value={opt} onChange={e => {
                                   const newOpts = [...options]; newOpts[i] = e.target.value;
                                   onUpdate(field.id, { options: newOpts as any });

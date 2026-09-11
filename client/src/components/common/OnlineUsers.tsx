@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Users } from 'lucide-react';
-import { getSocket } from '../../services/socket';
+import { getSocket, connectSocket } from '../../services/socket';
 import { usersApi } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
@@ -24,7 +24,8 @@ export default function OnlineUsers() {
   }, []);
 
   useEffect(() => {
-    const socket = getSocket();
+    if (!user?.id) return;
+    const socket = connectSocket(user.id);
     if (!socket) return;
 
     const handleOnline = (ids: string[]) => {

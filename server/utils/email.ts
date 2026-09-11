@@ -65,7 +65,7 @@ function eventBlock(title: string, date?: string, time?: string, mapCoords?: str
   }
 
   if (description) {
-    html += `<div style="margin-bottom:12px;padding:12px;background:rgba(255,255,255,0.02);border-radius:8px;border:1px solid rgba(255,255,255,0.04);color:#a0a0b0;font-size:13px;line-height:1.6;white-space:pre-wrap;">${escapeHtml(description)}</div>`;
+    html += `<div style="margin-bottom:12px;padding:12px;background:rgba(255,255,255,0.02);border-radius:8px;border:1px solid rgba(255,255,255,0.04);color:#a0a0b0;font-size:13px;line-height:1.6;">${description}</div>`;
   }
 
   if (date || time) {

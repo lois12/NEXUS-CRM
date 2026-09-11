@@ -284,7 +284,7 @@ export default function Kanban() {
       const colTasks = getColumnTasks(activeTask.status);
       const oldIndex = colTasks.findIndex(t => t.id === activeId);
       const newIndex = colTasks.findIndex(t => t.id === overId);
-      if (oldIndex !== -1 && newIndex !== -1) {
+      if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
         const reordered = arrayMove(colTasks, oldIndex, newIndex);
         setTasks(prev => {
           const otherTasks = prev.filter(t => t.status !== activeTask.status);
@@ -294,12 +294,17 @@ export default function Kanban() {
         kanbanApi.reorder(reordered.map((t, i) => ({ id: t.id, status: t.status, position: i })))
           .catch(() => fetchTasks());
       }
+    } else {
+      // Cross-column move — get updated task from current state
+      setTasks(prev => {
+        const movedTask = prev.find(t => t.id === activeId);
+        if (!movedTask) return prev;
+        const colTasks = prev.filter(t => t.status === movedTask.status);
+        kanbanApi.reorder(colTasks.map((t, i) => ({ id: t.id, status: t.status, position: i })))
+          .catch(() => fetchTasks());
+        return prev;
+      });
     }
-
-    // Persist position updates for cross-column moves
-    const finalColTasks = getColumnTasks(activeTask.status);
-    kanbanApi.reorder(finalColTasks.map((t, i) => ({ id: t.id, status: t.status, position: i })))
-      .catch(() => fetchTasks());
   };
 
   // CRUD

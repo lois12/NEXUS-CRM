@@ -139,7 +139,14 @@ export default function Registrations() {
   };
 
   const handleSave = async () => {
-    if (!form.title.trim()) { showToast('Введите название', 'error'); return; }
+    if (!form.title.trim()) { showToast('Введите название мероприятия', 'error'); return; }
+    if (!form.organizer.trim()) { showToast('Введите организатора', 'error'); return; }
+    if (!form.eventDate) { showToast('Укажите дату проведения', 'error'); return; }
+    if (!form.eventTime) { showToast('Укажите время проведения', 'error'); return; }
+    if (!form.location.trim()) { showToast('Укажите место проведения', 'error'); return; }
+    if (!form.registrationStart) { showToast('Укажите начало регистрации', 'error'); return; }
+    if (!form.registrationEnd) { showToast('Укажите конец регистрации', 'error'); return; }
+    if (!form.description.trim()) { showToast('Введите описание мероприятия', 'error'); return; }
     try {
       let regId = editing?.id;
       if (editing) {
@@ -208,7 +215,14 @@ export default function Registrations() {
 
   const handleSaveAndNotify = async () => {
     if (!editing) return;
-    if (!form.title.trim()) { showToast('Введите название', 'error'); return; }
+    if (!form.title.trim()) { showToast('Введите название мероприятия', 'error'); return; }
+    if (!form.organizer.trim()) { showToast('Введите организатора', 'error'); return; }
+    if (!form.eventDate) { showToast('Укажите дату проведения', 'error'); return; }
+    if (!form.eventTime) { showToast('Укажите время проведения', 'error'); return; }
+    if (!form.location.trim()) { showToast('Укажите место проведения', 'error'); return; }
+    if (!form.registrationStart) { showToast('Укажите начало регистрации', 'error'); return; }
+    if (!form.registrationEnd) { showToast('Укажите конец регистрации', 'error'); return; }
+    if (!form.description.trim()) { showToast('Введите описание мероприятия', 'error'); return; }
     try {
       setUploading(true);
       // Save fields first (same as handleSave)

@@ -73,7 +73,7 @@ export default function FieldRenderer({ field, value, onChange, error }: FieldRe
     const btnUrl = settings.url || '#';
     const btnText = settings.buttonText || field.label || 'Нажми';
     return (
-      <a href={btnUrl} target="_blank" rel="noopener noreferrer" className="inline-block px-6 py-3 rounded-xl font-mono text-sm font-bold transition-all hover:brightness-110" style={{ background: 'var(--color-primary)', color: '#000' }}>
+      <a href={btnUrl} target="_blank" rel="noopener noreferrer" className="block w-full px-6 py-3 rounded-xl font-mono text-sm font-bold text-center transition-all hover:brightness-110" style={{ background: 'var(--color-primary)', color: '#000' }}>
         {btnText}
       </a>
     );
@@ -378,7 +378,7 @@ export default function FieldRenderer({ field, value, onChange, error }: FieldRe
 
   return (
     <div className="space-y-2">
-      {field.type !== 'checkbox' && (
+      {field.type !== 'checkbox' && field.type !== 'button_block' && (
         <label className="block">
           <span className="font-mono text-sm text-gray-300">
             {field.label}
