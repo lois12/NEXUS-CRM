@@ -2,7 +2,7 @@ import { Router } from 'express';
 import {
   getRegistrations, getRegistrationById, createRegistration, updateRegistration, deleteRegistration,
   uploadImage, uploadVideo, createField, updateField, deleteField, reorderFields,
-  getBySlug, submitRegistration, getSubmissions, cancelSubmission, cancelByToken, exportCSV,
+  getBySlug, submitRegistration, getSubmissions, cancelSubmission, cancelByToken, deleteSubmission, exportCSV,
   getMedia, uploadMedia, deleteMedia,
   checkinGet, checkinPost, checkinByCode, getParticipants, toggleAttended, updateAndNotify,
 } from '../controllers/registrationController';
@@ -48,6 +48,7 @@ authRouter.put('/:id/fields-reorder', requireRole('super_admin', 'руковод
 // Submissions
 authRouter.get('/:id/submissions', getSubmissions);
 authRouter.delete('/submissions/:subId', cancelSubmission);
+authRouter.delete('/submissions/:subId/delete', requireRole('super_admin', 'руководитель'), deleteSubmission);
 authRouter.get('/:id/submissions/export', exportCSV);
 
 // Participants

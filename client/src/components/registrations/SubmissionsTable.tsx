@@ -28,7 +28,7 @@ interface GroupConfig {
 }
 
 export default function SubmissionsTable({ registrationId, fields, submissions, onRefresh, onClose }: SubmissionsTableProps) {
-  const [filter, setFilter] = useState<'all' | 'confirmed' | 'waitlist' | 'cancelled'>('all');
+  const [filter, setFilter] = useState<'all' | 'registered' | 'confirmed' | 'waitlist' | 'cancelled'>('all');
   const [search, setSearch] = useState('');
   const [sortCol, setSortCol] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>(null);
@@ -137,6 +137,14 @@ export default function SubmissionsTable({ registrationId, fields, submissions, 
     } catch { showToast('Ошибка', 'error'); }
   };
 
+  const handleDelete = async (subId: string) => {
+    try {
+      await registrationsApi.deleteSubmission(subId);
+      showToast('Заявка удалена', 'success');
+      onRefresh();
+    } catch { showToast('Ошибка удаления', 'error'); }
+  };
+
   const handleExport = async () => {
     try {
       const blob = await registrationsApi.exportCSV(registrationId);
@@ -174,15 +182,22 @@ export default function SubmissionsTable({ registrationId, fields, submissions, 
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="ПОИСК..."
             className="w-full pl-9 pr-4 py-2 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none" />
         </div>
-        {(['all', 'confirmed', 'waitlist', 'cancelled'] as const).map(s => {
+        {(['all', 'registered', 'confirmed', 'waitlist', 'cancelled'] as const).map(s => {
           const config = s === 'all' ? null : STATUS_CONFIG[s];
+          const count = s === 'all' ? submissions.length : submissions.filter(sub => sub.status === s).length;
           return (
             <button key={s} onClick={() => setFilter(s)}
-              className="px-3 py-1.5 rounded-lg font-mono text-[10px] font-bold transition-all"
+              className="px-3 py-1.5 rounded-lg font-mono text-[10px] font-bold transition-all flex items-center gap-1.5"
               style={filter === s
                 ? { background: config?.color || 'var(--color-primary)', color: '#000' }
                 : { color: '#6a6a80', background: 'rgba(255,255,255,0.03)' }}>
               {s === 'all' ? 'ВСЕ' : config?.label}
+              <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] rounded-full text-[9px] font-bold"
+                style={filter === s
+                  ? { background: 'rgba(0,0,0,0.2)', color: '#000' }
+                  : { background: 'rgba(255,255,255,0.08)', color: '#6a6a80' }}>
+                {count}
+              </span>
             </button>
           );
         })}
@@ -243,7 +258,7 @@ export default function SubmissionsTable({ registrationId, fields, submissions, 
                   <td className="px-3 py-2 font-mono text-xs text-gray-300">{sub.contactEmail || '—'}</td>
                   <td className="px-3 py-2 font-mono text-xs text-gray-300">{sub.contactPhone || '—'}</td>
                   {dataFields.map(f => (
-                    <td key={f.id} className="px-3 py-2 font-mono text-xs text-gray-300 max-w-[150px] truncate">{answers[f.id] || '—'}</td>
+                    <td key={f.id} className="px-3 py-2 font-mono text-xs text-gray-300 max-w-[200px] break-words whitespace-pre-wrap">{answers[f.id] || '—'}</td>
                   ))}
                   <td className="px-3 py-2">
                     <span className="inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded" style={{ backgroundColor: `${statusCfg.color}20`, color: statusCfg.color }}>
@@ -252,9 +267,13 @@ export default function SubmissionsTable({ registrationId, fields, submissions, 
                   </td>
                   <td className="px-3 py-2 font-mono text-[10px] text-gray-500">{new Date(sub.createdAt).toLocaleDateString('ru-RU')}</td>
                   <td className="px-3 py-2">
-                    {sub.status !== 'cancelled' && (
+                    {sub.status !== 'cancelled' ? (
                       <button onClick={() => handleCancel(sub.id)} className="p-1 rounded hover:bg-red-500/20 text-gray-400 hover:text-red-400" title="Отменить">
                         <XCircle className="w-3.5 h-3.5" />
+                      </button>
+                    ) : (
+                      <button onClick={() => handleDelete(sub.id)} className="p-1 rounded hover:bg-red-500/20 text-gray-400 hover:text-red-400" title="Удалить">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                       </button>
                     )}
                   </td>

@@ -685,6 +685,22 @@ export const cancelByToken = (req: AuthRequest, res: Response) => {
   }
 };
 
+// ── Delete submission (admin only, permanent) ──
+
+export const deleteSubmission = (req: AuthRequest, res: Response) => {
+  try {
+    const { subId } = req.params;
+    const sub = get('SELECT * FROM registration_submissions WHERE id = ?', [subId]);
+    if (!sub) return res.status(404).json({ success: false, error: 'Заявка не найдена' });
+
+    run('DELETE FROM registration_submissions WHERE id = ?', [subId]);
+    res.json({ success: true, message: 'Заявка удалена' });
+  } catch (error) {
+    console.error('DeleteSubmission error:', error);
+    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+  }
+};
+
 // ── Export CSV ──
 
 export const exportCSV = (req: AuthRequest, res: Response) => {
