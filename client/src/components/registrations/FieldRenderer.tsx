@@ -378,7 +378,7 @@ export default function FieldRenderer({ field, value, onChange, error }: FieldRe
 
   return (
     <div className="space-y-2">
-      {field.type !== 'checkbox' && field.type !== 'button_block' && (
+      {field.type !== 'checkbox' && (field.type as string) !== 'button_block' && (
         <label className="block">
           <span className="font-mono text-sm text-gray-300">
             {field.label}
