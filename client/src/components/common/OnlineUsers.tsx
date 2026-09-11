@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Users } from 'lucide-react';
-import { getSocket, connectSocket } from '../../services/socket';
+import { connectSocket } from '../../services/socket';
 import { usersApi } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
