@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Shield, Camera, X, CheckCircle, XCircle, Users, Type, Upload, List, Clock } from 'lucide-react';
+import { Shield, Camera, X, CheckCircle, XCircle, Users, Type, Upload, List, Clock, Search } from 'lucide-react';
 import { controlApi, publicRegApi } from '../services/api';
 import { CyberBackground } from '../components/ui/CyberBackground';
 
@@ -18,6 +18,7 @@ export default function NexusControl() {
   const [cameraError, setCameraError] = useState('');
   const [submissions, setSubmissions] = useState<any[]>([]);
   const [loadingSubs, setLoadingSubs] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const scannerRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -46,6 +47,10 @@ export default function NexusControl() {
   useEffect(() => {
     if (selectedReg && tab === 'list') loadSubmissions(selectedReg.id);
   }, [selectedReg, tab, loadSubmissions]);
+
+  const filteredSubmissions = searchQuery.trim()
+    ? submissions.filter(s => (s.contactName || '').toLowerCase().includes(searchQuery.toLowerCase()))
+    : submissions;
 
   const startScanner = async () => {
     if (!containerRef.current) return;
@@ -187,10 +192,10 @@ export default function NexusControl() {
             className="fixed inset-0 z-[200] flex items-center justify-center cursor-pointer"
             style={{
               background: fullscreen.type === 'confirmed'
-                ? 'radial-gradient(circle, rgba(0,255,136,0.15) 0%, rgba(0,0,0,0.9) 70%)'
+                ? 'radial-gradient(circle, rgba(0,255,136,0.2) 0%, rgba(0,0,0,0.92) 70%)'
                 : fullscreen.type === 'already'
-                ? 'radial-gradient(circle, rgba(234,179,8,0.12) 0%, rgba(0,0,0,0.9) 70%)'
-                : 'radial-gradient(circle, rgba(255,59,48,0.15) 0%, rgba(0,0,0,0.9) 70%)',
+                ? 'radial-gradient(circle, rgba(234,179,8,0.18) 0%, rgba(0,0,0,0.92) 70%)'
+                : 'radial-gradient(circle, rgba(255,59,48,0.2) 0%, rgba(0,0,0,0.92) 70%)',
             }}
             onClick={() => setFullscreen(null)}
           >
@@ -205,26 +210,26 @@ export default function NexusControl() {
                 return (
                   <>
                     {fullscreen.type === 'confirmed' ? (
-                      <svg viewBox="0 0 120 120" width="96" height="96" className="mx-auto" style={{ filter: `drop-shadow(0 0 20px ${color})` }}>
-                        <polygon points="60,8 108,32 108,88 60,112 12,88 12,32" fill="none" stroke="#00ff88" strokeWidth="3" opacity="0.6"/>
-                        <polygon points="60,20 96,38 96,82 60,100 24,82 24,38" fill="none" stroke="#00d4ff" strokeWidth="1.5" opacity="0.3"/>
-                        <path d="M48,50 L56,70 L72,45 L60,65 L52,55 Z" fill="#00ff88" opacity="0.8"/>
+                      <svg viewBox="0 0 120 120" width="96" height="96" className="mx-auto" style={{ filter: `drop-shadow(0 0 30px ${color})` }}>
+                        <polygon points="60,8 108,32 108,88 60,112 12,88 12,32" fill="none" stroke="#00ff88" strokeWidth="3" opacity="0.8"/>
+                        <polygon points="60,20 96,38 96,82 60,100 24,82 24,38" fill="none" stroke="#00d4ff" strokeWidth="1.5" opacity="0.5"/>
+                        <path d="M48,50 L56,70 L72,45 L60,65 L52,55 Z" fill="#00ff88"/>
                         <circle cx="60" cy="58" r="3" fill="#00ff88"/>
                       </svg>
                     ) : (
-                      <Icon className="w-24 h-24 mx-auto" style={{ color, filter: `drop-shadow(0 0 20px ${color})` }} />
+                      <Icon className="w-24 h-24 mx-auto" style={{ color, filter: `drop-shadow(0 0 30px ${color})` }} />
                     )}
-                    <h2 className="font-mono text-2xl font-bold" style={{ color, textShadow: `0 0 20px ${color}` }}>
+                    <h2 className="font-mono text-2xl font-bold" style={{ color, textShadow: `0 0 30px ${color}` }}>
                       {fullscreen.type === 'confirmed' ? 'ПОДТВЕРЖДЕНО' : fullscreen.type === 'already' ? 'УЖЕ ПОДТВЕРЖДЕНО' : 'УЧАСТНИК НЕ НАЙДЕН'}
                     </h2>
                     {fullscreen.data && (
                       <>
-                        <p className="font-mono text-lg text-gray-200">{fullscreen.data.contactName}</p>
-                        <p className="font-mono text-sm text-gray-400">{fullscreen.data.regTitle}</p>
+                        <p className="font-mono text-lg text-white">{fullscreen.data.contactName}</p>
+                        <p className="font-mono text-sm text-gray-300">{fullscreen.data.regTitle}</p>
                       </>
                     )}
-                    {!fullscreen.data && <p className="font-mono text-sm text-gray-400">{fullscreen.message}</p>}
-                    <p className="font-mono text-[10px] text-gray-600">нажмите чтобы закрыть</p>
+                    {!fullscreen.data && <p className="font-mono text-sm text-gray-300">{fullscreen.message}</p>}
+                    <p className="font-mono text-xs text-gray-500">нажмите чтобы закрыть</p>
                   </>
                 );
               })()}
@@ -237,20 +242,20 @@ export default function NexusControl() {
         {/* Header */}
         <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="text-center">
           <div className="inline-flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'rgba(0,255,136,0.12)', border: '1px solid rgba(0,255,136,0.3)' }}>
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'rgba(0,255,136,0.2)', border: '1px solid rgba(0,255,136,0.4)' }}>
               <Shield className="w-5 h-5" style={{ color: '#00ff88' }} />
             </div>
-            <h1 className="font-mono text-2xl md:text-3xl font-bold" style={{ color: '#00ff88', textShadow: '0 0 20px rgba(0,255,136,0.3)' }}>
+            <h1 className="font-mono text-2xl md:text-3xl font-bold" style={{ color: '#00ff88', textShadow: '0 0 30px rgba(0,255,136,0.5)' }}>
               NEXUS CONTROL
             </h1>
           </div>
-          <p className="font-mono text-xs text-gray-500">// СИСТЕМА КОНТРОЛЯ ДОСТУПА</p>
+          <p className="font-mono text-sm text-gray-400">// СИСТЕМА КОНТРОЛЯ ДОСТУПА</p>
         </motion.div>
 
         {/* Registration selector */}
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-          className="rounded-xl p-4" style={{ background: 'rgba(10,10,20,0.7)', border: '1px solid rgba(0,255,136,0.1)', backdropFilter: 'blur(12px)' }}>
-          <label className="font-mono text-[10px] text-gray-500 mb-2 block uppercase tracking-wider">Мероприятие</label>
+          className="rounded-xl p-4" style={{ background: 'rgba(10,10,20,0.85)', border: '1px solid rgba(0,255,136,0.2)', backdropFilter: 'blur(12px)' }}>
+          <label className="font-mono text-xs text-gray-400 mb-2 block uppercase tracking-wider">Мероприятие</label>
           <select
             value={selectedReg?.id || ''}
             onChange={e => {
@@ -258,9 +263,10 @@ export default function NexusControl() {
               setSelectedReg(reg || null);
               setResult(null);
               setCameraError('');
+              setSearchQuery('');
               if (scanning) stopScanner();
             }}
-            className="w-full px-4 py-2.5 rounded-lg font-mono text-sm bg-black/40 border border-gray-700 text-gray-200 focus:outline-none focus:border-[#00ff88] transition-colors"
+            className="w-full px-4 py-2.5 rounded-lg font-mono text-sm bg-black/50 border border-gray-600 text-gray-100 focus:outline-none focus:border-[#00ff88] transition-colors"
           >
             <option value="">-- Выберите мероприятие --</option>
             {registrations.map(r => (
@@ -280,8 +286,8 @@ export default function NexusControl() {
                 <button key={t} onClick={() => setTab(t)}
                   className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-mono text-xs font-bold transition-all"
                   style={tab === t
-                    ? { background: 'rgba(0,255,136,0.12)', border: '1px solid rgba(0,255,136,0.3)', color: '#00ff88' }
-                    : { background: 'rgba(10,10,20,0.5)', border: '1px solid rgba(255,255,255,0.05)', color: '#666' }}
+                    ? { background: 'rgba(0,255,136,0.15)', border: '1px solid rgba(0,255,136,0.4)', color: '#00ff88' }
+                    : { background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.2)', color: '#ccc' }}
                 >
                   <Icon className="w-3.5 h-3.5" /> {label}
                 </button>
@@ -291,17 +297,16 @@ export default function NexusControl() {
             {/* Scan tab */}
             {tab === 'scan' && (
               <div className="space-y-4">
-                {/* Scanner + result */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Camera */}
-                  <div className="rounded-xl p-5 space-y-3" style={{ background: 'rgba(10,10,20,0.7)', border: '1px solid rgba(0,255,136,0.1)', backdropFilter: 'blur(12px)' }}>
-                    <h2 className="font-mono text-xs font-bold flex items-center gap-2" style={{ color: '#00ff88' }}>
-                      <Camera className="w-3.5 h-3.5" /> КАМЕРА
+                  <div className="rounded-xl p-5 space-y-3" style={{ background: 'rgba(10,10,20,0.85)', border: '1px solid rgba(0,255,136,0.2)', backdropFilter: 'blur(12px)' }}>
+                    <h2 className="font-mono text-sm font-bold flex items-center gap-2" style={{ color: '#00ff88' }}>
+                      <Camera className="w-4 h-4" /> КАМЕРА
                     </h2>
                     <div id="nexus-control-scanner" ref={containerRef} className="rounded-lg overflow-hidden" style={{ minHeight: scanning ? 260 : 0 }} />
                     {cameraError && (
-                      <div className="rounded-lg px-3 py-2 text-center" style={{ background: 'rgba(255,59,48,0.08)', border: '1px solid rgba(255,59,48,0.2)' }}>
-                        <p className="font-mono text-[11px] text-red-400">{cameraError}</p>
+                      <div className="rounded-lg px-3 py-2 text-center" style={{ background: 'rgba(255,59,48,0.12)', border: '1px solid rgba(255,59,48,0.3)' }}>
+                        <p className="font-mono text-xs text-red-400">{cameraError}</p>
                       </div>
                     )}
                     <div className="flex gap-2">
@@ -314,17 +319,17 @@ export default function NexusControl() {
                       ) : (
                         <button onClick={stopScanner}
                           className="flex-1 py-3 rounded-xl font-mono text-sm font-bold transition-all"
-                          style={{ background: 'rgba(255,59,48,0.12)', border: '1px solid rgba(255,59,48,0.3)', color: '#ff3b30' }}>
+                          style={{ background: 'rgba(255,59,48,0.15)', border: '1px solid rgba(255,59,48,0.4)', color: '#ff3b30' }}>
                           <X className="w-4 h-4 inline mr-2" /> ОСТАНОВИТЬ
                         </button>
                       )}
                     </div>
                     {/* File upload */}
-                    <div className="border-t border-white/5 pt-3">
-                      <p className="font-mono text-[10px] text-gray-500 mb-2">ИЛИ ЗАГРУЗИТЕ ФОТО QR-КОДА:</p>
-                      <label className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-dashed border-gray-700 hover:border-gray-500 cursor-pointer transition-colors">
-                        <Upload className="w-4 h-4 text-gray-400" />
-                        <span className="font-mono text-xs text-gray-400">ЗАГРУЗИТЬ ИЗОБРАЖЕНИЕ</span>
+                    <div className="border-t border-white/10 pt-3">
+                      <p className="font-mono text-xs text-gray-400 mb-2">ИЛИ ЗАГРУЗИТЕ ФОТО QR-КОДА:</p>
+                      <label className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-dashed border-gray-600 hover:border-gray-400 cursor-pointer transition-colors">
+                        <Upload className="w-4 h-4 text-gray-300" />
+                        <span className="font-mono text-xs text-gray-300">ЗАГРУЗИТЬ ИЗОБРАЖЕНИЕ</span>
                         <input type="file" accept="image/*" className="hidden" onChange={e => {
                           const file = e.target.files?.[0];
                           if (file) handleFileScan(file);
@@ -333,13 +338,13 @@ export default function NexusControl() {
                       </label>
                     </div>
                     {/* Manual input */}
-                    <div className="border-t border-white/5 pt-3">
-                      <p className="font-mono text-[10px] text-gray-500 mb-2">ВВЕДИТЕ 4-ЗНАЧНЫЙ КОД:</p>
+                    <div className="border-t border-white/10 pt-3">
+                      <p className="font-mono text-xs text-gray-400 mb-2">ВВЕДИТЕ 4-ЗНАЧНЫЙ КОД:</p>
                       <div className="flex gap-2">
                         <input value={manualToken} onChange={e => setManualToken(e.target.value)}
                           onKeyDown={e => e.key === 'Enter' && handleManualSubmit()}
                           placeholder="// код"
-                          className="flex-1 px-3 py-2 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[#00ff88]" />
+                          className="flex-1 px-3 py-2 rounded-lg font-mono text-sm bg-black/50 border border-gray-600 text-gray-100 focus:outline-none focus:border-[#00ff88]" />
                         <button onClick={handleManualSubmit}
                           className="px-4 py-2 rounded-lg font-mono text-xs font-bold"
                           style={{ backgroundColor: '#00ff88', color: '#000' }}>
@@ -351,13 +356,13 @@ export default function NexusControl() {
 
                   {/* Result */}
                   <div className="rounded-xl p-5 flex flex-col items-center justify-center min-h-[300px]"
-                    style={{ background: 'rgba(10,10,20,0.7)', border: '1px solid rgba(0,255,136,0.1)', backdropFilter: 'blur(12px)' }}>
+                    style={{ background: 'rgba(10,10,20,0.85)', border: '1px solid rgba(0,255,136,0.2)', backdropFilter: 'blur(12px)' }}>
                     <AnimatePresence mode="wait">
                       {!result ? (
                         <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center">
-                          <Camera className="w-14 h-14 mx-auto mb-4 opacity-15 text-gray-500" />
-                          <p className="font-mono text-sm text-gray-500">// НАВЕДИТЕ КАМЕРУ НА QR-КОД</p>
-                          <p className="font-mono text-[10px] text-gray-600 mt-2">или загрузите фото / введите код</p>
+                          <Camera className="w-14 h-14 mx-auto mb-4 opacity-40 text-gray-400" />
+                          <p className="font-mono text-sm text-gray-400">// НАВЕДИТЕ КАМЕРУ НА QR-КОД</p>
+                          <p className="font-mono text-xs text-gray-500 mt-2">или загрузите фото / введите код</p>
                         </motion.div>
                       ) : (
                         <motion.div key={result.type + Date.now()} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="text-center space-y-3 w-full">
@@ -367,20 +372,20 @@ export default function NexusControl() {
                             return (
                               <>
                                 {result.type === 'confirmed' ? (
-                                  <svg viewBox="0 0 120 120" width="64" height="64" className="mx-auto">
-                                    <polygon points="60,8 108,32 108,88 60,112 12,88 12,32" fill="none" stroke="#00ff88" strokeWidth="3" opacity="0.6"/>
-                                    <polygon points="60,20 96,38 96,82 60,100 24,82 24,38" fill="none" stroke="#00d4ff" strokeWidth="1.5" opacity="0.3"/>
-                                    <path d="M48,50 L56,70 L72,45 L60,65 L52,55 Z" fill="#00ff88" opacity="0.8"/>
+                                  <svg viewBox="0 0 120 120" width="64" height="64" className="mx-auto" style={{ filter: `drop-shadow(0 0 15px ${color})` }}>
+                                    <polygon points="60,8 108,32 108,88 60,112 12,88 12,32" fill="none" stroke="#00ff88" strokeWidth="3" opacity="0.8"/>
+                                    <polygon points="60,20 96,38 96,82 60,100 24,82 24,38" fill="none" stroke="#00d4ff" strokeWidth="1.5" opacity="0.5"/>
+                                    <path d="M48,50 L56,70 L72,45 L60,65 L52,55 Z" fill="#00ff88"/>
                                     <circle cx="60" cy="58" r="3" fill="#00ff88"/>
                                   </svg>
                                 ) : (
-                                  <Icon className="w-16 h-16 mx-auto" style={{ color }} />
+                                  <Icon className="w-16 h-16 mx-auto" style={{ color, filter: `drop-shadow(0 0 15px ${color})` }} />
                                 )}
-                                <h3 className="font-mono text-lg font-bold" style={{ color }}>{result.message}</h3>
+                                <h3 className="font-mono text-lg font-bold" style={{ color, textShadow: `0 0 15px ${color}` }}>{result.message}</h3>
                                 {result.data && (
-                                  <div className="rounded-xl p-3 text-left space-y-1" style={{ background: `${color}08`, border: `1px solid ${color}20` }}>
-                                    <p className="font-mono text-xs text-gray-400">Имя: <span className="text-gray-200">{result.data.contactName || '—'}</span></p>
-                                    {result.data.regTitle && <p className="font-mono text-xs text-gray-400">Мероприятие: <span className="text-gray-200">{result.data.regTitle}</span></p>}
+                                  <div className="rounded-xl p-3 text-left space-y-1" style={{ background: `${color}12`, border: `1px solid ${color}30` }}>
+                                    <p className="font-mono text-xs text-gray-300">Имя: <span className="text-white">{result.data.contactName || '—'}</span></p>
+                                    {result.data.regTitle && <p className="font-mono text-xs text-gray-300">Мероприятие: <span className="text-white">{result.data.regTitle}</span></p>}
                                   </div>
                                 )}
                               </>
@@ -388,7 +393,7 @@ export default function NexusControl() {
                           })()}
                           <button onClick={() => { setResult(null); setCameraError(''); }}
                             className="mt-3 px-4 py-2 rounded-lg font-mono text-xs transition-all hover:opacity-80"
-                            style={{ background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.2)', color: '#00ff88' }}>
+                            style={{ background: 'rgba(0,255,136,0.12)', border: '1px solid rgba(0,255,136,0.3)', color: '#00ff88' }}>
                             СКАНИРОВАТЬ ЕЩЁ
                           </button>
                         </motion.div>
@@ -404,9 +409,9 @@ export default function NexusControl() {
                     { label: 'Подтверждено', value: selectedReg.confirmedCount || 0, color: '#00ff88' },
                   ].map(s => (
                     <div key={s.label} className="rounded-xl px-4 py-2.5 text-center"
-                      style={{ background: 'rgba(10,10,20,0.5)', border: `1px solid ${s.color}20` }}>
+                      style={{ background: 'rgba(10,10,20,0.7)', border: `1px solid ${s.color}30` }}>
                       <p className="font-mono text-lg font-bold" style={{ color: s.color }}>{s.value}</p>
-                      <p className="font-mono text-[10px] text-gray-500">{s.label}</p>
+                      <p className="font-mono text-xs text-gray-400">{s.label}</p>
                     </div>
                   ))}
                 </div>
@@ -415,28 +420,41 @@ export default function NexusControl() {
 
             {/* Submissions list tab */}
             {tab === 'list' && (
-              <div className="rounded-xl overflow-hidden" style={{ background: 'rgba(10,10,20,0.7)', border: '1px solid rgba(0,255,136,0.1)', backdropFilter: 'blur(12px)' }}>
+              <div className="rounded-xl overflow-hidden" style={{ background: 'rgba(10,10,20,0.85)', border: '1px solid rgba(0,255,136,0.2)', backdropFilter: 'blur(12px)' }}>
                 {loadingSubs ? (
                   <div className="p-8 text-center">
-                    <div className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin mx-auto" style={{ borderColor: '#00ff8840', borderTopColor: 'transparent' }} />
-                    <p className="font-mono text-xs text-gray-500 mt-3">Загрузка...</p>
+                    <div className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin mx-auto" style={{ borderColor: '#00ff8860', borderTopColor: 'transparent' }} />
+                    <p className="font-mono text-sm text-gray-400 mt-3">Загрузка...</p>
                   </div>
                 ) : submissions.length === 0 ? (
                   <div className="p-8 text-center">
-                    <Users className="w-10 h-10 mx-auto mb-3 opacity-20 text-gray-500" />
-                    <p className="font-mono text-sm text-gray-500">Нет заявок</p>
+                    <Users className="w-10 h-10 mx-auto mb-3 opacity-40 text-gray-400" />
+                    <p className="font-mono text-sm text-gray-400">Нет заявок</p>
                   </div>
                 ) : (
                   <>
-                    {/* Summary bar */}
-                    <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
-                      <span className="font-mono text-xs text-gray-400">Всего: {submissions.length}</span>
-                      <div className="flex gap-3">
+                    {/* Search + Summary */}
+                    <div className="px-4 py-3 space-y-2 border-b" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
+                      <div className="flex items-center gap-3">
+                        <div className="flex-1 relative">
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                          <input
+                            value={searchQuery}
+                            onChange={e => setSearchQuery(e.target.value)}
+                            placeholder="Поиск по имени..."
+                            className="w-full pl-8 pr-3 py-2 rounded-lg font-mono text-sm bg-black/40 border border-gray-600 text-gray-100 placeholder:text-gray-500 focus:outline-none focus:border-[#00ff88] transition-colors"
+                          />
+                        </div>
+                        <span className="font-mono text-xs text-gray-400 whitespace-nowrap">
+                          {searchQuery.trim() ? `${filteredSubmissions.length} из ${submissions.length}` : `Всего: ${submissions.length}`}
+                        </span>
+                      </div>
+                      <div className="flex gap-3 flex-wrap">
                         {['registered', 'confirmed', 'waitlist', 'cancelled'].map(s => {
-                          const count = submissions.filter(x => x.status === s).length;
+                          const count = (searchQuery.trim() ? filteredSubmissions : submissions).filter(x => x.status === s).length;
                           if (!count) return null;
                           return (
-                            <span key={s} className="font-mono text-[10px] flex items-center gap-1">
+                            <span key={s} className="font-mono text-[11px] flex items-center gap-1.5">
                               <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: statusColor[s] }} />
                               {statusLabel[s]}: {count}
                             </span>
@@ -448,37 +466,37 @@ export default function NexusControl() {
                     <div className="overflow-x-auto">
                       <table className="w-full">
                         <thead>
-                          <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                            <th className="px-4 py-2.5 text-left font-mono text-[10px] text-gray-500 font-normal uppercase tracking-wider">#</th>
-                            <th className="px-4 py-2.5 text-left font-mono text-[10px] text-gray-500 font-normal uppercase tracking-wider">Имя</th>
-                            <th className="px-4 py-2.5 text-left font-mono text-[10px] text-gray-500 font-normal uppercase tracking-wider">Статус</th>
-                            <th className="px-4 py-2.5 text-left font-mono text-[10px] text-gray-500 font-normal uppercase tracking-wider">Пришёл</th>
-                            <th className="px-4 py-2.5 text-left font-mono text-[10px] text-gray-500 font-normal uppercase tracking-wider">Дата</th>
+                          <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                            <th className="px-4 py-2.5 text-left font-mono text-[11px] text-gray-400 font-normal uppercase tracking-wider">#</th>
+                            <th className="px-4 py-2.5 text-left font-mono text-[11px] text-gray-400 font-normal uppercase tracking-wider">Имя</th>
+                            <th className="px-4 py-2.5 text-left font-mono text-[11px] text-gray-400 font-normal uppercase tracking-wider">Статус</th>
+                            <th className="px-4 py-2.5 text-left font-mono text-[11px] text-gray-400 font-normal uppercase tracking-wider">Пришёл</th>
+                            <th className="px-4 py-2.5 text-left font-mono text-[11px] text-gray-400 font-normal uppercase tracking-wider">Дата</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {submissions.map((s, i) => (
-                            <tr key={s.id} className="transition-colors hover:bg-white/[0.02]" style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
-                              <td className="px-4 py-2.5 font-mono text-xs text-gray-600">{i + 1}</td>
-                              <td className="px-4 py-2.5 font-mono text-xs text-gray-200">{s.contactName || '—'}</td>
+                          {filteredSubmissions.map((s, i) => (
+                            <tr key={s.id} className="transition-colors hover:bg-white/[0.04]" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                              <td className="px-4 py-2.5 font-mono text-xs text-gray-500">{i + 1}</td>
+                              <td className="px-4 py-2.5 font-mono text-sm text-white">{s.contactName || '—'}</td>
                               <td className="px-4 py-2.5">
-                                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full font-mono text-[10px]"
-                                  style={{ background: `${statusColor[s.status]}12`, border: `1px solid ${statusColor[s.status]}30`, color: statusColor[s.status] }}>
+                                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full font-mono text-[11px]"
+                                  style={{ background: `${statusColor[s.status]}18`, border: `1px solid ${statusColor[s.status]}40`, color: statusColor[s.status] }}>
                                   <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: statusColor[s.status] }} />
                                   {statusLabel[s.status]}
                                 </span>
                               </td>
                               <td className="px-4 py-2.5">
                                 {s.attended ? (
-                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-mono text-[10px]"
-                                    style={{ background: 'rgba(0,255,136,0.1)', border: '1px solid rgba(0,255,136,0.2)', color: '#00ff88' }}>
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-mono text-[11px]"
+                                    style={{ background: 'rgba(0,255,136,0.15)', border: '1px solid rgba(0,255,136,0.3)', color: '#00ff88' }}>
                                     <CheckCircle className="w-3 h-3" /> Да
                                   </span>
                                 ) : (
-                                  <span className="font-mono text-[10px] text-gray-600">—</span>
+                                  <span className="font-mono text-xs text-gray-500">—</span>
                                 )}
                               </td>
-                              <td className="px-4 py-2.5 font-mono text-[11px] text-gray-500">
+                              <td className="px-4 py-2.5 font-mono text-xs text-gray-400">
                                 {s.createdAt ? new Date(s.createdAt).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—'}
                               </td>
                             </tr>
@@ -486,6 +504,12 @@ export default function NexusControl() {
                         </tbody>
                       </table>
                     </div>
+                    {searchQuery.trim() && filteredSubmissions.length === 0 && (
+                      <div className="p-6 text-center">
+                        <Search className="w-8 h-8 mx-auto mb-2 opacity-40 text-gray-500" />
+                        <p className="font-mono text-sm text-gray-400">Ничего не найдено</p>
+                      </div>
+                    )}
                   </>
                 )}
               </div>
@@ -495,7 +519,7 @@ export default function NexusControl() {
 
         {/* Footer */}
         <div className="text-center pt-4 pb-8">
-          <p className="font-mono text-[10px] text-gray-600">NEXUS CRM // CONTROL SYSTEM v1.0</p>
+          <p className="font-mono text-xs text-gray-500">NEXUS CRM // CONTROL SYSTEM v1.0</p>
         </div>
       </div>
 
