@@ -45,6 +45,7 @@ const CancelRegistration = lazy(() => import('./pages/CancelRegistration'));
 const CheckinPage = lazy(() => import('./pages/CheckinPage'));
 const CheckinScanner = lazy(() => import('./pages/CheckinScanner'));
 const ParticipantsList = lazy(() => import('./pages/ParticipantsList'));
+const NexusControl = lazy(() => import('./pages/NexusControl'));
 
 function PageWrapper({ children }: { children: ReactNode }) {
   return <ErrorBoundary><Suspense fallback={<LoadingScreen />}>{children}</Suspense></ErrorBoundary>;
@@ -96,6 +97,7 @@ function AppRoutes() {
       <Route path="/reg/:slug" element={<PublicRegistration />} />
       <Route path="/reg/cancel/:token" element={<CancelRegistration />} />
       <Route path="/reg/checkin/:token" element={<CheckinPage />} />
+      <Route path="/control" element={<PageWrapper><NexusControl /></PageWrapper>} />
       <Route
         path="/"
         element={
@@ -160,7 +162,7 @@ function ChatWidgetWrapper() {
   const { isAuthenticated } = useAuth();
   const pathname = window.location.pathname;
   if (!isAuthenticated) return null;
-  if (pathname.startsWith('/reg/')) return null;
+  if (pathname.startsWith('/reg/') || pathname.startsWith('/control')) return null;
   return <ErrorBoundary><Suspense fallback={null}><ChatWidget /></Suspense></ErrorBoundary>;
 }
 

@@ -837,3 +837,40 @@ export const toggleAttended = (req: AuthRequest, res: Response) => {
     res.status(500).json({ success: false, error: 'Ошибка сервера' });
   }
 };
+
+// ── Public: active registrations for CONTROL page (no auth) ──
+
+export const getPublicRegistrations = (req: AuthRequest, res: Response) => {
+  try {
+    const regs = query(`
+      SELECT r.id, r.title, r.eventDate, r.eventTime, r.location, r.status,
+        (SELECT COUNT(*) FROM registration_submissions rs WHERE rs.registrationId = r.id AND rs.status IN ('registered', 'confirmed')) as confirmedCount,
+        (SELECT COUNT(*) FROM registration_submissions rs WHERE rs.registrationId = r.id) as totalCount
+      FROM registrations r
+      WHERE r.status = 'active'
+      ORDER BY r.eventDate DESC, r.createdAt DESC
+    `);
+    res.json({ success: true, data: regs });
+  } catch (error) {
+    console.error('GetPublicRegistrations error:', error);
+    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+  }
+};
+
+// ── Public: submissions for CONTROL page (no auth, limited fields) ──
+
+export const getPublicSubmissions = (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const submissions = query(`
+      SELECT rs.id, rs.contactName, rs.status, rs.attended, rs.attendedAt, rs.createdAt
+      FROM registration_submissions rs
+      WHERE rs.registrationId = ?
+      ORDER BY rs.createdAt ASC
+    `, [id]);
+    res.json({ success: true, data: submissions });
+  } catch (error) {
+    console.error('GetPublicSubmissions error:', error);
+    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+  }
+};

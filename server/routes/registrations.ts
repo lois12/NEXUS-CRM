@@ -5,6 +5,7 @@ import {
   getBySlug, submitRegistration, getSubmissions, cancelSubmission, cancelByToken, deleteSubmission, exportCSV,
   getMedia, uploadMedia, deleteMedia,
   checkinGet, checkinPost, checkinByCode, getParticipants, toggleAttended, updateAndNotify,
+  getPublicRegistrations, getPublicSubmissions,
 } from '../controllers/registrationController';
 import { authenticateToken, requireRole } from '../middleware/auth';
 import { upload } from '../middleware/upload';
@@ -19,6 +20,10 @@ router.delete('/reg/cancel/:token', cancelByToken);
 router.get('/reg/checkin/:token', checkinGet);
 router.post('/reg/checkin/:token', checkinPost);
 router.get('/reg/checkin-code/:registrationId/:code', checkinByCode);
+
+// CONTROL page (public, no auth)
+router.get('/control/registrations', getPublicRegistrations);
+router.get('/control/registrations/:id/submissions', getPublicSubmissions);
 
 // ── Authenticated routes ──
 const authRouter = Router();

@@ -578,6 +578,14 @@ export const registrationsApi = {
     api.post(`/registrations/${regId}/participants/${subId}/attended`).then((res) => res.data),
 };
 
+// CONTROL page API (public, no auth)
+export const controlApi = {
+  getRegistrations: (): Promise<ApiResponse<any[]>> =>
+    api.get('/control/registrations').then((res) => res.data),
+  getSubmissions: (regId: string): Promise<ApiResponse<any[]>> =>
+    api.get(`/control/registrations/${regId}/submissions`).then((res) => res.data),
+};
+
 // Public Registration API (no auth)
 export const publicRegApi = {
   getBySlug: (slug: string): Promise<ApiResponse<any>> =>
