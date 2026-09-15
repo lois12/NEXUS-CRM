@@ -125,6 +125,8 @@ export const updateGroup = (req: AuthRequest, res: Response) => {
     const { name, avatar, description } = req.body;
     const conv = get('SELECT * FROM chat_conversations WHERE id = ? AND type = ?', [id, 'group']);
     if (!conv) return res.status(404).json({ success: false, error: 'Группа не найдена' });
+    const callerMembership = get('SELECT role FROM chat_group_members WHERE conversationId = ? AND userId = ?', [id, req.user!.id]);
+    if (!callerMembership || callerMembership.role !== 'admin') return res.status(403).json({ success: false, error: 'Только админ группы может изменять настройки' });
 
     const updates: string[] = []; const params: any[] = [];
     if (name) { updates.push('name = ?'); params.push(name); }
@@ -143,6 +145,8 @@ export const updateGroup = (req: AuthRequest, res: Response) => {
 export const addGroupMember = (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params; const { userId: newMemberId } = req.body;
+    const callerMembership = get('SELECT role FROM chat_group_members WHERE conversationId = ? AND userId = ?', [id, req.user!.id]);
+    if (!callerMembership || callerMembership.role !== 'admin') return res.status(403).json({ success: false, error: 'Только админ группы может добавлять участников' });
     const existing = get('SELECT * FROM chat_group_members WHERE conversationId = ? AND userId = ?', [id, newMemberId]);
     if (existing) return res.status(400).json({ success: false, error: 'Уже в группе' });
     run('INSERT INTO chat_group_members (id, conversationId, userId) VALUES (?, ?, ?)', [uuidv4(), id, newMemberId]);
@@ -152,7 +156,11 @@ export const addGroupMember = (req: AuthRequest, res: Response) => {
 
 export const removeGroupMember = (req: AuthRequest, res: Response) => {
   try {
-    run('DELETE FROM chat_group_members WHERE conversationId = ? AND userId = ?', [req.params.id, req.params.userId]);
+    const { id, userId: targetUserId } = req.params;
+    const callerMembership = get('SELECT role FROM chat_group_members WHERE conversationId = ? AND userId = ?', [id, req.user!.id]);
+    if (!callerMembership) return res.status(403).json({ success: false, error: 'Вы не участник группы' });
+    if (targetUserId !== req.user!.id && callerMembership.role !== 'admin') return res.status(403).json({ success: false, error: 'Только админ группы может удалять других участников' });
+    run('DELETE FROM chat_group_members WHERE conversationId = ? AND userId = ?', [id, targetUserId]);
     res.json({ success: true });
   } catch (error) { console.error('RemoveGroupMember error:', error); res.status(500).json({ success: false, error: 'Ошибка сервера' }); }
 };

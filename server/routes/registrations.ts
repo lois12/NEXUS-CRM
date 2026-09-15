@@ -9,7 +9,7 @@ import {
 } from '../controllers/registrationController';
 import { authenticateToken, requireRole } from '../middleware/auth';
 import { upload } from '../middleware/upload';
-import { rateLimitRegistration } from '../middleware/rateLimit';
+import { rateLimitRegistration, rateLimitCheckin } from '../middleware/rateLimit';
 
 const router = Router();
 
@@ -17,9 +17,9 @@ const router = Router();
 router.get('/reg/:slug', getBySlug);
 router.post('/reg/:slug', rateLimitRegistration, submitRegistration);
 router.delete('/reg/cancel/:token', cancelByToken);
-router.get('/reg/checkin/:token', checkinGet);
-router.post('/reg/checkin/:token', checkinPost);
-router.get('/reg/checkin-code/:registrationId/:code', checkinByCode);
+router.get('/reg/checkin/:token', rateLimitCheckin, checkinGet);
+router.post('/reg/checkin/:token', rateLimitCheckin, checkinPost);
+router.get('/reg/checkin-code/:registrationId/:code', rateLimitCheckin, checkinByCode);
 
 // CONTROL page (public, no auth)
 router.get('/control/registrations', getPublicRegistrations);

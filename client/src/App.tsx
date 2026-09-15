@@ -92,11 +92,11 @@ function AppRoutes() {
 
   return (
     <Routes>
-      <Route path="/login" element={isAuthenticated ? <Navigate to="/" replace /> : <Login />} />
-      <Route path="/qr-confirm" element={<QRConfirm />} />
-      <Route path="/reg/:slug" element={<PublicRegistration />} />
-      <Route path="/reg/cancel/:token" element={<CancelRegistration />} />
-      <Route path="/reg/checkin/:token" element={<CheckinPage />} />
+      <Route path="/login" element={isAuthenticated ? <Navigate to="/" replace /> : <PageWrapper><Login /></PageWrapper>} />
+      <Route path="/qr-confirm" element={<PageWrapper><QRConfirm /></PageWrapper>} />
+      <Route path="/reg/:slug" element={<PageWrapper><PublicRegistration /></PageWrapper>} />
+      <Route path="/reg/cancel/:token" element={<PageWrapper><CancelRegistration /></PageWrapper>} />
+      <Route path="/reg/checkin/:token" element={<PageWrapper><CheckinPage /></PageWrapper>} />
       <Route path="/control" element={<PageWrapper><NexusControl /></PageWrapper>} />
       <Route
         path="/"
@@ -106,7 +106,7 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       >
-        <Route index element={<Dashboard />} />
+        <Route index element={<PageWrapper><Dashboard /></PageWrapper>} />
         <Route path="content" element={<PageWrapper><ContentPlan /></PageWrapper>} />
         <Route path="materials" element={<PageWrapper><Materials /></PageWrapper>} />
         <Route path="analytics" element={<PageWrapper><Analytics /></PageWrapper>} />

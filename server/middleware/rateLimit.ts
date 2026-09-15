@@ -108,3 +108,31 @@ export function rateLimitRegistration(req: Request, res: Response, next: NextFun
   entry.count++;
   next();
 }
+
+// ── Checkin rate limit: 20 attempts per IP per 10 minutes ──
+
+const checkinAttempts = new Map<string, { count: number; windowStart: number }>();
+const CHECKIN_MAX = 20;
+const CHECKIN_WINDOW = 10 * 60 * 1000; // 10 minutes
+
+export function rateLimitCheckin(req: Request, res: Response, next: NextFunction) {
+  const ip = req.ip || req.socket.remoteAddress || 'unknown';
+  const now = Date.now();
+
+  let entry = checkinAttempts.get(ip);
+  if (!entry || (now - entry.windowStart > CHECKIN_WINDOW)) {
+    entry = { count: 0, windowStart: now };
+    checkinAttempts.set(ip, entry);
+  }
+
+  if (entry.count >= CHECKIN_MAX) {
+    const retryMin = Math.ceil((CHECKIN_WINDOW - (now - entry.windowStart)) / 60000);
+    return res.status(429).json({
+      success: false,
+      error: `Слишком много попыток. Попробуйте через ${retryMin} мин.`,
+    });
+  }
+
+  entry.count++;
+  next();
+}
