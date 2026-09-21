@@ -185,10 +185,17 @@ export default function Materials() {
   const handleFileDragStart = useCallback((e: React.DragEvent, materialId: string) => {
     internalDragRef.current = true;
     dragMaterialId.current = materialId;
-    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.effectAllowed = 'copyMove';
     e.dataTransfer.setData('text/plain', materialId);
+    // Set material data for cross-component drag (e.g. into ChatWidget)
+    const material = materials.find(m => m.id === materialId);
+    if (material) {
+      e.dataTransfer.setData('application/x-nexus-material', JSON.stringify({
+        url: material.url, name: material.name, type: material.type === 'image' ? 'image' : 'file',
+      }));
+    }
     (e.target as HTMLElement).style.opacity = '0.4';
-  }, []);
+  }, [materials]);
 
   const handleFileDragEnd = useCallback((e: React.DragEvent) => {
     (e.target as HTMLElement).style.opacity = '1';
@@ -373,13 +380,11 @@ export default function Materials() {
                     <h3 className={`${preset.textSize} font-medium text-gray-200 truncate`}>{material.name}</h3>
                     <p className="text-[10px] text-gray-400">{formatFileSize(material.size)}</p>
                     <div className="flex items-center gap-1.5 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      {material.type === 'image' && (
-                        <button onClick={() => openSendModal(material)}
-                          className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-[10px] transition-colors"
-                          style={{ background: 'rgba(0,255,136,0.1)', color: 'var(--color-primary)', border: '1px solid rgba(0,255,136,0.2)' }}>
-                          <Send className="w-3 h-3" /> Чат
-                        </button>
-                      )}
+                      <button onClick={() => openSendModal(material)}
+                        className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-[10px] transition-colors"
+                        style={{ background: 'rgba(0,255,136,0.1)', color: 'var(--color-primary)', border: '1px solid rgba(0,255,136,0.2)' }}>
+                        <Send className="w-3 h-3" /> Чат
+                      </button>
                       <a href={material.url} download className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-white/5 text-gray-400 hover:text-gray-200 text-[10px]">
                         <Download className="w-3 h-3" />
                       </a>
@@ -419,11 +424,9 @@ export default function Materials() {
                     <td className="p-4 text-sm text-gray-400">{formatDateKR(material.createdAt)}</td>
                     <td className="p-4 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        {material.type === 'image' && (
-                          <button onClick={() => openSendModal(material)} className="p-2 rounded-lg bg-white/5 text-gray-400 hover:text-green-400" title="Отправить в чат">
-                            <Send className="w-4 h-4" />
-                          </button>
-                        )}
+                        <button onClick={() => openSendModal(material)} className="p-2 rounded-lg bg-white/5 text-gray-400 hover:text-green-400" title="Отправить в чат">
+                          <Send className="w-4 h-4" />
+                        </button>
                         <a href={material.url} download className="p-2 rounded-lg bg-white/5 text-gray-400 hover:text-gray-200"><Download className="w-4 h-4" /></a>
                         <button onClick={() => handleCopyLink(material)} className="p-2 rounded-lg bg-white/5 text-gray-400 hover:text-gray-200"><Link className="w-4 h-4" /></button>
                         <button onClick={() => handleDelete(material.id)} className="p-2 rounded-lg bg-white/5 text-gray-400 hover:text-red-400"><Trash className="w-4 h-4" /></button>
@@ -464,7 +467,13 @@ export default function Materials() {
 
               {/* Preview */}
               <div className="px-5 py-3 flex items-center gap-3">
-                <img loading="lazy" decoding="async" src={sendModal.url} alt="" draggable="false" className="w-16 h-16 rounded-lg object-cover select-none" style={{ border: '1px solid rgba(255,255,255,0.06)' }} />
+                {sendModal.type === 'image' ? (
+                  <img loading="lazy" decoding="async" src={sendModal.url} alt="" draggable="false" className="w-16 h-16 rounded-lg object-cover select-none" style={{ border: '1px solid rgba(255,255,255,0.06)' }} />
+                ) : (
+                  <div className="w-16 h-16 rounded-lg flex items-center justify-center" style={{ background: 'rgba(0,212,255,0.1)', border: '1px solid rgba(0,212,255,0.2)' }}>
+                    {(() => { const Icon = typeIcons[sendModal.type]; return <Icon className="w-8 h-8" style={{ color: '#00d4ff' }} />; })()}
+                  </div>
+                )}
                 <div className="flex-1 min-w-0">
                   <p className="text-sm text-gray-200 truncate">{sendModal.name}</p>
                   <p className="text-xs text-gray-400">{formatFileSize(sendModal.size)}</p>

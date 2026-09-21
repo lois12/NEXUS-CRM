@@ -181,6 +181,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           ${collapsed ? 'w-[68px]' : 'w-64'} glass-frost flex flex-col border-r-0
           transform transition-all duration-300 ease-in-out
           ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+          sidebar-glow-flow
         `}>
         {/* Logo */}
         <div className="p-4 md:p-6 border-b border-white/5 flex items-center justify-between">

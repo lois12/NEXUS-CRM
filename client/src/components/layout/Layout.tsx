@@ -35,7 +35,7 @@ export default function Layout() {
   return (
     <div className="flex h-dvh overflow-hidden">
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0 relative sidebar-content-glow">
         <div className="flex-shrink-0" style={{ height: 'env(safe-area-inset-top, 0px)' }} />
         <Header onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
         <main className="flex-1 overflow-y-auto p-3 md:p-6">

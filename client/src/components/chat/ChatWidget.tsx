@@ -317,6 +317,18 @@ export default function ChatWidget() {
     setChatDragOver(false);
     if (!activeConv) return;
 
+    // Check for material dragged from Materials page
+    const materialData = e.dataTransfer.getData('application/x-nexus-material');
+    if (materialData) {
+      try {
+        const mat = JSON.parse(materialData);
+        if (attachedFiles.length >= 10) { showToast('Максимум 10 файлов', 'error'); return; }
+        setAttachedFiles(prev => [...prev, { url: mat.url, type: mat.type, name: mat.name }]);
+      } catch {}
+      return;
+    }
+
+    // Otherwise handle OS files
     const files = Array.from(e.dataTransfer.files);
     if (files.length === 0) return;
 
@@ -327,7 +339,7 @@ export default function ChatWidget() {
       }
       await handleFileUpload(file);
     }
-  }, [activeConv, handleFileUpload]);
+  }, [activeConv, handleFileUpload, attachedFiles.length]);
 
   const startRecording = async () => {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -575,6 +587,7 @@ export default function ChatWidget() {
             <div className="flex flex-col items-center gap-2">
               <Upload className="w-10 h-10" style={{ color: 'var(--color-primary)' }} />
               <span className="text-sm font-mono font-bold" style={{ color: 'var(--color-primary)' }}>ПЕРЕТАЩИТЕ ФАЙЛЫ</span>
+              <span className="text-[10px] font-mono" style={{ color: '#5a5a70' }}>Файлы с диска или из Хранилища</span>
             </div>
           </div>
         )}

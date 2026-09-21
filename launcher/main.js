@@ -17,6 +17,11 @@ const FRONTEND_DIR = path.join(PROJECT_ROOT, 'client');
 const DB_PATH = path.join(PROJECT_ROOT, 'server', 'nexus.db');
 const SETTINGS_PATH = path.join(__dirname, 'launcher-settings.json');
 const APP_PORT = 8080;
+const VPS_HOST = '89.108.66.185';
+const VPS_URL = `http://${VPS_HOST}`;
+
+let vpsReady = false;
+let vpsStartTime = null;
 
 // ─── Settings ──────────────────────────────────────────────────
 
@@ -126,6 +131,19 @@ function checkPort(port) {
   });
 }
 
+// ─── VPS health check ─────────────────────────────────────────
+
+function checkVps() {
+  return new Promise((resolve) => {
+    const req = http.get(`${VPS_URL}/api/health`, { timeout: 5000 }, (res) => {
+      resolve(res.statusCode === 200);
+      req.destroy();
+    });
+    req.on('error', () => { resolve(false); req.destroy(); });
+    req.on('timeout', () => { resolve(false); req.destroy(); });
+  });
+}
+
 // Robust check: try up to 3 times
 async function isServerAlive(port) {
   for (let i = 0; i < 3; i++) {
@@ -178,10 +196,10 @@ function pollHealth(url, timeout = 60000) {
 
 // ─── Run command ───────────────────────────────────────────────
 
-function runCommand(command, args, cwd) {
+function runCommand(command, args, cwd, logChannel = 'backend-log') {
   return new Promise((resolve, reject) => {
     console.log(`[runCommand] ${command} ${args.join(' ')} in ${cwd}`);
-    send('backend-log', `[CMD] ${command} ${args.join(' ')}`);
+    send(logChannel, `[CMD] ${command} ${args.join(' ')}`);
 
     const proc = spawn(command, args, {
       cwd,
@@ -192,13 +210,13 @@ function runCommand(command, args, cwd) {
 
     proc.stdout.on('data', (data) => {
       const text = data.toString().trim();
-      if (text) send('backend-log', text);
+      if (text) send(logChannel, text);
     });
 
     proc.stderr.on('data', (data) => {
       const text = data.toString().trim();
       if (text && !text.includes('duplicate column')) {
-        send('backend-log', text);
+        send(logChannel, text);
       }
     });
 
@@ -461,55 +479,55 @@ ipcMain.handle('kill-port', async (_, port) => {
 // ─── Deploy ────────────────────────────────────────────────────
 
 ipcMain.on('deploy', async () => {
-  send('backend-log', '[DEPLOY] === СТАРТ ДЕПЛОЯ ===');
+  send('deploy-log', '=== СТАРТ ДЕПЛОЯ ===');
   send('deploy-status', 'running');
 
   // Step 1: Git add + commit + push
-  send('backend-log', '[DEPLOY] Шаг 1/2: Git push...');
+  send('deploy-log', 'Шаг 1/2: Git push...');
   try {
-    await runCommand('git', ['add', '.'], PROJECT_ROOT);
-    const diffCode = await runCommand('git', ['diff', '--cached', '--quiet'], PROJECT_ROOT);
+    await runCommand('git', ['add', '.'], PROJECT_ROOT, 'deploy-log');
+    const diffCode = await runCommand('git', ['diff', '--cached', '--quiet'], PROJECT_ROOT, 'deploy-log');
     if (diffCode === 0) {
-      send('backend-log', '[DEPLOY] Нет изменений для коммита');
+      send('deploy-log', 'Нет изменений для коммита');
     } else {
-      const commitCode = await runCommand('git', ['commit', '-m', '"deploy: update from launcher"'], PROJECT_ROOT);
+      const commitCode = await runCommand('git', ['commit', '-m', '"deploy: update from launcher"'], PROJECT_ROOT, 'deploy-log');
       if (commitCode !== 0) {
-        send('backend-log', `[DEPLOY] Ошибка коммита (код ${commitCode})`);
+        send('deploy-log', `Ошибка коммита (код ${commitCode})`);
         send('deploy-status', 'failed');
         return;
       }
     }
-    const pushCode = await runCommand('git', ['push', 'origin', 'main'], PROJECT_ROOT);
+    const pushCode = await runCommand('git', ['push', 'origin', 'main'], PROJECT_ROOT, 'deploy-log');
     if (pushCode !== 0) {
-      send('backend-log', `[DEPLOY] Ошибка push (код ${pushCode})`);
+      send('deploy-log', `Ошибка push (код ${pushCode})`);
       send('deploy-status', 'failed');
       return;
     }
-    send('backend-log', '[DEPLOY] Git push ✓');
+    send('deploy-log', 'Git push OK');
   } catch (err) {
-    send('backend-log', '[DEPLOY] Ошибка git: ' + err.message);
+    send('deploy-log', 'Ошибка git: ' + err.message);
     send('deploy-status', 'failed');
     return;
   }
 
   // Step 2: SSH deploy on VPS (build + tests happen there)
-  send('backend-log', '[DEPLOY] Шаг 2/2: Деплой на VPS...');
+  send('deploy-log', 'Шаг 2/2: Деплой на VPS...');
   try {
     const sshScript = path.join(PROJECT_ROOT, 'ssh_deploy.py');
-    const deployCode = await runCommand('python', [`"${sshScript}"`], PROJECT_ROOT);
+    const deployCode = await runCommand('python', [`"${sshScript}"`], PROJECT_ROOT, 'deploy-log');
     if (deployCode !== 0) {
-      send('backend-log', `[DEPLOY] VPS деплой провален (код ${deployCode})`);
+      send('deploy-log', `VPS деплой провален (код ${deployCode})`);
       send('deploy-status', 'failed');
       return;
     }
-    send('backend-log', '[DEPLOY] VPS деплой ✓');
+    send('deploy-log', 'VPS деплой OK');
   } catch (err) {
-    send('backend-log', '[DEPLOY] Ошибка SSH: ' + err.message);
+    send('deploy-log', 'Ошибка SSH: ' + err.message);
     send('deploy-status', 'failed');
     return;
   }
 
-  send('backend-log', '[DEPLOY] === ДЕПЛОЙ ЗАВЕРШЁН ===');
+  send('deploy-log', '=== ДЕПЛОЙ ЗАВЕРШЁН ===');
   send('deploy-status', 'success');
 });
 
@@ -630,6 +648,26 @@ app.whenReady().then(async () => {
       send('backend-log', '[SYSTEM] Сервер недоступен');
     }
   }, 3000);
+
+  // Poll VPS health every 10 seconds
+  async function pollVps() {
+    const alive = await checkVps();
+    if (alive && !vpsReady) {
+      vpsReady = true;
+      vpsStartTime = Date.now();
+      send('vps-status', 'running');
+      send('deploy-log', `VPS доступен (${VPS_HOST})`);
+    } else if (!alive && vpsReady) {
+      vpsReady = false;
+      vpsStartTime = null;
+      send('vps-status', 'stopped');
+      send('deploy-log', 'VPS недоступен');
+    }
+    // Always send current state so renderer stays in sync
+    send('vps-state', { status: vpsReady ? 'running' : 'stopped' });
+  }
+  // Delay first check so renderer has time to subscribe
+  setTimeout(() => { pollVps(); setInterval(pollVps, 10000); }, 3000);
 });
 
 app.on('window-all-closed', () => {
