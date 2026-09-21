@@ -472,7 +472,7 @@ ipcMain.on('deploy', async () => {
     if (diffCode === 0) {
       send('backend-log', '[DEPLOY] Нет изменений для коммита');
     } else {
-      const commitCode = await runCommand('git', ['commit', '-m', 'deploy: update from launcher'], PROJECT_ROOT);
+      const commitCode = await runCommand('git', ['commit', '-m', '"deploy: update from launcher"'], PROJECT_ROOT);
       if (commitCode !== 0) {
         send('backend-log', `[DEPLOY] Ошибка коммита (код ${commitCode})`);
         send('deploy-status', 'failed');

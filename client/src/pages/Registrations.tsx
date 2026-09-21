@@ -23,7 +23,7 @@ export default function Registrations() {
   const [registrations, setRegistrations] = useState<Registration[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [filterStatus, setFilterStatus] = useState('');
+  const [activeTab, setActiveTab] = useState<'active' | 'planned' | 'archive'>('active');
   const [view, setView] = useState<'list' | 'constructor' | 'submissions'>('list');
   const [editing, setEditing] = useState<Registration | null>(null);
   const [form, setForm] = useState({ title: '', description: '', eventDate: '', eventTime: '', location: '', videoUrl: '', maxParticipants: 0, status: 'draft' as string, registrationStart: '', registrationEnd: '', closedMessage: '', mapCoords: '', showLimit: 1, showTimer: 1, organizer: '' });
@@ -51,7 +51,9 @@ export default function Registrations() {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const filtered = registrations.filter(r => {
-    if (filterStatus && r.status !== filterStatus) return false;
+    if (activeTab === 'active' && r.status !== 'active') return false;
+    if (activeTab === 'planned' && r.status !== 'draft') return false;
+    if (activeTab === 'archive' && r.status !== 'archived' && r.status !== 'closed') return false;
     if (search && !r.title.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   });
@@ -782,15 +784,36 @@ export default function Registrations() {
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="ПОИСК..."
             className="w-full pl-9 pr-4 py-2 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none" />
         </div>
-        {['', 'draft', 'active', 'closed'].map(s => (
-          <button key={s} onClick={() => setFilterStatus(s)}
-            className="px-3 py-1.5 rounded-lg font-mono text-[10px] font-bold transition-all"
-            style={filterStatus === s
-              ? { background: s ? STATUS_CONFIG[s]?.color : 'var(--color-primary)', color: '#000' }
-              : { color: '#6a6a80', background: 'rgba(255,255,255,0.03)' }}>
-            {s ? STATUS_CONFIG[s]?.label : 'ВСЕ'}
-          </button>
-        ))}
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-1 p-1 rounded-xl bg-black/30 border border-gray-800 w-fit">
+        {([
+          { key: 'active' as const, label: 'АКТИВНЫЕ', color: '#00ff88' },
+          { key: 'planned' as const, label: 'ЗАПЛАНИРОВАНЫ', color: '#eab308' },
+          { key: 'archive' as const, label: 'АРХИВ', color: '#6b7280' },
+        ]).map(tab => {
+          const count = tab.key === 'active'
+            ? registrations.filter(r => r.status === 'active').length
+            : tab.key === 'planned'
+            ? registrations.filter(r => r.status === 'draft').length
+            : registrations.filter(r => r.status === 'archived' || r.status === 'closed').length;
+          return (
+            <button key={tab.key} onClick={() => setActiveTab(tab.key)}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-xs font-bold transition-all"
+              style={activeTab === tab.key
+                ? { background: `${tab.color}18`, color: tab.color, boxShadow: `0 0 12px ${tab.color}20` }
+                : { color: '#4a4a60' }}>
+              {tab.label}
+              <span className="text-[10px] px-1.5 py-0.5 rounded-md"
+                style={activeTab === tab.key
+                  ? { background: `${tab.color}25`, color: tab.color }
+                  : { background: 'rgba(255,255,255,0.05)', color: '#4a4a60' }}>
+                {count}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
       <div ref={listRef} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
