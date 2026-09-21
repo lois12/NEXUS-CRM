@@ -178,11 +178,12 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       {/* Sidebar */}
       <aside className={`
           fixed md:static inset-y-0 left-0 z-50
-          ${collapsed ? 'w-[68px]' : 'w-64'} glass-frost flex flex-col border-r-0
+          ${collapsed ? 'w-[68px]' : 'w-64'} glass-frost flex flex-col
           transform transition-all duration-300 ease-in-out
           ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
-          sidebar-glow-flow
-        `}>
+        `}
+        style={{ borderRight: '1px solid rgba(0,255,136,0.06)', background: 'linear-gradient(180deg, rgba(15,15,25,0.85) 0%, rgba(10,10,18,0.95) 100%)' }}
+      >
         {/* Logo */}
         <div className="p-4 md:p-6 border-b border-white/5 flex items-center justify-between">
           {!collapsed && (
@@ -265,7 +266,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                             isActive ? 'glass-accent nav-link-active' : 'text-gray-400 hover:bg-white/5 hover:text-gray-200'
                           }`
                         }
-                        style={({ isActive }) => isActive ? { color: 'var(--color-primary)' } : {}}>
+                        style={({ isActive }) => isActive ? { color: 'var(--color-primary)', boxShadow: 'inset -2px 0 12px -4px rgba(0,255,136,0.15)' } : {}}>
                         <group.icon className="w-5 h-5 flex-shrink-0" />
                         <span className={`text-sm flex-1 ${true ? 'font-medium' : ''}`}>{group.label}</span>
                       </NavLink>
@@ -315,7 +316,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                           isActive ? 'glass-accent nav-link-active' : 'text-gray-400 hover:bg-white/5 hover:text-gray-200'
                         }`
                       }
-                      style={({ isActive }) => isActive ? { color: 'var(--color-primary)' } : {}}>
+                      style={({ isActive }) => isActive ? { color: 'var(--color-primary)', boxShadow: 'inset -2px 0 12px -4px rgba(0,255,136,0.15)' } : {}}>
                       <span className="text-sm font-medium">{child.label}</span>
                     </NavLink>
                   </motion.div>
