@@ -764,4 +764,89 @@ export async function initializeDatabase() {
     )
   `);
   try { run('CREATE INDEX IF NOT EXISTS idx_kb_attach_article ON knowledge_attachments(articleId)'); } catch {}
+
+  // Chat: archived conversations
+  migrate('ALTER TABLE chat_conversations ADD COLUMN archived INTEGER NOT NULL DEFAULT 0');
+  migrate('ALTER TABLE chat_conversations ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0');
+
+  // Chat: favorited messages
+  run(`
+    CREATE TABLE IF NOT EXISTS chat_favorites (
+      id TEXT PRIMARY KEY,
+      messageId TEXT NOT NULL,
+      userId TEXT NOT NULL,
+      createdAt TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (messageId) REFERENCES chat_messages(id),
+      FOREIGN KEY (userId) REFERENCES users(id)
+    )
+  `);
+  try { run('CREATE UNIQUE INDEX IF NOT EXISTS idx_chat_fav_unique ON chat_favorites(messageId, userId)'); } catch {}
+
+  // Chat: polls
+  run(`
+    CREATE TABLE IF NOT EXISTS chat_polls (
+      id TEXT PRIMARY KEY,
+      messageId TEXT NOT NULL,
+      question TEXT NOT NULL,
+      createdBy TEXT NOT NULL,
+      createdAt TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (messageId) REFERENCES chat_messages(id),
+      FOREIGN KEY (createdBy) REFERENCES users(id)
+    )
+  `);
+  run(`
+    CREATE TABLE IF NOT EXISTS chat_poll_options (
+      id TEXT PRIMARY KEY,
+      pollId TEXT NOT NULL,
+      text TEXT NOT NULL,
+      position INTEGER DEFAULT 0,
+      FOREIGN KEY (pollId) REFERENCES chat_polls(id) ON DELETE CASCADE
+    )
+  `);
+  run(`
+    CREATE TABLE IF NOT EXISTS chat_poll_votes (
+      id TEXT PRIMARY KEY,
+      pollId TEXT NOT NULL,
+      optionId TEXT NOT NULL,
+      userId TEXT NOT NULL,
+      createdAt TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (pollId) REFERENCES chat_polls(id) ON DELETE CASCADE,
+      FOREIGN KEY (optionId) REFERENCES chat_poll_options(id) ON DELETE CASCADE,
+      FOREIGN KEY (userId) REFERENCES users(id)
+    )
+  `);
+  try { run('CREATE UNIQUE INDEX IF NOT EXISTS idx_chat_vote_unique ON chat_poll_votes(pollId, userId)'); } catch {}
+
+  // Chat: muted members in groups
+  run(`
+    CREATE TABLE IF NOT EXISTS chat_muted (
+      id TEXT PRIMARY KEY,
+      conversationId TEXT NOT NULL,
+      userId TEXT NOT NULL,
+      mutedBy TEXT NOT NULL,
+      mutedUntil TEXT,
+      createdAt TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (conversationId) REFERENCES chat_conversations(id),
+      FOREIGN KEY (userId) REFERENCES users(id),
+      FOREIGN KEY (mutedBy) REFERENCES users(id)
+    )
+  `);
+  try { run('CREATE UNIQUE INDEX IF NOT EXISTS idx_chat_muted_unique ON chat_muted(conversationId, userId)'); } catch {}
+
+  // Chat: user-level conversation mutes
+  run(`
+    CREATE TABLE IF NOT EXISTS chat_user_mutes (
+      id TEXT PRIMARY KEY,
+      conversationId TEXT NOT NULL,
+      userId TEXT NOT NULL,
+      until TEXT,
+      createdAt TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (conversationId) REFERENCES chat_conversations(id),
+      FOREIGN KEY (userId) REFERENCES users(id)
+    )
+  `);
+  try { run('CREATE UNIQUE INDEX IF NOT EXISTS idx_chat_umute_unique ON chat_user_mutes(conversationId, userId)'); } catch {}
+
+  // Chat: voice transcription
+  migrate('ALTER TABLE chat_messages ADD COLUMN transcript TEXT DEFAULT ""');
 }

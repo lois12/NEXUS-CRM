@@ -60,6 +60,15 @@ export default function ChatWidget() {
   const [profileModal, setProfileModal] = useState<User | null>(null);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
 
+  // Favorites
+  const [showFavorites, setShowFavorites] = useState(false);
+  const [favoriteMessages, setFavoriteMessages] = useState<ChatMessage[]>([]);
+
+  // Poll creation
+  const [showPollCreate, setShowPollCreate] = useState(false);
+  const [pollQuestion, setPollQuestion] = useState('');
+  const [pollOptions, setPollOptions] = useState<string[]>(['', '']);
+
   // Drafts — save/restore per conversation
   const draftsRef = useRef<Record<string, string>>({});
 
@@ -472,11 +481,7 @@ export default function ChatWidget() {
   const filteredUsers = users.filter(u => u.id !== user?.id && (u.fullName.toLowerCase().includes(searchQuery.toLowerCase()) || u.username.toLowerCase().includes(searchQuery.toLowerCase())));
   const filteredConvs = conversations
     .filter(c => (c.otherName || '').toLowerCase().includes(convFilter.toLowerCase()))
-    .sort((a, b) => {
-      const aPinned = localStorage.getItem(`nexus_chat_pinned_${a.id}`) === '1' ? 1 : 0;
-      const bPinned = localStorage.getItem(`nexus_chat_pinned_${b.id}`) === '1' ? 1 : 0;
-      return bPinned - aPinned;
-    });
+    .sort((a, b) => ((b as any).pinned || 0) - ((a as any).pinned || 0));
   const filteredMessages = messages.filter(m => {
     if (messageTypeFilter !== 'all' && m.type !== messageTypeFilter) return false;
     if (messageSearch && m.type === 'text' && !m.content.toLowerCase().includes(messageSearch.toLowerCase())) return false;
@@ -508,11 +513,11 @@ export default function ChatWidget() {
   };
 
   const ConversationItem = ({ conv, active }: { conv: ChatConversation; active: boolean }) => {
-    const isPinned = localStorage.getItem(`nexus_chat_pinned_${conv.id}`) === '1';
+    const isPinned = (conv as any).pinned === 1;
     return (
     <button onClick={() => openConversation(conv)} className={`w-full flex items-center gap-3 px-4 py-3.5 transition-all duration-200 text-left relative overflow-hidden ${active ? '' : 'hover:bg-white/[0.03]'}`}
       style={active ? { background: 'linear-gradient(135deg, rgba(0,255,136,0.08) 0%, rgba(0,212,255,0.04) 100%)', borderLeft: '2px solid var(--color-primary)' } : { borderLeft: '2px solid transparent' }}
-      onContextMenu={e => { e.preventDefault(); if (!conv.isGeneral) { const key = `nexus_chat_pinned_${conv.id}`; const isNowPinned = localStorage.getItem(key) === '1'; localStorage.setItem(key, isNowPinned ? '0' : '1'); showToast(isNowPinned ? 'Чат откреплён' : 'Чат закреплён', 'success'); fetchConversations(); } }}>
+      onContextMenu={async e => { e.preventDefault(); if (!conv.isGeneral) { try { if (isPinned) await chatApi.unpinConversation(conv.id); else await chatApi.pinConversation(conv.id); showToast(isPinned ? 'Чат откреплён' : 'Чат закреплён', 'success'); fetchConversations(); } catch { showToast('Ошибка', 'error'); } } }}>
       {conv.isGeneral ? (
         <div className="w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'linear-gradient(135deg, rgba(0,255,136,0.15), rgba(0,212,255,0.1))', border: '1.5px solid rgba(0,255,136,0.3)', boxShadow: active ? '0 0 12px rgba(0,255,136,0.3)' : 'none' }}>
           <svg viewBox="0 0 120 120" width="24" height="24">
@@ -693,6 +698,7 @@ export default function ChatWidget() {
                   return <a href={url(msg.content)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-xs font-mono mb-1 px-2 py-1.5 rounded-lg transition-colors hover:bg-white/5" style={{ color: '#00d4ff', background: 'rgba(0,212,255,0.05)', border: '1px solid rgba(0,212,255,0.1)' }}><FileIcon className="w-4 h-4 flex-shrink-0" /> <span className="truncate max-w-[180px]">{fileName}</span></a>;
                 })()}
                 {msg.type === 'audio' && <VoicePlayer src={url(msg.content)} />}
+                {msg.type === 'poll' && <PollMessage msg={msg} />}
                 {msg.type === 'text' && (
                   // Check if it's a sticker (single emoji or short emoji-only message)
                   /^[\p{Emoji_Presentation}\p{Extended_Pictographic}\u200d\ufe0f]{1,4}$/u.test(msg.content.trim()) ? (
@@ -918,6 +924,7 @@ export default function ChatWidget() {
               <span className="text-xs font-bold" style={{ color: showGif ? 'var(--color-primary)' : '#6a6a80' }}>GIF</span>
             </button>
             {!isRecording && <button onClick={startRecording} className="p-2 rounded-xl transition-all hover:bg-white/5" style={{ border: glassBorder }}><Mic className="w-4 h-4" style={{ color: '#6a6a80' }} /></button>}
+            <button onClick={() => setShowPollCreate(true)} className="p-2 rounded-xl transition-all hover:bg-white/5" style={{ border: glassBorder }} title="Опрос"><span className="text-xs font-bold" style={{ color: '#6a6a80' }}>📊</span></button>
           </div>
           {/* Mobile: More button */}
           <div className="md:hidden relative" ref={moreMenuRef as any}>
@@ -964,6 +971,7 @@ export default function ChatWidget() {
           <button onClick={() => handlePin(msg.id)} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs hover:bg-white/5 transition-colors" style={{ color: '#c0c0d0' }}><Pin className="w-3.5 h-3.5" /> Закрепить</button>
           {isMine && msg.type === 'text' && <button onClick={() => { setEditingMsg(msg); setNewMessage(msg.content); setContextMenu(null); }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs hover:bg-white/5 transition-colors" style={{ color: '#c0c0d0' }}><Edit3 className="w-3.5 h-3.5" /> Редактировать</button>}
           <button onClick={() => { navigator.clipboard.writeText(msg.content); showToast('Скопировано', 'success'); setContextMenu(null); }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs hover:bg-white/5 transition-colors" style={{ color: '#c0c0d0' }}><Copy className="w-3.5 h-3.5" /> Копировать</button>
+          <button onClick={async () => { try { await chatApi.addFavorite(msg.id); showToast('Добавлено в избранное', 'success'); } catch {} setContextMenu(null); }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs hover:bg-white/5 transition-colors" style={{ color: '#eab308' }}>⭐ В избранное</button>
           <div className="mx-3 my-1.5 h-px" style={{ background: 'rgba(255,255,255,0.06)' }} />
           <div className="px-4 py-2 flex gap-1.5 flex-wrap">
             {REACTION_EMOJI.map(e => <motion.button key={e} whileHover={{ scale: 1.2 }} whileTap={{ scale: 0.9 }} onClick={() => { handleReaction(msg.id, e); setContextMenu(null); }} className="text-base hover:bg-white/10 rounded-lg p-1 transition-colors">{e}</motion.button>)}
@@ -1069,6 +1077,7 @@ export default function ChatWidget() {
               {isAdmin && m.userId !== user?.id && (
                 <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                   {m.role !== 'admin' && <button onClick={() => handlePromoteAdmin(m.userId)} className="p-1 rounded-lg hover:bg-white/5 transition-colors" title="Назначить админом"><UserPlus className="w-3.5 h-3.5" style={{ color: '#00d4ff' }} /></button>}
+                  <button onClick={async () => { try { await chatApi.muteMember(activeConv!.id, m.userId); showToast(`${m.fullName} замучен`, 'success'); } catch { showToast('Ошибка', 'error'); } }} className="p-1 rounded-lg hover:bg-white/5 transition-colors" title="Замутить">🔇</button>
                   <button onClick={() => handleRemoveMember(m.userId)} className="p-1 rounded-lg hover:bg-red-500/10 transition-colors" title="Удалить"><Trash2 className="w-3.5 h-3.5" style={{ color: '#ff6b6b' }} /></button>
                 </div>
               )}
@@ -1092,6 +1101,60 @@ export default function ChatWidget() {
       </div>
     </SidePanel>
   );
+
+  const FavoritesPanel = () => (
+    <SidePanel title={`ИЗБРАННОЕ (${favoriteMessages.length})`} onClose={() => setShowFavorites(false)}>
+      <div className="p-3 space-y-2">
+        {favoriteMessages.length === 0 ? <p className="text-[10px] font-mono text-center py-6" style={{ color: '#4a4a60' }}>Нет избранных</p> : favoriteMessages.map(m => (
+          <div key={m.id} className="p-3 rounded-xl" style={{ background: 'rgba(255,255,255,0.03)', border: glassBorder }}>
+            <span className="text-[9px] font-mono font-bold" style={{ color: 'var(--color-primary)' }}>{m.senderName}</span>
+            <p className="text-xs mt-1 truncate" style={{ color: '#c0c0d0' }}>{m.type === 'text' ? m.content : `[${m.type}]`}</p>
+            <button onClick={async () => { await chatApi.removeFavorite(m.id); setFavoriteMessages(prev => prev.filter(x => x.id !== m.id)); }} className="text-[9px] font-mono mt-2" style={{ color: '#ff6b6b' }}>убрать</button>
+          </div>
+        ))}
+      </div>
+    </SidePanel>
+  );
+
+  const PollCreateModal = () => {
+    if (!showPollCreate) return null;
+    const handleCreate = async () => {
+      if (!activeConv || !pollQuestion.trim() || pollOptions.filter(o => o.trim()).length < 2) { showToast('Нужен вопрос и минимум 2 варианта', 'error'); return; }
+      try {
+        await chatApi.createPoll(activeConv.id, { question: pollQuestion.trim(), options: pollOptions.filter(o => o.trim()) });
+        showToast('Опрос создан', 'success');
+        setShowPollCreate(false); setPollQuestion(''); setPollOptions(['', '']);
+      } catch { showToast('Ошибка', 'error'); }
+    };
+    return (
+      <div className="absolute inset-0 flex items-center justify-center z-30" style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)' }}>
+        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="w-80 rounded-2xl p-5 space-y-3" style={{ background: 'linear-gradient(135deg, rgba(20,20,35,0.98), rgba(10,10,20,0.99))', border: '1px solid rgba(255,255,255,0.1)' }}>
+          <div className="flex items-center justify-between"><span className="font-mono text-sm font-bold" style={{ color: 'var(--color-primary)' }}>📊 ОПРОС</span><button onClick={() => setShowPollCreate(false)} className="p-1 rounded hover:bg-white/10"><X className="w-4 h-4 text-gray-400" /></button></div>
+          <input value={pollQuestion} onChange={e => setPollQuestion(e.target.value)} placeholder="Вопрос..." className="w-full px-3 py-2 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none" />
+          {pollOptions.map((opt, i) => (<div key={i} className="flex gap-2"><input value={opt} onChange={e => { const n = [...pollOptions]; n[i] = e.target.value; setPollOptions(n); }} placeholder={`Вариант ${i + 1}`} className="flex-1 px-3 py-2 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none" />{pollOptions.length > 2 && <button onClick={() => setPollOptions(pollOptions.filter((_, j) => j !== i))} className="p-2 text-red-400"><X className="w-3 h-3" /></button>}</div>))}
+          {pollOptions.length < 6 && <button onClick={() => setPollOptions([...pollOptions, ''])} className="w-full py-1.5 rounded-lg font-mono text-[10px] text-gray-500 hover:bg-white/5 border border-dashed border-gray-700">+ вариант</button>}
+          <button onClick={handleCreate} className="w-full py-2.5 rounded-lg font-mono text-sm font-bold" style={{ background: 'var(--color-primary)', color: '#000' }}>СОЗДАТЬ</button>
+        </motion.div>
+      </div>
+    );
+  };
+
+  const PollMessage = ({ msg }: { msg: ChatMessage }) => {
+    const [pd, setPd] = useState<any>(null);
+    useEffect(() => { chatApi.getPollResults(msg.content).then(r => { if (r.success && r.data) setPd(r.data); }).catch(() => {}); }, [msg.content]);
+    if (!pd) return <div className="text-[10px] font-mono text-gray-500 py-2">Загрузка...</div>;
+    return (
+      <div className="space-y-1.5 py-1">
+        <div className="flex items-center gap-2 mb-1"><span>📊</span><span className="font-mono text-sm font-bold text-gray-200">{pd.poll.question}</span></div>
+        {pd.results.map((o: any) => { const pct = pd.totalVotes > 0 ? Math.round((o.count / pd.totalVotes) * 100) : 0; return (
+          <button key={o.id} onClick={async () => { await chatApi.votePoll(pd.poll.id, o.id); const r = await chatApi.getPollResults(pd.poll.id); if (r.success && r.data) setPd(r.data); }} className="w-full text-left px-3 py-1.5 rounded-lg relative overflow-hidden hover:brightness-110" style={{ border: '1px solid rgba(255,255,255,0.06)' }}>
+            <div className="absolute inset-0 rounded-lg" style={{ width: `${pct}%`, background: 'rgba(0,255,136,0.08)' }} />
+            <div className="relative flex justify-between"><span className="font-mono text-xs text-gray-300">{o.text}</span><span className="font-mono text-[10px]" style={{ color: '#5a5a70' }}>{pct}%</span></div>
+          </button>); })}
+        <span className="text-[9px] font-mono text-gray-500">{pd.totalVotes} голосов</span>
+      </div>
+    );
+  };
 
   const GroupInfoPanel = () => {
     const [desc, setDesc] = useState(activeConv?.description || '');
@@ -1293,7 +1356,9 @@ export default function ChatWidget() {
           </motion.div>
         ) : <button onClick={() => setShowMessageSearch(true)} className="p-2 rounded-xl hover:bg-white/5 transition-colors" title="Поиск"><Search className="w-4 h-4" style={{ color: '#6a6a80' }} /></button>}
         {conv.isGroup && <button onClick={() => { setShowGroupInfo(!showGroupInfo); setShowMedia(false); setShowMembers(false); setShowPinned(false); }} className="p-2 rounded-xl hover:bg-white/5 transition-colors" title="Информация"><Info className="w-4 h-4" style={{ color: '#6a6a80' }} /></button>}
-        <button onClick={() => { setShowPinned(!showPinned); setShowMedia(false); setShowMembers(false); setShowGroupInfo(false); if (!showPinned && activeConv) chatApi.getPinnedMessages(activeConv.id).then(r => { if (r.success && r.data) setPinnedMessages(r.data); }).catch(() => {}); }} className="p-2 rounded-xl hover:bg-white/5 transition-colors" title="Закреплённые"><Pin className="w-4 h-4" style={{ color: '#6a6a80' }} /></button>
+        <button onClick={() => { setShowPinned(!showPinned); setShowMedia(false); setShowMembers(false); setShowGroupInfo(false); setShowFavorites(false); if (!showPinned && activeConv) chatApi.getPinnedMessages(activeConv.id).then(r => { if (r.success && r.data) setPinnedMessages(r.data); }).catch(() => {}); }} className="p-2 rounded-xl hover:bg-white/5 transition-colors" title="Закреплённые"><Pin className="w-4 h-4" style={{ color: '#6a6a80' }} /></button>
+        <button onClick={() => { setShowFavorites(!showFavorites); setShowMedia(false); setShowMembers(false); setShowPinned(false); setShowGroupInfo(false); if (!showFavorites && activeConv) chatApi.getFavorites(activeConv.id).then(r => { if (r.success && r.data) setFavoriteMessages(r.data); }).catch(() => {}); }} className="p-2 rounded-xl hover:bg-white/5 transition-colors" title="Избранное"><span className="text-sm">⭐</span></button>
+        <button onClick={async () => { if (!activeConv) return; try { await chatApi.muteConversation(activeConv.id); showToast('Чат заглушён на 8ч', 'success'); } catch { showToast('Ошибка', 'error'); } }} className="p-2 rounded-xl hover:bg-white/5 transition-colors" title="Заглушить"><VolumeX className="w-4 h-4" style={{ color: '#6a6a80' }} /></button>
         <button onClick={() => { setShowMedia(!showMedia); setShowMembers(false); setShowPinned(false); setShowGroupInfo(false); }} className="p-2 rounded-xl hover:bg-white/5 transition-colors" title="Медиа"><ImageIcon className="w-4 h-4" style={{ color: '#6a6a80' }} /></button>
         {conv.isGroup && <button onClick={() => { setShowMembers(!showMembers); setShowMedia(false); setShowPinned(false); setShowGroupInfo(false); }} className="p-2 rounded-xl hover:bg-white/5 transition-colors" title="Участники"><Users className="w-4 h-4" style={{ color: '#6a6a80' }} /></button>}
         {!isFullscreen && <button onClick={() => setIsFullscreen(true)} className="p-2 rounded-xl hover:bg-white/5 transition-colors" title="На весь экран"><Maximize2 className="w-4 h-4" style={{ color: '#6a6a80' }} /></button>}
@@ -1344,7 +1409,7 @@ export default function ChatWidget() {
             </div>
             <div className="flex-1 flex flex-col min-w-0">
               {activeConv ? (
-                <><ChatHeader conv={activeConv} /><div className="flex-1 flex min-h-0"><div className="flex-1 flex flex-col min-w-0">{messagesAreaContent}</div>{showMedia && <MediaPanel />}{showMembers && activeConv.isGroup && <MembersPanel />}{showPinned && <PinnedPanel />}{showGroupInfo && activeConv.isGroup && <GroupInfoPanel />}</div></>
+                <><ChatHeader conv={activeConv} /><div className="flex-1 flex min-h-0"><div className="flex-1 flex flex-col min-w-0">{messagesAreaContent}</div>{showMedia && <MediaPanel />}{showMembers && activeConv.isGroup && <MembersPanel />}{showPinned && <PinnedPanel />}{showFavorites && <FavoritesPanel />}{showGroupInfo && activeConv.isGroup && <GroupInfoPanel />}</div></>
               ) : <div className="flex-1 flex flex-col items-center justify-center"><MessageCircle className="w-20 h-20 mb-4 opacity-5" style={{ color: 'var(--color-primary)' }} /><p className="font-mono text-sm" style={{ color: '#4a4a60' }}>Выберите диалог или начните новый</p></div>}
             </div>
             {showUserSearch && <UserSearchOverlay onSelect={startConversation} title="Найти пользователя..." />}
@@ -1389,6 +1454,7 @@ export default function ChatWidget() {
       </AnimatePresence>
 
       {contextMenu && <ContextMenuOverlay />}
+      {showPollCreate && <PollCreateModal />}
       <AnimatePresence>{profileModal && <ProfileModalOverlay />}</AnimatePresence>
       <AnimatePresence>{showGroupCreate && (
         <motion.div key="group-create" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }} onClick={() => { setShowGroupCreate(false); setGroupName(''); setGroupMembersIds([]); setSearchQuery(''); }}>

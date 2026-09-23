@@ -345,7 +345,7 @@ export interface ChatMessage {
   id: string;
   conversationId: string;
   senderId: string;
-  type: 'text' | 'image' | 'file' | 'audio';
+  type: 'text' | 'image' | 'file' | 'audio' | 'poll';
   content: string;
   replyToId?: string;
   replyToContent?: string;

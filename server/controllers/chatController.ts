@@ -478,3 +478,217 @@ export const getChatUnreadCount = (req: AuthRequest, res: Response) => {
     res.json({ success: true, data: { count: (privateUnread?.count || 0) + (groupUnread?.count || 0) + (generalUnread?.count || 0) } });
   } catch (error) { console.error('GetChatUnreadCount error:', error); res.status(500).json({ success: false, error: 'Ошибка сервера' }); }
 };
+
+// ── Archive / Unarchive ──
+
+export const archiveConversation = (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    run("UPDATE chat_conversations SET archived = 1 WHERE id = ?", [id]);
+    res.json({ success: true });
+  } catch (error) { console.error('ArchiveConversation error:', error); res.status(500).json({ success: false, error: 'Ошибка сервера' }); }
+};
+
+export const unarchiveConversation = (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    run("UPDATE chat_conversations SET archived = 0 WHERE id = ?", [id]);
+    res.json({ success: true });
+  } catch (error) { console.error('UnarchiveConversation error:', error); res.status(500).json({ success: false, error: 'Ошибка сервера' }); }
+};
+
+// ── Pin / Unpin conversation ──
+
+export const pinConversation = (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    run("UPDATE chat_conversations SET pinned = 1 WHERE id = ?", [id]);
+    res.json({ success: true });
+  } catch (error) { console.error('PinConversation error:', error); res.status(500).json({ success: false, error: 'Ошибка сервера' }); }
+};
+
+export const unpinConversation = (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    run("UPDATE chat_conversations SET pinned = 0 WHERE id = ?", [id]);
+    res.json({ success: true });
+  } catch (error) { console.error('UnpinConversation error:', error); res.status(500).json({ success: false, error: 'Ошибка сервера' }); }
+};
+
+// ── Favorites ──
+
+export const addFavorite = (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user!.id;
+    const existing = get('SELECT id FROM chat_favorites WHERE messageId = ? AND userId = ?', [id, userId]);
+    if (existing) return res.json({ success: true });
+    run('INSERT INTO chat_favorites (id, messageId, userId) VALUES (?, ?, ?)', [uuidv4(), id, userId]);
+    res.json({ success: true });
+  } catch (error) { console.error('AddFavorite error:', error); res.status(500).json({ success: false, error: 'Ошибка сервера' }); }
+};
+
+export const removeFavorite = (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user!.id;
+    run('DELETE FROM chat_favorites WHERE messageId = ? AND userId = ?', [id, userId]);
+    res.json({ success: true });
+  } catch (error) { console.error('RemoveFavorite error:', error); res.status(500).json({ success: false, error: 'Ошибка сервера' }); }
+};
+
+export const getFavorites = (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user!.id;
+    const favorites = query(`
+      SELECT m.*, u.fullName as senderName, u.avatar as senderAvatar, u.position as senderPosition
+      FROM chat_favorites f
+      JOIN chat_messages m ON f.messageId = m.id
+      LEFT JOIN users u ON m.senderId = u.id
+      WHERE f.userId = ? AND m.conversationId = ?
+      ORDER BY f.createdAt DESC
+    `, [userId, id]);
+    res.json({ success: true, data: favorites });
+  } catch (error) { console.error('GetFavorites error:', error); res.status(500).json({ success: false, error: 'Ошибка сервера' }); }
+};
+
+// ── Polls ──
+
+export const createPoll = (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { question, options } = req.body;
+    if (!question || !options || options.length < 2) return res.status(400).json({ success: false, error: 'Нужен вопрос и минимум 2 варианта' });
+
+    const conv = get('SELECT id FROM chat_conversations WHERE id = ?', [id]);
+    if (!conv && id !== GENERAL_CHAT_ID) return res.status(404).json({ success: false, error: 'Чат не найден' });
+
+    const messageId = uuidv4();
+    const pollId = uuidv4();
+    const senderId = req.user!.id;
+
+    // Create message of type 'poll'
+    run('INSERT INTO chat_messages (id, conversationId, senderId, type, content) VALUES (?, ?, ?, ?, ?)',
+      [messageId, id, senderId, 'poll', question]);
+
+    // Create poll
+    run('INSERT INTO chat_polls (id, messageId, question, createdBy) VALUES (?, ?, ?, ?)', [pollId, messageId, question, senderId]);
+
+    // Create options
+    for (let i = 0; i < options.length; i++) {
+      run('INSERT INTO chat_poll_options (id, pollId, text, position) VALUES (?, ?, ?, ?)', [uuidv4(), pollId, options[i], i]);
+    }
+
+    // Update conversation last message
+    run("UPDATE chat_conversations SET lastMessageAt = datetime('now'), lastMessagePreview = ? WHERE id = ?", [`📊 ${question}`, id]);
+
+    const msg = get(`SELECT m.*, u.fullName as senderName, u.avatar as senderAvatar, u.position as senderPosition FROM chat_messages m LEFT JOIN users u ON m.senderId = u.id WHERE m.id = ?`, [messageId]);
+
+    // Emit socket
+    const io = (req as any).app?.get('io');
+    if (io) {
+      if (id === GENERAL_CHAT_ID) io.emit('chat:message', msg);
+      else io.to(`conv:${id}`).emit('chat:message', msg);
+    }
+
+    res.status(201).json({ success: true, data: msg });
+  } catch (error) { console.error('CreatePoll error:', error); res.status(500).json({ success: false, error: 'Ошибка сервера' }); }
+};
+
+export const getPollResults = (req: AuthRequest, res: Response) => {
+  try {
+    const { pollId } = req.params;
+    const poll = get('SELECT * FROM chat_polls WHERE id = ?', [pollId]);
+    if (!poll) return res.status(404).json({ success: false, error: 'Опрос не найден' });
+
+    const options = query('SELECT * FROM chat_poll_options WHERE pollId = ? ORDER BY position ASC', [pollId]);
+    const votes = query('SELECT v.*, u.fullName as userName FROM chat_poll_votes v LEFT JOIN users u ON v.userId = u.id WHERE v.pollId = ?', [pollId]);
+
+    const results = options.map(opt => ({
+      ...opt,
+      votes: votes.filter(v => v.optionId === opt.id),
+      count: votes.filter(v => v.optionId === opt.id).length,
+    }));
+
+    res.json({ success: true, data: { poll, results, totalVotes: votes.length } });
+  } catch (error) { console.error('GetPollResults error:', error); res.status(500).json({ success: false, error: 'Ошибка сервера' }); }
+};
+
+export const votePoll = (req: AuthRequest, res: Response) => {
+  try {
+    const { pollId } = req.params;
+    const { optionId } = req.body;
+    const userId = req.user!.id;
+
+    const poll = get('SELECT * FROM chat_polls WHERE id = ?', [pollId]);
+    if (!poll) return res.status(404).json({ success: false, error: 'Опрос не найден' });
+
+    // Upsert vote (delete existing, insert new)
+    run('DELETE FROM chat_poll_votes WHERE pollId = ? AND userId = ?', [pollId, userId]);
+    run('INSERT INTO chat_poll_votes (id, pollId, optionId, userId) VALUES (?, ?, ?, ?)', [uuidv4(), pollId, optionId, userId]);
+
+    // Return updated results
+    const options = query('SELECT * FROM chat_poll_options WHERE pollId = ? ORDER BY position ASC', [pollId]);
+    const votes = query('SELECT * FROM chat_poll_votes WHERE pollId = ?', [pollId]);
+    const results = options.map(opt => ({ ...opt, count: votes.filter(v => v.optionId === opt.id).length }));
+
+    // Emit socket
+    const msg = get('SELECT conversationId FROM chat_messages WHERE id = ?', [poll.messageId]);
+    const io = (req as any).app?.get('io');
+    if (io && msg) io.to(`conv:${msg.conversationId}`).emit('chat:poll-vote', { pollId, results });
+
+    res.json({ success: true, data: results });
+  } catch (error) { console.error('VotePoll error:', error); res.status(500).json({ success: false, error: 'Ошибка сервера' }); }
+};
+
+// ── Mute member in group ──
+
+export const muteMember = (req: AuthRequest, res: Response) => {
+  try {
+    const { id, userId } = req.params;
+    const { until } = req.body;
+    const mutedBy = req.user!.id;
+
+    // Check admin
+    const membership = get('SELECT role FROM chat_group_members WHERE conversationId = ? AND userId = ?', [id, mutedBy]);
+    if (!membership || membership.role !== 'admin') return res.status(403).json({ success: false, error: 'Только админ может мутить' });
+
+    run('DELETE FROM chat_muted WHERE conversationId = ? AND userId = ?', [id, userId]);
+    run('INSERT INTO chat_muted (id, conversationId, userId, mutedBy, mutedUntil) VALUES (?, ?, ?, ?, ?)', [uuidv4(), id, userId, mutedBy, until || null]);
+
+    res.json({ success: true });
+  } catch (error) { console.error('MuteMember error:', error); res.status(500).json({ success: false, error: 'Ошибка сервера' }); }
+};
+
+export const unmuteMember = (req: AuthRequest, res: Response) => {
+  try {
+    const { id, userId } = req.params;
+    run('DELETE FROM chat_muted WHERE conversationId = ? AND userId = ?', [id, userId]);
+    res.json({ success: true });
+  } catch (error) { console.error('UnmuteMember error:', error); res.status(500).json({ success: false, error: 'Ошибка сервера' }); }
+};
+
+// ── Mute conversation notifications ──
+
+export const muteConversation = (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { until } = req.body;
+    const userId = req.user!.id;
+
+    run('DELETE FROM chat_user_mutes WHERE conversationId = ? AND userId = ?', [id, userId]);
+    run('INSERT INTO chat_user_mutes (id, conversationId, userId, until) VALUES (?, ?, ?, ?)', [uuidv4(), id, userId, until || null]);
+
+    res.json({ success: true });
+  } catch (error) { console.error('MuteConversation error:', error); res.status(500).json({ success: false, error: 'Ошибка сервера' }); }
+};
+
+export const unmuteConversation = (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user!.id;
+    run('DELETE FROM chat_user_mutes WHERE conversationId = ? AND userId = ?', [id, userId]);
+    res.json({ success: true });
+  } catch (error) { console.error('UnmuteConversation error:', error); res.status(500).json({ success: false, error: 'Ошибка сервера' }); }
+};

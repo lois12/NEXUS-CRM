@@ -500,6 +500,44 @@ export const chatApi = {
 
   joinByInvite: (link: string): Promise<ApiResponse<ChatConversation>> =>
     api.post(`/chat/invite/${link}`).then((res) => res.data),
+
+  // Archive
+  archiveConversation: (id: string): Promise<ApiResponse<void>> =>
+    api.put(`/chat/conversations/${id}/archive`).then((res) => res.data),
+  unarchiveConversation: (id: string): Promise<ApiResponse<void>> =>
+    api.delete(`/chat/conversations/${id}/archive`).then((res) => res.data),
+
+  // Pin conversation
+  pinConversation: (id: string): Promise<ApiResponse<void>> =>
+    api.put(`/chat/conversations/${id}/pin-conv`).then((res) => res.data),
+  unpinConversation: (id: string): Promise<ApiResponse<void>> =>
+    api.delete(`/chat/conversations/${id}/pin-conv`).then((res) => res.data),
+
+  // Favorites
+  addFavorite: (messageId: string): Promise<ApiResponse<void>> =>
+    api.post(`/chat/messages/${messageId}/favorite`).then((res) => res.data),
+  removeFavorite: (messageId: string): Promise<ApiResponse<void>> =>
+    api.delete(`/chat/messages/${messageId}/favorite`).then((res) => res.data),
+  getFavorites: (convId: string): Promise<ApiResponse<any[]>> =>
+    api.get(`/chat/conversations/${convId}/favorites`).then((res) => res.data),
+
+  // Polls
+  createPoll: (convId: string, data: { question: string; options: string[] }): Promise<ApiResponse<any>> =>
+    api.post(`/chat/conversations/${convId}/polls`, data).then((res) => res.data),
+  getPollResults: (pollId: string): Promise<ApiResponse<any>> =>
+    api.get(`/chat/polls/${pollId}`).then((res) => res.data),
+  votePoll: (pollId: string, optionId: string): Promise<ApiResponse<any>> =>
+    api.post(`/chat/polls/${pollId}/vote`, { optionId }).then((res) => res.data),
+
+  // Mute
+  muteMember: (convId: string, userId: string, until?: string): Promise<ApiResponse<void>> =>
+    api.post(`/chat/groups/${convId}/mute/${userId}`, { until }).then((res) => res.data),
+  unmuteMember: (convId: string, userId: string): Promise<ApiResponse<void>> =>
+    api.delete(`/chat/groups/${convId}/mute/${userId}`).then((res) => res.data),
+  muteConversation: (convId: string, until?: string): Promise<ApiResponse<void>> =>
+    api.put(`/chat/conversations/${convId}/mute`, { until }).then((res) => res.data),
+  unmuteConversation: (convId: string): Promise<ApiResponse<void>> =>
+    api.delete(`/chat/conversations/${convId}/mute`).then((res) => res.data),
 };
 
 // Search API
