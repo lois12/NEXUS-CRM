@@ -17,6 +17,9 @@ import {
   FolderOpen,
   PanelLeftClose,
   PanelLeftOpen,
+  Sparkles,
+  CloudSun,
+  BookOpen,
 } from 'lucide-react';
 
 interface NavChild {
@@ -74,24 +77,46 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
-    id: 'useful',
+    id: 'tools',
     icon: Wrench,
-    label: 'Полезное',
-    roles: ['super_admin', 'руководитель', 'редактор', 'smm', 'документовед'],
+    label: 'Инструменты',
+    roles: ['super_admin', 'руководитель', 'редактор', 'smm', 'документовед', 'мол'],
     children: [
       { to: '/qr', label: 'QR-генератор', roles: ['super_admin', 'руководитель', 'редактор', 'smm'] },
-      { to: '/images', label: 'Генератор изображений', roles: ['super_admin', 'руководитель', 'редактор'] },
-      { to: '/ai-chat', label: 'AI Чат', roles: ['super_admin', 'редактор', 'smm'] },
-      { to: '/ideas', label: 'Идеи', roles: ['super_admin', 'руководитель', 'редактор', 'smm', 'документовед'] },
-      { to: '/knowledge', label: 'База знаний', roles: ['super_admin', 'руководитель', 'редактор', 'smm', 'документовед', 'мол'] },
-      { to: '/ping', label: 'IP Ping', roles: ['super_admin', 'руководитель', 'редактор', 'smm', 'документовед', 'мол'] },
-      { to: '/random', label: 'Рандомайзер', roles: ['super_admin', 'руководитель', 'редактор', 'smm', 'документовед', 'мол'] },
-      { to: '/weather', label: 'Погода', roles: ['super_admin', 'руководитель', 'редактор', 'smm', 'документовед', 'мол'] },
       { to: '/image-converter', label: 'Конвертер изображений', roles: ['super_admin', 'руководитель', 'редактор', 'smm', 'документовед'] },
       { to: '/bg-remover', label: 'Удаление фона', roles: ['super_admin', 'руководитель', 'редактор', 'smm', 'документовед'] },
+      { to: '/random', label: 'Рандомайзер', roles: ['super_admin', 'руководитель', 'редактор', 'smm', 'документовед', 'мол'] },
+      { to: '/ping', label: 'IP Ping', roles: ['super_admin', 'руководитель', 'редактор', 'smm', 'документовед', 'мол'] },
+    ],
+  },
+  {
+    id: 'ai-creative',
+    icon: Sparkles,
+    label: 'AI и Креатив',
+    roles: ['super_admin', 'руководитель', 'редактор', 'smm', 'документовед'],
+    children: [
+      { to: '/ai-chat', label: 'AI Чат', roles: ['super_admin', 'редактор', 'smm'] },
+      { to: '/images', label: 'Генератор изображений', roles: ['super_admin', 'руководитель', 'редактор'] },
       { to: '/aurora', label: 'Северное сияние', roles: ['super_admin', 'руководитель', 'редактор', 'smm', 'документовед', 'мол'] },
+    ],
+  },
+  {
+    id: 'workspace',
+    icon: BookOpen,
+    label: 'Рабочее пространство',
+    roles: ['super_admin', 'руководитель', 'редактор', 'smm', 'документовед', 'мол'],
+    children: [
+      { to: '/knowledge', label: 'База знаний', roles: ['super_admin', 'руководитель', 'редактор', 'smm', 'документовед', 'мол'] },
+      { to: '/ideas', label: 'Идеи', roles: ['super_admin', 'руководитель', 'редактор', 'smm', 'документовед'] },
       { to: '/registrations', label: 'Регистрация', roles: ['super_admin', 'руководитель', 'редактор', 'smm', 'документовед'] },
     ],
+  },
+  {
+    id: 'weather',
+    icon: CloudSun,
+    label: 'Погода',
+    roles: ['super_admin', 'руководитель', 'редактор', 'smm', 'документовед', 'мол'],
+    children: [{ to: '/weather', label: 'Погода', roles: ['super_admin', 'руководитель', 'редактор', 'smm', 'документовед', 'мол'] }],
   },
   {
     id: 'mol',
