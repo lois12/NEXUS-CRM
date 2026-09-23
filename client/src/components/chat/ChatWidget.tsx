@@ -465,7 +465,7 @@ export default function ChatWidget() {
       const ext = mimeType.split('/')[1] || 'webm';
       audioChunksRef.current = [];
       recorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
-      recorder.onstop = async () => { stream.getTracks().forEach(t => t.stop()); const blob = new Blob(audioChunksRef.current, { type: mimeType || 'audio/webm' }); const file = new File([blob], `audio-${Date.now()}.${ext}`, { type: mimeType || 'audio/webm' }); const conv = activeConvRef.current; if (!conv) return; try { const u = await chatApi.uploadFile(conv.id, file); if (u.success && u.data) { const m = await chatApi.sendMessage(conv.id, { content: u.data.url, type: 'audio' }); if (m.success && m.data) setMessages(p => [...p, m.data!]); } } catch { showToast('Ошибка аудио', 'error'); } };
+      recorder.onstop = async () => { stream.getTracks().forEach(t => t.stop()); const blob = new Blob(audioChunksRef.current, { type: mimeType || 'audio/webm' }); const file = new File([blob], `audio-${Date.now()}.${ext}`, { type: mimeType || 'audio/webm' }); const conv = activeConvRef.current; if (!conv) return; try { const u = await chatApi.uploadFile(conv.id, file); if (u.success && u.data) { await chatApi.sendMessage(conv.id, { content: u.data.url, type: 'audio' }); /* message arrives via socket */ } } catch { showToast('Ошибка аудио', 'error'); } };
       mediaRecorderRef.current = recorder; recorder.start(); setIsRecording(true); setRecordTime(0); recordIntervalRef.current = setInterval(() => setRecordTime(t => t + 1), 1000);
     } catch (err: any) {
       if (err?.name === 'NotAllowedError') showToast('Разрешите доступ к микрофону в настройках браузера', 'error');
@@ -939,6 +939,7 @@ export default function ChatWidget() {
                 <button onClick={() => { setShowSticker(!showSticker); setShowEmoji(false); setShowGif(false); setShowMoreMenu(false); }} className="p-2 rounded-lg hover:bg-white/10"><span className="text-xs">🎭</span></button>
                 <button onClick={() => { setShowGif(!showGif); setShowEmoji(false); setShowSticker(false); setShowMoreMenu(false); }} className="p-2 rounded-lg hover:bg-white/10"><span className="text-xs font-bold" style={{ color: '#6a6a80' }}>GIF</span></button>
                 <button onClick={() => { startRecording(); setShowMoreMenu(false); }} className="p-2 rounded-lg hover:bg-white/10"><Mic className="w-4 h-4" style={{ color: '#6a6a80' }} /></button>
+                <button onClick={() => { setShowPollCreate(true); setShowMoreMenu(false); }} className="p-2 rounded-lg hover:bg-white/10"><span className="text-xs">📊</span></button>
               </motion.div>
             )}
           </div>
@@ -1127,7 +1128,7 @@ export default function ChatWidget() {
       } catch { showToast('Ошибка', 'error'); }
     };
     return (
-      <div className="absolute inset-0 flex items-center justify-center z-30" style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)' }}>
+      <div className="fixed inset-0 flex items-center justify-center z-[200]" style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)' }}>
         <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="w-80 rounded-2xl p-5 space-y-3" style={{ background: 'linear-gradient(135deg, rgba(20,20,35,0.98), rgba(10,10,20,0.99))', border: '1px solid rgba(255,255,255,0.1)' }}>
           <div className="flex items-center justify-between"><span className="font-mono text-sm font-bold" style={{ color: 'var(--color-primary)' }}>📊 ОПРОС</span><button onClick={() => setShowPollCreate(false)} className="p-1 rounded hover:bg-white/10"><X className="w-4 h-4 text-gray-400" /></button></div>
           <input value={pollQuestion} onChange={e => setPollQuestion(e.target.value)} placeholder="Вопрос..." className="w-full px-3 py-2 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none" />
