@@ -563,9 +563,9 @@ export const createPoll = (req: AuthRequest, res: Response) => {
     const pollId = uuidv4();
     const senderId = req.user!.id;
 
-    // Create message of type 'poll'
+    // Create message of type 'poll' — content = pollId (used by frontend to fetch results)
     run('INSERT INTO chat_messages (id, conversationId, senderId, type, content) VALUES (?, ?, ?, ?, ?)',
-      [messageId, id, senderId, 'poll', question]);
+      [messageId, id, senderId, 'poll', pollId]);
 
     // Create poll
     run('INSERT INTO chat_polls (id, messageId, question, createdBy) VALUES (?, ?, ?, ?)', [pollId, messageId, question, senderId]);
@@ -578,6 +578,8 @@ export const createPoll = (req: AuthRequest, res: Response) => {
     // Update conversation last message
     run("UPDATE chat_conversations SET lastMessageAt = datetime('now'), lastMessagePreview = ? WHERE id = ?", [`📊 ${question}`, id]);
 
+    // Update the message content to include question for preview (pollId is primary key)
+    // Actually, let's keep pollId as content and use the preview separately
     const msg = get(`SELECT m.*, u.fullName as senderName, u.avatar as senderAvatar, u.position as senderPosition FROM chat_messages m LEFT JOIN users u ON m.senderId = u.id WHERE m.id = ?`, [messageId]);
 
     // Emit socket

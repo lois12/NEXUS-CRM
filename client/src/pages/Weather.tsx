@@ -279,6 +279,7 @@ function WeatherAnimation({ code }: { code: number }) {
         if (isSnow(code)) {
           ctx.arc(p.x, p.y, p.length / 2, 0, Math.PI * 2);
           ctx.fillStyle = `rgba(255, 255, 255, ${p.opacity})`;
+          ctx.fill();
         } else {
           ctx.moveTo(p.x, p.y);
           ctx.lineTo(p.x + p.wind, p.y + p.length);

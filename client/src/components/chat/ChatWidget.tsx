@@ -89,11 +89,15 @@ export default function ChatWidget() {
   const recordIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const unreadPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const moreMenuRef = useRef<HTMLDivElement>(null);
+  const moreMenuPortalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!showMoreMenu) return;
     const handler = (e: MouseEvent) => {
-      if (moreMenuRef.current && !moreMenuRef.current.contains(e.target as Node)) setShowMoreMenu(false);
+      const target = e.target as Node;
+      if (moreMenuRef.current?.contains(target)) return;
+      if (moreMenuPortalRef.current?.contains(target)) return;
+      setShowMoreMenu(false);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
@@ -921,15 +925,15 @@ export default function ChatWidget() {
             </div>
           )}
         </div>
-        <div className="flex items-center gap-1.5 md:gap-2">
+        {/* Toolbar row — buttons on top */}
+        <div className="flex items-center gap-1.5 md:gap-2 mb-2">
           <input id="chat-file-input" type="file" className="hidden" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.zip,.rar,.txt,.csv"
             onChange={e => { const f = e.target.files?.[0]; if (f) handleFileUpload(f); e.target.value = ''; }} />
           <button onClick={() => { const el = document.getElementById('chat-file-input'); if (el) el.click(); }} className="p-2 rounded-xl transition-all hover:bg-white/5 flex-shrink-0" style={{ border: glassBorder }}>
             <Paperclip className="w-4 h-4" style={{ color: '#6a6a80' }} />
           </button>
-          {/* Desktop: show all buttons. Mobile: hide in More menu */}
-          <div className="hidden md:flex items-center gap-2">
-            <button onClick={() => setShowEmoji(!showEmoji)} className="p-2 rounded-xl transition-all hover:bg-white/5" style={{ border: glassBorder }}><Smile className="w-4 h-4" style={{ color: '#6a6a80' }} /></button>
+          <div className="hidden md:flex items-center gap-1.5">
+            <button onClick={() => setShowEmoji(!showEmoji)} className="p-2 rounded-xl transition-all hover:bg-white/5" style={{ border: glassBorder }}><Smile className="w-4 h-4" style={{ color: showEmoji ? 'var(--color-primary)' : '#6a6a80' }} /></button>
             <button onClick={() => { setShowSticker(!showSticker); setShowEmoji(false); setShowGif(false); }} className="p-2 rounded-xl transition-all hover:bg-white/5" style={{ border: glassBorder }}>
               <span className="text-xs font-bold" style={{ color: showSticker ? 'var(--color-primary)' : '#6a6a80' }}>🎭</span>
             </button>
@@ -956,16 +960,19 @@ export default function ChatWidget() {
               </motion.div>
             )}
           </div>
-          <div className="flex-1 relative min-w-0">
-            <input value={newMessage} onChange={e => setNewMessage(e.target.value)} onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSend())}
-              placeholder="Сообщение..." className="w-full px-3 md:px-4 py-2.5 md:py-3 rounded-xl text-sm outline-none"
-              style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.06)', color: '#e0e0e0', fontFamily: "'JetBrains Mono', monospace", fontSize: '13px' }} />
-          </div>
+          <div className="flex-1" />
           <button onClick={() => handleSend()} disabled={!newMessage.trim() && attachedFiles.length === 0}
             className="p-2.5 rounded-xl disabled:opacity-30 flex-shrink-0"
             style={{ background: 'linear-gradient(135deg, #00ff88, #00cc6a)', color: '#000', boxShadow: '0 0 20px var(--color-glow)', opacity: (newMessage.trim() || attachedFiles.length > 0) ? 1 : 0.3 }}>
             <Send className="w-4 h-4" />
           </button>
+        </div>
+        {/* Input row — textarea below */}
+        <div className="flex-1 min-w-0">
+          <textarea value={newMessage} onChange={e => setNewMessage(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+            placeholder="Сообщение..." rows={isFullscreen ? 3 : 2}
+            className="w-full px-3 md:px-4 py-2.5 md:py-3 rounded-xl text-sm outline-none resize-none"
+            style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.06)', color: '#e0e0e0', fontFamily: "'JetBrains Mono', monospace", fontSize: '13px' }} />
         </div>
       </div>
     </>
@@ -1348,11 +1355,10 @@ export default function ChatWidget() {
           </motion.div>
         ) : <button onClick={() => setShowMessageSearch(true)} className="p-2 rounded-xl hover:bg-white/5 transition-colors" title="Поиск"><Search className="w-4 h-4" style={{ color: '#6a6a80' }} /></button>}
         {conv.isGroup && <button onClick={() => { setShowMembers(!showMembers); setShowMedia(false); setShowPinned(false); setShowGroupInfo(false); }} className="p-2 rounded-xl hover:bg-white/5 transition-colors" title="Участники"><Users className="w-4 h-4" style={{ color: '#6a6a80' }} /></button>}
-        <div className="relative">
+        <div className="relative" ref={moreMenuRef}>
           <button onClick={(e) => {
             const rect = e.currentTarget.getBoundingClientRect();
             setShowMoreMenu(!showMoreMenu);
-            // Store position for portal menu
             setTimeout(() => {
               const menu = document.getElementById('chat-more-menu');
               if (menu) { menu.style.top = `${rect.bottom + 4}px`; menu.style.right = `${window.innerWidth - rect.right}px`; }
@@ -1468,18 +1474,15 @@ export default function ChatWidget() {
       )}
       {/* More menu portal — outside overflow-hidden container */}
       {showMoreMenu && (
-        <>
-          <div className="fixed inset-0 z-[99998]" onClick={() => setShowMoreMenu(false)} />
-          <motion.div id="chat-more-menu" initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -5 }}
-            className="fixed rounded-xl p-1.5 w-48 z-[99999]"
-            style={{ background: 'linear-gradient(135deg, rgba(20,20,35,0.98), rgba(10,10,20,0.99))', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(24px)', boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}>
-            {activeConv?.isGroup && <button onClick={() => { setShowGroupInfo(!showGroupInfo); setShowMoreMenu(false); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs hover:bg-white/5" style={{ color: '#c0c0d0' }}><Info className="w-3.5 h-3.5" /> Инфо</button>}
-            <button onClick={() => { setShowPinned(!showPinned); setShowMedia(false); setShowMembers(false); setShowGroupInfo(false); setShowFavorites(false); setShowMoreMenu(false); if (!showPinned && activeConv) chatApi.getPinnedMessages(activeConv.id).then(r => { if (r.success && r.data) setPinnedMessages(r.data); }).catch(() => {}); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs hover:bg-white/5" style={{ color: '#c0c0d0' }}><Pin className="w-3.5 h-3.5" /> Закреплённые</button>
-            <button onClick={() => { setShowFavorites(!showFavorites); setShowMedia(false); setShowMembers(false); setShowPinned(false); setShowGroupInfo(false); setShowMoreMenu(false); if (!showFavorites && activeConv) chatApi.getFavorites(activeConv.id).then(r => { if (r.success && r.data) setFavoriteMessages(r.data); }).catch(() => {}); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs hover:bg-white/5" style={{ color: '#c0c0d0' }}>⭐ Избранное</button>
-            <button onClick={() => { setShowMedia(!showMedia); setShowMembers(false); setShowPinned(false); setShowGroupInfo(false); setShowMoreMenu(false); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs hover:bg-white/5" style={{ color: '#c0c0d0' }}><ImageIcon className="w-3.5 h-3.5" /> Медиа</button>
-            <button onClick={async () => { setShowMoreMenu(false); if (!activeConv) return; const muted = (activeConv as any).isMuted; try { if (muted) { await chatApi.unmuteConversation(activeConv.id); (activeConv as any).isMuted = 0; showToast('Уведомления включены', 'success'); } else { await chatApi.muteConversation(activeConv.id); (activeConv as any).isMuted = 1; showToast('Чат заглушён', 'success'); } fetchConversations(); } catch { showToast('Ошибка', 'error'); } }} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs hover:bg-white/5" style={{ color: '#c0c0d0' }}>{(activeConv as any)?.isMuted ? <><Volume2 className="w-3.5 h-3.5" /> Включить уведомления</> : <><VolumeX className="w-3.5 h-3.5" /> Заглушить</>}</button>
-          </motion.div>
-        </>
+        <motion.div id="chat-more-menu" ref={moreMenuPortalRef} initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -5 }}
+          className="fixed rounded-xl p-1.5 w-48"
+          style={{ zIndex: 99999, background: 'linear-gradient(135deg, rgba(20,20,35,0.98), rgba(10,10,20,0.99))', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(24px)', boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}>
+          {activeConv?.isGroup && <button onClick={() => { setShowGroupInfo(!showGroupInfo); setShowMoreMenu(false); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs hover:bg-white/5" style={{ color: '#c0c0d0' }}><Info className="w-3.5 h-3.5" /> Инфо</button>}
+          <button onClick={() => { setShowPinned(!showPinned); setShowMedia(false); setShowMembers(false); setShowGroupInfo(false); setShowFavorites(false); setShowMoreMenu(false); if (!showPinned && activeConv) chatApi.getPinnedMessages(activeConv.id).then(r => { if (r.success && r.data) setPinnedMessages(r.data); }).catch(() => {}); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs hover:bg-white/5" style={{ color: '#c0c0d0' }}><Pin className="w-3.5 h-3.5" /> Закреплённые</button>
+          <button onClick={() => { setShowFavorites(!showFavorites); setShowMedia(false); setShowMembers(false); setShowPinned(false); setShowGroupInfo(false); setShowMoreMenu(false); if (!showFavorites && activeConv) chatApi.getFavorites(activeConv.id).then(r => { if (r.success && r.data) setFavoriteMessages(r.data); }).catch(() => {}); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs hover:bg-white/5" style={{ color: '#c0c0d0' }}>⭐ Избранное</button>
+          <button onClick={() => { setShowMedia(!showMedia); setShowMembers(false); setShowPinned(false); setShowGroupInfo(false); setShowMoreMenu(false); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs hover:bg-white/5" style={{ color: '#c0c0d0' }}><ImageIcon className="w-3.5 h-3.5" /> Медиа</button>
+          <button onClick={async () => { setShowMoreMenu(false); if (!activeConv) return; const muted = (activeConv as any).isMuted; try { if (muted) { await chatApi.unmuteConversation(activeConv.id); (activeConv as any).isMuted = 0; showToast('Уведомления включены', 'success'); } else { await chatApi.muteConversation(activeConv.id); (activeConv as any).isMuted = 1; showToast('Чат заглушён', 'success'); } fetchConversations(); } catch { showToast('Ошибка', 'error'); } }} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs hover:bg-white/5" style={{ color: '#c0c0d0' }}>{(activeConv as any)?.isMuted ? <><Volume2 className="w-3.5 h-3.5" /> Включить уведомления</> : <><VolumeX className="w-3.5 h-3.5" /> Заглушить</>}</button>
+        </motion.div>
       )}
       <AnimatePresence>{profileModal && <ProfileModalOverlay />}</AnimatePresence>
       <AnimatePresence>{showGroupCreate && (
