@@ -745,4 +745,23 @@ export async function initializeDatabase() {
   migrate('ALTER TABLE registration_submissions ADD COLUMN confirmCode TEXT DEFAULT ""');
   migrate('ALTER TABLE registrations ADD COLUMN organizer TEXT DEFAULT ""');
   try { run('CREATE INDEX IF NOT EXISTS idx_reg_sub_checkin ON registration_submissions(checkinToken)'); } catch {}
+
+  // Knowledge base attachments (photos + documents)
+  run(`
+    CREATE TABLE IF NOT EXISTS knowledge_attachments (
+      id TEXT PRIMARY KEY,
+      articleId TEXT NOT NULL,
+      type TEXT NOT NULL DEFAULT 'image',
+      url TEXT NOT NULL,
+      filename TEXT DEFAULT '',
+      originalName TEXT DEFAULT '',
+      size INTEGER DEFAULT 0,
+      uploadedBy TEXT,
+      position INTEGER DEFAULT 0,
+      createdAt TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (articleId) REFERENCES knowledge_base(id) ON DELETE CASCADE,
+      FOREIGN KEY (uploadedBy) REFERENCES users(id)
+    )
+  `);
+  try { run('CREATE INDEX IF NOT EXISTS idx_kb_attach_article ON knowledge_attachments(articleId)'); } catch {}
 }

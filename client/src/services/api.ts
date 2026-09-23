@@ -382,6 +382,15 @@ export const knowledgeApi = {
     api.put(`/knowledge/${id}`, data).then((res) => res.data),
   delete: (id: string): Promise<ApiResponse<void>> =>
     api.delete(`/knowledge/${id}`).then((res) => res.data),
+  getAttachments: (articleId: string): Promise<ApiResponse<any[]>> =>
+    api.get(`/knowledge/${articleId}/attachments`).then((res) => res.data),
+  uploadAttachment: (articleId: string, file: File): Promise<ApiResponse<any>> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post(`/knowledge/${articleId}/attachments`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }).then((res) => res.data);
+  },
+  deleteAttachment: (attId: string): Promise<ApiResponse<void>> =>
+    api.delete(`/knowledge/attachments/${attId}`).then((res) => res.data),
 };
 
 // Brand Bank API
