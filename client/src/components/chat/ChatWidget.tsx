@@ -870,7 +870,10 @@ export default function ChatWidget() {
           </div>
         )}
         {showEmoji && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mb-3">
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mb-3 relative">
+            <button onClick={() => setShowEmoji(false)} className="absolute top-1 right-1 z-10 p-1 rounded-full bg-black/60 hover:bg-black/80 transition-colors">
+              <X className="w-3.5 h-3.5 text-white" />
+            </button>
             <EmojiPicker onSelect={(emoji: any) => { setNewMessage(p => p + (emoji.native || emoji)); setShowEmoji(false); }} />
           </motion.div>
         )}
@@ -1348,8 +1351,8 @@ export default function ChatWidget() {
         <div className="relative" ref={moreMenuRef}>
           <button onClick={() => setShowMoreMenu(!showMoreMenu)} className="p-2 rounded-xl hover:bg-white/5 transition-colors" title="Ещё"><MoreHorizontal className="w-4 h-4" style={{ color: '#6a6a80' }} /></button>
           {showMoreMenu && (
-            <motion.div initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} className="absolute right-0 top-full mt-1 rounded-xl p-1.5 z-50 w-48"
-              style={{ background: 'linear-gradient(135deg, rgba(20,20,35,0.98), rgba(10,10,20,0.99))', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(24px)', boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}>
+            <motion.div initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} className="fixed rounded-xl p-1.5 w-48"
+              style={{ top: moreMenuRef.current ? moreMenuRef.current.getBoundingClientRect().bottom + 4 : 100, right: moreMenuRef.current ? window.innerWidth - moreMenuRef.current.getBoundingClientRect().right : 16, zIndex: 99999, background: 'linear-gradient(135deg, rgba(20,20,35,0.98), rgba(10,10,20,0.99))', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(24px)', boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}>
               {conv.isGroup && <button onClick={() => { setShowGroupInfo(!showGroupInfo); setShowMoreMenu(false); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs hover:bg-white/5" style={{ color: '#c0c0d0' }}><Info className="w-3.5 h-3.5" /> Инфо</button>}
               <button onClick={() => { setShowPinned(!showPinned); setShowMedia(false); setShowMembers(false); setShowGroupInfo(false); setShowFavorites(false); setShowMoreMenu(false); if (!showPinned && activeConv) chatApi.getPinnedMessages(activeConv.id).then(r => { if (r.success && r.data) setPinnedMessages(r.data); }).catch(() => {}); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs hover:bg-white/5" style={{ color: '#c0c0d0' }}><Pin className="w-3.5 h-3.5" /> Закреплённые</button>
               <button onClick={() => { setShowFavorites(!showFavorites); setShowMedia(false); setShowMembers(false); setShowPinned(false); setShowGroupInfo(false); setShowMoreMenu(false); if (!showFavorites && activeConv) chatApi.getFavorites(activeConv.id).then(r => { if (r.success && r.data) setFavoriteMessages(r.data); }).catch(() => {}); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs hover:bg-white/5" style={{ color: '#c0c0d0' }}>⭐ Избранное</button>

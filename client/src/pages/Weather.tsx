@@ -108,6 +108,19 @@ function mapWttrCode(wttrCode: number): number {
   return map[wttrCode] ?? 3;
 }
 
+// Convert wttr.in "06:54 AM" / "07:02 PM" to 24h "HH:MM"
+function parseWttrTime(s: string): string {
+  if (!s) return '';
+  const match = s.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
+  if (!match) return s;
+  let h = parseInt(match[1]);
+  const m = match[2];
+  const ampm = (match[3] || '').toUpperCase();
+  if (ampm === 'PM' && h < 12) h += 12;
+  if (ampm === 'AM' && h === 12) h = 0;
+  return `${String(h).padStart(2, '0')}:${m}`;
+}
+
 function getWeatherIcon(code: number, isDay: boolean = true) {
   if (code === 0) return isDay ? Sun : Cloud;
   if (code <= 3) return Cloud;
@@ -356,8 +369,8 @@ export default function Weather() {
           time: cc.observation_time || '',
           pressure: parseInt(cc.pressure) || 0,
           visibility: parseInt(cc.visibility) || 0,
-          sunrise: astro?.sunrise || '',
-          sunset: astro?.sunset || '',
+          sunrise: parseWttrTime(astro?.sunrise || ''),
+          sunset: parseWttrTime(astro?.sunset || ''),
         });
       }
 
@@ -369,8 +382,8 @@ export default function Weather() {
           tempMin: parseInt(d.mintempC) || 0,
           weatherCode: mapWttrCode(parseInt(d.hourly?.[4]?.weatherCode) || 0),
           precipitation: parseFloat(d.hourly?.[4]?.precipMM) || 0,
-          sunrise: d.astronomy?.[0]?.sunrise || '',
-          sunset: d.astronomy?.[0]?.sunset || '',
+          sunrise: parseWttrTime(d.astronomy?.[0]?.sunrise || ''),
+          sunset: parseWttrTime(d.astronomy?.[0]?.sunset || ''),
         }));
         setForecast(days);
 
@@ -661,7 +674,7 @@ export default function Weather() {
             {/* 7-day forecast */}
             <div className="glass rounded-2xl p-6">
               <h2 className="text-sm font-mono font-bold mb-4" style={{ color: 'var(--color-primary)' }}>
-                ПРОГНОЗ НА 7 ДНЕЙ <span className="font-normal text-gray-500">(кликни для почасового)</span>
+                ПРОГНОЗ НА {forecast.length} {forecast.length === 1 ? 'ДЕНЬ' : forecast.length < 5 ? 'ДНЯ' : 'ДНЕЙ'} <span className="font-normal text-gray-500">(кликни для почасового)</span>
               </h2>
               <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
                 {forecast.map((day, i) => {

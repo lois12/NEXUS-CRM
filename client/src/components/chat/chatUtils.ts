@@ -73,5 +73,9 @@ export function renderRichText(children: any, mentionIds: string, users: User[])
   return children;
 }
 
-export function fmtMsgTime(d: string) { return formatTimeKR(d); }
+export function fmtMsgTime(d: string) {
+  // SQLite datetime('now') returns UTC without 'Z' suffix — force UTC parse
+  const date = d && !d.endsWith('Z') && !d.includes('+') ? new Date(d + 'Z') : new Date(d);
+  return formatTimeKR(date);
+}
 export function fmtTime(s: number) { return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; }
