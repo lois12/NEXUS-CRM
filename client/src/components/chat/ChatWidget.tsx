@@ -130,9 +130,24 @@ export default function ChatWidget() {
     } catch {}
   }, [soundEnabled, soundPrivate, isOpen]);
 
+  // WebSocket reconnect handler
+  const [isConnected, setIsConnected] = useState(true);
+
   useEffect(() => { fetchUnreadCount(); unreadPollRef.current = setInterval(fetchUnreadCount, 30000); return () => { if (unreadPollRef.current) clearInterval(unreadPollRef.current); }; }, [fetchUnreadCount]);
   const fetchConversations = useCallback(async () => { try { const res = await chatApi.getConversations(); if (res.success && res.data) setConversations(res.data); } catch {} }, []);
   useEffect(() => { if (isOpen) fetchConversations(); }, [isOpen, fetchConversations]);
+
+  // WebSocket reconnect — moved here after fetchConversations is defined
+  useEffect(() => {
+    const socket = socketRef.current;
+    if (!socket) return;
+    const onConnect = () => { setIsConnected(true); if (activeConvRef.current) { socket.emit('chat:join', activeConvRef.current.id); fetchConversations(); fetchUnreadCount(); } };
+    const onDisconnect = () => setIsConnected(false);
+    socket.on('connect', onConnect);
+    socket.on('disconnect', onDisconnect);
+    setIsConnected(socket.connected);
+    return () => { socket.off('connect', onConnect); socket.off('disconnect', onDisconnect); };
+  }, [fetchConversations, fetchUnreadCount]);
 
   // Listen for open-chat events from notifications
   useEffect(() => {
@@ -171,13 +186,15 @@ export default function ChatWidget() {
   useEffect(() => { if (activeConv && isOpen) chatApi.markRead(activeConv.id).then(() => fetchUnreadCount()).catch(() => {}); }, [activeConv, isOpen, fetchUnreadCount]);
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
   useEffect(() => { if (showUserSearch || showGroupCreate) usersApi.getAll().then(res => { if (res.success && res.data) setUsers(res.data); }).catch(() => {}); }, [showUserSearch, showGroupCreate]);
-  // Typing indicator — throttle to once per 2s
+  // Typing indicator — debounce: emit once on first keystroke, then every 3s while typing
   useEffect(() => {
     if (!activeConv || !newMessage.trim()) return;
     const now = Date.now();
-    if (now - lastTypingRef.current < 2000) return;
-    lastTypingRef.current = now;
-    chatApi.setTyping(activeConv.id).catch(() => {});
+    // First keystroke or after 3s pause: emit immediately
+    if (now - lastTypingRef.current > 3000) {
+      lastTypingRef.current = now;
+      chatApi.setTyping(activeConv.id).catch(() => {});
+    }
   }, [newMessage, activeConv]);
   useEffect(() => { if (!contextMenu) return; const close = () => setContextMenu(null); document.addEventListener('click', close); return () => document.removeEventListener('click', close); }, [contextMenu]);
 
@@ -263,12 +280,23 @@ export default function ChatWidget() {
     if (activeConv && newMessage.trim()) draftsRef.current[activeConv.id] = newMessage;
     else if (activeConv) delete draftsRef.current[activeConv.id];
     setActiveConv(conv); activeConvRef.current = conv; setMessages([]); setReplyTo(null); setShowMedia(false); setShowMembers(false); setShowPinned(false); setShowGroupInfo(false); setEditingMsg(null); setForwardMsg(null); setShowMessageSearch(false); setMessageSearch(''); setAttachedFiles([]);
+    setFirstUnreadId(null);
     // Restore draft
     setNewMessage(draftsRef.current[conv.id] || '');
     // Find first unread for divider
     try { const res = await chatApi.getMessages(conv.id, { limit: 50 }); if (res.success && res.data) { setMessages(res.data); const firstUnread = res.data.find((m: ChatMessage) => !m.isRead && m.senderId !== user?.id); setFirstUnreadId(firstUnread?.id || null); } } catch {}
     if (conv.isGroup) { try { const res = await chatApi.getGroupMembers(conv.id); if (res.success && res.data) setGroupMembers(res.data); } catch {} }
   };
+
+  // Lazy loading placeholder (requires backend 'before' param)
+  const loadOlderMessages = useCallback(async () => {}, []);
+
+  // Scroll-to-top handler for lazy loading
+  const handleScroll = useCallback(() => {
+    const container = messagesContainerRef.current;
+    if (!container || container.scrollTop > 50) return;
+    loadOlderMessages();
+  }, [loadOlderMessages]);
 
   const startConversation = async (targetUser: User) => { try { const res = await chatApi.getOrCreateConversation(targetUser.id); if (res.success && res.data) { setShowUserSearch(false); setSearchQuery(''); await fetchConversations(); openConversation(res.data); } } catch { showToast('Ошибка', 'error'); } };
 
@@ -322,10 +350,20 @@ export default function ChatWidget() {
 
   const handleFileUpload = async (file: File) => {
     if (!activeConv) { showToast('Откройте чат', 'error'); return; }
-    if (file.size > 5 * 1024 * 1024) { showToast(`Файл слишком большой: ${(file.size / 1024 / 1024).toFixed(1)}MB (макс 5MB)`, 'error'); return; }
     if (attachedFiles.length >= 10) { showToast('Максимум 10 файлов', 'error'); return; }
+
+    // Compress images > 1MB
+    let uploadFile = file;
+    if (file.type.startsWith('image/') && file.size > 1024 * 1024) {
+      try {
+        const compressed = await compressImage(file, 1920, 0.8);
+        if (compressed.size < file.size) uploadFile = compressed;
+      } catch {}
+    }
+
+    if (uploadFile.size > 5 * 1024 * 1024) { showToast(`Файл слишком большой: ${(uploadFile.size / 1024 / 1024).toFixed(1)}MB (макс 5MB)`, 'error'); return; }
     try {
-      const u = await chatApi.uploadFile(activeConv.id, file);
+      const u = await chatApi.uploadFile(activeConv.id, uploadFile);
       if (u.success && u.data) {
         const fileType = file.type.startsWith('image/') ? 'image' as const : 'file' as const;
         setAttachedFiles(prev => [...prev, { url: u.data!.url, type: fileType, name: file.name }]);
@@ -335,6 +373,31 @@ export default function ChatWidget() {
     } catch (err: any) {
       showToast(`Ошибка: ${err?.message || 'Неизвестная'}`, 'error');
     }
+  };
+
+  const compressImage = (file: File, maxDim: number, quality: number): Promise<File> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > maxDim || height > maxDim) {
+          const ratio = Math.min(maxDim / width, maxDim / height);
+          width = Math.round(width * ratio);
+          height = Math.round(height * ratio);
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) { resolve(file); return; }
+        ctx.drawImage(img, 0, 0, width, height);
+        canvas.toBlob(blob => {
+          if (!blob) { resolve(file); return; }
+          resolve(new File([blob], file.name, { type: 'image/jpeg' }));
+        }, 'image/jpeg', quality);
+      };
+      img.onerror = () => resolve(file);
+      img.src = URL.createObjectURL(file);
+    });
   };
 
   // Drag-and-drop file upload for chat
@@ -737,6 +800,7 @@ export default function ChatWidget() {
     <>
       <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-5 py-4 space-y-4 relative"
         style={{ background: chatWallpaper ? `url(${chatWallpaper}) center/cover` : 'linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.2) 100%)' }}
+        onScroll={handleScroll}
         onDragOver={handleChatDragOver} onDragLeave={handleChatDragLeave} onDrop={handleChatDrop}>
         {chatDragOver && (
           <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none" style={{ background: 'rgba(0,255,136,0.05)', backdropFilter: 'blur(2px)' }}>
@@ -1177,6 +1241,7 @@ export default function ChatWidget() {
         else { setActiveConv(null); activeConvRef.current = null; setMessages([]); setReplyTo(null); }
       }} className={`p-1.5 rounded-xl hover:bg-white/5 transition-colors ${isFullscreen ? 'sm:hidden' : ''}`}><ArrowLeft className="w-4 h-4" style={{ color: '#8a8aa0' }} /></button>}
       <Avatar name={conv.otherName} avatar={conv.otherAvatar} size={isFullscreen ? undefined : 'sm'} glow
+        lastSeen={!isConnected ? undefined : conv.otherLastSeen}
         onClick={() => {
           if (conv.isGroup) { setShowMembers(!showMembers); setShowMedia(false); setShowPinned(false); setShowGroupInfo(false); }
           else if (conv.otherId) {
@@ -1192,6 +1257,7 @@ export default function ChatWidget() {
         {!conv.isGroup && !conv.otherPosition && conv.otherLastSeen && !isOnline(conv.otherLastSeen) && (
           <span className="text-[9px] font-mono" style={{ color: '#5a5a70' }}>Был(а) {formatLastSeen(conv.otherLastSeen)}</span>
         )}
+        {!isConnected && <span className="text-[9px] font-mono px-2 py-0.5 rounded-full" style={{ background: 'rgba(234,179,8,0.1)', color: '#eab308', border: '1px solid rgba(234,179,8,0.2)' }}>Переподключение...</span>}
         {typingUsers.length > 0 && <span className="text-[9px] font-mono" style={{ color: '#00d4ff' }}>{typingUsers.map(t => t.name).join(', ')} печатает...</span>}
       </div>
       <div className="flex items-center gap-1">
