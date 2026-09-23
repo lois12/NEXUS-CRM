@@ -594,14 +594,14 @@ export default function Weather() {
                   <div className="text-center">
                     <Sunrise className="w-5 h-5 mx-auto mb-1" style={{ color: '#ffd700' }} />
                     <div className="font-mono text-lg font-bold text-gray-200">
-                      {currentWeather.sunrise ? formatTimeKR(currentWeather.sunrise) : '--:--'}
+                      {currentWeather.sunrise || '--:--'}
                     </div>
                     <div className="font-mono text-[10px] text-gray-500">ВОСХОД</div>
                   </div>
                   <div className="text-center">
                     <Sunset className="w-5 h-5 mx-auto mb-1" style={{ color: '#ff6b6b' }} />
                     <div className="font-mono text-lg font-bold text-gray-200">
-                      {currentWeather.sunset ? formatTimeKR(currentWeather.sunset) : '--:--'}
+                      {currentWeather.sunset || '--:--'}
                     </div>
                     <div className="font-mono text-[10px] text-gray-500">ЗАКАТ</div>
                   </div>

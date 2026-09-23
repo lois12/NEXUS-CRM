@@ -1348,18 +1348,16 @@ export default function ChatWidget() {
           </motion.div>
         ) : <button onClick={() => setShowMessageSearch(true)} className="p-2 rounded-xl hover:bg-white/5 transition-colors" title="Поиск"><Search className="w-4 h-4" style={{ color: '#6a6a80' }} /></button>}
         {conv.isGroup && <button onClick={() => { setShowMembers(!showMembers); setShowMedia(false); setShowPinned(false); setShowGroupInfo(false); }} className="p-2 rounded-xl hover:bg-white/5 transition-colors" title="Участники"><Users className="w-4 h-4" style={{ color: '#6a6a80' }} /></button>}
-        <div className="relative" ref={moreMenuRef}>
-          <button onClick={() => setShowMoreMenu(!showMoreMenu)} className="p-2 rounded-xl hover:bg-white/5 transition-colors" title="Ещё"><MoreHorizontal className="w-4 h-4" style={{ color: '#6a6a80' }} /></button>
-          {showMoreMenu && (
-            <motion.div initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} className="fixed rounded-xl p-1.5 w-48"
-              style={{ top: moreMenuRef.current ? moreMenuRef.current.getBoundingClientRect().bottom + 4 : 100, right: moreMenuRef.current ? window.innerWidth - moreMenuRef.current.getBoundingClientRect().right : 16, zIndex: 99999, background: 'linear-gradient(135deg, rgba(20,20,35,0.98), rgba(10,10,20,0.99))', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(24px)', boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}>
-              {conv.isGroup && <button onClick={() => { setShowGroupInfo(!showGroupInfo); setShowMoreMenu(false); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs hover:bg-white/5" style={{ color: '#c0c0d0' }}><Info className="w-3.5 h-3.5" /> Инфо</button>}
-              <button onClick={() => { setShowPinned(!showPinned); setShowMedia(false); setShowMembers(false); setShowGroupInfo(false); setShowFavorites(false); setShowMoreMenu(false); if (!showPinned && activeConv) chatApi.getPinnedMessages(activeConv.id).then(r => { if (r.success && r.data) setPinnedMessages(r.data); }).catch(() => {}); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs hover:bg-white/5" style={{ color: '#c0c0d0' }}><Pin className="w-3.5 h-3.5" /> Закреплённые</button>
-              <button onClick={() => { setShowFavorites(!showFavorites); setShowMedia(false); setShowMembers(false); setShowPinned(false); setShowGroupInfo(false); setShowMoreMenu(false); if (!showFavorites && activeConv) chatApi.getFavorites(activeConv.id).then(r => { if (r.success && r.data) setFavoriteMessages(r.data); }).catch(() => {}); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs hover:bg-white/5" style={{ color: '#c0c0d0' }}>⭐ Избранное</button>
-              <button onClick={() => { setShowMedia(!showMedia); setShowMembers(false); setShowPinned(false); setShowGroupInfo(false); setShowMoreMenu(false); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs hover:bg-white/5" style={{ color: '#c0c0d0' }}><ImageIcon className="w-3.5 h-3.5" /> Медиа</button>
-              <button onClick={async () => { setShowMoreMenu(false); if (!activeConv) return; const muted = (activeConv as any).isMuted; try { if (muted) { await chatApi.unmuteConversation(activeConv.id); (activeConv as any).isMuted = 0; showToast('Уведомления включены', 'success'); } else { await chatApi.muteConversation(activeConv.id); (activeConv as any).isMuted = 1; showToast('Чат заглушён', 'success'); } fetchConversations(); } catch { showToast('Ошибка', 'error'); } }} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs hover:bg-white/5" style={{ color: '#c0c0d0' }}>{(activeConv as any).isMuted ? <><Volume2 className="w-3.5 h-3.5" /> Включить уведомления</> : <><VolumeX className="w-3.5 h-3.5" /> Заглушить</>}</button>
-            </motion.div>
-          )}
+        <div className="relative">
+          <button onClick={(e) => {
+            const rect = e.currentTarget.getBoundingClientRect();
+            setShowMoreMenu(!showMoreMenu);
+            // Store position for portal menu
+            setTimeout(() => {
+              const menu = document.getElementById('chat-more-menu');
+              if (menu) { menu.style.top = `${rect.bottom + 4}px`; menu.style.right = `${window.innerWidth - rect.right}px`; }
+            }, 0);
+          }} className="p-2 rounded-xl hover:bg-white/5 transition-colors" title="Ещё"><MoreHorizontal className="w-4 h-4" style={{ color: '#6a6a80' }} /></button>
         </div>
         {!isFullscreen && <button onClick={() => setIsFullscreen(true)} className="p-2 rounded-xl hover:bg-white/5 transition-colors" title="На весь экран"><Maximize2 className="w-4 h-4" style={{ color: '#6a6a80' }} /></button>}
         {isFullscreen && <button onClick={() => setIsFullscreen(false)} className="p-2 rounded-xl hover:bg-white/5 transition-colors" title="Свернуть"><Minimize2 className="w-4 h-4" style={{ color: '#6a6a80' }} /></button>}
@@ -1467,6 +1465,21 @@ export default function ChatWidget() {
             }} className="w-full py-2.5 rounded-lg font-mono text-sm font-bold" style={{ background: 'var(--color-primary)', color: '#000' }}>СОЗДАТЬ</button>
           </motion.div>
         </div>
+      )}
+      {/* More menu portal — outside overflow-hidden container */}
+      {showMoreMenu && (
+        <>
+          <div className="fixed inset-0 z-[99998]" onClick={() => setShowMoreMenu(false)} />
+          <motion.div id="chat-more-menu" initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -5 }}
+            className="fixed rounded-xl p-1.5 w-48 z-[99999]"
+            style={{ background: 'linear-gradient(135deg, rgba(20,20,35,0.98), rgba(10,10,20,0.99))', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(24px)', boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}>
+            {activeConv?.isGroup && <button onClick={() => { setShowGroupInfo(!showGroupInfo); setShowMoreMenu(false); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs hover:bg-white/5" style={{ color: '#c0c0d0' }}><Info className="w-3.5 h-3.5" /> Инфо</button>}
+            <button onClick={() => { setShowPinned(!showPinned); setShowMedia(false); setShowMembers(false); setShowGroupInfo(false); setShowFavorites(false); setShowMoreMenu(false); if (!showPinned && activeConv) chatApi.getPinnedMessages(activeConv.id).then(r => { if (r.success && r.data) setPinnedMessages(r.data); }).catch(() => {}); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs hover:bg-white/5" style={{ color: '#c0c0d0' }}><Pin className="w-3.5 h-3.5" /> Закреплённые</button>
+            <button onClick={() => { setShowFavorites(!showFavorites); setShowMedia(false); setShowMembers(false); setShowPinned(false); setShowGroupInfo(false); setShowMoreMenu(false); if (!showFavorites && activeConv) chatApi.getFavorites(activeConv.id).then(r => { if (r.success && r.data) setFavoriteMessages(r.data); }).catch(() => {}); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs hover:bg-white/5" style={{ color: '#c0c0d0' }}>⭐ Избранное</button>
+            <button onClick={() => { setShowMedia(!showMedia); setShowMembers(false); setShowPinned(false); setShowGroupInfo(false); setShowMoreMenu(false); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs hover:bg-white/5" style={{ color: '#c0c0d0' }}><ImageIcon className="w-3.5 h-3.5" /> Медиа</button>
+            <button onClick={async () => { setShowMoreMenu(false); if (!activeConv) return; const muted = (activeConv as any).isMuted; try { if (muted) { await chatApi.unmuteConversation(activeConv.id); (activeConv as any).isMuted = 0; showToast('Уведомления включены', 'success'); } else { await chatApi.muteConversation(activeConv.id); (activeConv as any).isMuted = 1; showToast('Чат заглушён', 'success'); } fetchConversations(); } catch { showToast('Ошибка', 'error'); } }} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs hover:bg-white/5" style={{ color: '#c0c0d0' }}>{(activeConv as any)?.isMuted ? <><Volume2 className="w-3.5 h-3.5" /> Включить уведомления</> : <><VolumeX className="w-3.5 h-3.5" /> Заглушить</>}</button>
+          </motion.div>
+        </>
       )}
       <AnimatePresence>{profileModal && <ProfileModalOverlay />}</AnimatePresence>
       <AnimatePresence>{showGroupCreate && (
