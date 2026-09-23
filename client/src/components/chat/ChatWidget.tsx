@@ -1127,29 +1127,6 @@ export default function ChatWidget() {
     </SidePanel>
   );
 
-  const PollCreateModal = () => {
-    if (!showPollCreate) return null;
-    const handleCreate = async () => {
-      if (!activeConv || !pollQuestion.trim() || pollOptions.filter(o => o.trim()).length < 2) { showToast('Нужен вопрос и минимум 2 варианта', 'error'); return; }
-      try {
-        await chatApi.createPoll(activeConv.id, { question: pollQuestion.trim(), options: pollOptions.filter(o => o.trim()) });
-        showToast('Опрос создан', 'success');
-        setShowPollCreate(false); setPollQuestion(''); setPollOptions(['', '']);
-      } catch { showToast('Ошибка', 'error'); }
-    };
-    return (
-      <div className="fixed inset-0 flex items-center justify-center z-[200]" style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)' }}>
-        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="w-80 rounded-2xl p-5 space-y-3" style={{ background: 'linear-gradient(135deg, rgba(20,20,35,0.98), rgba(10,10,20,0.99))', border: '1px solid rgba(255,255,255,0.1)' }}>
-          <div className="flex items-center justify-between"><span className="font-mono text-sm font-bold" style={{ color: 'var(--color-primary)' }}>📊 ОПРОС</span><button onClick={() => setShowPollCreate(false)} className="p-1 rounded hover:bg-white/10"><X className="w-4 h-4 text-gray-400" /></button></div>
-          <input value={pollQuestion} onChange={e => setPollQuestion(e.target.value)} placeholder="Вопрос..." className="w-full px-3 py-2 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none" />
-          {pollOptions.map((opt, i) => (<div key={i} className="flex gap-2"><input value={opt} onChange={e => { const n = [...pollOptions]; n[i] = e.target.value; setPollOptions(n); }} placeholder={`Вариант ${i + 1}`} className="flex-1 px-3 py-2 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none" />{pollOptions.length > 2 && <button onClick={() => setPollOptions(pollOptions.filter((_, j) => j !== i))} className="p-2 text-red-400"><X className="w-3 h-3" /></button>}</div>))}
-          {pollOptions.length < 6 && <button onClick={() => setPollOptions([...pollOptions, ''])} className="w-full py-1.5 rounded-lg font-mono text-[10px] text-gray-500 hover:bg-white/5 border border-dashed border-gray-700">+ вариант</button>}
-          <button onClick={handleCreate} className="w-full py-2.5 rounded-lg font-mono text-sm font-bold" style={{ background: 'var(--color-primary)', color: '#000' }}>СОЗДАТЬ</button>
-        </motion.div>
-      </div>
-    );
-  };
-
   const PollMessage = ({ msg }: { msg: ChatMessage }) => {
     const [pd, setPd] = useState<any>(null);
     useEffect(() => { chatApi.getPollResults(msg.content).then(r => { if (r.success && r.data) setPd(r.data); }).catch(() => {}); }, [msg.content]);
@@ -1335,7 +1312,7 @@ export default function ChatWidget() {
         {!isConnected && <span className="text-[9px] font-mono px-2 py-0.5 rounded-full" style={{ background: 'rgba(234,179,8,0.1)', color: '#eab308', border: '1px solid rgba(234,179,8,0.2)' }}>Переподключение...</span>}
         {typingUsers.length > 0 && <span className="text-[9px] font-mono" style={{ color: '#00d4ff' }}>{typingUsers.map(t => t.name).join(', ')} печатает...</span>}
       </div>
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-1 flex-shrink-0">
         {showMessageSearch ? (
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="absolute top-full left-0 right-0 mt-1 mx-2 rounded-xl overflow-hidden z-50" style={{ background: 'linear-gradient(135deg, rgba(20,20,35,0.98) 0%, rgba(10,10,20,0.99) 100%)', border: '1px solid rgba(255,255,255,0.08)', backdropFilter: 'blur(24px)', boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}>
             <div className="flex items-center gap-2 px-3 py-2.5" style={{ borderBottom: glassBorder }}>
@@ -1367,13 +1344,20 @@ export default function ChatWidget() {
             {messageSearch && filteredMessages.length === 0 && <div className="px-3 py-3 text-center text-[10px] font-mono" style={{ color: '#4a4a60' }}>Не найдено</div>}
           </motion.div>
         ) : <button onClick={() => setShowMessageSearch(true)} className="p-2 rounded-xl hover:bg-white/5 transition-colors" title="Поиск"><Search className="w-4 h-4" style={{ color: '#6a6a80' }} /></button>}
-        {conv.isGroup && <button onClick={() => { setShowGroupInfo(!showGroupInfo); setShowMedia(false); setShowMembers(false); setShowPinned(false); }} className="p-2 rounded-xl hover:bg-white/5 transition-colors" title="Информация"><Info className="w-4 h-4" style={{ color: '#6a6a80' }} /></button>}
-        <button onClick={() => { setShowPinned(!showPinned); setShowMedia(false); setShowMembers(false); setShowGroupInfo(false); setShowFavorites(false); if (!showPinned && activeConv) chatApi.getPinnedMessages(activeConv.id).then(r => { if (r.success && r.data) setPinnedMessages(r.data); }).catch(() => {}); }} className="p-2 rounded-xl hover:bg-white/5 transition-colors" title="Закреплённые"><Pin className="w-4 h-4" style={{ color: '#6a6a80' }} /></button>
-        <button onClick={() => { setShowFavorites(!showFavorites); setShowMedia(false); setShowMembers(false); setShowPinned(false); setShowGroupInfo(false); if (!showFavorites && activeConv) chatApi.getFavorites(activeConv.id).then(r => { if (r.success && r.data) setFavoriteMessages(r.data); }).catch(() => {}); }} className="p-2 rounded-xl hover:bg-white/5 transition-colors" title="Избранное"><span className="text-sm">⭐</span></button>
-        <button onClick={async () => { if (!activeConv) return; try { await chatApi.unmuteConversation(activeConv.id); showToast('Уведомления включены', 'success'); } catch { showToast('Ошибка', 'error'); } }} className="p-2 rounded-xl hover:bg-white/5 transition-colors" title="Включить уведомления"><Volume2 className="w-4 h-4" style={{ color: '#6a6a80' }} /></button>
-        <button onClick={async () => { if (!activeConv) return; try { await chatApi.muteConversation(activeConv.id); showToast('Чат заглушён', 'success'); } catch { showToast('Ошибка', 'error'); } }} className="p-2 rounded-xl hover:bg-white/5 transition-colors" title="Заглушить"><VolumeX className="w-4 h-4" style={{ color: '#6a6a80' }} /></button>
-        <button onClick={() => { setShowMedia(!showMedia); setShowMembers(false); setShowPinned(false); setShowGroupInfo(false); }} className="p-2 rounded-xl hover:bg-white/5 transition-colors" title="Медиа"><ImageIcon className="w-4 h-4" style={{ color: '#6a6a80' }} /></button>
         {conv.isGroup && <button onClick={() => { setShowMembers(!showMembers); setShowMedia(false); setShowPinned(false); setShowGroupInfo(false); }} className="p-2 rounded-xl hover:bg-white/5 transition-colors" title="Участники"><Users className="w-4 h-4" style={{ color: '#6a6a80' }} /></button>}
+        <div className="relative" ref={moreMenuRef}>
+          <button onClick={() => setShowMoreMenu(!showMoreMenu)} className="p-2 rounded-xl hover:bg-white/5 transition-colors" title="Ещё"><MoreHorizontal className="w-4 h-4" style={{ color: '#6a6a80' }} /></button>
+          {showMoreMenu && (
+            <motion.div initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} className="absolute right-0 top-full mt-1 rounded-xl p-1.5 z-50 w-48"
+              style={{ background: 'linear-gradient(135deg, rgba(20,20,35,0.98), rgba(10,10,20,0.99))', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(24px)', boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}>
+              {conv.isGroup && <button onClick={() => { setShowGroupInfo(!showGroupInfo); setShowMoreMenu(false); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs hover:bg-white/5" style={{ color: '#c0c0d0' }}><Info className="w-3.5 h-3.5" /> Инфо</button>}
+              <button onClick={() => { setShowPinned(!showPinned); setShowMedia(false); setShowMembers(false); setShowGroupInfo(false); setShowFavorites(false); setShowMoreMenu(false); if (!showPinned && activeConv) chatApi.getPinnedMessages(activeConv.id).then(r => { if (r.success && r.data) setPinnedMessages(r.data); }).catch(() => {}); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs hover:bg-white/5" style={{ color: '#c0c0d0' }}><Pin className="w-3.5 h-3.5" /> Закреплённые</button>
+              <button onClick={() => { setShowFavorites(!showFavorites); setShowMedia(false); setShowMembers(false); setShowPinned(false); setShowGroupInfo(false); setShowMoreMenu(false); if (!showFavorites && activeConv) chatApi.getFavorites(activeConv.id).then(r => { if (r.success && r.data) setFavoriteMessages(r.data); }).catch(() => {}); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs hover:bg-white/5" style={{ color: '#c0c0d0' }}>⭐ Избранное</button>
+              <button onClick={() => { setShowMedia(!showMedia); setShowMembers(false); setShowPinned(false); setShowGroupInfo(false); setShowMoreMenu(false); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs hover:bg-white/5" style={{ color: '#c0c0d0' }}><ImageIcon className="w-3.5 h-3.5" /> Медиа</button>
+              <button onClick={async () => { setShowMoreMenu(false); if (!activeConv) return; const muted = (activeConv as any).isMuted; try { if (muted) { await chatApi.unmuteConversation(activeConv.id); (activeConv as any).isMuted = 0; showToast('Уведомления включены', 'success'); } else { await chatApi.muteConversation(activeConv.id); (activeConv as any).isMuted = 1; showToast('Чат заглушён', 'success'); } fetchConversations(); } catch { showToast('Ошибка', 'error'); } }} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs hover:bg-white/5" style={{ color: '#c0c0d0' }}>{(activeConv as any).isMuted ? <><Volume2 className="w-3.5 h-3.5" /> Включить уведомления</> : <><VolumeX className="w-3.5 h-3.5" /> Заглушить</>}</button>
+            </motion.div>
+          )}
+        </div>
         {!isFullscreen && <button onClick={() => setIsFullscreen(true)} className="p-2 rounded-xl hover:bg-white/5 transition-colors" title="На весь экран"><Maximize2 className="w-4 h-4" style={{ color: '#6a6a80' }} /></button>}
         {isFullscreen && <button onClick={() => setIsFullscreen(false)} className="p-2 rounded-xl hover:bg-white/5 transition-colors" title="Свернуть"><Minimize2 className="w-4 h-4" style={{ color: '#6a6a80' }} /></button>}
       </div>
@@ -1467,7 +1451,20 @@ export default function ChatWidget() {
       </AnimatePresence>
 
       {contextMenu && <ContextMenuOverlay />}
-      {showPollCreate && <PollCreateModal />}
+      {showPollCreate && (
+        <div className="fixed inset-0 flex items-center justify-center z-[200]" style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)' }} onClick={() => setShowPollCreate(false)}>
+          <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="w-80 rounded-2xl p-5 space-y-3" style={{ background: 'linear-gradient(135deg, rgba(20,20,35,0.98), rgba(10,10,20,0.99))', border: '1px solid rgba(255,255,255,0.1)' }} onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between"><span className="font-mono text-sm font-bold" style={{ color: 'var(--color-primary)' }}>📊 ОПРОС</span><button onClick={() => setShowPollCreate(false)} className="p-1 rounded hover:bg-white/10"><X className="w-4 h-4 text-gray-400" /></button></div>
+            <input value={pollQuestion} onChange={e => setPollQuestion(e.target.value)} placeholder="Вопрос..." className="w-full px-3 py-2 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none" autoFocus />
+            {pollOptions.map((opt, i) => (<div key={i} className="flex gap-2"><input value={opt} onChange={e => { const n = [...pollOptions]; n[i] = e.target.value; setPollOptions(n); }} placeholder={`Вариант ${i + 1}`} className="flex-1 px-3 py-2 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none" />{pollOptions.length > 2 && <button onClick={() => setPollOptions(pollOptions.filter((_, j) => j !== i))} className="p-2 text-red-400"><X className="w-3 h-3" /></button>}</div>))}
+            {pollOptions.length < 6 && <button onClick={() => setPollOptions([...pollOptions, ''])} className="w-full py-1.5 rounded-lg font-mono text-[10px] text-gray-500 hover:bg-white/5 border border-dashed border-gray-700">+ вариант</button>}
+            <button onClick={async () => {
+              if (!activeConv || !pollQuestion.trim() || pollOptions.filter(o => o.trim()).length < 2) { showToast('Нужен вопрос и минимум 2 варианта', 'error'); return; }
+              try { await chatApi.createPoll(activeConv.id, { question: pollQuestion.trim(), options: pollOptions.filter(o => o.trim()) }); showToast('Опрос создан', 'success'); setShowPollCreate(false); setPollQuestion(''); setPollOptions(['', '']); } catch { showToast('Ошибка', 'error'); }
+            }} className="w-full py-2.5 rounded-lg font-mono text-sm font-bold" style={{ background: 'var(--color-primary)', color: '#000' }}>СОЗДАТЬ</button>
+          </motion.div>
+        </div>
+      )}
       <AnimatePresence>{profileModal && <ProfileModalOverlay />}</AnimatePresence>
       <AnimatePresence>{showGroupCreate && (
         <motion.div key="group-create" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }} onClick={() => { setShowGroupCreate(false); setGroupName(''); setGroupMembersIds([]); setSearchQuery(''); }}>

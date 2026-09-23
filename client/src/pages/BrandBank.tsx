@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Search, Trash2, X, Download, Upload, Image, FileText, Film, Music, Edit3, Grid, List, Sliders } from 'lucide-react';
 import { brandApi } from '../services/api';
@@ -60,6 +60,7 @@ export default function BrandBank() {
   const [form, setForm] = useState({ name: '', category: 'logo', description: '' });
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
+  const [zoomedImage, setZoomedImage] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -234,7 +235,7 @@ export default function BrandBank() {
                   {/* Preview */}
                   <div className={`flex items-center justify-center ${preset.imgH} bg-white/5 overflow-hidden`}>
                     {isImage(a.mimeType) ? (
-                      <img loading="lazy" decoding="async" src={a.url} alt={a.name} draggable="false" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ink-reveal select-none" />
+                      <img loading="lazy" decoding="async" src={a.url} alt={a.name} draggable="false" onClick={() => setZoomedImage(a.url)} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ink-reveal select-none cursor-pointer" />
                     ) : (
                       <CatIcon className="w-10 h-10 text-gray-600" />
                     )}
@@ -406,6 +407,29 @@ export default function BrandBank() {
 
       <ConfirmModal isOpen={confirmState.isOpen} onConfirm={() => { confirmState.onConfirm(); closeConfirm(); }} onCancel={closeConfirm}
         title={confirmState.title} message={confirmState.message} type={confirmState.type} />
+
+      {/* Image Zoom Overlay */}
+      <AnimatePresence>
+        {zoomedImage && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] flex items-center justify-center p-4"
+            style={{ background: 'rgba(0,0,0,0.9)', backdropFilter: 'blur(12px)' }}
+            onClick={() => setZoomedImage(null)}>
+            <motion.img key={zoomedImage} src={zoomedImage} alt=""
+              initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
+              className="max-w-[90vw] max-h-[85vh] object-contain rounded-xl select-none"
+              onClick={e => e.stopPropagation()} />
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-4">
+              <a href={zoomedImage} download className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 font-mono text-sm text-white flex items-center gap-2 transition-colors">
+                <Download className="w-4 h-4" /> СКАЧАТЬ
+              </a>
+            </div>
+            <button onClick={() => setZoomedImage(null)} className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors">
+              <X className="w-6 h-6 text-white" />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

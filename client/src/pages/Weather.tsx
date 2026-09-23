@@ -277,9 +277,13 @@ export default function Weather() {
     setIsLoading(true);
     setError(null);
 
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+
     try {
       const currentRes = await fetch(
-        `https://api.open-meteo.com/v1/forecast?latitude=${selectedCity.lat}&longitude=${selectedCity.lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m,weather_code,is_day,surface_pressure,visibility&daily=sunrise,sunset&timezone=auto&forecast_days=1`
+        `https://api.open-meteo.com/v1/forecast?latitude=${selectedCity.lat}&longitude=${selectedCity.lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m,weather_code,is_day,surface_pressure,visibility&daily=sunrise,sunset&timezone=auto&forecast_days=1`,
+        { signal: controller.signal }
       );
       const currentData = await currentRes.json();
 
@@ -300,7 +304,8 @@ export default function Weather() {
       }
 
       const forecastRes = await fetch(
-        `https://api.open-meteo.com/v1/forecast?latitude=${selectedCity.lat}&longitude=${selectedCity.lon}&daily=temperature_2m_max,temperature_2m_min,weather_code,precipitation_sum,sunrise,sunset&hourly=temperature_2m,weather_code,wind_speed_10m,precipitation&timezone=auto&forecast_days=7`
+        `https://api.open-meteo.com/v1/forecast?latitude=${selectedCity.lat}&longitude=${selectedCity.lon}&daily=temperature_2m_max,temperature_2m_min,weather_code,precipitation_sum,sunrise,sunset&hourly=temperature_2m,weather_code,wind_speed_10m,precipitation&timezone=auto&forecast_days=7`,
+        { signal: controller.signal }
       );
       const forecastData = await forecastRes.json();
 
@@ -330,9 +335,11 @@ export default function Weather() {
       }
 
       setLastUpdate(new Date());
-    } catch (err) {
-      setError('Ошибка загрузки данных о погоде');
+    } catch (err: any) {
+      if (err?.name === 'AbortError') setError('Сервер погоды не отвечает. Попробуйте позже.');
+      else setError('Ошибка загрузки данных о погоде');
     } finally {
+      clearTimeout(timeout);
       setIsLoading(false);
     }
   };
