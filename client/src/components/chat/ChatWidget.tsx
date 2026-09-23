@@ -1,17 +1,18 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageCircle, X, Send, Paperclip, Smile, Mic, ArrowLeft, Reply, File as FileIcon, Square, Maximize2, Minimize2, Users, Image as ImageIcon, FileText, UserPlus, Volume2, VolumeX, Check, Search, Pin, Forward, Trash2, Edit3, Copy, Info, MoreHorizontal, Download, ZoomIn, Upload } from 'lucide-react';
-import { chatApi, usersApi } from '../../services/api';
+import { chatApi, usersApi, kanbanApi } from '../../services/api';
 import { ChatConversation, ChatMessage, ChatGroupMember, ChatReaction, ChatPinnedMessage, User } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import { connectSocket, getSocket } from '../../services/socket';
 import { showToast } from '../ui/NexusModal';
 import { useNavigate } from 'react-router-dom';
 import { REACTION_EMOJI, SOUNDS, GLASS_BG, GLASS_BORDER, GLASS_BLUR, GLOW_GREEN } from './chatConstants';
-import { playSound, url, extractMentions, renderMentions, fmtMsgTime, fmtTime } from './chatUtils';
+import { playSound, url, extractMentions, renderMentions, renderRichText, fmtMsgTime, fmtTime } from './chatUtils';
 import GifPicker from './GifPicker';
 import EmojiPicker from './EmojiPicker';
 import StickerPicker from './StickerPicker';
+import ReactMarkdown from 'react-markdown';
 import { formatLastSeenKR, isTodayKR, isYesterdayKR, formatDateKR } from '../../utils/timezone';
 
 export default function ChatWidget() {
@@ -39,6 +40,7 @@ export default function ChatWidget() {
   const [messageSearch, setMessageSearch] = useState('');
   const [showMessageSearch, setShowMessageSearch] = useState(false);
   const [convFilter, setConvFilter] = useState('');
+  const [messageTypeFilter, setMessageTypeFilter] = useState<'all' | 'text' | 'image' | 'file' | 'audio'>('all');
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
   const [editingMsg, setEditingMsg] = useState<ChatMessage | null>(null);
   const [forwardMsg, setForwardMsg] = useState<ChatMessage | null>(null);
@@ -57,6 +59,20 @@ export default function ChatWidget() {
   const [chatTheme, setChatTheme] = useState<'dark' | 'light'>(() => (localStorage.getItem('nexus_chat_theme') as 'dark' | 'light') || 'dark');
   const [profileModal, setProfileModal] = useState<User | null>(null);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
+
+  // Drafts — save/restore per conversation
+  const draftsRef = useRef<Record<string, string>>({});
+
+  // Chat wallpaper per conversation
+  const [chatWallpaper, setChatWallpaper] = useState<string>(() => localStorage.getItem('nexus_chat_wallpaper') || '');
+
+  // DND schedule
+  const [dndEnabled, setDndEnabled] = useState(() => localStorage.getItem('nexus_chat_dnd') === 'on');
+  const [dndStart, setDndStart] = useState(() => localStorage.getItem('nexus_chat_dnd_start') || '22:00');
+  const [dndEnd, setDndEnd] = useState(() => localStorage.getItem('nexus_chat_dnd_end') || '08:00');
+
+  // First unread message ID for divider
+  const [firstUnreadId, setFirstUnreadId] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -86,12 +102,28 @@ export default function ChatWidget() {
   useEffect(() => { localStorage.setItem('nexus_chat_sound_group', soundGroup); }, [soundGroup]);
   useEffect(() => { localStorage.setItem('nexus_chat_sound', soundEnabled ? 'on' : 'off'); }, [soundEnabled]);
   useEffect(() => { localStorage.setItem('nexus_chat_theme', chatTheme); }, [chatTheme]);
+  useEffect(() => { localStorage.setItem('nexus_chat_dnd', dndEnabled ? 'on' : 'off'); }, [dndEnabled]);
+  useEffect(() => { localStorage.setItem('nexus_chat_dnd_start', dndStart); }, [dndStart]);
+  useEffect(() => { localStorage.setItem('nexus_chat_dnd_end', dndEnd); }, [dndEnd]);
+  useEffect(() => { localStorage.setItem('nexus_chat_wallpaper', chatWallpaper); }, [chatWallpaper]);
+
+  const isDndActive = useCallback(() => {
+    if (!dndEnabled) return false;
+    const now = new Date();
+    const [sh, sm] = dndStart.split(':').map(Number);
+    const [eh, em] = dndEnd.split(':').map(Number);
+    const nowMin = now.getHours() * 60 + now.getMinutes();
+    const startMin = sh * 60 + sm;
+    const endMin = eh * 60 + em;
+    if (startMin <= endMin) return nowMin >= startMin && nowMin < endMin;
+    return nowMin >= startMin || nowMin < endMin; // overnight range
+  }, [dndEnabled, dndStart, dndEnd]);
 
   const fetchUnreadCount = useCallback(async () => {
     try {
       const res = await chatApi.getUnreadCount();
       if (res.success && res.data) {
-        if (res.data.count > prevUnreadRef.current && soundEnabled && !isOpen) playSound(soundPrivate);
+        if (res.data.count > prevUnreadRef.current && soundEnabled && !isOpen && !isDndActive()) playSound(soundPrivate);
         prevUnreadRef.current = res.data.count;
         setUnreadTotal(res.data.count);
       }
@@ -171,7 +203,7 @@ export default function ChatWidget() {
         });
       }
       if (msg.senderId !== user?.id) {
-        if (soundEnabled && isOpen) {
+        if (soundEnabled && isOpen && !isDndActive()) {
           playSound(conv?.isGroup || conv?.isGeneral ? soundGroup : soundPrivate);
         }
       }
@@ -227,8 +259,14 @@ export default function ChatWidget() {
   }, [activeConv?.id]);
 
   const openConversation = async (conv: ChatConversation) => {
+    // Save current draft
+    if (activeConv && newMessage.trim()) draftsRef.current[activeConv.id] = newMessage;
+    else if (activeConv) delete draftsRef.current[activeConv.id];
     setActiveConv(conv); activeConvRef.current = conv; setMessages([]); setReplyTo(null); setShowMedia(false); setShowMembers(false); setShowPinned(false); setShowGroupInfo(false); setEditingMsg(null); setForwardMsg(null); setShowMessageSearch(false); setMessageSearch(''); setAttachedFiles([]);
-    try { const res = await chatApi.getMessages(conv.id, { limit: 50 }); if (res.success && res.data) setMessages(res.data); } catch {}
+    // Restore draft
+    setNewMessage(draftsRef.current[conv.id] || '');
+    // Find first unread for divider
+    try { const res = await chatApi.getMessages(conv.id, { limit: 50 }); if (res.success && res.data) { setMessages(res.data); const firstUnread = res.data.find((m: ChatMessage) => !m.isRead && m.senderId !== user?.id); setFirstUnreadId(firstUnread?.id || null); } } catch {}
     if (conv.isGroup) { try { const res = await chatApi.getGroupMembers(conv.id); if (res.success && res.data) setGroupMembers(res.data); } catch {} }
   };
 
@@ -271,6 +309,7 @@ export default function ChatWidget() {
       }
       // Message will be added via socket 'chat:message' event
       setNewMessage('');
+      if (activeConv) delete draftsRef.current[activeConv.id];
       setReplyTo(null);
       setAttachedFiles([]);
     } catch { showToast('Ошибка отправки', 'error'); }
@@ -368,8 +407,18 @@ export default function ChatWidget() {
 
 
   const filteredUsers = users.filter(u => u.id !== user?.id && (u.fullName.toLowerCase().includes(searchQuery.toLowerCase()) || u.username.toLowerCase().includes(searchQuery.toLowerCase())));
-  const filteredConvs = conversations.filter(c => (c.otherName || '').toLowerCase().includes(convFilter.toLowerCase()));
-  const filteredMessages = messageSearch ? messages.filter(m => m.type === 'text' && m.content.toLowerCase().includes(messageSearch.toLowerCase())) : messages;
+  const filteredConvs = conversations
+    .filter(c => (c.otherName || '').toLowerCase().includes(convFilter.toLowerCase()))
+    .sort((a, b) => {
+      const aPinned = localStorage.getItem(`nexus_chat_pinned_${a.id}`) === '1' ? 1 : 0;
+      const bPinned = localStorage.getItem(`nexus_chat_pinned_${b.id}`) === '1' ? 1 : 0;
+      return bPinned - aPinned;
+    });
+  const filteredMessages = messages.filter(m => {
+    if (messageTypeFilter !== 'all' && m.type !== messageTypeFilter) return false;
+    if (messageSearch && m.type === 'text' && !m.content.toLowerCase().includes(messageSearch.toLowerCase())) return false;
+    return true;
+  });
   const mediaPhotos = messages.filter(m => m.type === 'image');
   const mediaFiles = messages.filter(m => m.type === 'file');
   const mediaAudio = messages.filter(m => m.type === 'audio');
@@ -395,9 +444,12 @@ export default function ChatWidget() {
     );
   };
 
-  const ConversationItem = ({ conv, active }: { conv: ChatConversation; active: boolean }) => (
+  const ConversationItem = ({ conv, active }: { conv: ChatConversation; active: boolean }) => {
+    const isPinned = localStorage.getItem(`nexus_chat_pinned_${conv.id}`) === '1';
+    return (
     <button onClick={() => openConversation(conv)} className={`w-full flex items-center gap-3 px-4 py-3.5 transition-all duration-200 text-left relative overflow-hidden ${active ? '' : 'hover:bg-white/[0.03]'}`}
-      style={active ? { background: 'linear-gradient(135deg, rgba(0,255,136,0.08) 0%, rgba(0,212,255,0.04) 100%)', borderLeft: '2px solid var(--color-primary)' } : { borderLeft: '2px solid transparent' }}>
+      style={active ? { background: 'linear-gradient(135deg, rgba(0,255,136,0.08) 0%, rgba(0,212,255,0.04) 100%)', borderLeft: '2px solid var(--color-primary)' } : { borderLeft: '2px solid transparent' }}
+      onContextMenu={e => { e.preventDefault(); if (!conv.isGeneral) { const key = `nexus_chat_pinned_${conv.id}`; const isNowPinned = localStorage.getItem(key) === '1'; localStorage.setItem(key, isNowPinned ? '0' : '1'); showToast(isNowPinned ? 'Чат откреплён' : 'Чат закреплён', 'success'); fetchConversations(); } }}>
       {conv.isGeneral ? (
         <div className="w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'linear-gradient(135deg, rgba(0,255,136,0.15), rgba(0,212,255,0.1))', border: '1.5px solid rgba(0,255,136,0.3)', boxShadow: active ? '0 0 12px rgba(0,255,136,0.3)' : 'none' }}>
           <svg viewBox="0 0 120 120" width="24" height="24">
@@ -419,8 +471,10 @@ export default function ChatWidget() {
         {conv.otherPosition && !conv.isGroup && <span className="text-[9px] font-mono" style={{ color: '#5a5a70' }}>{conv.otherPosition}</span>}
         <p className="text-xs truncate mt-0.5" style={{ color: '#6a6a80' }}>{conv.lastMessagePreview || 'Нет сообщений'}</p>
       </div>
+      {isPinned && <span className="absolute top-1 right-1 text-[10px] opacity-50">📌</span>}
     </button>
   );
+  };
 
   // ─── Online status helper ─────────────────────────────────────
   const isOnline = (lastSeen?: string) => {
@@ -443,6 +497,51 @@ export default function ChatWidget() {
         }}
         title={online ? 'В сети' : `Был(а) ${formatLastSeen(lastSeen)}`}
       />
+    );
+  };
+
+  // ─── Voice Player with speed control ──────────────────────
+  const VoicePlayer = ({ src }: { src: string }) => {
+    const audioRef = useRef<HTMLAudioElement>(null);
+    const [playing, setPlaying] = useState(false);
+    const [speed, setSpeed] = useState(1);
+    const [progress, setProgress] = useState(0);
+    const [duration, setDuration] = useState(0);
+    const speeds = [0.5, 1, 1.5, 2];
+
+    const togglePlay = () => {
+      const audio = audioRef.current;
+      if (!audio) return;
+      if (playing) { audio.pause(); setPlaying(false); }
+      else { audio.play(); setPlaying(true); }
+    };
+
+    const cycleSpeed = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      const next = speeds[(speeds.indexOf(speed) + 1) % speeds.length];
+      setSpeed(next);
+      if (audioRef.current) audioRef.current.playbackRate = next;
+    };
+
+    return (
+      <div className="flex items-center gap-2 mb-1 min-w-[180px]">
+        <audio ref={audioRef} src={src} preload="metadata"
+          onTimeUpdate={() => { if (audioRef.current) setProgress(audioRef.current.currentTime); }}
+          onLoadedMetadata={() => { if (audioRef.current) setDuration(audioRef.current.duration); }}
+          onEnded={() => { setPlaying(false); setProgress(0); }} />
+        <button onClick={togglePlay} className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(0,255,136,0.15)', border: '1px solid rgba(0,255,136,0.3)' }}>
+          {playing ? <Square className="w-3.5 h-3.5" style={{ color: 'var(--color-primary)' }} /> : <span style={{ color: 'var(--color-primary)', fontSize: '14px' }}>▶</span>}
+        </button>
+        <div className="flex-1">
+          <div className="w-full h-1.5 rounded-full bg-white/10 overflow-hidden cursor-pointer" onClick={e => { const rect = e.currentTarget.getBoundingClientRect(); const pct = (e.clientX - rect.left) / rect.width; if (audioRef.current) { audioRef.current.currentTime = pct * audioRef.current.duration; setProgress(pct * audioRef.current.duration); } }}>
+            <div className="h-full rounded-full transition-all" style={{ width: duration ? `${(progress / duration) * 100}%` : '0%', background: 'var(--color-primary)' }} />
+          </div>
+          <div className="flex justify-between mt-0.5">
+            <span className="text-[9px] font-mono" style={{ color: '#5a5a70' }}>{fmtTime(Math.floor(progress))}</span>
+            <button onClick={cycleSpeed} className="text-[9px] font-mono px-1.5 py-0.5 rounded hover:bg-white/5 transition-colors" style={{ color: speed !== 1 ? 'var(--color-primary)' : '#5a5a70' }}>{speed}x</button>
+          </div>
+        </div>
+      </div>
     );
   };
 
@@ -488,7 +587,21 @@ export default function ChatWidget() {
               backdropFilter: 'blur(12px)',
               boxShadow: isMine ? '0 4px 16px rgba(0,255,136,0.1), 0 0 0 1px rgba(0,255,136,0.05)' : '0 4px 12px rgba(0,0,0,0.15), 0 0 0 1px rgba(255,255,255,0.03)',
             }}>
-            {!isMine && !isDeleted && msg.type !== 'image' && !isGrouped && <span className="text-[9px] font-mono font-bold block mb-1" style={{ color: '#00d4ff', textShadow: '0 0 6px rgba(0,212,255,0.3)' }}>{msg.senderName}</span>}
+            {!isMine && !isDeleted && msg.type !== 'image' && !isGrouped && (
+              <span className="text-[9px] font-mono font-bold block mb-1 cursor-pointer relative group/name" style={{ color: '#00d4ff', textShadow: '0 0 6px rgba(0,212,255,0.3)' }}
+                onMouseEnter={() => setProfileModal({ id: msg.senderId, fullName: msg.senderName || '', avatar: msg.senderAvatar || '', username: '', role: '', position: msg.senderPosition || '' } as any)}
+                onMouseLeave={() => setProfileModal(null)}>
+                {msg.senderName}
+                {/* Mini-profile tooltip */}
+                <div className="hidden group-hover/name:block absolute bottom-full left-0 mb-1 z-50 w-48 rounded-xl overflow-hidden pointer-events-none" style={{ background: 'linear-gradient(135deg, rgba(20,20,35,0.98), rgba(10,10,20,0.99))', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(24px)', boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}>
+                  <div className="p-3 text-center">
+                    <Avatar name={msg.senderName} avatar={msg.senderAvatar} size="lg" />
+                    <p className="font-mono text-xs font-bold text-gray-200 mt-2">{msg.senderName}</p>
+                    {msg.senderPosition && <p className="font-mono text-[10px] text-gray-500">{msg.senderPosition}</p>}
+                  </div>
+                </div>
+              </span>
+            )}
             {isDeleted ? <p className="text-xs italic" style={{ color: '#5a5a70' }}>Сообщение удалено</p> : <>
               {msg.type === 'image' && (
                 <div className="relative group/img" style={{ display: 'inline-block' }}>
@@ -516,15 +629,50 @@ export default function ChatWidget() {
                   const fileName = msg.caption || msg.content.split('/').pop() || 'Файл';
                   return <a href={url(msg.content)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-xs font-mono mb-1 px-2 py-1.5 rounded-lg transition-colors hover:bg-white/5" style={{ color: '#00d4ff', background: 'rgba(0,212,255,0.05)', border: '1px solid rgba(0,212,255,0.1)' }}><FileIcon className="w-4 h-4 flex-shrink-0" /> <span className="truncate max-w-[180px]">{fileName}</span></a>;
                 })()}
-                {msg.type === 'audio' && <audio controls src={url(msg.content)} className="max-w-[200px] h-8 mb-1" style={{ filter: 'invert(1) hue-rotate(180deg)' }} />}
+                {msg.type === 'audio' && <VoicePlayer src={url(msg.content)} />}
                 {msg.type === 'text' && (
                   // Check if it's a sticker (single emoji or short emoji-only message)
                   /^[\p{Emoji_Presentation}\p{Extended_Pictographic}\u200d\ufe0f]{1,4}$/u.test(msg.content.trim()) ? (
                     <div className="sticker-sent text-5xl py-1">{msg.content.trim()}</div>
                   ) : (
-                    <p className="text-[14px] whitespace-pre-wrap leading-relaxed" style={{ color: '#d0d0e0' }}>{renderMentions(msg.content, msg.mentionedUserIds || '', users)}</p>
+                    <div className="text-[14px] leading-relaxed chat-markdown" style={{ color: '#d0d0e0' }}>
+                      <ReactMarkdown components={{
+                        p: ({children}) => <p className="whitespace-pre-wrap mb-1 last:mb-0">{renderRichText(children, msg.mentionedUserIds || '', users)}</p>,
+                        strong: ({children}) => <strong className="font-bold text-gray-100">{children}</strong>,
+                        em: ({children}) => <em className="italic text-gray-200">{children}</em>,
+                        code: ({children, className}) => className?.includes('language-')
+                          ? <pre className="bg-black/30 rounded-lg p-2 my-1 text-xs overflow-x-auto"><code>{children}</code></pre>
+                          : <code className="bg-black/30 px-1.5 py-0.5 rounded text-[13px] font-mono" style={{ color: '#00d4ff' }}>{children}</code>,
+                        del: ({children}) => <del className="line-through text-gray-500">{children}</del>,
+                        a: ({href, children}) => <a href={href} target="_blank" rel="noopener noreferrer" className="underline" style={{ color: '#00d4ff' }}>{children}</a>,
+                      }}>{msg.content}</ReactMarkdown>
+                      {msg.mentionedUserIds && <span className="hidden">{renderMentions('', msg.mentionedUserIds, users)}</span>}
+                    </div>
                   )
                 )}
+                {/* Link preview */}
+                {msg.type === 'text' && /https?:\/\/[^\s]+/.test(msg.content) && (() => {
+                  const urls = msg.content.match(/https?:\/\/[^\s]+/g) || [];
+                  return urls.slice(0, 2).map((u, idx) => {
+                    try {
+                      const parsed = new URL(u);
+                      const domain = parsed.hostname.replace('www.', '');
+                      const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(parsed.pathname);
+                      if (isImage) return null; // images are handled separately
+                      return (
+                        <a key={idx} href={u} target="_blank" rel="noopener noreferrer" className="block mt-1.5 rounded-xl overflow-hidden transition-all hover:border-[rgba(0,212,255,0.3)]" style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                          <div className="flex items-center gap-2 px-3 py-2">
+                            <img src={`https://www.google.com/s2/favicons?domain=${domain}&sz=16`} alt="" className="w-4 h-4 rounded" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                            <div className="flex-1 min-w-0">
+                              <span className="text-[10px] font-mono block truncate" style={{ color: '#5a5a70' }}>{domain}</span>
+                              <span className="text-[11px] block truncate" style={{ color: '#8a8aa0' }}>{parsed.pathname !== '/' ? parsed.pathname : u}</span>
+                            </div>
+                          </div>
+                        </a>
+                      );
+                    } catch { return null; }
+                  });
+                })()}
                 <div className="flex items-center justify-end gap-1.5 mt-1.5">
                   {msg.editedAt && <span className="text-[7px] font-mono" style={{ color: '#5a5a70' }}>изм.</span>}
                   <span className="text-[11px] font-mono" style={{ color: '#6a6a80' }}>{fmtMsgTime(msg.createdAt)}</span>
@@ -568,19 +716,27 @@ export default function ChatWidget() {
       const prevMsg = i > 0 ? filteredMessages[i - 1] : null;
       const showDate = !prevMsg || new Date(msg.createdAt).toDateString() !== new Date(prevMsg.createdAt).toDateString();
       const isGrouped = !showDate && prevMsg && prevMsg.senderId === msg.senderId && prevMsg.type !== 'image' && msg.type !== 'image';
+      const showUnreadDivider = firstUnreadId === msg.id;
       return (
-        <div key={msg.id}>
+        <div key={msg.id} id={`msg-${msg.id}`}>
+          {showUnreadDivider && (
+            <div className="flex items-center gap-3 py-3">
+              <div className="flex-1 h-px" style={{ background: 'rgba(0,255,136,0.3)' }} />
+              <span className="text-[10px] font-mono px-3 py-1 rounded-full font-bold" style={{ background: 'rgba(0,255,136,0.1)', color: 'var(--color-primary)', border: '1px solid rgba(0,255,136,0.2)' }}>Новые сообщения</span>
+              <div className="flex-1 h-px" style={{ background: 'rgba(0,255,136,0.3)' }} />
+            </div>
+          )}
           {showDate && <DateSeparator date={msg.createdAt} />}
           <MessageBubble msg={msg} isGrouped={isGrouped} />
         </div>
       );
     })
-  ), [filteredMessages, user?.id]);
+  ), [filteredMessages, user?.id, firstUnreadId]);
 
   const messagesAreaContent = (
     <>
       <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-5 py-4 space-y-4 relative"
-        style={{ background: 'linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.2) 100%)' }}
+        style={{ background: chatWallpaper ? `url(${chatWallpaper}) center/cover` : 'linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.2) 100%)' }}
         onDragOver={handleChatDragOver} onDragLeave={handleChatDragLeave} onDrop={handleChatDrop}>
         {chatDragOver && (
           <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none" style={{ background: 'rgba(0,255,136,0.05)', backdropFilter: 'blur(2px)' }}>
@@ -748,6 +904,18 @@ export default function ChatWidget() {
           <div className="px-4 py-2 flex gap-1.5 flex-wrap">
             {REACTION_EMOJI.map(e => <motion.button key={e} whileHover={{ scale: 1.2 }} whileTap={{ scale: 0.9 }} onClick={() => { handleReaction(msg.id, e); setContextMenu(null); }} className="text-base hover:bg-white/10 rounded-lg p-1 transition-colors">{e}</motion.button>)}
           </div>
+          <div className="mx-3 my-1.5 h-px" style={{ background: 'rgba(255,255,255,0.06)' }} />
+          <button onClick={async () => {
+            try {
+              const title = msg.content.slice(0, 80) || 'Задача из чата';
+              const res = await kanbanApi.create({ title, description: `Из чата: ${msg.content}` });
+              if (res.success) showToast('Задача создана', 'success');
+            } catch { showToast('Ошибка', 'error'); }
+            setContextMenu(null);
+          }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs hover:bg-white/5 transition-colors" style={{ color: '#c0c0d0' }}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 12l2 2 4-4"/></svg>
+            Создать задачу
+          </button>
           {(isMine || user?.role === 'super_admin') && <><div className="mx-3 my-1.5 h-px" style={{ background: 'rgba(255,255,255,0.06)' }} /><button onClick={() => handleDeleteMessage(msg)} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs transition-colors" style={{ color: '#ff6b6b' }}><Trash2 className="w-3.5 h-3.5" /> Удалить</button></>}
         </motion.div>
       </div>
@@ -954,6 +1122,30 @@ export default function ChatWidget() {
           <div><span className="text-[9px] font-mono block mb-1.5" style={{ color: '#4a4a60' }}>Личные</span><div className="flex flex-wrap gap-1">{SOUNDS.map(s => <button key={s.id} onClick={() => { setSoundPrivate(s.id); playSound(s.id); }} className="px-2.5 py-1 rounded-lg text-[9px] font-mono transition-all" style={soundPrivate === s.id ? { background: 'rgba(0,255,136,0.15)', color: 'var(--color-primary)', border: '1px solid rgba(0,255,136,0.3)' } : { color: '#5a5a70', border: '1px solid transparent' }}>{s.name}</button>)}</div></div>
           <div><span className="text-[9px] font-mono block mb-1.5" style={{ color: '#4a4a60' }}>Группы</span><div className="flex flex-wrap gap-1">{SOUNDS.map(s => <button key={s.id} onClick={() => { setSoundGroup(s.id); playSound(s.id); }} className="px-2.5 py-1 rounded-lg text-[9px] font-mono transition-all" style={soundGroup === s.id ? { background: 'rgba(0,255,136,0.15)', color: 'var(--color-primary)', border: '1px solid rgba(0,255,136,0.3)' } : { color: '#5a5a70', border: '1px solid transparent' }}>{s.name}</button>)}</div></div>
           <div><span className="text-[9px] font-mono block mb-1.5" style={{ color: '#4a4a60' }}>Тема</span><div className="flex gap-1">{(['dark', 'light'] as const).map(t => <button key={t} onClick={() => setChatTheme(t)} className="flex-1 px-2.5 py-1.5 rounded-lg text-[9px] font-mono transition-all" style={chatTheme === t ? { background: 'rgba(0,255,136,0.15)', color: 'var(--color-primary)', border: '1px solid rgba(0,255,136,0.3)' } : { color: '#5a5a70', border: '1px solid transparent' }}>{t === 'dark' ? 'Тёмная' : 'Светлая'}</button>)}</div></div>
+          <div className="pt-2 border-t border-white/5">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[9px] font-mono" style={{ color: '#4a4a60' }}>НЕ БЕСПОКОИТЬ</span>
+              <button onClick={() => setDndEnabled(!dndEnabled)} className={`w-8 h-4 rounded-full transition-colors relative ${dndEnabled ? 'bg-[var(--color-primary)]' : 'bg-[#3a3a50]'}`}>
+                <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-transform ${dndEnabled ? 'translate-x-4' : 'translate-x-0.5'}`} />
+              </button>
+            </div>
+            {dndEnabled && (
+              <div className="flex items-center gap-2 mt-1">
+                <input type="time" value={dndStart} onChange={e => setDndStart(e.target.value)} className="px-2 py-1 rounded text-[10px] font-mono bg-black/30 border border-gray-700 text-gray-300 focus:outline-none w-20" />
+                <span className="text-[10px] font-mono text-gray-500">—</span>
+                <input type="time" value={dndEnd} onChange={e => setDndEnd(e.target.value)} className="px-2 py-1 rounded text-[10px] font-mono bg-black/30 border border-gray-700 text-gray-300 focus:outline-none w-20" />
+              </div>
+            )}
+          </div>
+          <div className="pt-2 border-t border-white/5">
+            <span className="text-[9px] font-mono block mb-1.5" style={{ color: '#4a4a60' }}>ФОН ЧАТА</span>
+            <div className="flex flex-wrap gap-1">
+              {[{ label: 'Стандарт', value: '' }, { label: 'Космос', value: 'linear-gradient(135deg, #0a0a1a, #1a0a2e)' }, { label: 'Океан', value: 'linear-gradient(135deg, #0a1a2e, #0a2e1a)' }, { label: 'Закат', value: 'linear-gradient(135deg, #2e1a0a, #2e0a1a)' }].map(w => (
+                <button key={w.label} onClick={() => setChatWallpaper(w.value)} className="px-2 py-1 rounded text-[9px] font-mono transition-all"
+                  style={chatWallpaper === w.value ? { background: 'rgba(0,255,136,0.15)', color: 'var(--color-primary)', border: '1px solid rgba(0,255,136,0.3)' } : { color: '#5a5a70', border: '1px solid transparent' }}>{w.label}</button>
+              ))}
+            </div>
+          </div>
         </>)}
       </div>
     </motion.div>
@@ -1008,15 +1200,25 @@ export default function ChatWidget() {
             <div className="flex items-center gap-2 px-3 py-2.5" style={{ borderBottom: glassBorder }}>
               <Search className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--color-primary)' }} />
               <input value={messageSearch} onChange={e => setMessageSearch(e.target.value)} autoFocus placeholder="Поиск сообщений..." className="flex-1 bg-transparent text-sm outline-none font-mono" style={{ color: '#e0e0e0' }} />
-              <button onClick={() => { setShowMessageSearch(false); setMessageSearch(''); }} className="p-1 rounded-lg hover:bg-white/5"><X className="w-3.5 h-3.5" style={{ color: '#6a6a80' }} /></button>
+              <button onClick={() => { setShowMessageSearch(false); setMessageSearch(''); setMessageTypeFilter('all'); }} className="p-1 rounded-lg hover:bg-white/5"><X className="w-3.5 h-3.5" style={{ color: '#6a6a80' }} /></button>
             </div>
-            {messageSearch && filteredMessages.length > 0 && (
+            <div className="flex gap-1 px-3 py-1.5" style={{ borderBottom: glassBorder }}>
+              {([['all', 'Все'], ['text', '📝'], ['image', '🖼'], ['file', '📎'], ['audio', '🎤']] as const).map(([key, label]) => (
+                <button key={key} onClick={() => setMessageTypeFilter(key)} className="px-2 py-0.5 rounded text-[9px] font-mono transition-all"
+                  style={messageTypeFilter === key ? { background: 'rgba(0,255,136,0.15)', color: 'var(--color-primary)' } : { color: '#5a5a70' }}>{label}</button>
+              ))}
+            </div>
+            {filteredMessages.length > 0 && (
               <div className="max-h-48 overflow-y-auto">
-                {filteredMessages.slice(0, 10).map(m => (
-                  <button key={m.id} onClick={() => { setShowMessageSearch(false); setMessageSearch(''); messagesContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                {filteredMessages.slice(-10).map(m => (
+                  <button key={m.id} onClick={() => {
+                    setShowMessageSearch(false); setMessageSearch('');
+                    const el = document.getElementById(`msg-${m.id}`);
+                    if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.classList.add('ring-2', 'ring-[var(--color-primary)]'); setTimeout(() => el.classList.remove('ring-2', 'ring-[var(--color-primary)]'), 2000); }
+                  }}
                     className="w-full flex items-start gap-2 px-3 py-2 hover:bg-white/[0.03] transition-colors text-left">
                     <span className="text-[9px] font-mono mt-0.5 flex-shrink-0" style={{ color: '#5a5a70' }}>{m.senderName}</span>
-                    <span className="text-xs truncate" style={{ color: '#8a8aa0' }}>{m.content}</span>
+                    <span className="text-xs truncate" style={{ color: '#8a8aa0' }}>{m.type === 'text' ? m.content : `[${m.type === 'image' ? 'Фото' : m.type === 'audio' ? 'Голос' : 'Файл'}]`}</span>
                   </button>
                 ))}
               </div>
@@ -1047,6 +1249,7 @@ export default function ChatWidget() {
           className="fixed right-6 w-14 h-14 rounded-full flex items-center justify-center z-[50]"
           style={{ bottom: 'calc(1.5rem + 25px)', background: `linear-gradient(135deg, var(--color-primary), var(--color-secondary))`, color: '#000', boxShadow: `0 0 20px var(--color-glow), 0 4px 16px rgba(0,0,0,0.3)` }}>
           {isOpen ? <X className="w-6 h-6" /> : <MessageCircle className="w-6 h-6" />}
+          {!isOpen && isDndActive() && <span className="absolute -top-1 -left-1 w-4 h-4 rounded-full flex items-center justify-center text-[8px]" style={{ background: '#4a4a60', border: '2px solid var(--color-bg)' }}>🔇</span>}
           {!isOpen && unreadTotal > 0 && <span className="absolute -top-1 -right-1 min-w-[20px] h-[20px] rounded-full flex items-center justify-center text-[10px] font-bold font-mono px-1"
             style={{ background: 'linear-gradient(135deg, #ff3b30, #cc0000)', color: '#fff', boxShadow: '0 0 12px rgba(255,59,48,0.5)' }}>{unreadTotal > 99 ? '99+' : unreadTotal}</span>}
         </motion.button>

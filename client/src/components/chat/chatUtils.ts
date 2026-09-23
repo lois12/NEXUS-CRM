@@ -46,5 +46,32 @@ export function renderMentions(text: string, ids: string, users: User[]) {
   });
 }
 
+export function renderRichText(children: any, mentionIds: string, users: User[]): any {
+  // Process React children to detect @mentions and #task references
+  if (typeof children === 'string') {
+    const parts: any[] = [];
+    let key = 0;
+    // Split by @mentions and #task patterns
+    const regex = /(@\w+|#task[\s-]+\d+|#задача[\s-]+\d+)/gi;
+    let lastIdx = 0;
+    let match;
+    while ((match = regex.exec(children)) !== null) {
+      if (match.index > lastIdx) parts.push(children.slice(lastIdx, match.index));
+      const token = match[0];
+      if (token.startsWith('@')) {
+        parts.push(createElement('span', { key: key++, className: 'font-bold', style: { color: '#00d4ff' } }, token));
+      } else {
+        parts.push(createElement('span', { key: key++, className: 'font-bold cursor-pointer underline', style: { color: '#eab308' }, onClick: () => { window.dispatchEvent(new CustomEvent('nexus:open-task', { detail: { token } })); } }, token));
+      }
+      lastIdx = regex.lastIndex;
+    }
+    if (lastIdx < children.length) parts.push(children.slice(lastIdx));
+    return parts.length > 0 ? parts : children;
+  }
+  // If children is an array (React elements), recurse
+  if (Array.isArray(children)) return children.map((child) => typeof child === 'string' ? renderRichText(child, mentionIds, users) : child);
+  return children;
+}
+
 export function fmtMsgTime(d: string) { return formatTimeKR(d); }
 export function fmtTime(s: number) { return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; }
