@@ -1,8 +1,10 @@
 import { useState, useMemo } from 'react';
-import { Download, X, CheckCircle, Clock, XCircle, Search, ArrowUpDown, ArrowUp, ArrowDown, Layers } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Download, X, CheckCircle, Clock, XCircle, Search, ArrowUpDown, ArrowUp, ArrowDown, Layers, UserPlus, Mail } from 'lucide-react';
 import { RegistrationField, RegistrationSubmission } from '../../types';
 import { registrationsApi } from '../../services/api';
 import { showToast } from '../ui/NexusModal';
+import FieldRenderer from './FieldRenderer';
 
 interface SubmissionsTableProps {
   registrationId: string;
@@ -33,6 +35,13 @@ export default function SubmissionsTable({ registrationId, fields, submissions, 
   const [sortCol, setSortCol] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>(null);
   const [groupByCols, setGroupByCols] = useState<string[]>([]);
+
+  // Admin submission modal
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [addForm, setAddForm] = useState({ contactName: '', contactEmail: '', contactPhone: '' });
+  const [addAnswers, setAddAnswers] = useState<Record<string, string>>({});
+  const [sendEmail, setSendEmail] = useState(true);
+  const [adding, setAdding] = useState(false);
 
   // Available group columns
   const groupConfigs: GroupConfig[] = useMemo(() => [
@@ -160,6 +169,31 @@ export default function SubmissionsTable({ registrationId, fields, submissions, 
     } catch { showToast('Ошибка экспорта', 'error'); }
   };
 
+  const handleAddSubmit = async () => {
+    if (!addForm.contactName.trim()) { showToast('Введите имя участника', 'error'); return; }
+    setAdding(true);
+    try {
+      const res = await registrationsApi.createAdminSubmission(registrationId, {
+        contactName: addForm.contactName.trim(),
+        contactEmail: addForm.contactEmail.trim() || undefined,
+        contactPhone: addForm.contactPhone.trim() || undefined,
+        answers: addAnswers,
+        sendEmail,
+      });
+      if (res.success) {
+        showToast(sendEmail && addForm.contactEmail ? 'Заявка добавлена, письмо отправлено' : 'Заявка добавлена', 'success');
+        setShowAddModal(false);
+        setAddForm({ contactName: '', contactEmail: '', contactPhone: '' });
+        setAddAnswers({});
+        onRefresh();
+      } else {
+        showToast(res.error || 'Ошибка', 'error');
+      }
+    } catch (e: any) {
+      showToast(e?.response?.data?.error || 'Ошибка добавления', 'error');
+    } finally { setAdding(false); }
+  };
+
   const dataFields = fields.filter(f => !['heading', 'paragraph', 'divider', 'page_break'].includes(f.type));
 
   return (
@@ -168,6 +202,10 @@ export default function SubmissionsTable({ registrationId, fields, submissions, 
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h2 className="font-mono text-lg font-bold neon-text" style={{ color: 'var(--color-primary)' }}>ЗАЯВКИ ({submissions.length})</h2>
         <div className="flex items-center gap-2">
+          <button onClick={() => setShowAddModal(true)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-mono text-xs font-bold transition-all"
+            style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}>
+            <UserPlus className="w-3.5 h-3.5" /> ДОБАВИТЬ
+          </button>
           <button onClick={handleExport} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-mono text-xs glass hover:bg-white/10 transition-colors">
             <Download className="w-3.5 h-3.5" /> CSV
           </button>
@@ -303,6 +341,100 @@ export default function SubmissionsTable({ registrationId, fields, submissions, 
           })}
         </div>
       )}
+
+      {/* Admin submission modal */}
+      <AnimatePresence>
+        {showAddModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+            style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }}
+            onClick={() => setShowAddModal(false)}>
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
+              className="glass-frost rounded-2xl w-full max-w-lg max-h-[85vh] flex flex-col"
+              onClick={e => e.stopPropagation()}>
+              {/* Modal header */}
+              <div className="flex items-center justify-between px-6 pt-6 pb-2">
+                <h3 className="font-mono text-sm font-bold" style={{ color: 'var(--color-primary)' }}>
+                  ДОБАВИТЬ УЧАСТНИКА
+                </h3>
+                <button onClick={() => setShowAddModal(false)} className="p-1.5 rounded-lg hover:bg-white/10">
+                  <X className="w-4 h-4 text-gray-400" />
+                </button>
+              </div>
+
+              {/* Scrollable body */}
+              <div className="px-6 py-4 space-y-4 overflow-y-auto flex-1">
+                {/* Contact fields */}
+                <div className="space-y-3">
+                  <label className="block">
+                    <span className="font-mono text-sm text-gray-300">Имя <span className="text-red-400">*</span></span>
+                    <input value={addForm.contactName} onChange={e => setAddForm({ ...addForm, contactName: e.target.value })}
+                      placeholder="// ИМЯ УЧАСТНИКА"
+                      className="mt-1 w-full px-4 py-2.5 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)]" />
+                  </label>
+                  <label className="block">
+                    <span className="font-mono text-sm text-gray-300">Email</span>
+                    <input type="email" value={addForm.contactEmail} onChange={e => setAddForm({ ...addForm, contactEmail: e.target.value })}
+                      placeholder="email@example.com"
+                      className="mt-1 w-full px-4 py-2.5 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)]" />
+                  </label>
+                  <label className="block">
+                    <span className="font-mono text-sm text-gray-300">Телефон</span>
+                    <input type="tel" value={addForm.contactPhone} onChange={e => setAddForm({ ...addForm, contactPhone: e.target.value })}
+                      placeholder="+7 (999) 999-99-99"
+                      className="mt-1 w-full px-4 py-2.5 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)]" />
+                  </label>
+                </div>
+
+                {/* Dynamic registration fields */}
+                {dataFields.length > 0 && (
+                  <div className="space-y-3 pt-2 border-t border-white/5">
+                    <span className="font-mono text-[10px] text-gray-500 tracking-wider">ДОПОЛНИТЕЛЬНЫЕ ПОЛЯ</span>
+                    {dataFields.map(field => (
+                      <FieldRenderer key={field.id} field={field}
+                        value={addAnswers[field.id] || ''}
+                        onChange={val => setAddAnswers(prev => ({ ...prev, [field.id]: val }))} />
+                    ))}
+                  </div>
+                )}
+
+                {/* Send email checkbox */}
+                <div className="pt-2 border-t border-white/5">
+                  <label onClick={() => setSendEmail(!sendEmail)}
+                    className="flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer transition-all hover:bg-white/5"
+                    style={{ border: sendEmail ? '1px solid rgba(0,255,136,0.3)' : '1px solid rgba(255,255,255,0.06)', background: sendEmail ? 'rgba(0,255,136,0.05)' : 'transparent' }}>
+                    <div className="w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0"
+                      style={{ borderColor: sendEmail ? 'var(--color-primary)' : '#4a4a60', background: sendEmail ? 'var(--color-primary)' : 'transparent' }}>
+                      {sendEmail && <span className="text-black text-xs font-bold">&#10003;</span>}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Mail className="w-4 h-4 text-gray-400" />
+                      <div>
+                        <span className="font-mono text-sm text-gray-200 block">Отправить письмо с QR-кодом</span>
+                        <span className="font-mono text-[10px] text-gray-500 block">Участник получит подтверждение на email</span>
+                      </div>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              {/* Modal footer */}
+              <div className="px-6 py-4 border-t border-white/5 flex items-center justify-end gap-3">
+                <button onClick={() => setShowAddModal(false)}
+                  className="px-4 py-2 rounded-lg font-mono text-sm text-gray-400 hover:bg-white/10 transition-colors">
+                  ОТМЕНА
+                </button>
+                <button onClick={handleAddSubmit} disabled={adding}
+                  className="flex items-center gap-2 px-5 py-2 rounded-lg font-mono text-sm font-bold disabled:opacity-50 transition-all"
+                  style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}>
+                  <UserPlus className="w-4 h-4" />
+                  {adding ? 'ДОБАВЛЕНИЕ...' : 'ДОБАВИТЬ'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

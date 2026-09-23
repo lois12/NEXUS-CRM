@@ -532,6 +532,81 @@ export const submitRegistration = (req: AuthRequest, res: Response) => {
   }
 };
 
+// ── Admin: manually create submission (works in any status) ──
+
+export const createAdminSubmission = (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const reg = get('SELECT * FROM registrations WHERE id = ?', [id]);
+    if (!reg) return res.status(404).json({ success: false, error: 'Регистрация не найдена' });
+
+    const { contactName, contactEmail, contactPhone, answers, sendEmail } = req.body;
+
+    if (!contactName?.trim()) return res.status(400).json({ success: false, error: 'Имя обязательно' });
+
+    // Skip duplicate check — admin can re-add
+
+    const submissionId = uuidv4();
+    const cancelToken = uuidv4();
+    const checkinToken = uuidv4();
+    const confirmCode = String(Math.floor(1000 + Math.random() * 9000));
+
+    run(`INSERT INTO registration_submissions (id, registrationId, userId, answers, contactName, contactEmail, contactPhone, status, cancelToken, checkinToken, confirmCode, position)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 'registered', ?, ?, ?, 0)`,
+      [submissionId, id, req.user?.id || null, JSON.stringify(answers || {}), contactName.trim(), contactEmail?.trim() || '', contactPhone?.trim() || '', cancelToken, checkinToken, confirmCode]);
+
+    const submission = get('SELECT * FROM registration_submissions WHERE id = ?', [submissionId]);
+    res.status(201).json({ success: true, data: { ...submission, cancelToken, checkinToken, confirmCode } });
+
+    // Send email if requested (fire-and-forget)
+    if (sendEmail && contactEmail?.trim()) {
+      (async () => {
+        try {
+          const origin = `${req.protocol}://${req.get('host')}`;
+          await sendRegistrationConfirm(contactEmail.trim(), {
+            name: contactName.trim() || 'Участник',
+            eventTitle: reg.title,
+            eventDate: reg.eventDate,
+            eventTime: reg.eventTime,
+            location: reg.location,
+            mapCoords: reg.mapCoords,
+            organizer: reg.organizer,
+            description: reg.description,
+            status: 'registered',
+            checkinToken,
+            confirmCode,
+            cancelToken,
+            origin,
+          });
+        } catch (e) {
+          console.error('[AdminSubmission] email error:', e);
+        }
+      })();
+    }
+
+    // Notify admins (fire-and-forget)
+    (async () => {
+      try {
+        const admins = query("SELECT id FROM users WHERE role IN ('администратор', 'admin') OR roles LIKE '%admin%'");
+        for (const admin of admins) {
+          createNotification({
+            userId: admin.id,
+            type: 'registration',
+            title: 'Добавлена заявка вручную',
+            body: `${contactName} → "${reg.title}" (добавлено администратором)`,
+            link: '/registrations',
+          });
+        }
+      } catch (e) {
+        console.error('[AdminSubmission] notification error:', e);
+      }
+    })();
+  } catch (error) {
+    console.error('CreateAdminSubmission error:', error);
+    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+  }
+};
+
 // ── Get submissions ──
 
 export const getSubmissions = (req: AuthRequest, res: Response) => {

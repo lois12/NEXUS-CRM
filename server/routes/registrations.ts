@@ -5,7 +5,7 @@ import {
   getBySlug, submitRegistration, getSubmissions, cancelSubmission, cancelByToken, deleteSubmission, exportCSV,
   getMedia, uploadMedia, deleteMedia,
   checkinGet, checkinPost, checkinByCode, getParticipants, toggleAttended, updateAndNotify,
-  getPublicRegistrations, getPublicSubmissions,
+  getPublicRegistrations, getPublicSubmissions, createAdminSubmission,
 } from '../controllers/registrationController';
 import { authenticateToken, requireRole } from '../middleware/auth';
 import { upload } from '../middleware/upload';
@@ -52,6 +52,7 @@ authRouter.put('/:id/fields-reorder', requireRole('super_admin', 'руковод
 
 // Submissions
 authRouter.get('/:id/submissions', getSubmissions);
+authRouter.post('/:id/admin-submission', requireRole('super_admin', 'руководитель', 'редактор'), createAdminSubmission);
 authRouter.delete('/submissions/:subId', cancelSubmission);
 authRouter.delete('/submissions/:subId/delete', requireRole('super_admin', 'руководитель'), deleteSubmission);
 authRouter.get('/:id/submissions/export', exportCSV);
