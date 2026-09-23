@@ -240,14 +240,14 @@ export default function BrandBank() {
                       <CatIcon className="w-10 h-10 text-gray-600" />
                     )}
                     {/* Overlay actions */}
-                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                      <button onClick={() => openEditModal(a)} className="p-2 rounded-lg bg-white/20 hover:bg-white/30 transition-colors" title="Редактировать">
+                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 pointer-events-none">
+                      <button onClick={() => openEditModal(a)} className="p-2 rounded-lg bg-white/20 hover:bg-white/30 transition-colors pointer-events-auto" title="Редактировать">
                         <Edit3 className="w-4 h-4 text-white" />
                       </button>
-                      <a href={a.url} download className="p-2 rounded-lg bg-white/20 hover:bg-white/30 transition-colors" title="Скачать">
+                      <a href={a.url} download className="p-2 rounded-lg bg-white/20 hover:bg-white/30 transition-colors pointer-events-auto" title="Скачать">
                         <Download className="w-4 h-4 text-white" />
                       </a>
-                      <button onClick={() => handleDelete(a)} className="p-2 rounded-lg bg-red-500/20 hover:bg-red-500/40 transition-colors" title="Удалить">
+                      <button onClick={() => handleDelete(a)} className="p-2 rounded-lg bg-red-500/20 hover:bg-red-500/40 transition-colors pointer-events-auto" title="Удалить">
                         <Trash2 className="w-4 h-4 text-red-400" />
                       </button>
                     </div>

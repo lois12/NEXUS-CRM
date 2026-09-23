@@ -53,6 +53,61 @@ const CITIES = [
   { name: 'Владивосток', lat: 43.1332, lon: 131.9113 },
 ];
 
+// Map wttr.in weather codes to Open-Meteo WMO codes for icon/color rendering
+function mapWttrCode(wttrCode: number): number {
+  const map: Record<number, number> = {
+    113: 0,   // Sunny / Clear
+    116: 1,   // Partly cloudy
+    119: 2,   // Cloudy
+    122: 3,   // Overcast
+    143: 45,  // Mist
+    176: 61,  // Patchy rain possible
+    179: 71,  // Patchy snow possible
+    182: 61,  // Patchy sleet possible
+    185: 61,  // Patchy freezing drizzle
+    200: 95,  // Thundery outbreaks possible
+    227: 71,  // Blowing snow
+    230: 77,  // Blizzard
+    248: 45,  // Fog
+    260: 48,  // Freezing fog
+    263: 51,  // Patchy light drizzle
+    266: 53,  // Light drizzle
+    281: 55,  // Freezing drizzle
+    284: 57,  // Heavy freezing drizzle
+    293: 61,  // Patchy light rain
+    296: 61,  // Light rain
+    299: 63,  // Moderate rain at times
+    302: 63,  // Moderate rain
+    305: 65,  // Heavy rain at times
+    308: 65,  // Heavy rain
+    311: 66,  // Light freezing rain
+    314: 67,  // Moderate or heavy freezing rain
+    317: 61,  // Light sleet
+    320: 63,  // Moderate or heavy sleet
+    323: 71,  // Patchy light snow
+    326: 71,  // Light snow
+    329: 73,  // Patchy moderate snow
+    332: 73,  // Moderate snow
+    335: 75,  // Patchy heavy snow
+    338: 75,  // Heavy snow
+    350: 66,  // Ice pellets
+    353: 80,  // Light rain shower
+    356: 81,  // Moderate or heavy rain shower
+    359: 82,  // Torrential rain shower
+    362: 85,  // Light sleet showers
+    365: 85,  // Moderate or heavy sleet showers
+    368: 85,  // Light snow showers
+    371: 86,  // Moderate or heavy snow showers
+    374: 85,  // Light showers of ice pellets
+    377: 86,  // Moderate or heavy showers of ice pellets
+    386: 95,  // Patchy light rain with thunder
+    389: 96,  // Moderate or heavy rain with thunder
+    392: 95,  // Patchy light snow with thunder
+    395: 96,  // Moderate or heavy snow with thunder
+  };
+  return map[wttrCode] ?? 3;
+}
+
 function getWeatherIcon(code: number, isDay: boolean = true) {
   if (code === 0) return isDay ? Sun : Cloud;
   if (code <= 3) return Cloud;
@@ -281,55 +336,60 @@ export default function Weather() {
     const timeout = setTimeout(() => controller.abort(), 10000);
 
     try {
-      const currentRes = await fetch(
-        `https://api.open-meteo.com/v1/forecast?latitude=${selectedCity.lat}&longitude=${selectedCity.lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m,weather_code,is_day,surface_pressure,visibility&daily=sunrise,sunset&timezone=auto&forecast_days=1`,
+      const res = await fetch(
+        `https://wttr.in/${selectedCity.name}?format=j1`,
         { signal: controller.signal }
       );
-      const currentData = await currentRes.json();
+      const data = await res.json();
 
-      if (currentData.current) {
+      // Current conditions
+      if (data.current_condition?.[0]) {
+        const cc = data.current_condition[0];
+        const astro = data.weather?.[0]?.astronomy?.[0];
         setCurrentWeather({
-          temperature: currentData.current.temperature_2m,
-          humidity: currentData.current.relative_humidity_2m,
-          windSpeed: currentData.current.wind_speed_10m,
-          windDirection: currentData.current.wind_direction_10m,
-          weatherCode: currentData.current.weather_code,
-          isDay: currentData.current.is_day,
-          time: currentData.current.time,
-          pressure: currentData.current.surface_pressure,
-          visibility: currentData.current.visibility,
-          sunrise: currentData.daily?.sunrise?.[0] || '',
-          sunset: currentData.daily?.sunset?.[0] || '',
+          temperature: parseInt(cc.temp_C) || 0,
+          humidity: parseInt(cc.humidity) || 0,
+          windSpeed: parseInt(cc.windspeedKmph) || 0,
+          windDirection: parseInt(cc.winddirDegree) || 0,
+          weatherCode: mapWttrCode(parseInt(cc.weatherCode) || 0),
+          isDay: 1,
+          time: cc.observation_time || '',
+          pressure: parseInt(cc.pressure) || 0,
+          visibility: parseInt(cc.visibility) || 0,
+          sunrise: astro?.sunrise || '',
+          sunset: astro?.sunset || '',
         });
       }
 
-      const forecastRes = await fetch(
-        `https://api.open-meteo.com/v1/forecast?latitude=${selectedCity.lat}&longitude=${selectedCity.lon}&daily=temperature_2m_max,temperature_2m_min,weather_code,precipitation_sum,sunrise,sunset&hourly=temperature_2m,weather_code,wind_speed_10m,precipitation&timezone=auto&forecast_days=7`,
-        { signal: controller.signal }
-      );
-      const forecastData = await forecastRes.json();
-
-      if (forecastData.daily) {
-        const days: ForecastDay[] = forecastData.daily.time.map((date: string, i: number) => ({
-          date,
-          tempMax: forecastData.daily.temperature_2m_max[i],
-          tempMin: forecastData.daily.temperature_2m_min[i],
-          weatherCode: forecastData.daily.weather_code[i],
-          precipitation: forecastData.daily.precipitation_sum[i],
-          sunrise: forecastData.daily.sunrise?.[i] || '',
-          sunset: forecastData.daily.sunset?.[i] || '',
+      // Forecast (wttr.in gives 3 days)
+      if (data.weather) {
+        const days: ForecastDay[] = data.weather.map((d: any) => ({
+          date: d.date,
+          tempMax: parseInt(d.maxtempC) || 0,
+          tempMin: parseInt(d.mintempC) || 0,
+          weatherCode: mapWttrCode(parseInt(d.hourly?.[4]?.weatherCode) || 0),
+          precipitation: parseFloat(d.hourly?.[4]?.precipMM) || 0,
+          sunrise: d.astronomy?.[0]?.sunrise || '',
+          sunset: d.astronomy?.[0]?.sunset || '',
         }));
         setForecast(days);
-      }
 
-      if (forecastData.hourly) {
-        const hourly: HourlyForecast[] = forecastData.hourly.time.map((time: string, i: number) => ({
-          time,
-          temperature: forecastData.hourly.temperature_2m[i],
-          weatherCode: forecastData.hourly.weather_code[i],
-          windSpeed: forecastData.hourly.wind_speed_10m[i],
-          precipitation: forecastData.hourly.precipitation[i],
-        }));
+        // Hourly data — 8 entries per day (3h intervals), time in HHMM format
+        const hourly: HourlyForecast[] = [];
+        data.weather.forEach((d: any) => {
+          (d.hourly || []).forEach((h: any) => {
+            const hhmm = String(h.time || '0').padStart(4, '0');
+            const hours = parseInt(hhmm.slice(0, 2));
+            const mins = hhmm.slice(2, 4);
+            hourly.push({
+              time: `${d.date}T${String(hours).padStart(2, '0')}:${mins}`,
+              temperature: parseInt(h.tempC) || 0,
+              weatherCode: mapWttrCode(parseInt(h.weatherCode) || 0),
+              windSpeed: parseInt(h.windspeedKmph) || 0,
+              precipitation: parseFloat(h.precipMM) || 0,
+            });
+          });
+        });
         setAllHourlyData(hourly);
         setSelectedDayIndex(0);
       }
