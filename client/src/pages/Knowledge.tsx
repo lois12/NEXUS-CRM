@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Search, Edit3, Trash2, BookOpen, Clock, Eye, Upload, Download, X, Image as ImageIcon, FileText, File, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Search, Edit3, Trash2, BookOpen, Clock, Eye, Upload, Download, X, Image as ImageIcon, FileText, ChevronLeft, ChevronRight } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { knowledgeApi } from '../services/api';
 import { showToast, useNexusConfirm, ConfirmModal } from '../components/ui/NexusModal';
@@ -25,14 +25,6 @@ const CATEGORY_COLORS: Record<string, string> = {
   'Шаблоны': '#bf00ff',
   'Регламенты': '#eab308',
   'Прочее': '#6b7280',
-};
-
-const DOC_ICONS: Record<string, typeof FileText> = {
-  'application/pdf': FileText,
-  'application/msword': FileText,
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': FileText,
-  'application/vnd.ms-excel': File,
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': File,
 };
 
 function formatSize(bytes: number): string {
@@ -321,16 +313,16 @@ export default function Knowledge() {
             onDrop={e => {
               e.preventDefault();
               e.currentTarget.style.borderColor = '';
-              handleUploadFiles(e.dataTransfer.files);
+              handleUploadFiles(Array.from(e.dataTransfer.files));
             }}
             className="flex flex-col items-center justify-center gap-2 px-4 py-6 rounded-xl border-2 border-dashed border-gray-700 hover:border-gray-500 cursor-pointer transition-colors">
             <Upload className="w-6 h-6 text-gray-400" />
-            <span className="font-mono text-xs text-gray-400">ЗАГРУЗИТЬ ФАЙЛЫ</span>
+            <span className="font-mono text-xs text-gray-400">{uploading ? 'ЗАГРУЗКА...' : 'ЗАГРУЗИТЬ ФАЙЛЫ'}</span>
             <span className="font-mono text-[10px] text-gray-600">Фото, PDF, Word, Excel</span>
             <input ref={fileInputRef} type="file" multiple
               accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv"
               className="hidden"
-              onChange={e => { if (e.target.files) handleUploadFiles(e.target.files); e.target.value = ''; }} />
+              onChange={e => { if (e.target.files) handleUploadFiles(Array.from(e.target.files)); e.target.value = ''; }} />
           </label>
         </div>
 
