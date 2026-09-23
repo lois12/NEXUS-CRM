@@ -137,7 +137,7 @@ export default function ChatWidget() {
         setUnreadTotal(res.data.count);
       }
     } catch {}
-  }, [soundEnabled, soundPrivate, isOpen]);
+  }, [soundEnabled, soundPrivate, isOpen, isDndActive]);
 
   // WebSocket reconnect handler
   const [isConnected, setIsConnected] = useState(true);
@@ -193,7 +193,18 @@ export default function ChatWidget() {
   const lastTypingRef = useRef(0);
 
   useEffect(() => { if (activeConv && isOpen) chatApi.markRead(activeConv.id).then(() => fetchUnreadCount()).catch(() => {}); }, [activeConv, isOpen, fetchUnreadCount]);
-  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
+  // Auto-scroll only when a new message is appended (not on edits/reactions/deletes)
+  const prevMsgCountRef = useRef(0);
+  useEffect(() => {
+    if (messages.length > prevMsgCountRef.current) {
+      const container = messagesContainerRef.current;
+      // Only auto-scroll if user is near bottom (within 200px)
+      if (container && container.scrollHeight - container.scrollTop - container.clientHeight < 200) {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }
+    }
+    prevMsgCountRef.current = messages.length;
+  }, [messages]);
   useEffect(() => { if (showUserSearch || showGroupCreate) usersApi.getAll().then(res => { if (res.success && res.data) setUsers(res.data); }).catch(() => {}); }, [showUserSearch, showGroupCreate]);
   // Typing indicator — debounce: emit once on first keystroke, then every 3s while typing
   useEffect(() => {
@@ -388,6 +399,7 @@ export default function ChatWidget() {
     return new Promise((resolve) => {
       const img = new Image();
       img.onload = () => {
+        URL.revokeObjectURL(img.src);
         let { width, height } = img;
         if (width > maxDim || height > maxDim) {
           const ratio = Math.min(maxDim / width, maxDim / height);
@@ -480,13 +492,13 @@ export default function ChatWidget() {
 
   const filteredUsers = users.filter(u => u.id !== user?.id && (u.fullName.toLowerCase().includes(searchQuery.toLowerCase()) || u.username.toLowerCase().includes(searchQuery.toLowerCase())));
   const filteredConvs = conversations
-    .filter(c => (c.otherName || '').toLowerCase().includes(convFilter.toLowerCase()))
-    .sort((a, b) => ((b as any).pinned || 0) - ((a as any).pinned || 0));
-  const filteredMessages = messages.filter(m => {
+    .filter(c => !c.archived && (c.otherName || '').toLowerCase().includes(convFilter.toLowerCase()))
+    .sort((a, b) => (b.pinned || 0) - (a.pinned || 0));
+  const filteredMessages = useMemo(() => messages.filter(m => {
     if (messageTypeFilter !== 'all' && m.type !== messageTypeFilter) return false;
     if (messageSearch && m.type === 'text' && !m.content.toLowerCase().includes(messageSearch.toLowerCase())) return false;
     return true;
-  });
+  }), [messages, messageTypeFilter, messageSearch]);
   const mediaPhotos = messages.filter(m => m.type === 'image');
   const mediaFiles = messages.filter(m => m.type === 'file');
   const mediaAudio = messages.filter(m => m.type === 'audio');
@@ -513,7 +525,7 @@ export default function ChatWidget() {
   };
 
   const ConversationItem = ({ conv, active }: { conv: ChatConversation; active: boolean }) => {
-    const isPinned = (conv as any).pinned === 1;
+    const isPinned = conv.pinned === 1;
     return (
     <button onClick={() => openConversation(conv)} className={`w-full flex items-center gap-3 px-4 py-3.5 transition-all duration-200 text-left relative overflow-hidden ${active ? '' : 'hover:bg-white/[0.03]'}`}
       style={active ? { background: 'linear-gradient(135deg, rgba(0,255,136,0.08) 0%, rgba(0,212,255,0.04) 100%)', borderLeft: '2px solid var(--color-primary)' } : { borderLeft: '2px solid transparent' }}
@@ -657,8 +669,7 @@ export default function ChatWidget() {
             }}>
             {!isMine && !isDeleted && msg.type !== 'image' && !isGrouped && (
               <span className="text-[9px] font-mono font-bold block mb-1 cursor-pointer relative group/name" style={{ color: '#00d4ff', textShadow: '0 0 6px rgba(0,212,255,0.3)' }}
-                onMouseEnter={() => setProfileModal({ id: msg.senderId, fullName: msg.senderName || '', avatar: msg.senderAvatar || '', username: '', role: '', position: msg.senderPosition || '' } as any)}
-                onMouseLeave={() => setProfileModal(null)}>
+                onClick={() => { const u = users.find(u => u.id === msg.senderId); if (u) setProfileModal(u); }}>
                 {msg.senderName}
                 {/* Mini-profile tooltip */}
                 <div className="hidden group-hover/name:block absolute bottom-full left-0 mb-1 z-50 w-48 rounded-xl overflow-hidden pointer-events-none" style={{ background: 'linear-gradient(135deg, rgba(20,20,35,0.98), rgba(10,10,20,0.99))', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(24px)', boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}>
@@ -715,7 +726,6 @@ export default function ChatWidget() {
                         del: ({children}) => <del className="line-through text-gray-500">{children}</del>,
                         a: ({href, children}) => <a href={href} target="_blank" rel="noopener noreferrer" className="underline" style={{ color: '#00d4ff' }}>{children}</a>,
                       }}>{msg.content}</ReactMarkdown>
-                      {msg.mentionedUserIds && <span className="hidden">{renderMentions('', msg.mentionedUserIds, users)}</span>}
                     </div>
                   )
                 )}
@@ -800,12 +810,12 @@ export default function ChatWidget() {
         </div>
       );
     })
-  ), [filteredMessages, user?.id, firstUnreadId]);
+  ), [filteredMessages, user?.id, firstUnreadId, users]);
 
   const messagesAreaContent = (
     <>
       <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-5 py-4 space-y-4 relative"
-        style={{ background: chatWallpaper ? `url(${chatWallpaper}) center/cover` : 'linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.2) 100%)' }}
+        style={{ background: chatWallpaper ? (chatWallpaper.startsWith('linear-gradient') ? chatWallpaper : `url(${chatWallpaper}) center/cover`) : 'linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.2) 100%)' }}
         onScroll={handleScroll}
         onDragOver={handleChatDragOver} onDragLeave={handleChatDragLeave} onDrop={handleChatDrop}>
         {chatDragOver && (
@@ -1259,8 +1269,9 @@ export default function ChatWidget() {
             </div>
             {dndEnabled && (
               <div className="flex items-center gap-2 mt-1">
+                <span className="text-[9px] font-mono text-gray-500">с</span>
                 <input type="time" value={dndStart} onChange={e => setDndStart(e.target.value)} className="px-2 py-1 rounded text-[10px] font-mono bg-black/30 border border-gray-700 text-gray-300 focus:outline-none w-20" />
-                <span className="text-[10px] font-mono text-gray-500">—</span>
+                <span className="text-[9px] font-mono text-gray-500">до</span>
                 <input type="time" value={dndEnd} onChange={e => setDndEnd(e.target.value)} className="px-2 py-1 rounded text-[10px] font-mono bg-black/30 border border-gray-700 text-gray-300 focus:outline-none w-20" />
               </div>
             )}
@@ -1359,7 +1370,8 @@ export default function ChatWidget() {
         {conv.isGroup && <button onClick={() => { setShowGroupInfo(!showGroupInfo); setShowMedia(false); setShowMembers(false); setShowPinned(false); }} className="p-2 rounded-xl hover:bg-white/5 transition-colors" title="Информация"><Info className="w-4 h-4" style={{ color: '#6a6a80' }} /></button>}
         <button onClick={() => { setShowPinned(!showPinned); setShowMedia(false); setShowMembers(false); setShowGroupInfo(false); setShowFavorites(false); if (!showPinned && activeConv) chatApi.getPinnedMessages(activeConv.id).then(r => { if (r.success && r.data) setPinnedMessages(r.data); }).catch(() => {}); }} className="p-2 rounded-xl hover:bg-white/5 transition-colors" title="Закреплённые"><Pin className="w-4 h-4" style={{ color: '#6a6a80' }} /></button>
         <button onClick={() => { setShowFavorites(!showFavorites); setShowMedia(false); setShowMembers(false); setShowPinned(false); setShowGroupInfo(false); if (!showFavorites && activeConv) chatApi.getFavorites(activeConv.id).then(r => { if (r.success && r.data) setFavoriteMessages(r.data); }).catch(() => {}); }} className="p-2 rounded-xl hover:bg-white/5 transition-colors" title="Избранное"><span className="text-sm">⭐</span></button>
-        <button onClick={async () => { if (!activeConv) return; try { await chatApi.muteConversation(activeConv.id); showToast('Чат заглушён на 8ч', 'success'); } catch { showToast('Ошибка', 'error'); } }} className="p-2 rounded-xl hover:bg-white/5 transition-colors" title="Заглушить"><VolumeX className="w-4 h-4" style={{ color: '#6a6a80' }} /></button>
+        <button onClick={async () => { if (!activeConv) return; try { await chatApi.unmuteConversation(activeConv.id); showToast('Уведомления включены', 'success'); } catch { showToast('Ошибка', 'error'); } }} className="p-2 rounded-xl hover:bg-white/5 transition-colors" title="Включить уведомления"><Volume2 className="w-4 h-4" style={{ color: '#6a6a80' }} /></button>
+        <button onClick={async () => { if (!activeConv) return; try { await chatApi.muteConversation(activeConv.id); showToast('Чат заглушён', 'success'); } catch { showToast('Ошибка', 'error'); } }} className="p-2 rounded-xl hover:bg-white/5 transition-colors" title="Заглушить"><VolumeX className="w-4 h-4" style={{ color: '#6a6a80' }} /></button>
         <button onClick={() => { setShowMedia(!showMedia); setShowMembers(false); setShowPinned(false); setShowGroupInfo(false); }} className="p-2 rounded-xl hover:bg-white/5 transition-colors" title="Медиа"><ImageIcon className="w-4 h-4" style={{ color: '#6a6a80' }} /></button>
         {conv.isGroup && <button onClick={() => { setShowMembers(!showMembers); setShowMedia(false); setShowPinned(false); setShowGroupInfo(false); }} className="p-2 rounded-xl hover:bg-white/5 transition-colors" title="Участники"><Users className="w-4 h-4" style={{ color: '#6a6a80' }} /></button>}
         {!isFullscreen && <button onClick={() => setIsFullscreen(true)} className="p-2 rounded-xl hover:bg-white/5 transition-colors" title="На весь экран"><Maximize2 className="w-4 h-4" style={{ color: '#6a6a80' }} /></button>}
@@ -1442,7 +1454,7 @@ export default function ChatWidget() {
                       <MessageCircle className="w-12 h-12 opacity-10" style={{ color: 'var(--color-primary)' }} /><span>Нет диалогов</span>
                       <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => { setShowUserSearch(true); setSearchQuery(''); }} className="px-5 py-2.5 rounded-xl font-mono text-xs font-bold" style={{ background: 'linear-gradient(135deg, rgba(0,255,136,0.15), rgba(0,255,136,0.08))', color: 'var(--color-primary)', border: '1px solid rgba(0,255,136,0.2)' }}>НАЧАТЬ ДИАЛОГ</motion.button>
                     </div>
-                  ) : conversations.map(conv => <ConversationItem key={conv.id} conv={conv} active={false} />)}
+                  ) : filteredConvs.map(conv => <ConversationItem key={conv.id} conv={conv} active={false} />)}
                 </div>
               </>
             ) : (

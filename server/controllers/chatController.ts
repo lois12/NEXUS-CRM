@@ -265,9 +265,10 @@ export const sendMessage = (req: AuthRequest, res: Response) => {
 
     // Send socket message FIRST (don't block on notifications)
     const io = req.app.get('io');
-    if (io && !isGeneral) {
+    if (io) {
       const fullMsg = get(`SELECT m.*, u.fullName as senderName, u.avatar as senderAvatar, u.position as senderPosition FROM chat_messages m LEFT JOIN users u ON m.senderId = u.id WHERE m.id = ?`, [msgId]);
-      io.to(`conv:${conversationId}`).emit('chat:message', fullMsg);
+      if (isGeneral) io.emit('chat:message', fullMsg);
+      else io.to(`conv:${conversationId}`).emit('chat:message', fullMsg);
     }
 
     res.json({ success: true, data: get(`SELECT m.*, u.fullName as senderName, u.avatar as senderAvatar, u.position as senderPosition FROM chat_messages m LEFT JOIN users u ON m.senderId = u.id WHERE m.id = ?`, [msgId]) });
@@ -296,12 +297,6 @@ export const sendMessage = (req: AuthRequest, res: Response) => {
     if (mentionedUserIds) {
       const ids = mentionedUserIds.split(',').filter((id: string) => id && id !== senderId);
       ids.forEach((uid: string) => createNotification({ userId: uid.trim(), type: 'mention', title: `Вас упомянули`, body: preview, link: `/chat?conv=${conversationId}`, relatedId: msgId, senderId }));
-    }
-
-    // Emit general chat to all
-    if (isGeneral && io) {
-      const fullMsg = get(`SELECT m.*, u.fullName as senderName, u.avatar as senderAvatar, u.position as senderPosition FROM chat_messages m LEFT JOIN users u ON m.senderId = u.id WHERE m.id = ?`, [msgId]);
-      io.emit('chat:message', fullMsg);
     }
 
     } catch (notifError) { console.error('Notification error (non-fatal):', notifError); }
@@ -624,6 +619,9 @@ export const votePoll = (req: AuthRequest, res: Response) => {
     const poll = get('SELECT * FROM chat_polls WHERE id = ?', [pollId]);
     if (!poll) return res.status(404).json({ success: false, error: 'Опрос не найден' });
 
+    const option = get('SELECT id FROM chat_poll_options WHERE id = ? AND pollId = ?', [optionId, pollId]);
+    if (!option) return res.status(400).json({ success: false, error: 'Неверный вариант' });
+
     // Upsert vote (delete existing, insert new)
     run('DELETE FROM chat_poll_votes WHERE pollId = ? AND userId = ?', [pollId, userId]);
     run('INSERT INTO chat_poll_votes (id, pollId, optionId, userId) VALUES (?, ?, ?, ?)', [uuidv4(), pollId, optionId, userId]);
@@ -664,6 +662,8 @@ export const muteMember = (req: AuthRequest, res: Response) => {
 export const unmuteMember = (req: AuthRequest, res: Response) => {
   try {
     const { id, userId } = req.params;
+    const membership = get('SELECT role FROM chat_group_members WHERE conversationId = ? AND userId = ?', [id, req.user!.id]);
+    if (!membership || membership.role !== 'admin') return res.status(403).json({ success: false, error: 'Только админ может размутить' });
     run('DELETE FROM chat_muted WHERE conversationId = ? AND userId = ?', [id, userId]);
     res.json({ success: true });
   } catch (error) { console.error('UnmuteMember error:', error); res.status(500).json({ success: false, error: 'Ошибка сервера' }); }

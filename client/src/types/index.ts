@@ -295,6 +295,8 @@ export interface ChatConversation {
   memberCount?: number;
   isGroup?: boolean;
   isGeneral?: boolean;
+  pinned?: number;
+  archived?: number;
   createdAt: string;
 }
 
