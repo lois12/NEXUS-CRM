@@ -316,7 +316,11 @@ export default function Knowledge() {
               handleUploadFiles(Array.from(e.dataTransfer.files));
             }}
             className="flex flex-col items-center justify-center gap-2 px-4 py-6 rounded-xl border-2 border-dashed border-gray-700 hover:border-gray-500 cursor-pointer transition-colors">
-            <Upload className="w-6 h-6 text-gray-400" />
+            {uploading ? (
+              <div className="w-6 h-6 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: 'var(--color-primary)', borderTopColor: 'transparent' }} />
+            ) : (
+              <Upload className="w-6 h-6 text-gray-400" />
+            )}
             <span className="font-mono text-xs text-gray-400">{uploading ? 'ЗАГРУЗКА...' : 'ЗАГРУЗИТЬ ФАЙЛЫ'}</span>
             <span className="font-mono text-[10px] text-gray-600">Фото, PDF, Word, Excel</span>
             <input ref={fileInputRef} type="file" multiple
@@ -448,9 +452,10 @@ export default function Knowledge() {
         )}
       </div>
 
-      <NexusFormModal isOpen={showModal} onClose={() => { setShowModal(false); setPendingFiles([]); }}
+      <NexusFormModal isOpen={showModal} onClose={() => { if (!uploading) { setShowModal(false); setPendingFiles([]); } }}
         title={editing ? 'РЕДАКТИРОВАТЬ' : 'НОВАЯ СТАТЬЯ'} onSave={handleSave}
-        saveLabel={editing ? 'СОХРАНИТЬ' : 'СОЗДАТЬ'} maxWidth="max-w-2xl">
+        saveLabel={uploading ? 'ЗАГРУЗКА...' : editing ? 'СОХРАНИТЬ' : 'СОЗДАТЬ'}
+        saveDisabled={uploading} maxWidth="max-w-2xl">
         <div className="space-y-3">
           <NexusInput value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="// ЗАГОЛОВОК *" />
           <div className="grid grid-cols-2 gap-3">
