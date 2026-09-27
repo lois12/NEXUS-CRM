@@ -658,7 +658,7 @@ export const widgetsApi = {
     api.get('/widgets').then((res) => res.data),
   getById: (id: string): Promise<ApiResponse<any>> =>
     api.get(`/widgets/${id}`).then((res) => res.data),
-  create: (data: { title: string; description?: string }): Promise<ApiResponse<any>> =>
+  create: (data: { title: string; description?: string; category?: string }): Promise<ApiResponse<any>> =>
     api.post('/widgets', data).then((res) => res.data),
   update: (id: string, data: any): Promise<ApiResponse<any>> =>
     api.put(`/widgets/${id}`, data).then((res) => res.data),
@@ -671,6 +671,12 @@ export const widgetsApi = {
   },
   togglePublish: (id: string): Promise<ApiResponse<any>> =>
     api.put(`/widgets/${id}/publish`).then((res) => res.data),
+  togglePin: (id: string): Promise<ApiResponse<any>> =>
+    api.put(`/widgets/${id}/pin`).then((res) => res.data),
+  duplicate: (id: string): Promise<ApiResponse<any>> =>
+    api.post(`/widgets/${id}/duplicate`).then((res) => res.data),
+  updatePublishSettings: (id: string, data: { customSlug?: string; password?: string }): Promise<ApiResponse<any>> =>
+    api.put(`/widgets/${id}/publish-settings`, data).then((res) => res.data),
 };
 
 // Public Widget API (no auth)

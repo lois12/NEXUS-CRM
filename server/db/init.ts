@@ -866,4 +866,10 @@ export async function initializeDatabase() {
       FOREIGN KEY (createdBy) REFERENCES users(id)
     )
   `);
+  // Widget feature migrations
+  migrate('ALTER TABLE widgets ADD COLUMN customSlug TEXT DEFAULT ""');
+  migrate('ALTER TABLE widgets ADD COLUMN password TEXT DEFAULT ""');
+  migrate('ALTER TABLE widgets ADD COLUMN viewCount INTEGER DEFAULT 0');
+  migrate('ALTER TABLE widgets ADD COLUMN category TEXT DEFAULT ""');
+  migrate('ALTER TABLE widgets ADD COLUMN isPinned INTEGER DEFAULT 0');
 }

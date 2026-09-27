@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Search, Edit3, Trash2, Puzzle, Copy, Globe, Lock, Upload, Code, ExternalLink, ChevronLeft } from 'lucide-react';
+import { Plus, Search, Edit3, Trash2, Puzzle, Copy, Globe, Lock, Upload, Code, ExternalLink, ChevronLeft, Eye, Pin, PinOff, CopyPlus, Settings } from 'lucide-react';
 import { widgetsApi } from '../services/api';
 import { showToast, useNexusConfirm, ConfirmModal } from '../components/ui/NexusModal';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
@@ -13,24 +13,34 @@ interface Widget {
   imageUrl: string;
   htmlCode: string;
   publicSlug: string | null;
+  customSlug: string;
+  password: string;
   isPublic: number;
+  isPinned: number;
+  viewCount: number;
+  category: string;
   createdBy: string;
   creatorName?: string;
   createdAt: string;
   updatedAt: string;
 }
 
+type SortMode = 'newest' | 'oldest' | 'name' | 'views';
+
 export default function Widgets() {
   const [widgets, setWidgets] = useState<Widget[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [view, setView] = useState<'list' | 'edit' | 'code'>('list');
+  const [categoryFilter, setCategoryFilter] = useState('');
+  const [sortMode, setSortMode] = useState<SortMode>('newest');
+  const [view, setView] = useState<'list' | 'edit' | 'code' | 'settings'>('list');
   const [editing, setEditing] = useState<Widget | null>(null);
-  const [form, setForm] = useState({ title: '', description: '' });
+  const [form, setForm] = useState({ title: '', description: '', category: '' });
   const [htmlCode, setHtmlCode] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [publishForm, setPublishForm] = useState({ customSlug: '', password: '' });
   const fileRef = useRef<HTMLInputElement>(null);
   const { confirmState, showConfirm, closeConfirm } = useNexusConfirm();
   const [listRef] = useAutoAnimate({ duration: 200 });
@@ -45,13 +55,30 @@ export default function Widgets() {
 
   useEffect(() => { fetchWidgets(); }, [fetchWidgets]);
 
-  const filtered = widgets.filter(w =>
-    !search || w.title.toLowerCase().includes(search.toLowerCase()) || w.description.toLowerCase().includes(search.toLowerCase())
-  );
+  // Unique categories
+  const categories = [...new Set(widgets.map(w => w.category).filter(Boolean))];
+
+  // Filter + sort
+  const filtered = widgets
+    .filter(w => {
+      if (search && !w.title.toLowerCase().includes(search.toLowerCase()) && !w.description.toLowerCase().includes(search.toLowerCase())) return false;
+      if (categoryFilter && w.category !== categoryFilter) return false;
+      return true;
+    })
+    .sort((a, b) => {
+      // Pinned always first
+      if (a.isPinned !== b.isPinned) return b.isPinned - a.isPinned;
+      switch (sortMode) {
+        case 'oldest': return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        case 'name': return a.title.localeCompare(b.title);
+        case 'views': return (b.viewCount || 0) - (a.viewCount || 0);
+        default: return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      }
+    });
 
   const openCreate = () => {
     setEditing(null);
-    setForm({ title: '', description: '' });
+    setForm({ title: '', description: '', category: '' });
     setHtmlCode('');
     setImageUrl('');
     setImageFile(null);
@@ -60,7 +87,7 @@ export default function Widgets() {
 
   const openEdit = (w: Widget) => {
     setEditing(w);
-    setForm({ title: w.title, description: w.description });
+    setForm({ title: w.title, description: w.description, category: w.category || '' });
     setHtmlCode(w.htmlCode || '');
     setImageUrl(w.imageUrl || '');
     setImageFile(null);
@@ -73,18 +100,23 @@ export default function Widgets() {
     setView('code');
   };
 
+  const openSettings = (w: Widget) => {
+    setEditing(w);
+    setPublishForm({ customSlug: w.customSlug || '', password: w.password || '' });
+    setView('settings');
+  };
+
   const handleSave = async () => {
     if (!form.title.trim()) return showToast('Введите название', 'error');
     try {
       let widgetId = editing?.id;
       if (editing) {
-        const res = await widgetsApi.update(editing.id, { title: form.title, description: form.description });
+        const res = await widgetsApi.update(editing.id, { title: form.title, description: form.description, category: form.category });
         if (res.success) widgetId = editing.id;
       } else {
-        const res = await widgetsApi.create({ title: form.title, description: form.description });
+        const res = await widgetsApi.create({ title: form.title, description: form.description, category: form.category });
         if (res.success && res.data) widgetId = res.data.id;
       }
-      // Upload image if file selected
       if (widgetId && imageFile) {
         setUploading(true);
         try {
@@ -107,6 +139,14 @@ export default function Widgets() {
     } catch { showToast('Ошибка сохранения', 'error'); }
   };
 
+  const handleSavePublishSettings = async () => {
+    if (!editing) return;
+    try {
+      const res = await widgetsApi.updatePublishSettings(editing.id, publishForm);
+      if (res.success) { showToast('Настройки сохранены'); await fetchWidgets(); setView('list'); }
+    } catch (e: any) { showToast(e?.response?.data?.error || 'Ошибка', 'error'); }
+  };
+
   const handleTogglePublish = async (w: Widget) => {
     try {
       const res = await widgetsApi.togglePublish(w.id);
@@ -117,9 +157,29 @@ export default function Widgets() {
     } catch { showToast('Ошибка публикации', 'error'); }
   };
 
+  const handleTogglePin = async (w: Widget) => {
+    try {
+      await widgetsApi.togglePin(w.id);
+      await fetchWidgets();
+    } catch { showToast('Ошибка', 'error'); }
+  };
+
+  const handleDuplicate = async (w: Widget) => {
+    try {
+      const res = await widgetsApi.duplicate(w.id);
+      if (res.success) { showToast('Дубликат создан'); await fetchWidgets(); }
+    } catch { showToast('Ошибка', 'error'); }
+  };
+
   const handleCopyLink = (slug: string) => {
     navigator.clipboard.writeText(`${window.location.origin}/w/${slug}`);
     showToast('Ссылка скопирована');
+  };
+
+  const handleCopyEmbed = (slug: string) => {
+    const code = `<iframe src="${window.location.origin}/w/${slug}" width="100%" height="500" frameborder="0" style="border-radius:12px;border:1px solid rgba(0,255,136,0.1)" allow="clipboard-write"></iframe>`;
+    navigator.clipboard.writeText(code);
+    showToast('Embed-код скопирован');
   };
 
   const handleDelete = async (w: Widget) => {
@@ -138,6 +198,65 @@ export default function Widgets() {
     </div>
   );
 
+  // ── Publish Settings View ──
+  if (view === 'settings' && editing) {
+    return (
+      <div className="p-4 md:p-6 max-w-lg mx-auto">
+        <div className="flex items-center gap-3 mb-6">
+          <button onClick={() => setView('list')} className="p-2 rounded-xl hover:bg-white/5 transition-colors">
+            <ChevronLeft className="w-5 h-5 text-gray-400" />
+          </button>
+          <Settings className="w-5 h-5" style={{ color: 'var(--color-primary)' }} />
+          <h2 className="font-mono text-lg font-bold" style={{ color: 'var(--color-text-primary)' }}>
+            Настройки публикации
+          </h2>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <label className="text-xs font-mono text-gray-500 mb-2 block">Кастомная ссылка</label>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-mono text-gray-600 whitespace-nowrap">/w/</span>
+              <input
+                value={publishForm.customSlug}
+                onChange={(e) => setPublishForm({ ...publishForm, customSlug: e.target.value.replace(/[^a-zA-Z0-9-_]/g, '') })}
+                className="flex-1 rounded-xl px-4 py-3 font-mono text-sm focus:outline-none"
+                style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(0,255,136,0.1)', color: '#e8e8ec' }}
+                placeholder="my-widget"
+              />
+            </div>
+            <p className="text-[10px] text-gray-600 mt-1 font-mono">Латиница, цифры, тире. Если пусто — генерируется автоматически.</p>
+          </div>
+
+          <div>
+            <label className="text-xs font-mono text-gray-500 mb-2 block">Пароль доступа</label>
+            <input
+              value={publishForm.password}
+              onChange={(e) => setPublishForm({ ...publishForm, password: e.target.value })}
+              className="w-full rounded-xl px-4 py-3 font-mono text-sm focus:outline-none"
+              style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(0,255,136,0.1)', color: '#e8e8ec' }}
+              placeholder="Оставьте пустым для свободного доступа"
+            />
+            <p className="text-[10px] text-gray-600 mt-1 font-mono">Если пусто — виджет доступен всем. Если заполнено — нужен пароль для просмотра.</p>
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <button onClick={handleSavePublishSettings}
+              className="px-6 py-2.5 rounded-xl font-mono text-sm font-bold transition-all"
+              style={{ background: 'rgba(0,255,136,0.15)', color: 'var(--color-primary)', border: '1px solid rgba(0,255,136,0.3)' }}>
+              СОХРАНИТЬ
+            </button>
+            <button onClick={() => setView('list')}
+              className="px-6 py-2.5 rounded-xl font-mono text-sm text-gray-400 hover:text-gray-200 transition-all"
+              style={{ border: '1px solid rgba(255,255,255,0.1)' }}>
+              ОТМЕНА
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // ── Code Editor View ──
   if (view === 'code' && editing) {
     return (
@@ -153,7 +272,6 @@ export default function Widgets() {
         </div>
 
         <div className="flex-1 flex flex-col md:flex-row gap-4 min-h-0">
-          {/* Editor */}
           <div className="flex-1 flex flex-col min-h-0">
             <div className="text-xs font-mono text-gray-500 mb-2">HTML / CSS / JS</div>
             <textarea
@@ -176,7 +294,6 @@ export default function Widgets() {
             </button>
           </div>
 
-          {/* Preview */}
           <div className="flex-1 flex flex-col min-h-0">
             <div className="text-xs font-mono text-gray-500 mb-2">Превью</div>
             <div className="flex-1 rounded-xl overflow-hidden min-h-[300px]"
@@ -211,7 +328,6 @@ export default function Widgets() {
           {/* Image */}
           <div>
             <label className="text-xs font-mono text-gray-500 mb-2 block">Картинка</label>
-            {/* Existing image */}
             {imageUrl && !imageFile ? (
               <div className="relative rounded-xl overflow-hidden mb-3 group">
                 <img src={imageUrl} alt="" className="w-full h-40 object-cover rounded-xl" />
@@ -221,7 +337,6 @@ export default function Widgets() {
                 </button>
               </div>
             ) : null}
-            {/* New file preview */}
             {imageFile && (
               <div className="mb-3">
                 <div className="relative rounded-xl overflow-hidden mb-2">
@@ -255,7 +370,6 @@ export default function Widgets() {
                 )}
               </div>
             )}
-            {/* Drag-and-drop zone */}
             <label
               onDragOver={e => { e.preventDefault(); e.currentTarget.style.borderColor = 'var(--color-primary)'; e.currentTarget.style.background = 'rgba(0,255,136,0.05)'; }}
               onDragLeave={e => { e.currentTarget.style.borderColor = ''; e.currentTarget.style.background = ''; }}
@@ -299,6 +413,31 @@ export default function Widgets() {
             />
           </div>
 
+          {/* Category */}
+          <div>
+            <label className="text-xs font-mono text-gray-500 mb-2 block">Категория</label>
+            <div className="flex gap-2 flex-wrap">
+              {categories.map(cat => (
+                <button key={cat} onClick={() => setForm({ ...form, category: form.category === cat ? '' : cat })}
+                  className="px-3 py-1.5 rounded-lg font-mono text-xs transition-all"
+                  style={{
+                    background: form.category === cat ? 'rgba(0,255,136,0.15)' : 'rgba(255,255,255,0.05)',
+                    color: form.category === cat ? 'var(--color-primary)' : '#9ca3af',
+                    border: `1px solid ${form.category === cat ? 'rgba(0,255,136,0.3)' : 'rgba(255,255,255,0.08)'}`,
+                  }}>
+                  {cat}
+                </button>
+              ))}
+            </div>
+            <input
+              value={form.category}
+              onChange={(e) => setForm({ ...form, category: e.target.value })}
+              className="w-full rounded-xl px-4 py-3 mt-2 font-mono text-sm focus:outline-none"
+              style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(0,255,136,0.1)', color: '#e8e8ec' }}
+              placeholder="Введите или выберите категорию"
+            />
+          </div>
+
           <div className="flex gap-3 pt-2">
             <button onClick={handleSave}
               className="px-6 py-2.5 rounded-xl font-mono text-sm font-bold transition-all"
@@ -335,24 +474,48 @@ export default function Widgets() {
         </button>
       </div>
 
-      {/* Search */}
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-10 pr-4 py-2.5 rounded-xl font-mono text-sm focus:outline-none"
-          style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(0,255,136,0.1)', color: '#e8e8ec' }}
-          placeholder="Поиск виджетов..."
-        />
+      {/* Filters */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-10 pr-4 py-2.5 rounded-xl font-mono text-sm focus:outline-none"
+            style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(0,255,136,0.1)', color: '#e8e8ec' }}
+            placeholder="Поиск виджетов..."
+          />
+        </div>
+        <div className="flex gap-2">
+          {categories.length > 0 && (
+            <select
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              className="rounded-xl px-3 py-2.5 font-mono text-xs focus:outline-none appearance-none cursor-pointer"
+              style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(0,255,136,0.1)', color: '#e8e8ec' }}>
+              <option value="">Все категории</option>
+              {categories.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          )}
+          <select
+            value={sortMode}
+            onChange={(e) => setSortMode(e.target.value as SortMode)}
+            className="rounded-xl px-3 py-2.5 font-mono text-xs focus:outline-none appearance-none cursor-pointer"
+            style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(0,255,136,0.1)', color: '#e8e8ec' }}>
+            <option value="newest">Сначала новые</option>
+            <option value="oldest">Сначала старые</option>
+            <option value="name">По названию</option>
+            <option value="views">По просмотрам</option>
+          </select>
+        </div>
       </div>
 
       {/* Grid */}
       {filtered.length === 0 ? (
         <div className="text-center py-20">
           <Puzzle className="w-16 h-16 mx-auto mb-4 text-gray-600" />
-          <p className="font-mono text-gray-500">{search ? 'Ничего не найдено' : 'Виджетов пока нет'}</p>
-          {!search && (
+          <p className="font-mono text-gray-500">{search || categoryFilter ? 'Ничего не найдено' : 'Виджетов пока нет'}</p>
+          {!search && !categoryFilter && (
             <button onClick={openCreate} className="mt-4 px-5 py-2 rounded-xl font-mono text-sm"
               style={{ background: 'rgba(0,255,136,0.1)', color: 'var(--color-primary)', border: '1px solid rgba(0,255,136,0.2)' }}>
               Создать первый
@@ -368,26 +531,41 @@ export default function Widgets() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.25, delay: i * 0.04 }}
               className="rounded-2xl overflow-hidden group"
-              style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(0,255,136,0.08)' }}
+              style={{
+                background: w.isPinned ? 'rgba(0,255,136,0.04)' : 'rgba(255,255,255,0.03)',
+                border: w.isPinned ? '1px solid rgba(0,255,136,0.15)' : '1px solid rgba(0,255,136,0.08)',
+              }}
             >
               {/* Image */}
               {w.imageUrl ? (
-                <div className="h-40 overflow-hidden">
+                <div className="h-40 overflow-hidden relative">
                   <img src={w.imageUrl} alt={w.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                  {w.isPinned && (
+                    <div className="absolute top-2 left-2 px-2 py-0.5 rounded-full text-[9px] font-mono flex items-center gap-1"
+                      style={{ background: 'rgba(0,0,0,0.7)', color: 'var(--color-primary)' }}>
+                      <Pin className="w-3 h-3" /> Закреплён
+                    </div>
+                  )}
                 </div>
               ) : (
-                <div className="h-40 flex items-center justify-center" style={{ background: 'rgba(0,255,136,0.03)' }}>
+                <div className="h-40 flex items-center justify-center relative" style={{ background: 'rgba(0,255,136,0.03)' }}>
                   <Puzzle className="w-12 h-12 text-gray-700" />
+                  {w.isPinned && (
+                    <div className="absolute top-2 left-2 px-2 py-0.5 rounded-full text-[9px] font-mono flex items-center gap-1"
+                      style={{ background: 'rgba(0,0,0,0.7)', color: 'var(--color-primary)' }}>
+                      <Pin className="w-3 h-3" /> Закреплён
+                    </div>
+                  )}
                 </div>
               )}
 
               {/* Content */}
               <div className="p-4">
                 <h3 className="font-mono font-bold text-sm mb-1 truncate" style={{ color: 'var(--color-text-primary)' }}>{w.title}</h3>
-                {w.description && <p className="text-xs text-gray-500 line-clamp-2 mb-3">{w.description}</p>}
+                {w.description && <p className="text-xs text-gray-500 line-clamp-2 mb-2">{w.description}</p>}
 
-                {/* Status */}
-                <div className="flex items-center gap-2 mb-3">
+                {/* Meta row */}
+                <div className="flex items-center gap-2 mb-3 flex-wrap">
                   {w.isPublic ? (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono"
                       style={{ background: 'rgba(0,255,136,0.1)', color: 'var(--color-primary)' }}>
@@ -399,16 +577,26 @@ export default function Widgets() {
                       <Lock className="w-3 h-3" /> Черновик
                     </span>
                   )}
-                  {w.htmlCode && (
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-mono text-gray-500"
-                      style={{ background: 'rgba(255,255,255,0.05)' }}>
-                      HTML
+                  {w.password && (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-mono text-yellow-500"
+                      style={{ background: 'rgba(234,179,8,0.1)' }}>
+                      🔒
                     </span>
                   )}
+                  {w.category && (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-mono text-gray-400"
+                      style={{ background: 'rgba(255,255,255,0.05)' }}>
+                      {w.category}
+                    </span>
+                  )}
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono text-gray-500"
+                    style={{ background: 'rgba(255,255,255,0.05)' }}>
+                    <Eye className="w-3 h-3" /> {w.viewCount || 0}
+                  </span>
                 </div>
 
                 {/* Actions */}
-                <div className="flex items-center gap-1.5 flex-wrap">
+                <div className="flex items-center gap-1 flex-wrap">
                   <button onClick={() => openEdit(w)} title="Редактировать"
                     className="p-2 rounded-lg hover:bg-white/5 transition-colors text-gray-400 hover:text-gray-200">
                     <Edit3 className="w-4 h-4" />
@@ -422,11 +610,21 @@ export default function Widgets() {
                     style={{ color: w.isPublic ? 'var(--color-primary)' : undefined }}>
                     {w.isPublic ? <Globe className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
                   </button>
+                  {w.isPublic && (
+                    <button onClick={() => openSettings(w)} title="Настройки публикации"
+                      className="p-2 rounded-lg hover:bg-white/5 transition-colors text-gray-400 hover:text-gray-200">
+                      <Settings className="w-4 h-4" />
+                    </button>
+                  )}
                   {w.isPublic && w.publicSlug && (
                     <>
                       <button onClick={() => handleCopyLink(w.publicSlug!)} title="Копировать ссылку"
                         className="p-2 rounded-lg hover:bg-white/5 transition-colors text-gray-400 hover:text-gray-200">
                         <Copy className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => handleCopyEmbed(w.publicSlug!)} title="Embed-код"
+                        className="p-2 rounded-lg hover:bg-white/5 transition-colors text-gray-400 hover:text-gray-200">
+                        <Code className="w-3.5 h-3.5" />
                       </button>
                       <a href={`/w/${w.publicSlug}`} target="_blank" rel="noopener noreferrer" title="Открыть"
                         className="p-2 rounded-lg hover:bg-white/5 transition-colors text-gray-400 hover:text-gray-200">
@@ -434,6 +632,15 @@ export default function Widgets() {
                       </a>
                     </>
                   )}
+                  <button onClick={() => handleTogglePin(w)} title={w.isPinned ? 'Открепить' : 'Закрепить'}
+                    className="p-2 rounded-lg hover:bg-white/5 transition-colors"
+                    style={{ color: w.isPinned ? 'var(--color-primary)' : undefined }}>
+                    {w.isPinned ? <PinOff className="w-4 h-4" /> : <Pin className="w-4 h-4" />}
+                  </button>
+                  <button onClick={() => handleDuplicate(w)} title="Дублировать"
+                    className="p-2 rounded-lg hover:bg-white/5 transition-colors text-gray-400 hover:text-gray-200">
+                    <CopyPlus className="w-4 h-4" />
+                  </button>
                   <button onClick={() => handleDelete(w)} title="Удалить"
                     className="p-2 rounded-lg hover:bg-red-500/10 transition-colors text-gray-400 hover:text-red-400 ml-auto">
                     <Trash2 className="w-4 h-4" />
