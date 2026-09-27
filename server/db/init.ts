@@ -849,4 +849,21 @@ export async function initializeDatabase() {
 
   // Chat: voice transcription
   migrate('ALTER TABLE chat_messages ADD COLUMN transcript TEXT DEFAULT ""');
+
+  // Widgets — embeddable HTML cards with public sharing
+  run(`
+    CREATE TABLE IF NOT EXISTS widgets (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      description TEXT DEFAULT '',
+      imageUrl TEXT DEFAULT '',
+      htmlCode TEXT DEFAULT '',
+      publicSlug TEXT UNIQUE,
+      isPublic INTEGER DEFAULT 0,
+      createdBy TEXT NOT NULL,
+      createdAt TEXT DEFAULT (datetime('now')),
+      updatedAt TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (createdBy) REFERENCES users(id)
+    )
+  `);
 }

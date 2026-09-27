@@ -46,6 +46,8 @@ const CheckinPage = lazy(() => import('./pages/CheckinPage'));
 const CheckinScanner = lazy(() => import('./pages/CheckinScanner'));
 const ParticipantsList = lazy(() => import('./pages/ParticipantsList'));
 const NexusControl = lazy(() => import('./pages/NexusControl'));
+const Widgets = lazy(() => import('./pages/Widgets'));
+const PublicWidget = lazy(() => import('./pages/PublicWidget'));
 
 function PageWrapper({ children }: { children: ReactNode }) {
   return <ErrorBoundary><Suspense fallback={<LoadingScreen />}>{children}</Suspense></ErrorBoundary>;
@@ -98,6 +100,7 @@ function AppRoutes() {
       <Route path="/reg/cancel/:token" element={<PageWrapper><CancelRegistration /></PageWrapper>} />
       <Route path="/reg/checkin/:token" element={<PageWrapper><CheckinPage /></PageWrapper>} />
       <Route path="/control" element={<PageWrapper><NexusControl /></PageWrapper>} />
+      <Route path="/w/:slug" element={<PageWrapper><PublicWidget /></PageWrapper>} />
       <Route
         path="/"
         element={
@@ -133,6 +136,7 @@ function AppRoutes() {
         <Route path="aurora" element={<PageWrapper><AuroraForecast /></PageWrapper>} />
         <Route path="brandbank" element={<PageWrapper><BrandBank /></PageWrapper>} />
         <Route path="registrations" element={<PageWrapper><Registrations /></PageWrapper>} />
+        <Route path="widgets" element={<PageWrapper><Widgets /></PageWrapper>} />
         <Route path="checkin-scanner" element={<PageWrapper><CheckinScanner /></PageWrapper>} />
         <Route path="registrations/:id/participants" element={<PageWrapper><ParticipantsList /></PageWrapper>} />
         <Route path="profile" element={<PageWrapper><Profile /></PageWrapper>} />
@@ -162,7 +166,7 @@ function ChatWidgetWrapper() {
   const { isAuthenticated } = useAuth();
   const pathname = window.location.pathname;
   if (!isAuthenticated) return null;
-  if (pathname.startsWith('/reg/') || pathname.startsWith('/control')) return null;
+  if (pathname.startsWith('/reg/') || pathname.startsWith('/control') || pathname.startsWith('/w/')) return null;
   return <ErrorBoundary><Suspense fallback={null}><ChatWidget /></Suspense></ErrorBoundary>;
 }
 

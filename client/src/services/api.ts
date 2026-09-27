@@ -652,4 +652,31 @@ export const publicRegApi = {
   getQRUrl: (slug: string): string => `/api/reg/${slug}/qr`,
 };
 
+// Widgets API (authenticated)
+export const widgetsApi = {
+  getAll: (): Promise<ApiResponse<any[]>> =>
+    api.get('/widgets').then((res) => res.data),
+  getById: (id: string): Promise<ApiResponse<any>> =>
+    api.get(`/widgets/${id}`).then((res) => res.data),
+  create: (data: { title: string; description?: string }): Promise<ApiResponse<any>> =>
+    api.post('/widgets', data).then((res) => res.data),
+  update: (id: string, data: any): Promise<ApiResponse<any>> =>
+    api.put(`/widgets/${id}`, data).then((res) => res.data),
+  delete: (id: string): Promise<ApiResponse<void>> =>
+    api.delete(`/widgets/${id}`).then((res) => res.data),
+  uploadImage: (id: string, file: File): Promise<ApiResponse<{ imageUrl: string }>> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post(`/widgets/${id}/image`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }).then((res) => res.data);
+  },
+  togglePublish: (id: string): Promise<ApiResponse<any>> =>
+    api.put(`/widgets/${id}/publish`).then((res) => res.data),
+};
+
+// Public Widget API (no auth)
+export const publicWidgetApi = {
+  getBySlug: (slug: string): Promise<ApiResponse<any>> =>
+    api.get(`/w/${slug}`).then((res) => res.data),
+};
+
 export default api;

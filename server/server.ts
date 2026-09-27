@@ -31,6 +31,7 @@ import searchRoutes from './routes/search';
 import qrAuthRoutes from './routes/qrAuth';
 import pushRoutes from './routes/push';
 import { publicRegRouter, registrationAuthRouter } from './routes/registrations';
+import { publicWidgetRouter, widgetAuthRouter } from './routes/widgets';
 import swaggerJsdoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
 
@@ -112,10 +113,60 @@ app.use('/api/qr-auth', qrAuthRoutes);
 app.use('/api/push', pushRoutes);
 app.use('/api/registrations', registrationAuthRouter);
 app.use('/api', publicRegRouter);
+app.use('/api/widgets', widgetAuthRouter);
+app.use('/api', publicWidgetRouter);
 
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// OG meta tags for public widgets — serve dynamic HTML to crawlers/bots
+app.get('/w/:slug', (req, res) => {
+  const ua = (req.headers['user-agent'] || '').toLowerCase();
+  const isBot = ua.includes('bot') || ua.includes('crawler') || ua.includes('spider') ||
+    ua.includes('telegrambot') || ua.includes('vkshare') || ua.includes('whatsapp') ||
+    ua.includes('slackbot') || ua.includes('discordbot') || ua.includes('preview');
+
+  if (!isBot) {
+    // Regular user — serve SPA
+    return res.sendFile(path.join(CLIENT_DIST, 'index.html'));
+  }
+
+  // Bot — serve HTML with OG tags
+  try {
+    const { get } = require('./db/database');
+    const widget = get('SELECT title, description, imageUrl FROM widgets WHERE publicSlug = ? AND isPublic = 1', [req.params.slug]);
+    if (!widget) {
+      return res.sendFile(path.join(CLIENT_DIST, 'index.html'));
+    }
+
+    const title = widget.title || 'NEXUS Виджет';
+    const description = widget.description || '';
+    const imageUrl = widget.imageUrl ? `https://nexus-liberty.online${widget.imageUrl}` : '';
+
+    res.send(`<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta property="og:title" content="${title.replace(/"/g, '&quot;')}" />
+  <meta property="og:description" content="${description.replace(/"/g, '&quot;')}" />
+  ${imageUrl ? `<meta property="og:image" content="${imageUrl}" />` : ''}
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://nexus-liberty.online/w/${req.params.slug}" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="${title.replace(/"/g, '&quot;')}" />
+  <meta name="twitter:description" content="${description.replace(/"/g, '&quot;')}" />
+  ${imageUrl ? `<meta name="twitter:image" content="${imageUrl}" />` : ''}
+  <title>${title} — NEXUS</title>
+  <meta http-equiv="refresh" content="0;url=/w/${req.params.slug}" />
+</head>
+<body></body>
+</html>`);
+  } catch (e) {
+    console.error('OG handler error:', e);
+    res.sendFile(path.join(CLIENT_DIST, 'index.html'));
+  }
 });
 
 // SPA fallback
