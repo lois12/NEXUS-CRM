@@ -29,6 +29,7 @@ export default function Widgets() {
   const [form, setForm] = useState({ title: '', description: '' });
   const [htmlCode, setHtmlCode] = useState('');
   const [imageUrl, setImageUrl] = useState('');
+  const [imageFile, setImageFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const { confirmState, showConfirm, closeConfirm } = useNexusConfirm();
@@ -53,6 +54,7 @@ export default function Widgets() {
     setForm({ title: '', description: '' });
     setHtmlCode('');
     setImageUrl('');
+    setImageFile(null);
     setView('edit');
   };
 
@@ -61,6 +63,7 @@ export default function Widgets() {
     setForm({ title: w.title, description: w.description });
     setHtmlCode(w.htmlCode || '');
     setImageUrl(w.imageUrl || '');
+    setImageFile(null);
     setView('edit');
   };
 
@@ -73,13 +76,26 @@ export default function Widgets() {
   const handleSave = async () => {
     if (!form.title.trim()) return showToast('Введите название', 'error');
     try {
+      let widgetId = editing?.id;
       if (editing) {
         const res = await widgetsApi.update(editing.id, { title: form.title, description: form.description });
-        if (res.success) { showToast('Виджет обновлён'); await fetchWidgets(); setView('list'); }
+        if (res.success) widgetId = editing.id;
       } else {
         const res = await widgetsApi.create({ title: form.title, description: form.description });
-        if (res.success) { showToast('Виджет создан'); await fetchWidgets(); setView('list'); }
+        if (res.success && res.data) widgetId = res.data.id;
       }
+      // Upload image if file selected
+      if (widgetId && imageFile) {
+        setUploading(true);
+        try {
+          const imgRes = await widgetsApi.uploadImage(widgetId, imageFile);
+          if (imgRes.success && imgRes.data) setImageUrl(imgRes.data.imageUrl);
+        } catch { showToast('Ошибка загрузки картинки', 'error'); }
+        finally { setUploading(false); }
+      }
+      showToast(editing ? 'Виджет обновлён' : 'Виджет создан');
+      await fetchWidgets();
+      setView('list');
     } catch { showToast('Ошибка сохранения', 'error'); }
   };
 
@@ -89,21 +105,6 @@ export default function Widgets() {
       const res = await widgetsApi.update(editing.id, { htmlCode });
       if (res.success) { showToast('Код сохранён'); await fetchWidgets(); setView('list'); }
     } catch { showToast('Ошибка сохранения', 'error'); }
-  };
-
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !editing) return;
-    setUploading(true);
-    try {
-      const res = await widgetsApi.uploadImage(editing.id, file);
-      if (res.success && res.data) {
-        setImageUrl(res.data.imageUrl);
-        showToast('Картинка загружена');
-        await fetchWidgets();
-      }
-    } catch { showToast('Ошибка загрузки', 'error'); }
-    finally { setUploading(false); if (fileRef.current) fileRef.current.value = ''; }
   };
 
   const handleTogglePublish = async (w: Widget) => {
@@ -210,29 +211,67 @@ export default function Widgets() {
           {/* Image */}
           <div>
             <label className="text-xs font-mono text-gray-500 mb-2 block">Картинка</label>
-            <div className="flex items-center gap-4">
-              {imageUrl ? (
-                <div className="w-24 h-24 rounded-xl overflow-hidden" style={{ border: '1px solid rgba(0,255,136,0.1)' }}>
-                  <img src={imageUrl} alt="" className="w-full h-full object-cover" />
-                </div>
-              ) : (
-                <div className="w-24 h-24 rounded-xl flex items-center justify-center"
-                  style={{ border: '1px dashed rgba(0,255,136,0.2)', background: 'rgba(0,0,0,0.2)' }}>
-                  <Puzzle className="w-8 h-8 text-gray-600" />
-                </div>
-              )}
-              {editing && (
-                <>
-                  <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
-                  <button onClick={() => fileRef.current?.click()} disabled={uploading}
-                    className="px-4 py-2 rounded-xl font-mono text-xs transition-all"
-                    style={{ background: 'rgba(0,255,136,0.08)', color: 'var(--color-primary)', border: '1px solid rgba(0,255,136,0.2)' }}>
-                    <Upload className="w-4 h-4 inline mr-2" />
-                    {uploading ? 'Загрузка...' : 'Загрузить'}
+            {/* Existing image */}
+            {imageUrl && !imageFile ? (
+              <div className="relative rounded-xl overflow-hidden mb-3 group">
+                <img src={imageUrl} alt="" className="w-full h-40 object-cover rounded-xl" />
+                <button onClick={() => setImageUrl('')}
+                  className="absolute top-2 right-2 p-1 rounded-full bg-black/60 hover:bg-red-500/80 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <span className="text-white text-sm">✕</span>
+                </button>
+              </div>
+            ) : null}
+            {/* New file preview */}
+            {imageFile && (
+              <div className="mb-3">
+                <div className="relative rounded-xl overflow-hidden mb-2">
+                  <img src={URL.createObjectURL(imageFile)} alt="" className="w-full h-40 object-cover rounded-xl" />
+                  <button onClick={() => setImageFile(null)}
+                    className="absolute top-2 right-2 p-1 rounded-full bg-black/60 hover:bg-black/80">
+                    <span className="text-white text-sm">✕</span>
                   </button>
-                </>
-              )}
-            </div>
+                </div>
+                {!editing && (
+                  <p className="font-mono text-[10px] text-gray-500 text-center">Картинка будет загружена при сохранении</p>
+                )}
+                {editing && (
+                  <button onClick={async () => {
+                    setUploading(true);
+                    try {
+                      const res = await widgetsApi.uploadImage(editing.id, imageFile);
+                      if (res.success && res.data) {
+                        setImageUrl(res.data.imageUrl);
+                        setImageFile(null);
+                        showToast('Картинка загружена');
+                        await fetchWidgets();
+                      }
+                    } catch { showToast('Ошибка загрузки', 'error'); }
+                    finally { setUploading(false); }
+                  }} disabled={uploading}
+                    className="w-full py-2 rounded-lg font-mono text-xs font-bold transition-all disabled:opacity-50"
+                    style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}>
+                    {uploading ? 'ЗАГРУЗКА...' : 'ЗАГРУЗИТЬ СЕЙЧАС'}
+                  </button>
+                )}
+              </div>
+            )}
+            {/* Drag-and-drop zone */}
+            <label
+              onDragOver={e => { e.preventDefault(); e.currentTarget.style.borderColor = 'var(--color-primary)'; e.currentTarget.style.background = 'rgba(0,255,136,0.05)'; }}
+              onDragLeave={e => { e.currentTarget.style.borderColor = ''; e.currentTarget.style.background = ''; }}
+              onDrop={e => {
+                e.preventDefault();
+                e.currentTarget.style.borderColor = '';
+                e.currentTarget.style.background = '';
+                const file = e.dataTransfer.files[0];
+                if (file && file.type.startsWith('image/')) setImageFile(file);
+              }}
+              className="flex flex-col items-center justify-center gap-2 px-4 py-4 rounded-xl border-2 border-dashed border-gray-700 hover:border-gray-500 cursor-pointer transition-colors">
+              <Upload className="w-5 h-5 text-gray-400" />
+              <span className="font-mono text-[10px] text-gray-500">ПЕРЕТАЩИТЕ ИЛИ ВЫБЕРИТЕ</span>
+              <input ref={fileRef} type="file" accept="image/*" className="hidden"
+                onChange={e => { const f = e.target.files?.[0]; if (f) setImageFile(f); }} />
+            </label>
           </div>
 
           {/* Title */}

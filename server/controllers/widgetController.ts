@@ -120,12 +120,8 @@ export const uploadImage = (req: AuthRequest, res: Response) => {
       if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
     }
 
-    const ext = path.extname(req.file.originalname);
-    const filename = `widget_${id}${ext}`;
-    const filepath = path.join(UPLOADS_DIR, filename);
-    fs.writeFileSync(filepath, req.file.buffer);
-
-    const imageUrl = `/uploads/${filename}`;
+    // Multer diskStorage already saved the file — use its filename
+    const imageUrl = `/uploads/${req.file.filename}`;
     run("UPDATE widgets SET imageUrl = ?, updatedAt = datetime('now') WHERE id = ?", [imageUrl, id]);
 
     res.json({ success: true, data: { imageUrl } });
