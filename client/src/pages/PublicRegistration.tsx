@@ -43,7 +43,9 @@ export default function PublicRegistration() {
   const [reg, setReg] = useState<any>(null);
   const [error, setError] = useState('');
   const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [contactName, setContactName] = useState('');
+  const [contactLastName, setContactLastName] = useState('');
+  const [contactFirstName, setContactFirstName] = useState('');
+  const [contactPatronymic, setContactPatronymic] = useState('');
   const [contactEmail, setContactEmail] = useState('');
   const [contactPhone, setContactPhone] = useState('');
   const [privacyConsent, setPrivacyConsent] = useState(false);
@@ -188,7 +190,8 @@ export default function PublicRegistration() {
       }
     }
 
-    if (!contactName.trim()) errors['_name'] = 'Введите имя';
+    if (!contactLastName.trim()) errors['_lastName'] = 'Введите фамилию';
+    if (!contactFirstName.trim()) errors['_firstName'] = 'Введите имя';
     if (!contactEmail.trim()) errors['_email'] = 'Введите email';
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail)) errors['_email'] = 'Некорректный email';
 
@@ -199,7 +202,7 @@ export default function PublicRegistration() {
 
     setSubmitting(true);
     try {
-      const res = await publicRegApi.submit(slug, { answers, contactName, contactEmail, contactPhone });
+      const res = await publicRegApi.submit(slug, { answers, contactLastName, contactFirstName, contactPatronymic, contactEmail, contactPhone });
       if (res.success && res.data) {
         setResult({ status: res.data.status, position: res.data.position, cancelToken: res.data.cancelToken, checkinToken: res.data.checkinToken, confirmCode: res.data.confirmCode });
         // Update local count
@@ -602,10 +605,21 @@ export default function PublicRegistration() {
 
           <div className="border-t border-white/5 pt-4 space-y-3">
             <h3 className="font-mono text-xs font-bold text-gray-400">КОНТАКТНЫЕ ДАННЫЕ</h3>
-            <div>
-              <input value={contactName} onChange={e => setContactName(e.target.value)} placeholder="// ИМЯ *"
-                className={`w-full px-4 py-2.5 rounded-lg font-mono text-sm bg-black/30 border text-gray-200 focus:outline-none focus:border-[var(--color-primary)] ${fieldErrors['_name'] ? 'border-red-500' : 'border-gray-700'}`} />
-              {fieldErrors['_name'] && <p className="text-xs font-mono text-red-400 mt-1">{fieldErrors['_name']}</p>}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <input value={contactLastName} onChange={e => setContactLastName(e.target.value)} placeholder="// ФАМИЛИЯ *"
+                  className={`w-full px-4 py-2.5 rounded-lg font-mono text-sm bg-black/30 border text-gray-200 focus:outline-none focus:border-[var(--color-primary)] ${fieldErrors['_lastName'] ? 'border-red-500' : 'border-gray-700'}`} />
+                {fieldErrors['_lastName'] && <p className="text-xs font-mono text-red-400 mt-1">{fieldErrors['_lastName']}</p>}
+              </div>
+              <div>
+                <input value={contactFirstName} onChange={e => setContactFirstName(e.target.value)} placeholder="// ИМЯ *"
+                  className={`w-full px-4 py-2.5 rounded-lg font-mono text-sm bg-black/30 border text-gray-200 focus:outline-none focus:border-[var(--color-primary)] ${fieldErrors['_firstName'] ? 'border-red-500' : 'border-gray-700'}`} />
+                {fieldErrors['_firstName'] && <p className="text-xs font-mono text-red-400 mt-1">{fieldErrors['_firstName']}</p>}
+              </div>
+              <div>
+                <input value={contactPatronymic} onChange={e => setContactPatronymic(e.target.value)} placeholder="// ОТЧЕСТВО"
+                  className="w-full px-4 py-2.5 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)]" />
+              </div>
             </div>
             <div>
               <input type="email" value={contactEmail} onChange={e => setContactEmail(e.target.value)} placeholder="// EMAIL *"

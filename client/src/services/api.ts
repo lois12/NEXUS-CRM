@@ -584,6 +584,8 @@ export const registrationsApi = {
     api.put(`/registrations/${id}/notify`, data).then((res) => res.data),
   delete: (id: string): Promise<ApiResponse<void>> =>
     api.delete(`/registrations/${id}`).then((res) => res.data),
+  duplicate: (id: string): Promise<ApiResponse<any>> =>
+    api.post(`/registrations/${id}/duplicate`).then((res) => res.data),
   uploadImage: (id: string, file: File): Promise<ApiResponse<any>> => {
     const formData = new FormData();
     formData.append('file', file);

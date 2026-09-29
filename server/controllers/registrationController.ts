@@ -228,6 +228,34 @@ export const deleteRegistration = (req: AuthRequest, res: Response) => {
   }
 };
 
+export const duplicateRegistration = (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const reg = get('SELECT * FROM registrations WHERE id = ?', [id]);
+    if (!reg) return res.status(404).json({ success: false, error: 'Регистрация не найдена' });
+
+    const newId = uuidv4();
+
+    run(`INSERT INTO registrations (id, title, description, eventDate, eventTime, location, videoUrl, maxParticipants, status, publicSlug, createdBy, registrationStart, registrationEnd, closedMessage, mapCoords, showLimit, showTimer, organizer) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'draft', NULL, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [newId, reg.title + ' (копия)', reg.description, reg.eventDate, reg.eventTime, reg.location, reg.videoUrl, reg.maxParticipants, req.user?.id, reg.registrationStart, reg.registrationEnd, reg.closedMessage, reg.mapCoords, reg.showLimit, reg.showTimer, reg.organizer]);
+
+    // Copy all fields
+    const fields = query('SELECT * FROM registration_fields WHERE registrationId = ? ORDER BY position', [id]);
+    for (const field of fields) {
+      run('INSERT INTO registration_fields (id, registrationId, type, label, placeholder, required, options, settings, position) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [uuidv4(), newId, field.type, field.label, field.placeholder, field.required, field.options, field.settings, field.position]);
+    }
+
+    // Return the new registration with fields
+    const newReg = get('SELECT * FROM registrations WHERE id = ?', [newId]);
+    const newFields = query('SELECT * FROM registration_fields WHERE registrationId = ? ORDER BY position', [newId]);
+    res.status(201).json({ success: true, data: { ...newReg, fields: newFields } });
+  } catch (error) {
+    console.error('DuplicateRegistration error:', error);
+    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+  }
+};
+
 export const uploadImage = (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
@@ -443,7 +471,18 @@ export const submitRegistration = (req: AuthRequest, res: Response) => {
     // Time window checks disabled — admin controls via status field
     // (datetime-local has no timezone, comparing across machines is unreliable)
 
-    const { answers, contactName, contactEmail, contactPhone } = req.body;
+    const { answers, contactName, contactLastName, contactFirstName, contactPatronymic, contactEmail, contactPhone } = req.body;
+
+    // ФИО: require lastName + firstName, patronymic optional
+    const lastName = (contactLastName || '').trim();
+    const firstName = (contactFirstName || '').trim();
+    const patronymic = (contactPatronymic || '').trim();
+    // Backward compat: if old contactName sent, use as firstName
+    const effectiveFirstName = firstName || (contactName || '').trim();
+    const effectiveLastName = lastName;
+    if (!effectiveLastName) return res.status(400).json({ success: false, error: 'Фамилия обязательна' });
+    if (!effectiveFirstName) return res.status(400).json({ success: false, error: 'Имя обязательно' });
+    const fullName = [effectiveLastName, effectiveFirstName, patronymic].filter(Boolean).join(' ');
 
     // Check required fields
     const fields = query('SELECT * FROM registration_fields WHERE registrationId = ? AND required = 1', [reg.id]);
@@ -478,9 +517,9 @@ export const submitRegistration = (req: AuthRequest, res: Response) => {
     const checkinToken = uuidv4();
     const confirmCode = String(Math.floor(1000 + Math.random() * 9000));
 
-    run(`INSERT INTO registration_submissions (id, registrationId, userId, answers, contactName, contactEmail, contactPhone, status, cancelToken, checkinToken, confirmCode, position)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [id, reg.id, req.user?.id || null, JSON.stringify(answers || {}), contactName || '', contactEmail || '', contactPhone || '', status, cancelToken, checkinToken, confirmCode, position]);
+    run(`INSERT INTO registration_submissions (id, registrationId, userId, answers, contactName, contactLastName, contactFirstName, contactPatronymic, contactEmail, contactPhone, status, cancelToken, checkinToken, confirmCode, position)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [id, reg.id, req.user?.id || null, JSON.stringify(answers || {}), fullName, effectiveLastName, effectiveFirstName, patronymic, contactEmail || '', contactPhone || '', status, cancelToken, checkinToken, confirmCode, position]);
 
     const submission = get('SELECT * FROM registration_submissions WHERE id = ?', [id]);
     res.status(201).json({ success: true, data: { ...submission, cancelToken, checkinToken, confirmCode } });
@@ -493,7 +532,7 @@ export const submitRegistration = (req: AuthRequest, res: Response) => {
         // 1. Email пользователю
         if (contactEmail) {
           await sendRegistrationConfirm(contactEmail, {
-            name: contactName || 'Участник',
+            name: fullName || 'Участник',
             eventTitle: reg.title,
             eventDate: reg.eventDate,
             eventTime: reg.eventTime,
@@ -518,7 +557,7 @@ export const submitRegistration = (req: AuthRequest, res: Response) => {
             userId: admin.id,
             type: 'registration',
             title: 'Новая регистрация',
-            body: `${contactName || 'Участник'} → "${reg.title}" (${statusText})`,
+            body: `${fullName || 'Участник'} → "${reg.title}" (${statusText})`,
             link: '/registrations',
           });
         }
@@ -540,9 +579,17 @@ export const createAdminSubmission = (req: AuthRequest, res: Response) => {
     const reg = get('SELECT * FROM registrations WHERE id = ?', [id]);
     if (!reg) return res.status(404).json({ success: false, error: 'Регистрация не найдена' });
 
-    const { contactName, contactEmail, contactPhone, answers, sendEmail } = req.body;
+    const { contactName, contactLastName, contactFirstName, contactPatronymic, contactEmail, contactPhone, answers, sendEmail } = req.body;
 
-    if (!contactName?.trim()) return res.status(400).json({ success: false, error: 'Имя обязательно' });
+    // ФИО: require lastName + firstName
+    const lastName = (contactLastName || '').trim();
+    const firstName = (contactFirstName || '').trim();
+    const patronymic = (contactPatronymic || '').trim();
+    const effectiveFirstName = firstName || (contactName || '').trim();
+    const effectiveLastName = lastName;
+    if (!effectiveLastName) return res.status(400).json({ success: false, error: 'Фамилия обязательна' });
+    if (!effectiveFirstName) return res.status(400).json({ success: false, error: 'Имя обязательно' });
+    const fullName = [effectiveLastName, effectiveFirstName, patronymic].filter(Boolean).join(' ');
 
     // Skip duplicate check — admin can re-add
 
@@ -551,9 +598,9 @@ export const createAdminSubmission = (req: AuthRequest, res: Response) => {
     const checkinToken = uuidv4();
     const confirmCode = String(Math.floor(1000 + Math.random() * 9000));
 
-    run(`INSERT INTO registration_submissions (id, registrationId, userId, answers, contactName, contactEmail, contactPhone, status, cancelToken, checkinToken, confirmCode, position)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 'registered', ?, ?, ?, 0)`,
-      [submissionId, id, req.user?.id || null, JSON.stringify(answers || {}), contactName.trim(), contactEmail?.trim() || '', contactPhone?.trim() || '', cancelToken, checkinToken, confirmCode]);
+    run(`INSERT INTO registration_submissions (id, registrationId, userId, answers, contactName, contactLastName, contactFirstName, contactPatronymic, contactEmail, contactPhone, status, cancelToken, checkinToken, confirmCode, position)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'registered', ?, ?, ?, 0)`,
+      [submissionId, id, req.user?.id || null, JSON.stringify(answers || {}), fullName, effectiveLastName, effectiveFirstName, patronymic, contactEmail?.trim() || '', contactPhone?.trim() || '', cancelToken, checkinToken, confirmCode]);
 
     const submission = get('SELECT * FROM registration_submissions WHERE id = ?', [submissionId]);
     res.status(201).json({ success: true, data: { ...submission, cancelToken, checkinToken, confirmCode } });
@@ -564,7 +611,7 @@ export const createAdminSubmission = (req: AuthRequest, res: Response) => {
         try {
           const origin = `${req.protocol}://${req.get('host')}`;
           await sendRegistrationConfirm(contactEmail.trim(), {
-            name: contactName.trim() || 'Участник',
+            name: fullName || 'Участник',
             eventTitle: reg.title,
             eventDate: reg.eventDate,
             eventTime: reg.eventTime,
@@ -788,13 +835,15 @@ export const exportCSV = (req: AuthRequest, res: Response) => {
     const submissions = query('SELECT * FROM registration_submissions WHERE registrationId = ? ORDER BY createdAt ASC', [id]);
 
     // Build CSV header
-    const headers = ['№', 'Имя', 'Email', 'Телефон', 'Статус', 'Дата', ...fields.map((f: any) => f.label)];
+    const headers = ['№', 'Фамилия', 'Имя', 'Отчество', 'Email', 'Телефон', 'Статус', 'Дата', ...fields.map((f: any) => f.label)];
 
     const rows = submissions.map((sub: any, i: number) => {
       const answers = JSON.parse(sub.answers || '{}');
       return [
         i + 1,
-        sub.contactName,
+        sub.contactLastName || '',
+        sub.contactFirstName || '',
+        sub.contactPatronymic || '',
         sub.contactEmail,
         sub.contactPhone,
         sub.status,

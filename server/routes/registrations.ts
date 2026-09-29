@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import {
-  getRegistrations, getRegistrationById, createRegistration, updateRegistration, deleteRegistration,
+  getRegistrations, getRegistrationById, createRegistration, updateRegistration, deleteRegistration, duplicateRegistration,
   uploadImage, uploadVideo, createField, updateField, deleteField, reorderFields,
   getBySlug, submitRegistration, getSubmissions, cancelSubmission, cancelByToken, deleteSubmission, exportCSV,
   getMedia, uploadMedia, deleteMedia,
@@ -36,6 +36,7 @@ authRouter.post('/', requireRole('super_admin', 'руководитель', 'р�
 authRouter.put('/:id', requireRole('super_admin', 'руководитель', 'редактор'), updateRegistration);
 authRouter.put('/:id/notify', requireRole('super_admin', 'руководитель', 'редактор'), updateAndNotify);
 authRouter.delete('/:id', requireRole('super_admin', 'руководитель'), deleteRegistration);
+authRouter.post('/:id/duplicate', requireRole('super_admin', 'руководитель', 'редактор'), duplicateRegistration);
 authRouter.post('/:id/image', requireRole('super_admin', 'руководитель', 'редактор'), upload.single('file'), uploadImage);
 authRouter.post('/:id/video', requireRole('super_admin', 'руководитель', 'редактор'), upload.single('file'), uploadVideo);
 

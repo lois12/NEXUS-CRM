@@ -264,6 +264,18 @@ export default function Registrations() {
     finally { setUploading(false); }
   };
 
+  const handleDuplicate = async (id: string) => {
+    try {
+      const res = await registrationsApi.duplicate(id);
+      if (res.success) {
+        showToast('Регистрация скопирована', 'success');
+        fetchData();
+      }
+    } catch {
+      showToast('Ошибка копирования', 'error');
+    }
+  };
+
   const handleDelete = (reg: Registration) => {
     showConfirm('УДАЛИТЬ?', `"${reg.title}" будет удалён безвозвратно.`, async () => {
       try { await registrationsApi.delete(reg.id); showToast('Удалено', 'success'); fetchData(); }
@@ -843,6 +855,7 @@ export default function Registrations() {
                   <button onClick={e => { e.stopPropagation(); openEdit(reg); }} className="p-1.5 rounded hover:bg-white/10"><Edit3 className="w-3.5 h-3.5 text-gray-400" /></button>
                   <button onClick={e => { e.stopPropagation(); openSubmissions(reg); }} className="p-1.5 rounded hover:bg-white/10"><Eye className="w-3.5 h-3.5 text-gray-400" /></button>
                   <a href={`/registrations/${reg.id}/participants`} onClick={e => e.stopPropagation()} className="p-1.5 rounded hover:bg-white/10"><Users className="w-3.5 h-3.5 text-gray-400" /></a>
+                  <button onClick={e => { e.stopPropagation(); handleDuplicate(reg.id); }} className="p-1.5 rounded hover:bg-white/10" title="Копировать"><Copy className="w-3.5 h-3.5 text-gray-400" /></button>
                   <button onClick={e => { e.stopPropagation(); handleDelete(reg); }} className="p-1.5 rounded hover:bg-red-500/20"><Trash2 className="w-3.5 h-3.5 text-red-400" /></button>
                 </div>
               </div>
