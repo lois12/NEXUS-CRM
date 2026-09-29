@@ -7,7 +7,7 @@ import { Search, Palette, Check, Menu, X, User, CheckSquare, Rocket, PartyPopper
 import NotificationBell from '../notifications/NotificationBell';
 import OnlineUsers from '../common/OnlineUsers';
 import { searchApi } from '../../services/api';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 
 const themeColors: Record<ThemeName, string> = {
   'cyber-green': '#00ff88',
@@ -87,6 +87,7 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
         <button
           onClick={onToggleSidebar}
           className="p-2 rounded-xl hover:bg-white/5 transition-colors md:hidden"
+          aria-label="Открыть меню"
         >
           <Menu className="w-5 h-5 text-gray-400" />
         </button>
@@ -95,6 +96,7 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
         <button
           onClick={() => setShowMobileSearch(true)}
           className="p-2 rounded-xl hover:bg-white/5 transition-colors sm:hidden"
+          aria-label="Поиск"
         >
           <Search className="w-5 h-5 text-gray-400" />
         </button>
@@ -152,6 +154,7 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
           <button
             onClick={() => setShowThemes(!showThemes)}
             className="relative p-2 md:p-2.5 rounded-xl hover:bg-white/5 transition-colors group"
+            aria-label="Сменить тему"
             title="Сменить тему"
           >
             <Palette className="w-5 h-5 text-gray-400 group-hover:text-gray-200 transition-colors" />
@@ -212,7 +215,7 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
 
         <div className="h-8 w-px bg-white/10 mx-1 hidden md:block"></div>
 
-        <a href="/profile" className="flex items-center gap-2 md:gap-3 p-1.5 md:p-2 rounded-xl hover:bg-white/5 transition-colors">
+        <Link to="/profile" className="flex items-center gap-2 md:gap-3 p-1.5 md:p-2 rounded-xl hover:bg-white/5 transition-colors">
           <div className="relative">
             <div className="w-9 h-9 md:w-10 md:h-10 rounded-xl flex items-center justify-center overflow-hidden"
               style={{ border: '2px solid var(--color-primary)', boxShadow: '0 0 12px var(--color-glow)' }}>
@@ -240,7 +243,7 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
             <p className="text-sm font-medium text-gray-200 leading-tight">{user?.fullName}</p>
             <p className="text-[10px] font-mono" style={{ color: 'var(--color-text-tertiary)' }}>@{user?.username}</p>
           </div>
-        </a>
+        </Link>
       </div>
     </header>
 

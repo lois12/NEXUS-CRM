@@ -292,7 +292,7 @@ export default function Login() {
           className="mt-6 text-center"
         >
           <p className="font-mono text-xs" style={{ color: '#2a2a3a' }}>
-            NEXUS CRM &copy; 2024
+            NEXUS CRM &copy; {new Date().getFullYear()}
           </p>
         </motion.div>
       </div>

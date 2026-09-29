@@ -224,10 +224,10 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             </div>
           )}
           <div className="flex items-center gap-1">
-            <button onClick={toggleCollapsed} className="p-2 rounded-xl hover:bg-white/5 transition-colors hidden md:flex" title={collapsed ? 'Развернуть' : 'Свернуть'}>
+            <button onClick={toggleCollapsed} className="p-2 rounded-xl hover:bg-white/5 transition-colors hidden md:flex" aria-label={collapsed ? 'Развернуть боковое меню' : 'Свернуть боковое меню'} title={collapsed ? 'Развернуть' : 'Свернуть'}>
               {collapsed ? <PanelLeftOpen className="w-4 h-4 text-gray-400" /> : <PanelLeftClose className="w-4 h-4 text-gray-400" />}
             </button>
-            <button onClick={onClose} className="p-2 rounded-xl hover:bg-white/5 transition-colors md:hidden">
+            <button onClick={onClose} className="p-2 rounded-xl hover:bg-white/5 transition-colors md:hidden" aria-label="Закрыть меню">
               <X className="w-5 h-5 text-gray-400" />
             </button>
           </div>
@@ -249,6 +249,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                     <NavLink key={group.id} to={target.to} end={target.to === '/'} onClick={onClose}
                       className="flex items-center justify-center w-full h-10 rounded-xl transition-all duration-200"
                       style={isGroupActive ? { background: 'color-mix(in srgb, var(--color-primary) 10%, transparent)', color: 'var(--color-primary)' } : { color: '#6b7280' }}
+                      aria-label={group.label}
                       title={group.label}>
                       <group.icon className="w-5 h-5" />
                     </NavLink>
@@ -261,6 +262,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                     onClick={() => { setCollapsed(false); localStorage.setItem('nexus_sidebar_collapsed', 'false'); setActiveGroup(group.id); }}
                     className="flex items-center justify-center w-full h-10 rounded-xl transition-all duration-200"
                     style={isGroupActive ? { background: 'color-mix(in srgb, var(--color-primary) 10%, transparent)', color: 'var(--color-primary)' } : { color: '#6b7280' }}
+                    aria-label={group.label}
                     title={group.label}>
                     <group.icon className="w-5 h-5" />
                   </button>

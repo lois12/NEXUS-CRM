@@ -1,6 +1,6 @@
-﻿import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Search, Edit3, Trash2, X, Package, MapPin, LayoutGrid, List, FolderPlus } from 'lucide-react';
+import { Plus, Search, Edit3, Trash2, X, Package, MapPin, LayoutGrid, List, FolderPlus, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { InventoryItem, InventoryType, InventoryStatus } from '../types';
 import { inventoryApi } from '../services/api';
 import { showToast, useNexusConfirm, ConfirmModal } from '../components/ui/NexusModal';
@@ -40,6 +40,8 @@ export default function Inventory() {
   const [filterType, setFilterType] = useState<InventoryType | ''>('');
   const [filterStatus, setFilterStatus] = useState<InventoryStatus | ''>('');
   const [view, setView] = useState<'table' | 'kanban'>('table');
+  const [sortField, setSortField] = useState<string>('name');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const { confirmState, showConfirm, closeConfirm } = useNexusConfirm();
   const [form, setForm] = useState({
     name: '', type: 'ТМЦ' as InventoryType, description: '', quantity: 1, unit: 'шт',
@@ -71,6 +73,34 @@ export default function Inventory() {
     if (search && !i.name.toLowerCase().includes(search.toLowerCase()) && !i.location.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   }), [items, filterType, filterStatus, search]);
+
+  const sortedFiltered = useMemo(() => {
+    const sorted = [...filtered];
+    sorted.sort((a, b) => {
+      let va = '', vb = '';
+      switch (sortField) {
+        case 'name': va = a.name; vb = b.name; break;
+        case 'type': va = a.type; vb = b.type; break;
+        case 'quantity': return sortDir === 'asc' ? a.quantity - b.quantity : b.quantity - a.quantity;
+        case 'location': va = a.location || ''; vb = b.location || ''; break;
+        case 'responsible': va = a.responsiblePerson || ''; vb = b.responsiblePerson || ''; break;
+        case 'status': va = a.status; vb = b.status; break;
+        default: va = a.name; vb = b.name;
+      }
+      return sortDir === 'asc' ? va.localeCompare(vb, 'ru') : vb.localeCompare(va, 'ru');
+    });
+    return sorted;
+  }, [filtered, sortField, sortDir]);
+
+  const toggleSort = (field: string) => {
+    if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortField(field); setSortDir('asc'); }
+  };
+
+  const SortIcon = ({ field }: { field: string }) => {
+    if (sortField !== field) return <ArrowUpDown className="w-3 h-3 text-gray-600" />;
+    return sortDir === 'asc' ? <ArrowUp className="w-3 h-3" style={{ color: 'var(--color-primary)' }} /> : <ArrowDown className="w-3 h-3" style={{ color: 'var(--color-primary)' }} />;
+  };
 
   // Merge saved locations + locations from items
   const locations = useMemo(() => {
@@ -230,17 +260,17 @@ export default function Inventory() {
             <table className="w-full text-left">
               <thead>
                 <tr className="border-b border-gray-700/50">
-                  <th className="px-3 py-2 font-mono text-xs text-gray-500">НАЗВАНИЕ</th>
-                  <th className="px-3 py-2 font-mono text-xs text-gray-500">ТИП</th>
-                  <th className="px-3 py-2 font-mono text-xs text-gray-500 text-center">КОЛ-ВО</th>
-                  <th className="px-3 py-2 font-mono text-xs text-gray-500">МЕСТО</th>
-                  <th className="px-3 py-2 font-mono text-xs text-gray-500">ОТВЕТСТВ.</th>
-                  <th className="px-3 py-2 font-mono text-xs text-gray-500">СТАТУС</th>
+                  <th onClick={() => toggleSort('name')} className="px-3 py-2 font-mono text-xs text-gray-500 cursor-pointer hover:text-gray-300 select-none"><span className="flex items-center gap-1">НАЗВАНИЕ <SortIcon field="name" /></span></th>
+                  <th onClick={() => toggleSort('type')} className="px-3 py-2 font-mono text-xs text-gray-500 cursor-pointer hover:text-gray-300 select-none"><span className="flex items-center gap-1">ТИП <SortIcon field="type" /></span></th>
+                  <th onClick={() => toggleSort('quantity')} className="px-3 py-2 font-mono text-xs text-gray-500 text-center cursor-pointer hover:text-gray-300 select-none"><span className="flex items-center gap-1 justify-center">КОЛ-ВО <SortIcon field="quantity" /></span></th>
+                  <th onClick={() => toggleSort('location')} className="px-3 py-2 font-mono text-xs text-gray-500 cursor-pointer hover:text-gray-300 select-none"><span className="flex items-center gap-1">МЕСТО <SortIcon field="location" /></span></th>
+                  <th onClick={() => toggleSort('responsible')} className="px-3 py-2 font-mono text-xs text-gray-500 cursor-pointer hover:text-gray-300 select-none"><span className="flex items-center gap-1">ОТВЕТСТВ. <SortIcon field="responsible" /></span></th>
+                  <th onClick={() => toggleSort('status')} className="px-3 py-2 font-mono text-xs text-gray-500 cursor-pointer hover:text-gray-300 select-none"><span className="flex items-center gap-1">СТАТУС <SortIcon field="status" /></span></th>
                   <th className="px-3 py-2"></th>
                 </tr>
               </thead>
               <tbody>
-                {filtered.map(i => (
+                {sortedFiltered.map(i => (
                   <tr key={i.id} className="border-b border-gray-800/50 hover:bg-white/5 group transition-colors">
                     <td className="px-3 py-2.5">
                       <div className="font-mono text-sm text-gray-200">{i.name}</div>

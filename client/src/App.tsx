@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
 import { lazy, Suspense, ReactNode } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
@@ -73,10 +73,10 @@ function ProtectedRoute({ children, allowedRoles }: { children: ReactNode; allow
           <p className="font-mono text-sm mb-4" style={{ color: 'var(--color-text-secondary)' }}>
             У вас нет прав доступа к этому ресурсу
           </p>
-          <a href="/" className="inline-block px-5 py-2.5 rounded-xl font-mono text-sm font-bold transition-all"
+          <Link to="/" className="inline-block px-5 py-2.5 rounded-xl font-mono text-sm font-bold transition-all"
             style={{ backgroundColor: 'rgba(0,255,136,0.15)', color: 'var(--color-primary)', border: '1px solid rgba(0,255,136,0.3)' }}>
             НА ГЛАВНУЮ
-          </a>
+          </Link>
         </div>
       </div>
     );
@@ -164,7 +164,7 @@ function AppRoutes() {
 
 function ChatWidgetWrapper() {
   const { isAuthenticated } = useAuth();
-  const pathname = window.location.pathname;
+  const { pathname } = useLocation();
   if (!isAuthenticated) return null;
   if (pathname.startsWith('/reg/') || pathname.startsWith('/control') || pathname.startsWith('/w/')) return null;
   return <ErrorBoundary><Suspense fallback={null}><ChatWidget /></Suspense></ErrorBoundary>;

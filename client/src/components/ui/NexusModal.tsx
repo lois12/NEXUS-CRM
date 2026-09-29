@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AlertTriangle, CheckCircle, Info, X } from 'lucide-react';
 import { toast as sonnerToast } from 'sonner';
@@ -38,6 +38,17 @@ const typeConfig = {
 export function AlertModal({ isOpen, onClose, title, message, type = 'info' }: AlertModalProps) {
   const config = typeConfig[type];
   const Icon = config.icon;
+  const closeRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', handleKey);
+    closeRef.current?.focus();
+    return () => document.removeEventListener('keydown', handleKey);
+  }, [isOpen, onClose]);
 
   return (
     <AnimatePresence>
@@ -49,6 +60,7 @@ export function AlertModal({ isOpen, onClose, title, message, type = 'info' }: A
           className="fixed inset-0 flex items-center justify-center z-[200] p-4"
           style={{ backgroundColor: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(4px)' }}
           onClick={onClose}
+          role="presentation"
         >
           <motion.div
             initial={{ scale: 0.9, opacity: 0, y: 20 }}
@@ -57,16 +69,20 @@ export function AlertModal({ isOpen, onClose, title, message, type = 'info' }: A
             className="glass-frost rounded-2xl p-6 w-full max-w-sm"
             style={{ border: `1px solid ${config.border}` }}
             onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="alert-title"
           >
             <div className="flex items-start gap-4">
               <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: config.bg, border: `1px solid ${config.border}` }}>
                 <Icon className="w-6 h-6" style={{ color: config.color }} />
               </div>
               <div className="flex-1 min-w-0">
-                <h3 className="text-lg font-bold font-mono text-gray-200 mb-1">{title}</h3>
+                <h3 id="alert-title" className="text-lg font-bold font-mono text-gray-200 mb-1">{title}</h3>
                 <p className="text-sm text-gray-400">{message}</p>
               </div>
               <button
+                ref={closeRef}
                 onClick={onClose}
                 className="p-1.5 rounded-lg hover:bg-white/10 text-gray-400 hover:text-gray-200 transition-colors flex-shrink-0"
               >
@@ -92,6 +108,17 @@ export function AlertModal({ isOpen, onClose, title, message, type = 'info' }: A
 export function ConfirmModal({ isOpen, onConfirm, onCancel, title, message, confirmText = 'ПОДТВЕРДИТЬ', cancelText = 'ОТМЕНА', type = 'warning' }: ConfirmModalProps) {
   const config = typeConfig[type];
   const Icon = config.icon;
+  const confirmRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onCancel();
+    };
+    document.addEventListener('keydown', handleKey);
+    confirmRef.current?.focus();
+    return () => document.removeEventListener('keydown', handleKey);
+  }, [isOpen, onCancel]);
 
   return (
     <AnimatePresence>
@@ -103,6 +130,7 @@ export function ConfirmModal({ isOpen, onConfirm, onCancel, title, message, conf
           className="fixed inset-0 flex items-center justify-center z-[200] p-4"
           style={{ backgroundColor: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(4px)' }}
           onClick={onCancel}
+          role="presentation"
         >
           <motion.div
             initial={{ scale: 0.9, opacity: 0, y: 20 }}
@@ -111,13 +139,16 @@ export function ConfirmModal({ isOpen, onConfirm, onCancel, title, message, conf
             className="glass-frost rounded-2xl p-6 w-full max-w-sm"
             style={{ border: `1px solid ${config.border}` }}
             onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="confirm-title"
           >
             <div className="flex items-start gap-4">
               <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: config.bg, border: `1px solid ${config.border}` }}>
                 <Icon className="w-6 h-6" style={{ color: config.color }} />
               </div>
               <div className="flex-1 min-w-0">
-                <h3 className="text-lg font-bold font-mono text-gray-200 mb-1">{title}</h3>
+                <h3 id="confirm-title" className="text-lg font-bold font-mono text-gray-200 mb-1">{title}</h3>
                 <p className="text-sm text-gray-400">{message}</p>
               </div>
             </div>
@@ -129,11 +160,12 @@ export function ConfirmModal({ isOpen, onConfirm, onCancel, title, message, conf
                 {cancelText}
               </button>
               <button
+                ref={confirmRef}
                 onClick={onConfirm}
                 className="px-5 py-2.5 rounded-xl font-mono text-sm font-bold transition-all"
-                style={{ 
-                  backgroundColor: type === 'danger' ? '#ff3b30' : 'var(--color-primary)', 
-                  color: type === 'danger' ? '#fff' : '#000' 
+                style={{
+                  backgroundColor: type === 'danger' ? '#ff3b30' : 'var(--color-primary)',
+                  color: type === 'danger' ? '#fff' : '#000'
                 }}
               >
                 {confirmText}

@@ -133,33 +133,42 @@ app.get('/w/:slug', (req, res) => {
     return res.sendFile(path.join(CLIENT_DIST, 'index.html'));
   }
 
+  function escapeHtml(str: string): string {
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
   // Bot — serve HTML with OG tags
   try {
-    const { get } = require('./db/database');
+    // get is already imported at the top of the file
     const widget = get('SELECT title, description, imageUrl FROM widgets WHERE publicSlug = ? AND isPublic = 1', [req.params.slug]);
     if (!widget) {
       return res.sendFile(path.join(CLIENT_DIST, 'index.html'));
     }
 
-    const title = widget.title || 'NEXUS Виджет';
-    const description = widget.description || '';
-    const imageUrl = widget.imageUrl ? `https://nexus-liberty.online${widget.imageUrl}` : '';
+    const title = escapeHtml(widget.title || 'NEXUS Виджет');
+    const description = escapeHtml(widget.description || '');
+    const imageUrl = widget.imageUrl ? `https://nexus-liberty.online${escapeHtml(widget.imageUrl)}` : '';
 
     res.send(`<!DOCTYPE html>
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <meta property="og:title" content="${title.replace(/"/g, '&quot;')}" />
-  <meta property="og:description" content="${description.replace(/"/g, '&quot;')}" />
+  <meta property="og:title" content="${title}" />
+  <meta property="og:description" content="${description}" />
   ${imageUrl ? `<meta property="og:image" content="${imageUrl}" />` : ''}
   <meta property="og:type" content="website" />
-  <meta property="og:url" content="https://nexus-liberty.online/w/${req.params.slug}" />
+  <meta property="og:url" content="https://nexus-liberty.online/w/${escapeHtml(req.params.slug)}" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="${title.replace(/"/g, '&quot;')}" />
-  <meta name="twitter:description" content="${description.replace(/"/g, '&quot;')}" />
+  <meta name="twitter:title" content="${title}" />
+  <meta name="twitter:description" content="${description}" />
   ${imageUrl ? `<meta name="twitter:image" content="${imageUrl}" />` : ''}
   <title>${title} — NEXUS</title>
-  <meta http-equiv="refresh" content="0;url=/w/${req.params.slug}" />
+  <meta http-equiv="refresh" content="0;url=/w/${escapeHtml(req.params.slug)}" />
 </head>
 <body></body>
 </html>`);
@@ -171,9 +180,10 @@ app.get('/w/:slug', (req, res) => {
 
 // SPA fallback
 app.get('*', (req, res) => {
-  if (!req.path.startsWith('/api')) {
-    res.sendFile(path.join(CLIENT_DIST, 'index.html'));
+  if (req.path.startsWith('/api')) {
+    return res.status(404).json({ error: 'Not found' });
   }
+  res.sendFile(path.join(CLIENT_DIST, 'index.html'));
 });
 
 // Initialize database and start server

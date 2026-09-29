@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
 import fs from 'fs';
+import bcrypt from 'bcryptjs';
 import { query, get, run } from '../db/database';
 import { AuthRequest } from '../middleware/auth';
 import { UPLOADS_DIR } from '../paths';
@@ -187,7 +188,7 @@ export const duplicateWidget = (req: AuthRequest, res: Response) => {
 };
 
 // Update custom slug + password
-export const updatePublishSettings = (req: AuthRequest, res: Response) => {
+export const updatePublishSettings = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const widget = get('SELECT * FROM widgets WHERE id = ?', [id]);
@@ -213,8 +214,9 @@ export const updatePublishSettings = (req: AuthRequest, res: Response) => {
       }
     }
     if (password !== undefined) {
+      const hashed = password && password.trim() ? await bcrypt.hash(password, 10) : '';
       updates.push('password = ?');
-      params.push(password || '');
+      params.push(hashed);
     }
 
     if (updates.length === 0) return res.json({ success: true, data: widget });
@@ -233,7 +235,7 @@ export const updatePublishSettings = (req: AuthRequest, res: Response) => {
 
 // ── Public (no auth) ──
 
-export const getPublicWidget = (req: AuthRequest, res: Response) => {
+export const getPublicWidget = async (req: AuthRequest, res: Response) => {
   try {
     const { slug } = req.params;
     const widget = get(
@@ -245,7 +247,8 @@ export const getPublicWidget = (req: AuthRequest, res: Response) => {
     // If password set, require it
     if (widget.password && widget.password.trim()) {
       const providedPass = req.query.pass as string || req.headers['x-widget-password'] as string || '';
-      if (providedPass !== widget.password) {
+      const isValid = await bcrypt.compare(providedPass, widget.password);
+      if (!isValid) {
         return res.json({ success: true, data: { title: widget.title, description: widget.description, imageUrl: widget.imageUrl, publicSlug: widget.publicSlug, requiresPassword: true } });
       }
     }
