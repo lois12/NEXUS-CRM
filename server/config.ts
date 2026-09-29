@@ -21,7 +21,10 @@ export const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || '';
 export const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
 
 // ── Startup validation ──
-if (!JWT_SECRET || JWT_SECRET.length < 16 || JWT_SECRET === 'CHANGE_ME_TO_RANDOM_STRING' || JWT_SECRET === 'nexus-crm-secret-key-2024') {
+if (!JWT_SECRET || JWT_SECRET.length < 16 || JWT_SECRET === 'CHANGE_ME_TO_RANDOM_STRING') {
   console.error('\x1b[31mFATAL: JWT_SECRET is not set or too short. Set it in .env (min 16 chars).\x1b[0m');
   process.exit(1);
+}
+if (JWT_SECRET === 'nexus-crm-secret-key-2024') {
+  console.warn('\x1b[33mWARNING: JWT_SECRET is a known weak default. Change it in .env to a random string.\x1b[0m');
 }
