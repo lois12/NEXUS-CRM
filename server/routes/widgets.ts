@@ -3,6 +3,7 @@ import {
   getWidgets, getWidgetById, createWidget, updateWidget, deleteWidget,
   uploadImage, togglePublish, togglePin, duplicateWidget,
   updatePublishSettings, getPublicWidget,
+  uploadGalleryImage, getGalleryImages, deleteGalleryImage,
 } from '../controllers/widgetController';
 import { authenticateToken, requireRole } from '../middleware/auth';
 import { upload } from '../middleware/upload';
@@ -26,5 +27,10 @@ authRouter.put('/:id/publish', requireRole('super_admin', 'руководите�
 authRouter.put('/:id/pin', requireRole('super_admin', 'руководитель', 'редактор', 'smm'), togglePin);
 authRouter.post('/:id/duplicate', requireRole('super_admin', 'руководитель', 'редактор', 'smm'), duplicateWidget);
 authRouter.put('/:id/publish-settings', requireRole('super_admin', 'руководитель', 'редактор', 'smm'), updatePublishSettings);
+
+// Gallery
+authRouter.get('/:id/gallery', getGalleryImages);
+authRouter.post('/:id/gallery', requireRole('super_admin', 'руководитель', 'редактор'), upload.single('file'), uploadGalleryImage);
+authRouter.delete('/:id/gallery/:imageId', requireRole('super_admin', 'руководитель', 'редактор'), deleteGalleryImage);
 
 export { router as publicWidgetRouter, authRouter as widgetAuthRouter };

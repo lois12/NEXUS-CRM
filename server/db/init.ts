@@ -877,4 +877,17 @@ export async function initializeDatabase() {
   migrate('ALTER TABLE widgets ADD COLUMN viewCount INTEGER DEFAULT 0');
   migrate('ALTER TABLE widgets ADD COLUMN category TEXT DEFAULT ""');
   migrate('ALTER TABLE widgets ADD COLUMN isPinned INTEGER DEFAULT 0');
+  migrate('ALTER TABLE widgets ADD COLUMN folder TEXT DEFAULT ""');
+
+  // Widget gallery images
+  try { run(`
+    CREATE TABLE IF NOT EXISTS widget_images (
+      id TEXT PRIMARY KEY,
+      widgetId TEXT NOT NULL,
+      url TEXT NOT NULL,
+      position INTEGER DEFAULT 0,
+      createdAt TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (widgetId) REFERENCES widgets(id) ON DELETE CASCADE
+    )
+  `); } catch {}
 }

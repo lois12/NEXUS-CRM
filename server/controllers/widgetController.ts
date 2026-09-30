@@ -43,12 +43,12 @@ export const getWidgetById = (req: AuthRequest, res: Response) => {
 
 export const createWidget = (req: AuthRequest, res: Response) => {
   try {
-    const { title, description, category } = req.body;
+    const { title, description, category, folder } = req.body;
     if (!title) return res.status(400).json({ success: false, error: 'Название обязательно' });
 
     const id = uuidv4();
-    run(`INSERT INTO widgets (id, title, description, category, createdBy) VALUES (?, ?, ?, ?, ?)`,
-      [id, title, description || '', category || '', req.user?.id]);
+    run(`INSERT INTO widgets (id, title, description, category, folder, createdBy) VALUES (?, ?, ?, ?, ?, ?)`,
+      [id, title, description || '', category || '', folder || '', req.user?.id]);
 
     const widget = get('SELECT * FROM widgets WHERE id = ?', [id]);
     res.status(201).json({ success: true, data: widget });
@@ -64,7 +64,7 @@ export const updateWidget = (req: AuthRequest, res: Response) => {
     const widget = get('SELECT * FROM widgets WHERE id = ?', [id]);
     if (!widget) return res.status(404).json({ success: false, error: 'Виджет не найден' });
 
-    const { title, description, htmlCode, imageUrl, category } = req.body;
+    const { title, description, htmlCode, imageUrl, category, folder } = req.body;
     const updates: string[] = [];
     const params: any[] = [];
 
@@ -73,6 +73,7 @@ export const updateWidget = (req: AuthRequest, res: Response) => {
     if (htmlCode !== undefined) { updates.push('htmlCode = ?'); params.push(htmlCode); }
     if (imageUrl !== undefined) { updates.push('imageUrl = ?'); params.push(imageUrl); }
     if (category !== undefined) { updates.push('category = ?'); params.push(category); }
+    if (folder !== undefined) { updates.push('folder = ?'); params.push(folder); }
 
     if (updates.length === 0) return res.json({ success: true, data: widget });
 
@@ -175,9 +176,9 @@ export const duplicateWidget = (req: AuthRequest, res: Response) => {
     if (!widget) return res.status(404).json({ success: false, error: 'Виджет не найден' });
 
     const newId = uuidv4();
-    run(`INSERT INTO widgets (id, title, description, imageUrl, htmlCode, category, createdBy)
-      VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [newId, widget.title + ' (копия)', widget.description, '', widget.htmlCode, widget.category, req.user?.id]);
+    run(`INSERT INTO widgets (id, title, description, imageUrl, htmlCode, category, folder, createdBy)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [newId, widget.title + ' (копия)', widget.description, '', widget.htmlCode, widget.category, widget.folder, req.user?.id]);
 
     const newWidget = get('SELECT * FROM widgets WHERE id = ?', [newId]);
     res.status(201).json({ success: true, data: newWidget });
@@ -234,6 +235,56 @@ export const updatePublishSettings = async (req: AuthRequest, res: Response) => 
 };
 
 // ── Public (no auth) ──
+
+// ── Gallery ──
+
+export const uploadGalleryImage = (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const widget = get('SELECT * FROM widgets WHERE id = ?', [id]);
+    if (!widget) return res.status(404).json({ success: false, error: 'Виджет не найден' });
+    if (!req.file) return res.status(400).json({ success: false, error: 'Файл не загружен' });
+
+    const imageId = uuidv4();
+    const imageUrl = `/uploads/${req.file.filename}`;
+    const maxPos = get('SELECT MAX(position) as maxPos FROM widget_images WHERE widgetId = ?', [id]);
+    const position = (maxPos?.maxPos || 0) + 1;
+    run('INSERT INTO widget_images (id, widgetId, url, position) VALUES (?, ?, ?, ?)', [imageId, id, imageUrl, position]);
+
+    res.json({ success: true, data: { id: imageId, url: imageUrl, position } });
+  } catch (error) {
+    console.error('UploadGalleryImage error:', error);
+    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+  }
+};
+
+export const getGalleryImages = (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const images = query('SELECT * FROM widget_images WHERE widgetId = ? ORDER BY position ASC', [id]);
+    res.json({ success: true, data: images });
+  } catch (error) {
+    console.error('GetGalleryImages error:', error);
+    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+  }
+};
+
+export const deleteGalleryImage = (req: AuthRequest, res: Response) => {
+  try {
+    const { id, imageId } = req.params;
+    const image = get('SELECT * FROM widget_images WHERE id = ? AND widgetId = ?', [imageId, id]);
+    if (!image) return res.status(404).json({ success: false, error: 'Изображение не найдено' });
+
+    const imgPath = path.join(UPLOADS_DIR, path.basename(image.url));
+    if (fs.existsSync(imgPath)) fs.unlinkSync(imgPath);
+
+    run('DELETE FROM widget_images WHERE id = ?', [imageId]);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('DeleteGalleryImage error:', error);
+    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+  }
+};
 
 export const getPublicWidget = async (req: AuthRequest, res: Response) => {
   try {

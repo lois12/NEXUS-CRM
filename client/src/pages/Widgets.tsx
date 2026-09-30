@@ -1,10 +1,17 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Search, Edit3, Trash2, Puzzle, Copy, Globe, Lock, Upload, Code, ExternalLink, ChevronLeft, Eye, Pin, PinOff, CopyPlus, Settings } from 'lucide-react';
+import { Plus, Search, Edit3, Trash2, Puzzle, Copy, Globe, Lock, Upload, Code, ExternalLink, ChevronLeft, Eye, Pin, PinOff, CopyPlus, Settings, ImagePlus, X } from 'lucide-react';
 import { widgetsApi } from '../services/api';
 import { showToast, useNexusConfirm, ConfirmModal } from '../components/ui/NexusModal';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
 import { SkeletonGrid, SkeletonHeader } from '../components/ui/Skeleton';
+import { EditorView, basicSetup } from 'codemirror';
+import { EditorState } from '@codemirror/state';
+import { html } from '@codemirror/lang-html';
+import { css } from '@codemirror/lang-css';
+import { javascript } from '@codemirror/lang-javascript';
+import { oneDark } from '@codemirror/theme-one-dark';
+import { keymap } from '@codemirror/view';
 
 interface Widget {
   id: string;
@@ -19,6 +26,7 @@ interface Widget {
   isPinned: number;
   viewCount: number;
   category: string;
+  folder: string;
   createdBy: string;
   creatorName?: string;
   createdAt: string;
@@ -32,18 +40,24 @@ export default function Widgets() {
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
+  const [folderFilter, setFolderFilter] = useState('');
   const [sortMode, setSortMode] = useState<SortMode>('newest');
   const [view, setView] = useState<'list' | 'edit' | 'code' | 'settings'>('list');
   const [editing, setEditing] = useState<Widget | null>(null);
-  const [form, setForm] = useState({ title: '', description: '', category: '' });
+  const [form, setForm] = useState({ title: '', description: '', category: '', folder: '' });
   const [htmlCode, setHtmlCode] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [publishForm, setPublishForm] = useState({ customSlug: '', password: '' });
   const fileRef = useRef<HTMLInputElement>(null);
+  const editorRef = useRef<HTMLDivElement>(null);
+  const editorViewRef = useRef<EditorView | null>(null);
   const { confirmState, showConfirm, closeConfirm } = useNexusConfirm();
   const [listRef] = useAutoAnimate({ duration: 200 });
+  const [galleryImages, setGalleryImages] = useState<any[]>([]);
+  const [galleryUploading, setGalleryUploading] = useState(false);
+  const galleryFileRef = useRef<HTMLInputElement>(null);
 
   const fetchWidgets = useCallback(async () => {
     try {
@@ -55,14 +69,57 @@ export default function Widgets() {
 
   useEffect(() => { fetchWidgets(); }, [fetchWidgets]);
 
+  // Initialize CodeMirror when code editor opens
+  useEffect(() => {
+    if (view !== 'code' || !editorRef.current) return;
+    // Destroy previous instance
+    if (editorViewRef.current) { editorViewRef.current.destroy(); editorViewRef.current = null; }
+
+    const saveKeymap = keymap.of([{
+      key: 'Mod-s',
+      run: () => { handleSaveCode(); return true; },
+    }]);
+
+    const state = EditorState.create({
+      doc: htmlCode,
+      extensions: [
+        basicSetup,
+        html({ matchClosingTags: true, autoCloseTags: true }),
+        css(),
+        javascript(),
+        oneDark,
+        saveKeymap,
+        EditorView.updateListener.of((update) => {
+          if (update.docChanged) setHtmlCode(update.state.doc.toString());
+        }),
+        EditorView.theme({
+          '&': { height: '100%', fontSize: '13px' },
+          '.cm-scroller': { fontFamily: "'JetBrains Mono', monospace" },
+          '.cm-content': { padding: '12px 0' },
+          '&.cm-focused': { outline: 'none' },
+          '.cm-gutters': { background: '#1e1e2e', border: 'none' },
+        }),
+      ],
+    });
+
+    const editorInstance = new EditorView({ state, parent: editorRef.current });
+    editorViewRef.current = editorInstance;
+
+    return () => { editorInstance.destroy(); editorViewRef.current = null; };
+  }, [view]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Unique categories
   const categories = [...new Set(widgets.map(w => w.category).filter(Boolean))];
+
+  // Unique folders
+  const folders = [...new Set(widgets.map(w => w.folder).filter(Boolean))];
 
   // Filter + sort
   const filtered = widgets
     .filter(w => {
       if (search && !w.title.toLowerCase().includes(search.toLowerCase()) && !w.description.toLowerCase().includes(search.toLowerCase())) return false;
       if (categoryFilter && w.category !== categoryFilter) return false;
+      if (folderFilter && w.folder !== folderFilter) return false;
       return true;
     })
     .sort((a, b) => {
@@ -78,20 +135,26 @@ export default function Widgets() {
 
   const openCreate = () => {
     setEditing(null);
-    setForm({ title: '', description: '', category: '' });
+    setForm({ title: '', description: '', category: '', folder: '' });
     setHtmlCode('');
     setImageUrl('');
     setImageFile(null);
+    setGalleryImages([]);
     setView('edit');
   };
 
-  const openEdit = (w: Widget) => {
+  const openEdit = async (w: Widget) => {
     setEditing(w);
-    setForm({ title: w.title, description: w.description, category: w.category || '' });
+    setForm({ title: w.title, description: w.description, category: w.category || '', folder: w.folder || '' });
     setHtmlCode(w.htmlCode || '');
     setImageUrl(w.imageUrl || '');
     setImageFile(null);
     setView('edit');
+    // Load gallery images
+    try {
+      const res = await widgetsApi.getGallery(w.id);
+      if (res.success && res.data) setGalleryImages(res.data);
+    } catch { setGalleryImages([]); }
   };
 
   const openCodeEditor = (w: Widget) => {
@@ -111,10 +174,10 @@ export default function Widgets() {
     try {
       let widgetId = editing?.id;
       if (editing) {
-        const res = await widgetsApi.update(editing.id, { title: form.title, description: form.description, category: form.category });
+        const res = await widgetsApi.update(editing.id, { title: form.title, description: form.description, category: form.category, folder: form.folder });
         if (res.success) widgetId = editing.id;
       } else {
-        const res = await widgetsApi.create({ title: form.title, description: form.description, category: form.category });
+        const res = await widgetsApi.create({ title: form.title, description: form.description, category: form.category, folder: form.folder });
         if (res.success && res.data) widgetId = res.data.id;
       }
       if (widgetId && imageFile) {
@@ -133,8 +196,10 @@ export default function Widgets() {
 
   const handleSaveCode = async () => {
     if (!editing) return;
+    // Read current code from editor (always up-to-date)
+    const currentCode = editorViewRef.current?.state.doc.toString() || htmlCode;
     try {
-      const res = await widgetsApi.update(editing.id, { htmlCode });
+      const res = await widgetsApi.update(editing.id, { htmlCode: currentCode });
       if (res.success) { showToast('Код сохранён'); await fetchWidgets(); setView('list'); }
     } catch { showToast('Ошибка сохранения', 'error'); }
   };
@@ -190,6 +255,28 @@ export default function Widgets() {
         await fetchWidgets();
       } catch { showToast('Ошибка удаления', 'error'); }
     });
+  };
+
+  const handleGalleryUpload = async (file: File) => {
+    if (!editing) return;
+    setGalleryUploading(true);
+    try {
+      const res = await widgetsApi.uploadGalleryImage(editing.id, file);
+      if (res.success) {
+        setGalleryImages(prev => [...prev, res.data]);
+        showToast('Фото добавлено');
+      }
+    } catch { showToast('Ошибка загрузки', 'error'); }
+    finally { setGalleryUploading(false); }
+  };
+
+  const handleGalleryDelete = async (imageId: string) => {
+    if (!editing) return;
+    try {
+      await widgetsApi.deleteGalleryImage(editing.id, imageId);
+      setGalleryImages(prev => prev.filter(img => img.id !== imageId));
+      showToast('Фото удалено');
+    } catch { showToast('Ошибка удаления', 'error'); }
   };
 
   if (isLoading) return (
@@ -274,19 +361,8 @@ export default function Widgets() {
         <div className="flex-1 flex flex-col md:flex-row gap-4 min-h-0">
           <div className="flex-1 flex flex-col min-h-0">
             <div className="text-xs font-mono text-gray-500 mb-2">HTML / CSS / JS</div>
-            <textarea
-              value={htmlCode}
-              onChange={(e) => setHtmlCode(e.target.value)}
-              className="flex-1 min-h-[300px] w-full rounded-xl p-4 font-mono text-sm resize-none focus:outline-none"
-              style={{
-                background: 'rgba(0,0,0,0.4)',
-                border: '1px solid rgba(0,255,136,0.1)',
-                color: '#e8e8ec',
-                fontFamily: "'JetBrains Mono', monospace",
-              }}
-              placeholder="<!DOCTYPE html>&#10;<html>&#10;  <body>&#10;    <h1>Привет!</h1>&#10;  </body>&#10;</html>"
-              spellCheck={false}
-            />
+            <div ref={editorRef} className="flex-1 min-h-[300px] rounded-xl overflow-hidden"
+              style={{ border: '1px solid rgba(0,255,136,0.1)' }} />
             <button onClick={handleSaveCode}
               className="mt-3 px-6 py-2.5 rounded-xl font-mono text-sm font-bold transition-all"
               style={{ background: 'rgba(0,255,136,0.15)', color: 'var(--color-primary)', border: '1px solid rgba(0,255,136,0.3)' }}>
@@ -438,6 +514,64 @@ export default function Widgets() {
             />
           </div>
 
+          {/* Folder */}
+          <div>
+            <label className="text-xs font-mono text-gray-500 mb-2 block">Папка</label>
+            <div className="flex gap-2 flex-wrap">
+              {folders.map(f => (
+                <button key={f} onClick={() => setForm({ ...form, folder: form.folder === f ? '' : f })}
+                  className="px-3 py-1.5 rounded-lg font-mono text-xs transition-all"
+                  style={{
+                    background: form.folder === f ? 'rgba(0,255,136,0.15)' : 'rgba(255,255,255,0.05)',
+                    color: form.folder === f ? 'var(--color-primary)' : '#9ca3af',
+                    border: `1px solid ${form.folder === f ? 'rgba(0,255,136,0.3)' : 'rgba(255,255,255,0.08)'}`,
+                  }}>
+                  {f}
+                </button>
+              ))}
+            </div>
+            <input
+              value={form.folder}
+              onChange={(e) => setForm({ ...form, folder: e.target.value })}
+              className="w-full rounded-xl px-4 py-3 mt-2 font-mono text-sm focus:outline-none"
+              style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(0,255,136,0.1)', color: '#e8e8ec' }}
+              placeholder="Введите или выберите папку"
+            />
+          </div>
+
+          {/* Gallery */}
+          {editing && (
+            <div>
+              <label className="text-xs font-mono text-gray-500 mb-2 block">Галерея</label>
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mb-3">
+                {galleryImages.map((img: any) => (
+                  <div key={img.id} className="relative rounded-xl overflow-hidden group aspect-square">
+                    <img src={img.url} alt="" className="w-full h-full object-cover" />
+                    <button onClick={() => handleGalleryDelete(img.id)}
+                      className="absolute top-1 right-1 p-1 rounded-full bg-black/60 hover:bg-red-500/80 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <X className="w-3 h-3 text-white" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <label
+                onDragOver={e => { e.preventDefault(); e.currentTarget.style.borderColor = 'var(--color-primary)'; }}
+                onDragLeave={e => { e.currentTarget.style.borderColor = ''; }}
+                onDrop={e => {
+                  e.preventDefault();
+                  e.currentTarget.style.borderColor = '';
+                  const file = e.dataTransfer.files[0];
+                  if (file && file.type.startsWith('image/')) handleGalleryUpload(file);
+                }}
+                className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-dashed border-gray-700 hover:border-gray-500 cursor-pointer transition-colors">
+                <ImagePlus className="w-4 h-4 text-gray-400" />
+                <span className="font-mono text-[10px] text-gray-500">{galleryUploading ? 'ЗАГРУЗКА...' : 'ДОБАВИТЬ ФОТО'}</span>
+                <input ref={galleryFileRef} type="file" accept="image/*" className="hidden"
+                  onChange={e => { const f = e.target.files?.[0]; if (f) handleGalleryUpload(f); e.target.value = ''; }} />
+              </label>
+            </div>
+          )}
+
           <div className="flex gap-3 pt-2">
             <button onClick={handleSave}
               className="px-6 py-2.5 rounded-xl font-mono text-sm font-bold transition-all"
@@ -510,12 +644,38 @@ export default function Widgets() {
         </div>
       </div>
 
+      {/* Folder tabs */}
+      {folders.length > 0 && (
+        <div className="flex gap-2 flex-wrap">
+          <button onClick={() => setFolderFilter('')}
+            className="px-3 py-1.5 rounded-lg font-mono text-xs transition-all"
+            style={{
+              background: !folderFilter ? 'rgba(0,255,136,0.15)' : 'rgba(255,255,255,0.05)',
+              color: !folderFilter ? 'var(--color-primary)' : '#9ca3af',
+              border: `1px solid ${!folderFilter ? 'rgba(0,255,136,0.3)' : 'rgba(255,255,255,0.08)'}`,
+            }}>
+            Все
+          </button>
+          {folders.map(f => (
+            <button key={f} onClick={() => setFolderFilter(folderFilter === f ? '' : f)}
+              className="px-3 py-1.5 rounded-lg font-mono text-xs transition-all"
+              style={{
+                background: folderFilter === f ? 'rgba(0,255,136,0.15)' : 'rgba(255,255,255,0.05)',
+                color: folderFilter === f ? 'var(--color-primary)' : '#9ca3af',
+                border: `1px solid ${folderFilter === f ? 'rgba(0,255,136,0.3)' : 'rgba(255,255,255,0.08)'}`,
+              }}>
+              {f}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Grid */}
       {filtered.length === 0 ? (
         <div className="text-center py-20">
           <Puzzle className="w-16 h-16 mx-auto mb-4 text-gray-600" />
-          <p className="font-mono text-gray-500">{search || categoryFilter ? 'Ничего не найдено' : 'Виджетов пока нет'}</p>
-          {!search && !categoryFilter && (
+          <p className="font-mono text-gray-500">{search || categoryFilter || folderFilter ? 'Ничего не найдено' : 'Виджетов пока нет'}</p>
+          {!search && !categoryFilter && !folderFilter && (
             <button onClick={openCreate} className="mt-4 px-5 py-2 rounded-xl font-mono text-sm"
               style={{ background: 'rgba(0,255,136,0.1)', color: 'var(--color-primary)', border: '1px solid rgba(0,255,136,0.2)' }}>
               Создать первый
@@ -587,6 +747,12 @@ export default function Widgets() {
                     <span className="px-2 py-0.5 rounded-full text-[10px] font-mono text-gray-400"
                       style={{ background: 'rgba(255,255,255,0.05)' }}>
                       {w.category}
+                    </span>
+                  )}
+                  {w.folder && (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-mono text-blue-400"
+                      style={{ background: 'rgba(59,130,246,0.1)' }}>
+                      📁 {w.folder}
                     </span>
                   )}
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono text-gray-500"

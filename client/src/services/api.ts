@@ -662,7 +662,7 @@ export const widgetsApi = {
     api.get('/widgets').then((res) => res.data),
   getById: (id: string): Promise<ApiResponse<any>> =>
     api.get(`/widgets/${id}`).then((res) => res.data),
-  create: (data: { title: string; description?: string; category?: string }): Promise<ApiResponse<any>> =>
+  create: (data: { title: string; description?: string; category?: string; folder?: string }): Promise<ApiResponse<any>> =>
     api.post('/widgets', data).then((res) => res.data),
   update: (id: string, data: any): Promise<ApiResponse<any>> =>
     api.put(`/widgets/${id}`, data).then((res) => res.data),
@@ -681,6 +681,15 @@ export const widgetsApi = {
     api.post(`/widgets/${id}/duplicate`).then((res) => res.data),
   updatePublishSettings: (id: string, data: { customSlug?: string; password?: string }): Promise<ApiResponse<any>> =>
     api.put(`/widgets/${id}/publish-settings`, data).then((res) => res.data),
+  getGallery: (id: string): Promise<ApiResponse<any[]>> =>
+    api.get(`/widgets/${id}/gallery`).then((res) => res.data),
+  uploadGalleryImage: (id: string, file: File): Promise<ApiResponse<any>> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post(`/widgets/${id}/gallery`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }).then((res) => res.data);
+  },
+  deleteGalleryImage: (id: string, imageId: string): Promise<ApiResponse<void>> =>
+    api.delete(`/widgets/${id}/gallery/${imageId}`).then((res) => res.data),
 };
 
 // Public Widget API (no auth)
