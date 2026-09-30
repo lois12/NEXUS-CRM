@@ -398,11 +398,6 @@ export default function PublicRegistration() {
     );
   }
 
-  // ── Form ──
-  if (!reg) return null;
-
-  const isFull = reg.maxParticipants > 0 && (reg.confirmedCount || 0) >= reg.maxParticipants;
-
   // Override theme colors with registration's custom color
   useEffect(() => {
     if (!reg?.color) return;
@@ -412,13 +407,17 @@ export default function PublicRegistration() {
     root.style.setProperty('--color-accent', reg.color);
     root.style.setProperty('--color-secondary', reg.color);
     return () => {
-      // Reset to default on unmount
       root.style.removeProperty('--color-primary');
       root.style.removeProperty('--color-glow');
       root.style.removeProperty('--color-accent');
       root.style.removeProperty('--color-secondary');
     };
   }, [reg?.color]);
+
+  // ── Form ──
+  if (!reg) return null;
+
+  const isFull = reg.maxParticipants > 0 && (reg.confirmedCount || 0) >= reg.maxParticipants;
 
   return (
     <div className="min-h-screen py-8 px-4 relative" style={{ background: 'var(--color-bg)' }}>
