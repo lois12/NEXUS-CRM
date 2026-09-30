@@ -38,7 +38,7 @@ export default function SubmissionsTable({ registrationId, fields, submissions, 
 
   // Admin submission modal
   const [showAddModal, setShowAddModal] = useState(false);
-  const [addForm, setAddForm] = useState({ contactName: '', contactEmail: '', contactPhone: '' });
+  const [addForm, setAddForm] = useState({ contactLastName: '', contactFirstName: '', contactPatronymic: '', contactEmail: '', contactPhone: '' });
   const [addAnswers, setAddAnswers] = useState<Record<string, string>>({});
   const [sendEmail, setSendEmail] = useState(true);
   const [adding, setAdding] = useState(false);
@@ -170,11 +170,14 @@ export default function SubmissionsTable({ registrationId, fields, submissions, 
   };
 
   const handleAddSubmit = async () => {
-    if (!addForm.contactName.trim()) { showToast('Введите имя участника', 'error'); return; }
+    if (!addForm.contactLastName.trim()) { showToast('Введите фамилию участника', 'error'); return; }
+    if (!addForm.contactFirstName.trim()) { showToast('Введите имя участника', 'error'); return; }
     setAdding(true);
     try {
       const res = await registrationsApi.createAdminSubmission(registrationId, {
-        contactName: addForm.contactName.trim(),
+        contactLastName: addForm.contactLastName.trim(),
+        contactFirstName: addForm.contactFirstName.trim(),
+        contactPatronymic: addForm.contactPatronymic.trim(),
         contactEmail: addForm.contactEmail.trim() || undefined,
         contactPhone: addForm.contactPhone.trim() || undefined,
         answers: addAnswers,
@@ -183,7 +186,7 @@ export default function SubmissionsTable({ registrationId, fields, submissions, 
       if (res.success) {
         showToast(sendEmail && addForm.contactEmail ? 'Заявка добавлена, письмо отправлено' : 'Заявка добавлена', 'success');
         setShowAddModal(false);
-        setAddForm({ contactName: '', contactEmail: '', contactPhone: '' });
+        setAddForm({ contactLastName: '', contactFirstName: '', contactPatronymic: '', contactEmail: '', contactPhone: '' });
         setAddAnswers({});
         onRefresh();
       } else {
@@ -366,12 +369,26 @@ export default function SubmissionsTable({ registrationId, fields, submissions, 
               <div className="px-6 py-4 space-y-4 overflow-y-auto flex-1">
                 {/* Contact fields */}
                 <div className="space-y-3">
-                  <label className="block">
-                    <span className="font-mono text-sm text-gray-300">Имя <span className="text-red-400">*</span></span>
-                    <input value={addForm.contactName} onChange={e => setAddForm({ ...addForm, contactName: e.target.value })}
-                      placeholder="// ИМЯ УЧАСТНИКА"
-                      className="mt-1 w-full px-4 py-2.5 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)]" />
-                  </label>
+                  <div className="grid grid-cols-3 gap-3">
+                    <label className="block">
+                      <span className="font-mono text-sm text-gray-300">Фамилия <span className="text-red-400">*</span></span>
+                      <input value={addForm.contactLastName} onChange={e => setAddForm({ ...addForm, contactLastName: e.target.value })}
+                        placeholder="// ФАМИЛИЯ"
+                        className="mt-1 w-full px-4 py-2.5 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)]" />
+                    </label>
+                    <label className="block">
+                      <span className="font-mono text-sm text-gray-300">Имя <span className="text-red-400">*</span></span>
+                      <input value={addForm.contactFirstName} onChange={e => setAddForm({ ...addForm, contactFirstName: e.target.value })}
+                        placeholder="// ИМЯ"
+                        className="mt-1 w-full px-4 py-2.5 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)]" />
+                    </label>
+                    <label className="block">
+                      <span className="font-mono text-sm text-gray-300">Отчество</span>
+                      <input value={addForm.contactPatronymic} onChange={e => setAddForm({ ...addForm, contactPatronymic: e.target.value })}
+                        placeholder="// ОТЧЕСТВО"
+                        className="mt-1 w-full px-4 py-2.5 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)]" />
+                    </label>
+                  </div>
                   <label className="block">
                     <span className="font-mono text-sm text-gray-300">Email</span>
                     <input type="email" value={addForm.contactEmail} onChange={e => setAddForm({ ...addForm, contactEmail: e.target.value })}
