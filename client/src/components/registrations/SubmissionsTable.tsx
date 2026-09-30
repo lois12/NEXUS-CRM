@@ -227,10 +227,18 @@ export default function SubmissionsTable({ registrationId, fields, submissions, 
           <button onClick={handleExportCSV} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-mono text-xs glass hover:bg-white/10 transition-colors">
             <Download className="w-3.5 h-3.5" /> CSV
           </button>
-          <a href={`/api/registrations/${registrationId}/submissions/export-pdf`} target="_blank" rel="noopener"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-mono text-xs glass hover:bg-white/10 transition-colors">
+          <button onClick={async () => {
+            try {
+              const token = localStorage.getItem('nexus_token') || sessionStorage.getItem('nexus_token');
+              const res = await fetch(`/api/registrations/${registrationId}/submissions/export-pdf`, { headers: { 'Authorization': `Bearer ${token}` } });
+              if (!res.ok) { showToast('Ошибка загрузки PDF', 'error'); return; }
+              const html = await res.text();
+              const win = window.open('', '_blank');
+              if (win) { win.document.write(html); win.document.close(); }
+            } catch { showToast('Ошибка', 'error'); }
+          }} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-mono text-xs glass hover:bg-white/10 transition-colors">
             <FileText className="w-3.5 h-3.5" /> PDF
-          </a>
+          </button>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10"><X className="w-4 h-4 text-gray-400" /></button>
         </div>
       </div>
