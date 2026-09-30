@@ -398,22 +398,6 @@ export default function PublicRegistration() {
     );
   }
 
-  // Override theme colors with registration's custom color
-  useEffect(() => {
-    if (!reg?.color) return;
-    const root = document.documentElement;
-    root.style.setProperty('--color-primary', reg.color);
-    root.style.setProperty('--color-glow', reg.color + '66');
-    root.style.setProperty('--color-accent', reg.color);
-    root.style.setProperty('--color-secondary', reg.color);
-    return () => {
-      root.style.removeProperty('--color-primary');
-      root.style.removeProperty('--color-glow');
-      root.style.removeProperty('--color-accent');
-      root.style.removeProperty('--color-secondary');
-    };
-  }, [reg?.color]);
-
   // ── Form ──
   if (!reg) return null;
 
@@ -421,6 +405,16 @@ export default function PublicRegistration() {
 
   return (
     <div className="min-h-screen py-8 px-4 relative" style={{ background: 'var(--color-bg)' }}>
+      {reg.color && (
+        <style dangerouslySetInnerHTML={{ __html: `
+          :root {
+            --color-primary: ${reg.color} !important;
+            --color-glow: ${reg.color}66 !important;
+            --color-accent: ${reg.color} !important;
+            --color-secondary: ${reg.color} !important;
+          }
+        `}} />
+      )}
       <CyberBackground />
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
         className="max-w-xl mx-auto space-y-6">
