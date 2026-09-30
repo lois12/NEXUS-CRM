@@ -1,23 +1,30 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageCircle, X, Send, Paperclip, Smile, Mic, ArrowLeft, Reply, File as FileIcon, Square, Maximize2, Minimize2, Users, Image as ImageIcon, FileText, UserPlus, Volume2, VolumeX, Check, Search, Pin, Forward, Trash2, Edit3, Copy, Info, MoreHorizontal, Download, ZoomIn, Upload } from 'lucide-react';
-import { chatApi, usersApi, kanbanApi } from '../../services/api';
+import { MessageCircle, X, Send, Paperclip, Smile, Mic, ArrowLeft, Reply, File as FileIcon, Square, Maximize2, Minimize2, Users, Image as ImageIcon, UserPlus, Volume2, VolumeX, Check, Search, Pin, Forward, Edit3, Info, MoreHorizontal, Download, ZoomIn, Upload } from 'lucide-react';
+import { chatApi, usersApi } from '../../services/api';
 import { ChatConversation, ChatMessage, ChatGroupMember, ChatReaction, ChatPinnedMessage, User } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import { connectSocket, getSocket } from '../../services/socket';
 import { showToast } from '../ui/NexusModal';
 import { useNavigate } from 'react-router-dom';
-import { REACTION_EMOJI, SOUNDS, GLASS_BG, GLASS_BORDER, GLASS_BLUR, GLOW_GREEN } from './chatConstants';
+import { GLASS_BG, GLASS_BORDER, GLASS_BLUR, GLOW_GREEN } from './chatConstants';
 import { playSound, url, extractMentions, renderMentions, renderRichText, fmtMsgTime, fmtTime } from './chatUtils';
 import GifPicker from './GifPicker';
 import EmojiPicker from './EmojiPicker';
 import StickerPicker from './StickerPicker';
 import ReactMarkdown from 'react-markdown';
-import { formatLastSeenKR, isTodayKR, isYesterdayKR, formatDateKR } from '../../utils/timezone';
+import { Avatar, DateSeparator, isOnline, formatLastSeen } from './chatShared';
+import VoicePlayer from './VoicePlayer';
+import { ContextMenuOverlay, ForwardOverlay, ProfileModalOverlay, PollMessage } from './ChatOverlays';
+import { MediaPanel, MembersPanel, PinnedPanel, FavoritesPanel, GroupInfoPanel } from './ChatSidePanels';
+import SoundSettingsPanel from './SoundSettingsPanel';
+import { useChatSettings } from './useChatSettings';
+import { useChatRecording } from './useChatRecording';
 
 export default function ChatWidget() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { chatTheme, setChatTheme, chatWallpaper, setChatWallpaper, dndEnabled, setDndEnabled, dndStart, setDndStart, dndEnd, setDndEnd, soundPrivate, setSoundPrivate, soundGroup, setSoundGroup, soundEnabled, setSoundEnabled, isDndActive } = useChatSettings();
   const [isOpen, setIsOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
@@ -50,13 +57,10 @@ export default function ChatWidget() {
   const [chatDragOver, setChatDragOver] = useState(false);
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
   const [attachedFiles, setAttachedFiles] = useState<{ url: string; type: 'image' | 'file'; name: string }[]>([]);
-  const [isRecording, setIsRecording] = useState(false);
-  const [recordTime, setRecordTime] = useState(0);
   const [groupName, setGroupName] = useState('');
   const [groupMembersIds, setGroupMembersIds] = useState<string[]>([]);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; msg: ChatMessage } | null>(null);
   const [typingUsers, setTypingUsers] = useState<{ userId: string; name: string }[]>([]);
-  const [chatTheme, setChatTheme] = useState<'dark' | 'light'>(() => (localStorage.getItem('nexus_chat_theme') as 'dark' | 'light') || 'dark');
   const [profileModal, setProfileModal] = useState<User | null>(null);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
 
@@ -72,21 +76,10 @@ export default function ChatWidget() {
   // Drafts — save/restore per conversation
   const draftsRef = useRef<Record<string, string>>({});
 
-  // Chat wallpaper per conversation
-  const [chatWallpaper, setChatWallpaper] = useState<string>(() => localStorage.getItem('nexus_chat_wallpaper') || '');
-
-  // DND schedule
-  const [dndEnabled, setDndEnabled] = useState(() => localStorage.getItem('nexus_chat_dnd') === 'on');
-  const [dndStart, setDndStart] = useState(() => localStorage.getItem('nexus_chat_dnd_start') || '22:00');
-  const [dndEnd, setDndEnd] = useState(() => localStorage.getItem('nexus_chat_dnd_end') || '08:00');
-
   // First unread message ID for divider
   const [firstUnreadId, setFirstUnreadId] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
-  const recordIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const unreadPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const moreMenuRef = useRef<HTMLDivElement>(null);
   const moreMenuPortalRef = useRef<HTMLDivElement>(null);
@@ -103,34 +96,10 @@ export default function ChatWidget() {
     return () => document.removeEventListener('mousedown', handler);
   }, [showMoreMenu]);
   const activeConvRef = useRef<ChatConversation | null>(null);
+  const { isRecording, recordTime, startRecording, stopRecording, cancelRecording } = useChatRecording(activeConvRef);
   const socketRef = useRef<ReturnType<typeof getSocket> | null>(null);
   const prevUnreadRef = useRef(0);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
-
-  const [soundPrivate, setSoundPrivate] = useState(() => localStorage.getItem('nexus_chat_sound_private') || 'icq');
-  const [soundGroup, setSoundGroup] = useState(() => localStorage.getItem('nexus_chat_sound_group') || 'ding');
-  const [soundEnabled, setSoundEnabled] = useState(() => localStorage.getItem('nexus_chat_sound') !== 'off');
-
-  useEffect(() => { localStorage.setItem('nexus_chat_sound_private', soundPrivate); }, [soundPrivate]);
-  useEffect(() => { localStorage.setItem('nexus_chat_sound_group', soundGroup); }, [soundGroup]);
-  useEffect(() => { localStorage.setItem('nexus_chat_sound', soundEnabled ? 'on' : 'off'); }, [soundEnabled]);
-  useEffect(() => { localStorage.setItem('nexus_chat_theme', chatTheme); }, [chatTheme]);
-  useEffect(() => { localStorage.setItem('nexus_chat_dnd', dndEnabled ? 'on' : 'off'); }, [dndEnabled]);
-  useEffect(() => { localStorage.setItem('nexus_chat_dnd_start', dndStart); }, [dndStart]);
-  useEffect(() => { localStorage.setItem('nexus_chat_dnd_end', dndEnd); }, [dndEnd]);
-  useEffect(() => { localStorage.setItem('nexus_chat_wallpaper', chatWallpaper); }, [chatWallpaper]);
-
-  const isDndActive = useCallback(() => {
-    if (!dndEnabled) return false;
-    const now = new Date();
-    const [sh, sm] = dndStart.split(':').map(Number);
-    const [eh, em] = dndEnd.split(':').map(Number);
-    const nowMin = now.getHours() * 60 + now.getMinutes();
-    const startMin = sh * 60 + sm;
-    const endMin = eh * 60 + em;
-    if (startMin <= endMin) return nowMin >= startMin && nowMin < endMin;
-    return nowMin >= startMin || nowMin < endMin; // overnight range
-  }, [dndEnabled, dndStart, dndEnd]);
 
   const fetchUnreadCount = useCallback(async () => {
     try {
@@ -468,31 +437,7 @@ export default function ChatWidget() {
     }
   }, [activeConv, handleFileUpload, attachedFiles.length]);
 
-  const startRecording = async () => {
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      showToast('Запись аудио требует HTTPS или localhost', 'error');
-      return;
-    }
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mimeTypes = ['audio/webm', 'audio/ogg', 'audio/mp4', 'audio/mpeg'];
-      let mimeType = ''; for (const mt of mimeTypes) { if (MediaRecorder.isTypeSupported(mt)) { mimeType = mt; break; } }
-      const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
-      const ext = mimeType.split('/')[1] || 'webm';
-      audioChunksRef.current = [];
-      recorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
-      recorder.onstop = async () => { stream.getTracks().forEach(t => t.stop()); const blob = new Blob(audioChunksRef.current, { type: mimeType || 'audio/webm' }); const file = new File([blob], `audio-${Date.now()}.${ext}`, { type: mimeType || 'audio/webm' }); const conv = activeConvRef.current; if (!conv) return; try { const u = await chatApi.uploadFile(conv.id, file); if (u.success && u.data) { await chatApi.sendMessage(conv.id, { content: u.data.url, type: 'audio' }); /* message arrives via socket */ } } catch { showToast('Ошибка аудио', 'error'); } };
-      mediaRecorderRef.current = recorder; recorder.start(); setIsRecording(true); setRecordTime(0); recordIntervalRef.current = setInterval(() => setRecordTime(t => t + 1), 1000);
-    } catch (err: any) {
-      if (err?.name === 'NotAllowedError') showToast('Разрешите доступ к микрофону в настройках браузера', 'error');
-      else if (err?.name === 'NotFoundError') showToast('Микрофон не найден', 'error');
-      else showToast('Ошибка записи: ' + (err?.message || 'Неизвестная'), 'error');
-    }
-  };
-
-  const stopRecording = () => { if (mediaRecorderRef.current && isRecording) { mediaRecorderRef.current.stop(); setIsRecording(false); if (recordIntervalRef.current) clearInterval(recordIntervalRef.current); } };
-  const cancelRecording = () => { if (mediaRecorderRef.current && isRecording) { mediaRecorderRef.current.ondataavailable = null; mediaRecorderRef.current.onstop = null; mediaRecorderRef.current.stop(); setIsRecording(false); if (recordIntervalRef.current) clearInterval(recordIntervalRef.current); } };
-
+  // Recording → imported from useChatRecording.ts
 
   const filteredUsers = users.filter(u => u.id !== user?.id && (u.fullName.toLowerCase().includes(searchQuery.toLowerCase()) || u.username.toLowerCase().includes(searchQuery.toLowerCase())));
   const filteredConvs = conversations
@@ -514,19 +459,6 @@ export default function ChatWidget() {
   const glowGreen = GLOW_GREEN;
 
   // ─── SUB-COMPONENTS ──────────────────────────────────────────
-
-  const Avatar = ({ name, avatar, size = 'md', onClick, glow, lastSeen }: { name?: string; avatar?: string; size?: 'sm' | 'md' | 'lg'; onClick?: () => void; glow?: boolean; lastSeen?: string }) => {
-    const sz = size === 'sm' ? 'w-9 h-9 text-xs' : size === 'lg' ? 'w-14 h-14 text-xl' : 'w-11 h-11 text-sm';
-    return (
-      <div className="relative inline-flex">
-        <div onClick={onClick} className={`${sz} rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden transition-all duration-300 ${onClick ? 'cursor-pointer hover:scale-105' : ''} ${glow ? 'ring-2 ring-offset-1 ring-[var(--color-primary)] ring-offset-[var(--color-bg)]' : ''}`}
-          style={{ border: '1.5px solid rgba(255,255,255,0.1)', background: glassBg, backdropFilter: glassBlur, boxShadow: glow ? glowGreen : 'none' }}>
-          {avatar ? <img loading="lazy" decoding="async" src={url(avatar)} alt="" className="w-full h-full object-cover" /> : <span className="font-mono font-bold" style={{ color: 'var(--color-primary)', textShadow: '0 0 8px rgba(0,255,136,0.4)' }}>{name?.charAt(0) || '?'}</span>}
-        </div>
-        {lastSeen !== undefined && <OnlineBadge lastSeen={lastSeen} size={size === 'sm' ? 'sm' : 'md'} />}
-      </div>
-    );
-  };
 
   const ConversationItem = ({ conv, active }: { conv: ChatConversation; active: boolean }) => {
     const isPinned = conv.pinned === 1;
@@ -560,90 +492,7 @@ export default function ChatWidget() {
   );
   };
 
-  // ─── Online status helper ─────────────────────────────────────
-  const isOnline = (lastSeen?: string) => {
-    if (!lastSeen) return false;
-    const diff = Date.now() - new Date(lastSeen).getTime();
-    return diff < 2 * 60 * 1000; // 2 minutes
-  };
-
-  const formatLastSeen = (lastSeen?: string) => formatLastSeenKR(lastSeen);
-
-  const OnlineBadge = ({ lastSeen, size = 'sm' }: { lastSeen?: string; size?: 'sm' | 'md' }) => {
-    const online = isOnline(lastSeen);
-    const sz = size === 'sm' ? 'w-2.5 h-2.5' : 'w-3 h-3';
-    return (
-      <div className={`${sz} rounded-full absolute -bottom-0.5 -right-0.5`}
-        style={{
-          background: online ? '#00ff88' : '#4a4a60',
-          border: '2px solid var(--color-bg)',
-          boxShadow: online ? '0 0 6px rgba(0,255,136,0.5)' : 'none',
-        }}
-        title={online ? 'В сети' : `Был(а) ${formatLastSeen(lastSeen)}`}
-      />
-    );
-  };
-
-  // ─── Voice Player with speed control ──────────────────────
-  const VoicePlayer = ({ src }: { src: string }) => {
-    const audioRef = useRef<HTMLAudioElement>(null);
-    const [playing, setPlaying] = useState(false);
-    const [speed, setSpeed] = useState(1);
-    const [progress, setProgress] = useState(0);
-    const [duration, setDuration] = useState(0);
-    const speeds = [0.5, 1, 1.5, 2];
-
-    const togglePlay = () => {
-      const audio = audioRef.current;
-      if (!audio) return;
-      if (playing) { audio.pause(); setPlaying(false); }
-      else { audio.play(); setPlaying(true); }
-    };
-
-    const cycleSpeed = (e: React.MouseEvent) => {
-      e.stopPropagation();
-      const next = speeds[(speeds.indexOf(speed) + 1) % speeds.length];
-      setSpeed(next);
-      if (audioRef.current) audioRef.current.playbackRate = next;
-    };
-
-    return (
-      <div className="flex items-center gap-2 mb-1 min-w-[180px]">
-        <audio ref={audioRef} src={src} preload="metadata"
-          onTimeUpdate={() => { if (audioRef.current) setProgress(audioRef.current.currentTime); }}
-          onLoadedMetadata={() => { if (audioRef.current) setDuration(audioRef.current.duration); }}
-          onEnded={() => { setPlaying(false); setProgress(0); }} />
-        <button onClick={togglePlay} className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(0,255,136,0.15)', border: '1px solid rgba(0,255,136,0.3)' }}>
-          {playing ? <Square className="w-3.5 h-3.5" style={{ color: 'var(--color-primary)' }} /> : <span style={{ color: 'var(--color-primary)', fontSize: '14px' }}>▶</span>}
-        </button>
-        <div className="flex-1">
-          <div className="w-full h-1.5 rounded-full bg-white/10 overflow-hidden cursor-pointer" onClick={e => { const rect = e.currentTarget.getBoundingClientRect(); const pct = (e.clientX - rect.left) / rect.width; if (audioRef.current) { audioRef.current.currentTime = pct * audioRef.current.duration; setProgress(pct * audioRef.current.duration); } }}>
-            <div className="h-full rounded-full transition-all" style={{ width: duration ? `${(progress / duration) * 100}%` : '0%', background: 'var(--color-primary)' }} />
-          </div>
-          <div className="flex justify-between mt-0.5">
-            <span className="text-[9px] font-mono" style={{ color: '#5a5a70' }}>{fmtTime(Math.floor(progress))}</span>
-            <button onClick={cycleSpeed} className="text-[9px] font-mono px-1.5 py-0.5 rounded hover:bg-white/5 transition-colors" style={{ color: speed !== 1 ? 'var(--color-primary)' : '#5a5a70' }}>{speed}x</button>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  // ─── Date separator ───────────────────────────────────────────
-  const DateSeparator = ({ date }: { date: string }) => {
-    let label: string;
-    if (isTodayKR(date)) label = 'Сегодня';
-    else if (isYesterdayKR(date)) label = 'Вчера';
-    else label = formatDateKR(date, { day: 'numeric', month: 'long' });
-
-    return (
-      <div className="flex items-center gap-3 py-3">
-        <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.06)' }} />
-        <span className="text-[10px] font-mono px-3 py-1 rounded-full" style={{ background: 'rgba(255,255,255,0.04)', color: '#5a5a70', border: '1px solid rgba(255,255,255,0.06)' }}>{label}</span>
-        <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.06)' }} />
-      </div>
-    );
-  };
+  // ─── Online status, VoicePlayer, DateSeparator → imported from chatShared.tsx / VoicePlayer.tsx ──
 
   const MessageBubble = ({ msg, isGrouped }: { msg: ChatMessage; isGrouped?: boolean }) => {
     const isMine = msg.senderId === user?.id;
@@ -978,103 +827,10 @@ export default function ChatWidget() {
     </>
   );
 
-  const ContextMenuOverlay = () => {
-    if (!contextMenu) return null;
-    const { msg } = contextMenu;
-    const isMine = msg.senderId === user?.id;
-    return (
-      <div className="fixed inset-0 z-[100]" onClick={() => setContextMenu(null)}>
-        <motion.div initial={{ opacity: 0, scale: 0.9, y: -5 }} animate={{ opacity: 1, scale: 1, y: 0 }} className="absolute rounded-2xl overflow-hidden py-1.5"
-          style={{ left: Math.min(contextMenu.x, window.innerWidth - 200), top: Math.min(contextMenu.y, window.innerHeight - 350), background: 'linear-gradient(135deg, rgba(20,20,35,0.95) 0%, rgba(15,15,25,0.98) 100%)', border: '1px solid rgba(255,255,255,0.08)', backdropFilter: 'blur(24px)', boxShadow: '0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05)', minWidth: 190 }}
-          onClick={e => e.stopPropagation()}>
-          <button onClick={() => { setReplyTo(msg); setContextMenu(null); }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs hover:bg-white/5 transition-colors" style={{ color: '#c0c0d0' }}><Reply className="w-3.5 h-3.5" /> Ответить</button>
-          <button onClick={() => { setForwardMsg(msg); setContextMenu(null); }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs hover:bg-white/5 transition-colors" style={{ color: '#c0c0d0' }}><Forward className="w-3.5 h-3.5" /> Переслать</button>
-          <button onClick={() => handlePin(msg.id)} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs hover:bg-white/5 transition-colors" style={{ color: '#c0c0d0' }}><Pin className="w-3.5 h-3.5" /> Закрепить</button>
-          {isMine && msg.type === 'text' && <button onClick={() => { setEditingMsg(msg); setNewMessage(msg.content); setContextMenu(null); }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs hover:bg-white/5 transition-colors" style={{ color: '#c0c0d0' }}><Edit3 className="w-3.5 h-3.5" /> Редактировать</button>}
-          <button onClick={() => { navigator.clipboard.writeText(msg.content); showToast('Скопировано', 'success'); setContextMenu(null); }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs hover:bg-white/5 transition-colors" style={{ color: '#c0c0d0' }}><Copy className="w-3.5 h-3.5" /> Копировать</button>
-          <button onClick={async () => { try { await chatApi.addFavorite(msg.id); showToast('Добавлено в избранное', 'success'); } catch {} setContextMenu(null); }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs hover:bg-white/5 transition-colors" style={{ color: '#eab308' }}>⭐ В избранное</button>
-          <div className="mx-3 my-1.5 h-px" style={{ background: 'rgba(255,255,255,0.06)' }} />
-          <div className="px-4 py-2 flex gap-1.5 flex-wrap">
-            {REACTION_EMOJI.map(e => <motion.button key={e} whileHover={{ scale: 1.2 }} whileTap={{ scale: 0.9 }} onClick={() => { handleReaction(msg.id, e); setContextMenu(null); }} className="text-base hover:bg-white/10 rounded-lg p-1 transition-colors">{e}</motion.button>)}
-          </div>
-          <div className="mx-3 my-1.5 h-px" style={{ background: 'rgba(255,255,255,0.06)' }} />
-          <button onClick={async () => {
-            try {
-              const title = msg.content.slice(0, 80) || 'Задача из чата';
-              const res = await kanbanApi.create({ title, description: `Из чата: ${msg.content}` });
-              if (res.success) showToast('Задача создана', 'success');
-            } catch { showToast('Ошибка', 'error'); }
-            setContextMenu(null);
-          }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs hover:bg-white/5 transition-colors" style={{ color: '#c0c0d0' }}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 12l2 2 4-4"/></svg>
-            Создать задачу
-          </button>
-          {(isMine || user?.role === 'super_admin') && <><div className="mx-3 my-1.5 h-px" style={{ background: 'rgba(255,255,255,0.06)' }} /><button onClick={() => handleDeleteMessage(msg)} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs transition-colors" style={{ color: '#ff6b6b' }}><Trash2 className="w-3.5 h-3.5" /> Удалить</button></>}
-        </motion.div>
-      </div>
-    );
-  };
+  // ContextMenuOverlay, ForwardOverlay → imported from ChatOverlays.tsx
 
-  const ForwardOverlay = () => {
-    if (!forwardMsg) return null;
-    return (
-      <div className="absolute inset-0 flex flex-col z-20" style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)' }}>
-        <div className="flex items-center gap-3 px-5 py-4" style={{ borderBottom: glassBorder }}>
-          <button onClick={() => setForwardMsg(null)} className="p-1.5 rounded-xl hover:bg-white/5"><ArrowLeft className="w-4 h-4" style={{ color: '#8a8aa0' }} /></button>
-          <span className="text-sm font-mono font-bold" style={{ color: 'var(--color-primary)', textShadow: '0 0 10px rgba(0,255,136,0.3)' }}>ПЕРЕСЛАТЬ</span>
-        </div>
-        <div className="flex-1 overflow-y-auto">
-          {conversations.map(conv => (
-            <button key={conv.id} onClick={() => handleForward(conv)} className="w-full flex items-center gap-3 px-5 py-3.5 hover:bg-white/[0.03] transition-colors text-left">
-              <Avatar name={conv.otherName} avatar={conv.otherAvatar} size="sm" />
-              <span className="text-sm" style={{ color: '#c0c0d0' }}>{conv.otherName}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-    );
-  };
-
-  const SidePanel = ({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) => (
-    <div className="w-full sm:w-72 flex flex-col flex-shrink-0 absolute sm:relative inset-0 sm:inset-auto z-10 sm:z-auto" style={{ background: glassBg, borderLeft: glassBorder, backdropFilter: glassBlur }}>
-      <div className="flex items-center justify-between px-4 py-3.5" style={{ borderBottom: glassBorder }}>
-        <span className="text-[10px] font-mono font-bold tracking-wider" style={{ color: 'var(--color-primary)', textShadow: '0 0 8px rgba(0,255,136,0.3)' }}>{title}</span>
-        <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/5 transition-colors"><X className="w-3.5 h-3.5" style={{ color: '#6a6a80' }} /></button>
-      </div>
-      <div className="flex-1 overflow-y-auto">{children}</div>
-    </div>
-  );
-
-  const MediaPanel = () => (
-    <SidePanel title="МЕДИА" onClose={() => setShowMedia(false)}>
-      <div className="flex" style={{ borderBottom: glassBorder }}>
-        {([['photos', ImageIcon, 'Фото'], ['files', FileText, 'Файлы'], ['audio', Mic, 'Аудио']] as const).map(([tab, Icon, label]) => (
-          <button key={tab} onClick={() => setMediaTab(tab)} className={`flex-1 flex items-center justify-center gap-1.5 py-3 text-[10px] font-mono transition-all ${mediaTab === tab ? '' : 'hover:bg-white/[0.03]'}`}
-            style={mediaTab === tab ? { color: 'var(--color-primary)', borderBottom: '2px solid var(--color-primary)', background: 'rgba(0,255,136,0.05)' } : { color: '#5a5a70' }}>
-            <Icon className="w-3 h-3" />{label}
-          </button>
-        ))}
-      </div>
-      <div className="p-3">
-        {mediaTab === 'photos' && (mediaPhotos.length === 0 ? <EmptyMedia text="Нет фото" /> : <div className="grid grid-cols-3 gap-1.5">{mediaPhotos.map(m => <motion.img key={m.id} whileHover={{ scale: 1.05 }} src={url(m.content)} alt="" className="w-full aspect-square object-cover rounded-xl cursor-pointer" style={{ border: glassBorder }} />)}</div>)}
-        {mediaTab === 'files' && (mediaFiles.length === 0 ? <EmptyMedia text="Нет файлов" /> : <div className="space-y-1.5">{mediaFiles.map(m => <a key={m.id} href={url(m.content)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-white/[0.03] transition-colors" style={{ border: glassBorder }}><FileIcon className="w-4 h-4 flex-shrink-0" style={{ color: '#00d4ff' }} /><span className="text-xs truncate" style={{ color: '#c0c0d0' }}>{m.content.split('/').pop()}</span></a>)}</div>)}
-        {mediaTab === 'audio' && (mediaAudio.length === 0 ? <EmptyMedia text="Нет аудио" /> : <div className="space-y-2">{mediaAudio.map(m => <div key={m.id} className="px-3 py-2 rounded-xl" style={{ background: 'rgba(255,255,255,0.03)', border: glassBorder }}><audio controls src={url(m.content)} className="w-full h-8" style={{ filter: 'invert(1) hue-rotate(180deg)' }} /></div>)}</div>)}
-      </div>
-    </SidePanel>
-  );
-
-  const EmptyMedia = ({ text }: { text: string }) => <div className="flex flex-col items-center justify-center h-24 text-[10px] font-mono" style={{ color: '#4a4a60' }}><ImageIcon className="w-5 h-5 mb-1 opacity-30" />{text}</div>;
-
-  const handleRemoveMember = async (userId: string) => {
-    if (!activeConv) return;
-    try { await chatApi.removeGroupMember(activeConv.id, userId); setGroupMembers(prev => prev.filter(m => m.userId !== userId)); showToast('Участник удалён', 'success'); } catch { showToast('Ошибка', 'error'); }
-  };
-
-  const handlePromoteAdmin = async (userId: string) => {
-    if (!activeConv) return;
-    try { await chatApi.addGroupMember(activeConv.id, userId); showToast('Назначен админом', 'success'); } catch { showToast('Ошибка', 'error'); }
-  };
-
+  // SidePanels + SoundSettings → imported from ChatSidePanels.tsx / SoundSettingsPanel.tsx
+  // Handlers for group management
   const handleDeleteGroup = async () => {
     if (!activeConv) return;
     try {
@@ -1085,197 +841,7 @@ export default function ChatWidget() {
     } catch { showToast('Ошибка', 'error'); }
   };
 
-  const MembersPanel = () => {
-    const isAdmin = groupMembers.find(m => m.userId === user?.id)?.role === 'admin';
-    return (
-      <SidePanel title={`УЧАСТНИКИ (${groupMembers.length})`} onClose={() => setShowMembers(false)}>
-        {groupMembers.map(m => (
-          <div key={m.id} className="flex items-center gap-3 px-4 py-3 hover:bg-white/[0.03] transition-colors group">
-            <Avatar name={m.fullName} avatar={m.avatar} size="sm" onClick={() => { const u = users.find(u => u.id === m.userId); if (u) setProfileModal(u); else setProfileModal({ id: m.userId, username: '', email: '', role: m.userRole as any, fullName: m.fullName || '', avatar: m.avatar, createdAt: '', updatedAt: '' } as User); }} />
-            <div className="flex-1 min-w-0"><span className="text-sm truncate block" style={{ color: '#c0c0d0' }}>{m.fullName}</span><span className="text-[9px] font-mono" style={{ color: '#5a5a70' }}>{m.userRole}</span></div>
-            <div className="flex items-center gap-1">
-              {m.role === 'admin' && <span className="text-[8px] font-mono px-2 py-0.5 rounded-full" style={{ background: 'rgba(0,255,136,0.1)', color: 'var(--color-primary)', border: '1px solid rgba(0,255,136,0.2)' }}>admin</span>}
-              {isAdmin && m.userId !== user?.id && (
-                <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                  {m.role !== 'admin' && <button onClick={() => handlePromoteAdmin(m.userId)} className="p-1 rounded-lg hover:bg-white/5 transition-colors" title="Назначить админом"><UserPlus className="w-3.5 h-3.5" style={{ color: '#00d4ff' }} /></button>}
-                  <button onClick={async () => { try { await chatApi.muteMember(activeConv!.id, m.userId); showToast(`${m.fullName} замучен`, 'success'); } catch { showToast('Ошибка', 'error'); } }} className="p-1 rounded-lg hover:bg-white/5 transition-colors" title="Замутить">🔇</button>
-                  <button onClick={() => handleRemoveMember(m.userId)} className="p-1 rounded-lg hover:bg-red-500/10 transition-colors" title="Удалить"><Trash2 className="w-3.5 h-3.5" style={{ color: '#ff6b6b' }} /></button>
-                </div>
-              )}
-            </div>
-          </div>
-        ))}
-      </SidePanel>
-    );
-  };
-
-  const PinnedPanel = () => (
-    <SidePanel title={`ЗАКРЕПЛЁННЫЕ (${pinnedMessages.length})`} onClose={() => setShowPinned(false)}>
-      <div className="p-3 space-y-2">
-        {pinnedMessages.length === 0 ? <p className="text-[10px] font-mono text-center py-6" style={{ color: '#4a4a60' }}>Нет закреплённых</p> : pinnedMessages.map(p => (
-          <div key={p.id} className="p-3 rounded-xl" style={{ background: 'rgba(255,255,255,0.03)', border: glassBorder }}>
-            <span className="text-[9px] font-mono font-bold" style={{ color: 'var(--color-primary)' }}>{p.senderName}</span>
-            <p className="text-xs mt-1 truncate" style={{ color: '#c0c0d0' }}>{p.content}</p>
-            <button onClick={async () => { await chatApi.unpinMessage(p.messageId); setPinnedMessages(prev => prev.filter(x => x.id !== p.id)); }} className="text-[9px] font-mono mt-2" style={{ color: '#ff6b6b' }}>открепить</button>
-          </div>
-        ))}
-      </div>
-    </SidePanel>
-  );
-
-  const FavoritesPanel = () => (
-    <SidePanel title={`ИЗБРАННОЕ (${favoriteMessages.length})`} onClose={() => setShowFavorites(false)}>
-      <div className="p-3 space-y-2">
-        {favoriteMessages.length === 0 ? <p className="text-[10px] font-mono text-center py-6" style={{ color: '#4a4a60' }}>Нет избранных</p> : favoriteMessages.map(m => (
-          <div key={m.id} className="p-3 rounded-xl" style={{ background: 'rgba(255,255,255,0.03)', border: glassBorder }}>
-            <span className="text-[9px] font-mono font-bold" style={{ color: 'var(--color-primary)' }}>{m.senderName}</span>
-            <p className="text-xs mt-1 truncate" style={{ color: '#c0c0d0' }}>{m.type === 'text' ? m.content : `[${m.type}]`}</p>
-            <button onClick={async () => { await chatApi.removeFavorite(m.id); setFavoriteMessages(prev => prev.filter(x => x.id !== m.id)); }} className="text-[9px] font-mono mt-2" style={{ color: '#ff6b6b' }}>убрать</button>
-          </div>
-        ))}
-      </div>
-    </SidePanel>
-  );
-
-  const PollMessage = ({ msg }: { msg: ChatMessage }) => {
-    const [pd, setPd] = useState<any>(null);
-    useEffect(() => { chatApi.getPollResults(msg.content).then(r => { if (r.success && r.data) setPd(r.data); }).catch(() => {}); }, [msg.content]);
-    if (!pd) return <div className="text-[10px] font-mono text-gray-500 py-2">Загрузка...</div>;
-    return (
-      <div className="space-y-1.5 py-1">
-        <div className="flex items-center gap-2 mb-1"><span>📊</span><span className="font-mono text-sm font-bold text-gray-200">{pd.poll.question}</span></div>
-        {pd.results.map((o: any) => { const pct = pd.totalVotes > 0 ? Math.round((o.count / pd.totalVotes) * 100) : 0; return (
-          <button key={o.id} onClick={async () => { await chatApi.votePoll(pd.poll.id, o.id); const r = await chatApi.getPollResults(pd.poll.id); if (r.success && r.data) setPd(r.data); }} className="w-full text-left px-3 py-1.5 rounded-lg relative overflow-hidden hover:brightness-110" style={{ border: '1px solid rgba(255,255,255,0.06)' }}>
-            <div className="absolute inset-0 rounded-lg" style={{ width: `${pct}%`, background: 'rgba(0,255,136,0.08)' }} />
-            <div className="relative flex justify-between"><span className="font-mono text-xs text-gray-300">{o.text}</span><span className="font-mono text-[10px]" style={{ color: '#5a5a70' }}>{pct}%</span></div>
-          </button>); })}
-        <span className="text-[9px] font-mono text-gray-500">{pd.totalVotes} голосов</span>
-      </div>
-    );
-  };
-
-  const GroupInfoPanel = () => {
-    const [desc, setDesc] = useState(activeConv?.description || '');
-    const [saving, setSaving] = useState(false);
-    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-    const handleSave = async () => { if (!activeConv) return; setSaving(true); try { await chatApi.updateGroup(activeConv.id, { description: desc }); showToast('Сохранено', 'success'); } catch { showToast('Ошибка', 'error'); } finally { setSaving(false); } };
-    return (
-      <SidePanel title="ИНФОРМАЦИЯ" onClose={() => setShowGroupInfo(false)}>
-        <div className="p-4 space-y-5">
-          <div>
-            <label className="text-[9px] font-mono tracking-wider block mb-2" style={{ color: '#5a5a70' }}>ОПИСАНИЕ</label>
-            <textarea value={desc} onChange={e => setDesc(e.target.value)} rows={3} className="w-full px-3 py-2.5 rounded-xl text-xs outline-none resize-none transition-all" style={{ background: 'rgba(0,0,0,0.3)', border: glassBorder, color: '#c0c0d0', fontFamily: "'JetBrains Mono', monospace" }} placeholder="Описание группы..." />
-            <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={handleSave} disabled={saving} className="mt-2 px-4 py-2 rounded-xl font-mono text-[10px] font-bold" style={{ background: 'linear-gradient(135deg, #00ff88, #00cc6a)', color: '#000' }}>СОХРАНИТЬ</motion.button>
-          </div>
-          {activeConv?.inviteLink && (
-            <div>
-              <label className="text-[9px] font-mono tracking-wider block mb-2" style={{ color: '#5a5a70' }}>ССЫЛКА-ПРИГЛАШЕНИЕ</label>
-              <div className="flex items-center gap-2">
-                <code className="flex-1 px-3 py-2 rounded-xl text-[10px] font-mono truncate" style={{ background: 'rgba(0,0,0,0.3)', border: glassBorder, color: '#8a8aa0' }}>{window.location.origin}/chat/join/{activeConv.inviteLink}</code>
-                <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/chat/join/${activeConv.inviteLink}`); showToast('Скопировано', 'success'); }} className="p-2 rounded-xl" style={{ background: 'rgba(255,255,255,0.05)', border: glassBorder }}><Copy className="w-3.5 h-3.5" style={{ color: '#6a6a80' }} /></motion.button>
-              </div>
-            </div>
-          )}
-          <div style={{ borderTop: glassBorder }} className="pt-4">
-            {!showDeleteConfirm ? (
-              <button onClick={() => setShowDeleteConfirm(true)} className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-mono text-xs font-bold transition-all" style={{ background: 'rgba(255,59,48,0.08)', color: '#ff6b6b', border: '1px solid rgba(255,59,48,0.15)' }}>
-                <Trash2 className="w-3.5 h-3.5" /> УДАЛИТЬ ГРУППУ
-              </button>
-            ) : (
-              <div className="space-y-2">
-                <p className="text-[10px] font-mono text-center" style={{ color: '#ff6b6b' }}>Вы уверены? Это действие необратимо.</p>
-                <div className="flex gap-2">
-                  <button onClick={() => setShowDeleteConfirm(false)} className="flex-1 px-3 py-2 rounded-xl font-mono text-xs" style={{ background: 'rgba(255,255,255,0.05)', color: '#8a8aa0', border: glassBorder }}>ОТМЕНА</button>
-                  <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={handleDeleteGroup} className="flex-1 px-3 py-2 rounded-xl font-mono text-xs font-bold" style={{ background: 'linear-gradient(135deg, #ff3b30, #cc0000)', color: '#fff' }}>УДАЛИТЬ</motion.button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </SidePanel>
-    );
-  };
-
-  const ProfileModalOverlay = () => {
-    if (!profileModal) return null;
-    const isMe = profileModal.id === user?.id;
-    return (
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }} onClick={() => setProfileModal(null)}>
-        <motion.div initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0, y: 20 }}
-          className="w-full max-w-xs rounded-2xl overflow-hidden" style={{ background: 'linear-gradient(135deg, rgba(20,20,35,0.98) 0%, rgba(10,10,20,0.99) 100%)', border: '1px solid rgba(255,255,255,0.08)', backdropFilter: 'blur(24px)', boxShadow: '0 16px 48px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05)' }}
-          onClick={e => e.stopPropagation()}>
-          {/* Banner */}
-          <div className="h-20 relative" style={{ background: 'linear-gradient(135deg, rgba(0,255,136,0.2) 0%, rgba(0,212,255,0.15) 50%, rgba(191,0,255,0.1) 100%)' }}>
-            <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, transparent 0%, rgba(10,10,20,0.8) 100%)' }} />
-          </div>
-          {/* Avatar */}
-          <div className="flex justify-center -mt-10 relative z-10">
-            <div className="w-20 h-20 rounded-2xl flex items-center justify-center overflow-hidden" style={{ border: '3px solid var(--color-bg)', boxShadow: '0 0 20px rgba(0,255,136,0.3)', background: 'linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01))' }}>
-              {profileModal.avatar ? <img loading="lazy" decoding="async" src={url(profileModal.avatar)} alt="" className="w-full h-full object-cover" /> : <span className="text-2xl font-mono font-bold" style={{ color: 'var(--color-primary)', textShadow: '0 0 12px rgba(0,255,136,0.5)' }}>{profileModal.fullName?.charAt(0) || '?'}</span>}
-            </div>
-          </div>
-          {/* Info */}
-          <div className="px-5 py-4 text-center">
-            <h3 className="text-lg font-bold font-mono" style={{ color: '#e0e0e0' }}>{profileModal.fullName}</h3>
-            <p className="text-[10px] font-mono mt-0.5" style={{ color: 'var(--color-primary)', textShadow: '0 0 6px rgba(0,255,136,0.3)' }}>@{profileModal.username}</p>
-            <span className="inline-block px-3 py-1 rounded-full text-[10px] font-mono font-bold mt-2" style={{ background: 'rgba(0,255,136,0.1)', color: 'var(--color-primary)', border: '1px solid rgba(0,255,136,0.2)' }}>{profileModal.role}</span>
-          </div>
-          {/* Actions */}
-          <div className="px-5 pb-5 flex gap-2">
-            {!isMe && (
-              <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => { setProfileModal(null); startConversation(profileModal); }}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-mono text-xs font-bold"
-                style={{ background: 'linear-gradient(135deg, #00ff88, #00cc6a)', color: '#000' }}>
-                <MessageCircle className="w-3.5 h-3.5" /> НАПИСАТЬ
-              </motion.button>
-            )}
-            <button onClick={() => setProfileModal(null)} className="flex-1 px-4 py-2.5 rounded-xl font-mono text-xs" style={{ background: 'rgba(255,255,255,0.05)', color: '#8a8aa0', border: glassBorder }}>ЗАКРЫТЬ</button>
-          </div>
-        </motion.div>
-      </motion.div>
-    );
-  };
-
-  const SoundSettingsPanel = () => (
-    <motion.div initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} className="absolute bottom-16 right-0 w-60 rounded-2xl overflow-hidden py-2" style={{ background: 'linear-gradient(135deg, rgba(20,20,35,0.95) 0%, rgba(15,15,25,0.98) 100%)', border: '1px solid rgba(255,255,255,0.08)', backdropFilter: 'blur(24px)', boxShadow: '0 8px 32px rgba(0,0,0,0.5)', zIndex: 9999 }}>
-      <div className="px-4 py-2 space-y-3">
-        <div className="flex items-center justify-between">
-          <span className="text-[10px] font-mono tracking-wider" style={{ color: '#5a5a70' }}>ЗВУК</span>
-          <button onClick={() => setSoundEnabled(!soundEnabled)} className="p-1.5 rounded-lg hover:bg-white/5">{soundEnabled ? <Volume2 className="w-4 h-4" style={{ color: 'var(--color-primary)' }} /> : <VolumeX className="w-4 h-4" style={{ color: '#4a4a60' }} />}</button>
-        </div>
-        {soundEnabled && (<>
-          <div><span className="text-[9px] font-mono block mb-1.5" style={{ color: '#4a4a60' }}>Личные</span><div className="flex flex-wrap gap-1">{SOUNDS.map(s => <button key={s.id} onClick={() => { setSoundPrivate(s.id); playSound(s.id); }} className="px-2.5 py-1 rounded-lg text-[9px] font-mono transition-all" style={soundPrivate === s.id ? { background: 'rgba(0,255,136,0.15)', color: 'var(--color-primary)', border: '1px solid rgba(0,255,136,0.3)' } : { color: '#5a5a70', border: '1px solid transparent' }}>{s.name}</button>)}</div></div>
-          <div><span className="text-[9px] font-mono block mb-1.5" style={{ color: '#4a4a60' }}>Группы</span><div className="flex flex-wrap gap-1">{SOUNDS.map(s => <button key={s.id} onClick={() => { setSoundGroup(s.id); playSound(s.id); }} className="px-2.5 py-1 rounded-lg text-[9px] font-mono transition-all" style={soundGroup === s.id ? { background: 'rgba(0,255,136,0.15)', color: 'var(--color-primary)', border: '1px solid rgba(0,255,136,0.3)' } : { color: '#5a5a70', border: '1px solid transparent' }}>{s.name}</button>)}</div></div>
-          <div><span className="text-[9px] font-mono block mb-1.5" style={{ color: '#4a4a60' }}>Тема</span><div className="flex gap-1">{(['dark', 'light'] as const).map(t => <button key={t} onClick={() => setChatTheme(t)} className="flex-1 px-2.5 py-1.5 rounded-lg text-[9px] font-mono transition-all" style={chatTheme === t ? { background: 'rgba(0,255,136,0.15)', color: 'var(--color-primary)', border: '1px solid rgba(0,255,136,0.3)' } : { color: '#5a5a70', border: '1px solid transparent' }}>{t === 'dark' ? 'Тёмная' : 'Светлая'}</button>)}</div></div>
-          <div className="pt-2 border-t border-white/5">
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-[9px] font-mono" style={{ color: '#4a4a60' }}>НЕ БЕСПОКОИТЬ</span>
-              <button onClick={() => setDndEnabled(!dndEnabled)} className={`w-8 h-4 rounded-full transition-colors relative ${dndEnabled ? 'bg-[var(--color-primary)]' : 'bg-[#3a3a50]'}`}>
-                <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-transform ${dndEnabled ? 'translate-x-4' : 'translate-x-0.5'}`} />
-              </button>
-            </div>
-            {dndEnabled && (
-              <div className="flex items-center gap-2 mt-1">
-                <span className="text-[9px] font-mono text-gray-500">с</span>
-                <input type="time" value={dndStart} onChange={e => setDndStart(e.target.value)} className="px-2 py-1 rounded text-[10px] font-mono bg-black/30 border border-gray-700 text-gray-300 focus:outline-none w-20" />
-                <span className="text-[9px] font-mono text-gray-500">до</span>
-                <input type="time" value={dndEnd} onChange={e => setDndEnd(e.target.value)} className="px-2 py-1 rounded text-[10px] font-mono bg-black/30 border border-gray-700 text-gray-300 focus:outline-none w-20" />
-              </div>
-            )}
-          </div>
-          <div className="pt-2 border-t border-white/5">
-            <span className="text-[9px] font-mono block mb-1.5" style={{ color: '#4a4a60' }}>ФОН ЧАТА</span>
-            <div className="flex flex-wrap gap-1">
-              {[{ label: 'Стандарт', value: '' }, { label: 'Космос', value: 'linear-gradient(135deg, #0a0a1a, #1a0a2e)' }, { label: 'Океан', value: 'linear-gradient(135deg, #0a1a2e, #0a2e1a)' }, { label: 'Закат', value: 'linear-gradient(135deg, #2e1a0a, #2e0a1a)' }].map(w => (
-                <button key={w.label} onClick={() => setChatWallpaper(w.value)} className="px-2 py-1 rounded text-[9px] font-mono transition-all"
-                  style={chatWallpaper === w.value ? { background: 'rgba(0,255,136,0.15)', color: 'var(--color-primary)', border: '1px solid rgba(0,255,136,0.3)' } : { color: '#5a5a70', border: '1px solid transparent' }}>{w.label}</button>
-              ))}
-            </div>
-          </div>
-        </>)}
-      </div>
-    </motion.div>
-  );
+  // All side panels + SoundSettings → imported from ChatSidePanels.tsx / SoundSettingsPanel.tsx
 
   const UserSearchOverlay = ({ onSelect, title }: { onSelect: (u: User) => void; title: string }) => (
     <div className="absolute inset-0 flex flex-col z-10" style={{ background: 'rgba(0,0,0,0.9)', backdropFilter: 'blur(12px)' }}>
@@ -1413,11 +979,11 @@ export default function ChatWidget() {
             </div>
             <div className="flex-1 flex flex-col min-w-0">
               {activeConv ? (
-                <><ChatHeader conv={activeConv} /><div className="flex-1 flex min-h-0"><div className="flex-1 flex flex-col min-w-0">{messagesAreaContent}</div>{showMedia && <MediaPanel />}{showMembers && activeConv.isGroup && <MembersPanel />}{showPinned && <PinnedPanel />}{showFavorites && <FavoritesPanel />}{showGroupInfo && activeConv.isGroup && <GroupInfoPanel />}</div></>
+                <><ChatHeader conv={activeConv} /><div className="flex-1 flex min-h-0"><div className="flex-1 flex flex-col min-w-0">{messagesAreaContent}</div>{showMedia && <MediaPanel mediaTab={mediaTab} setMediaTab={setMediaTab} mediaPhotos={mediaPhotos} mediaFiles={mediaFiles} mediaAudio={mediaAudio} onClose={() => setShowMedia(false)} />}{showMembers && activeConv.isGroup && <MembersPanel groupMembers={groupMembers} users={users} user={user} activeConv={activeConv} onClose={() => setShowMembers(false)} onProfileClick={setProfileModal} />}{showPinned && <PinnedPanel pinnedMessages={pinnedMessages} onClose={() => setShowPinned(false)} />}{showFavorites && <FavoritesPanel favoriteMessages={favoriteMessages} onClose={() => setShowFavorites(false)} />}{showGroupInfo && activeConv.isGroup && <GroupInfoPanel activeConv={activeConv} onClose={() => setShowGroupInfo(false)} onDelete={handleDeleteGroup} />}</div></>
               ) : <div className="flex-1 flex flex-col items-center justify-center"><MessageCircle className="w-20 h-20 mb-4 opacity-5" style={{ color: 'var(--color-primary)' }} /><p className="font-mono text-sm" style={{ color: '#4a4a60' }}>Выберите диалог или начните новый</p></div>}
             </div>
             {showUserSearch && <UserSearchOverlay onSelect={startConversation} title="Найти пользователя..." />}
-            {forwardMsg && <ForwardOverlay />}
+            {forwardMsg && <ForwardOverlay forwardMsg={forwardMsg} conversations={conversations} onClose={() => setForwardMsg(null)} onForward={handleForward} />}
           </motion.div>
         )}
       </AnimatePresence>
@@ -1436,7 +1002,7 @@ export default function ChatWidget() {
                     <button onClick={() => { setShowUserSearch(true); setSearchQuery(''); }} className="p-2 rounded-xl hover:bg-white/5 transition-colors"><Search className="w-4 h-4" style={{ color: '#6a6a80' }} /></button>
                     <button onClick={() => setShowSoundSettings(!showSoundSettings)} className="p-2 rounded-xl hover:bg-white/5 transition-colors">{soundEnabled ? <Volume2 className="w-4 h-4" style={{ color: '#6a6a80' }} /> : <VolumeX className="w-4 h-4" style={{ color: '#4a4a60' }} />}</button>
                     <button onClick={() => setIsFullscreen(true)} className="p-2 rounded-xl hover:bg-white/5 transition-colors"><Maximize2 className="w-4 h-4" style={{ color: '#6a6a80' }} /></button>
-                    {showSoundSettings && <SoundSettingsPanel />}
+                    {showSoundSettings && <SoundSettingsPanel soundEnabled={soundEnabled} setSoundEnabled={setSoundEnabled} soundPrivate={soundPrivate} setSoundPrivate={setSoundPrivate} soundGroup={soundGroup} setSoundGroup={setSoundGroup} chatTheme={chatTheme} setChatTheme={setChatTheme} dndEnabled={dndEnabled} setDndEnabled={setDndEnabled} dndStart={dndStart} setDndStart={setDndStart} dndEnd={dndEnd} setDndEnd={setDndEnd} chatWallpaper={chatWallpaper} setChatWallpaper={setChatWallpaper} />}
                   </div>
                 </div>
                 <div className="flex-1 overflow-y-auto">
@@ -1452,12 +1018,12 @@ export default function ChatWidget() {
               <><ChatHeader conv={activeConv} />{messagesAreaContent}</>
             )}
             {showUserSearch && <UserSearchOverlay onSelect={startConversation} title="Найти пользователя..." />}
-            {forwardMsg && <ForwardOverlay />}
+            {forwardMsg && <ForwardOverlay forwardMsg={forwardMsg} conversations={conversations} onClose={() => setForwardMsg(null)} onForward={handleForward} />}
           </motion.div>
         )}
       </AnimatePresence>
 
-      {contextMenu && <ContextMenuOverlay />}
+      {contextMenu && <ContextMenuOverlay contextMenu={contextMenu} onClose={() => setContextMenu(null)} onReply={msg => { setReplyTo(msg); setContextMenu(null); }} onForward={msg => { setForwardMsg(msg); setContextMenu(null); }} onPin={handlePin} onEdit={msg => { setEditingMsg(msg); setNewMessage(msg.content); setContextMenu(null); }} onDelete={handleDeleteMessage} onReaction={(id, e) => { handleReaction(id, e); setContextMenu(null); }} user={user} />}
       {showPollCreate && (
         <div className="fixed inset-0 flex items-center justify-center z-[200]" style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)' }} onClick={() => setShowPollCreate(false)}>
           <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="w-80 rounded-2xl p-5 space-y-3" style={{ background: 'linear-gradient(135deg, rgba(20,20,35,0.98), rgba(10,10,20,0.99))', border: '1px solid rgba(255,255,255,0.1)' }} onClick={e => e.stopPropagation()}>
@@ -1484,7 +1050,7 @@ export default function ChatWidget() {
           <button onClick={async () => { setShowMoreMenu(false); if (!activeConv) return; const muted = (activeConv as any).isMuted; try { if (muted) { await chatApi.unmuteConversation(activeConv.id); (activeConv as any).isMuted = 0; showToast('Уведомления включены', 'success'); } else { await chatApi.muteConversation(activeConv.id); (activeConv as any).isMuted = 1; showToast('Чат заглушён', 'success'); } fetchConversations(); } catch { showToast('Ошибка', 'error'); } }} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs hover:bg-white/5" style={{ color: '#c0c0d0' }}>{(activeConv as any)?.isMuted ? <><Volume2 className="w-3.5 h-3.5" /> Включить уведомления</> : <><VolumeX className="w-3.5 h-3.5" /> Заглушить</>}</button>
         </motion.div>
       )}
-      <AnimatePresence>{profileModal && <ProfileModalOverlay />}</AnimatePresence>
+      <AnimatePresence>{profileModal && <ProfileModalOverlay profileModal={profileModal} onClose={() => setProfileModal(null)} onStartChat={startConversation} user={user} />}</AnimatePresence>
       <AnimatePresence>{showGroupCreate && (
         <motion.div key="group-create" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }} onClick={() => { setShowGroupCreate(false); setGroupName(''); setGroupMembersIds([]); setSearchQuery(''); }}>
           <motion.div initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0, y: 20 }}
