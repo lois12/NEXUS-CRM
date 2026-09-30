@@ -361,8 +361,8 @@ export default function Widgets() {
         <div className="flex-1 flex flex-col md:flex-row gap-4 min-h-0">
           <div className="flex-1 flex flex-col min-h-0">
             <div className="text-xs font-mono text-gray-500 mb-2">HTML / CSS / JS</div>
-            <div ref={editorRef} className="flex-1 min-h-[300px] rounded-xl overflow-hidden"
-              style={{ border: '1px solid rgba(0,255,136,0.1)' }} />
+            <div ref={editorRef} className="rounded-xl overflow-hidden"
+              style={{ border: '1px solid rgba(0,255,136,0.1)', minHeight: '400px', height: '100%' }} />
             <button onClick={handleSaveCode}
               className="mt-3 px-6 py-2.5 rounded-xl font-mono text-sm font-bold transition-all"
               style={{ background: 'rgba(0,255,136,0.15)', color: 'var(--color-primary)', border: '1px solid rgba(0,255,136,0.3)' }}>
