@@ -51,14 +51,14 @@ export const getRegistrationById = (req: AuthRequest, res: Response) => {
 
 export const createRegistration = (req: AuthRequest, res: Response) => {
   try {
-    const { title, description, eventDate, eventTime, location, videoUrl, maxParticipants, status, registrationStart, registrationEnd, closedMessage, mapCoords, showLimit, showTimer, organizer } = req.body;
+    const { title, description, eventDate, eventTime, location, videoUrl, maxParticipants, status, registrationStart, registrationEnd, closedMessage, mapCoords, showLimit, showTimer, organizer, color } = req.body;
     if (!title) return res.status(400).json({ success: false, error: 'Название обязательно' });
 
     const id = uuidv4();
     const slug = uuidv4().slice(0, 8);
-    run(`INSERT INTO registrations (id, title, description, eventDate, eventTime, location, videoUrl, maxParticipants, status, publicSlug, createdBy, registrationStart, registrationEnd, closedMessage, mapCoords, showLimit, showTimer, organizer)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [id, title, description || '', eventDate || '', eventTime || '', location || '', videoUrl || '', maxParticipants || 0, status || 'draft', slug, req.user?.id, registrationStart || '', registrationEnd || '', closedMessage || '', mapCoords || '', showLimit ?? 1, showTimer ?? 1, organizer || '']);
+    run(`INSERT INTO registrations (id, title, description, eventDate, eventTime, location, videoUrl, maxParticipants, status, publicSlug, createdBy, registrationStart, registrationEnd, closedMessage, mapCoords, showLimit, showTimer, organizer, color)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [id, title, description || '', eventDate || '', eventTime || '', location || '', videoUrl || '', maxParticipants || 0, status || 'draft', slug, req.user?.id, registrationStart || '', registrationEnd || '', closedMessage || '', mapCoords || '', showLimit ?? 1, showTimer ?? 1, organizer || '', color || '']);
 
     const reg = get('SELECT * FROM registrations WHERE id = ?', [id]);
     res.status(201).json({ success: true, data: reg });
@@ -74,7 +74,7 @@ export const updateRegistration = (req: AuthRequest, res: Response) => {
     const reg = get('SELECT * FROM registrations WHERE id = ?', [id]);
     if (!reg) return res.status(404).json({ success: false, error: 'Регистрация не найдена' });
 
-    const { title, description, eventDate, eventTime, location, videoUrl, maxParticipants, status, imageUrl, registrationStart, registrationEnd, closedMessage, mapCoords, showLimit, showTimer, organizer } = req.body;
+    const { title, description, eventDate, eventTime, location, videoUrl, maxParticipants, status, imageUrl, registrationStart, registrationEnd, closedMessage, mapCoords, showLimit, showTimer, organizer, color } = req.body;
     const updates: string[] = [];
     const params: any[] = [];
 
@@ -94,6 +94,7 @@ export const updateRegistration = (req: AuthRequest, res: Response) => {
     if (showLimit !== undefined) { updates.push('showLimit = ?'); params.push(showLimit); }
     if (showTimer !== undefined) { updates.push('showTimer = ?'); params.push(showTimer); }
     if (organizer !== undefined) { updates.push('organizer = ?'); params.push(organizer); }
+    if (color !== undefined) { updates.push('color = ?'); params.push(color); }
 
     updates.push("updatedAt = datetime('now')");
     params.push(id);
@@ -236,8 +237,8 @@ export const duplicateRegistration = (req: AuthRequest, res: Response) => {
 
     const newId = uuidv4();
 
-    run(`INSERT INTO registrations (id, title, description, eventDate, eventTime, location, videoUrl, maxParticipants, status, publicSlug, createdBy, registrationStart, registrationEnd, closedMessage, mapCoords, showLimit, showTimer, organizer) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'draft', NULL, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [newId, reg.title + ' (копия)', reg.description, reg.eventDate, reg.eventTime, reg.location, reg.videoUrl, reg.maxParticipants, req.user?.id, reg.registrationStart, reg.registrationEnd, reg.closedMessage, reg.mapCoords, reg.showLimit, reg.showTimer, reg.organizer]);
+    run(`INSERT INTO registrations (id, title, description, eventDate, eventTime, location, videoUrl, maxParticipants, status, publicSlug, createdBy, registrationStart, registrationEnd, closedMessage, mapCoords, showLimit, showTimer, organizer, color) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'draft', NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [newId, reg.title + ' (копия)', reg.description, reg.eventDate, reg.eventTime, reg.location, reg.videoUrl, reg.maxParticipants, req.user?.id, reg.registrationStart, reg.registrationEnd, reg.closedMessage, reg.mapCoords, reg.showLimit, reg.showTimer, reg.organizer, reg.color]);
 
     // Copy all fields
     const fields = query('SELECT * FROM registration_fields WHERE registrationId = ? ORDER BY position', [id]);
@@ -977,6 +978,156 @@ export const getPublicRegistrations = (req: AuthRequest, res: Response) => {
     res.json({ success: true, data: regs });
   } catch (error) {
     console.error('GetPublicRegistrations error:', error);
+    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+  }
+};
+
+// ── Registration statistics ──
+
+export const getRegistrationStats = (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const reg = get('SELECT * FROM registrations WHERE id = ?', [id]);
+    if (!reg) return res.status(404).json({ success: false, error: 'Регистрация не найдена' });
+
+    // Daily registration counts
+    const daily = query(`
+      SELECT DATE(createdAt) as date, COUNT(*) as count, status
+      FROM registration_submissions
+      WHERE registrationId = ?
+      GROUP BY DATE(createdAt), status
+      ORDER BY date ASC
+    `, [id]);
+
+    // Total counts by status
+    const totals = query(`
+      SELECT status, COUNT(*) as count
+      FROM registration_submissions
+      WHERE registrationId = ?
+      GROUP BY status
+    `, [id]);
+
+    // Total views (viewCount from registration if exists)
+    const totalSubmissions = get('SELECT COUNT(*) as cnt FROM registration_submissions WHERE registrationId = ?', [id])?.cnt || 0;
+    const confirmedCount = get("SELECT COUNT(*) as cnt FROM registration_submissions WHERE registrationId = ? AND status IN ('registered', 'confirmed')", [id])?.cnt || 0;
+    const waitlistCount = get("SELECT COUNT(*) as cnt FROM registration_submissions WHERE registrationId = ? AND status = 'waitlist'", [id])?.cnt || 0;
+    const cancelledCount = get("SELECT COUNT(*) as cnt FROM registration_submissions WHERE registrationId = ? AND status = 'cancelled'", [id])?.cnt || 0;
+
+    res.json({
+      success: true,
+      data: {
+        daily,
+        totals,
+        totalSubmissions,
+        confirmedCount,
+        waitlistCount,
+        cancelledCount,
+        maxParticipants: reg.maxParticipants,
+      }
+    });
+  } catch (error) {
+    console.error('GetRegistrationStats error:', error);
+    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+  }
+};
+
+// ── Export PDF (printable HTML) ──
+
+export const exportPDF = (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const reg = get('SELECT * FROM registrations WHERE id = ?', [id]);
+    if (!reg) return res.status(404).json({ success: false, error: 'Регистрация не найдена' });
+
+    const fields = query('SELECT * FROM registration_fields WHERE registrationId = ? ORDER BY position ASC', [id]);
+    const submissions = query(`
+      SELECT * FROM registration_submissions 
+      WHERE registrationId = ? AND status != 'cancelled'
+      ORDER BY createdAt ASC
+    `, [id]);
+
+    // Build HTML
+    const escapeHtml = (str: string) => (str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+    const statusLabels: Record<string, string> = {
+      registered: 'Зарегистрирован',
+      confirmed: 'Подтверждён',
+      waitlist: 'Лист ожидания',
+      cancelled: 'Отменён',
+    };
+
+    const tableHeaders = ['№', 'ФИО', 'Email', 'Телефон', 'Статус', 'Дата регистрации', ...fields.map((f: any) => escapeHtml(f.label))];
+    
+    const tableRows = submissions.map((sub: any, i: number) => {
+      const answers = JSON.parse(sub.answers || '{}');
+      const fullName = [sub.contactLastName, sub.contactFirstName, sub.contactPatronymic].filter(Boolean).join(' ') || sub.contactName || '—';
+      const regDate = sub.createdAt ? new Date(sub.createdAt + 'Z').toLocaleString('ru-RU') : '—';
+      return [
+        i + 1,
+        escapeHtml(fullName),
+        escapeHtml(sub.contactEmail || '—'),
+        escapeHtml(sub.contactPhone || '—'),
+        statusLabels[sub.status] || sub.status,
+        regDate,
+        ...fields.map((f: any) => escapeHtml(answers[f.id] || '—')),
+      ];
+    });
+
+    const html = `<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>${escapeHtml(reg.title)} — Список участников</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; padding: 30px; color: #333; font-size: 11px; }
+    h1 { font-size: 18px; margin-bottom: 4px; }
+    .meta { font-size: 10px; color: #888; margin-bottom: 6px; }
+    .stats { font-size: 10px; color: #555; margin-bottom: 16px; padding: 8px 12px; background: #f8f8f8; border-radius: 6px; display: inline-block; }
+    .stats span { margin-right: 16px; }
+    .stats b { color: #333; }
+    table { width: 100%; border-collapse: collapse; font-size: 10px; }
+    th { background: #f0f0f0; text-align: left; padding: 6px 8px; border-bottom: 2px solid #ddd; font-weight: 600; white-space: nowrap; }
+    td { padding: 5px 8px; border-bottom: 1px solid #eee; }
+    tr:hover td { background: #fafafa; }
+    .status { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 9px; font-weight: 600; }
+    .status-registered { background: #dbeafe; color: #1d4ed8; }
+    .status-confirmed { background: #dcfce7; color: #166534; }
+    .status-waitlist { background: #fef3c7; color: #92400e; }
+    @media print {
+      body { padding: 0; }
+      @page { margin: 12mm; }
+      table { font-size: 9px; }
+    }
+  </style>
+</head>
+<body>
+  <h1>${escapeHtml(reg.title)}</h1>
+  <div class="meta">NEXUS CRM • Список участников • ${new Date().toLocaleString('ru-RU')}</div>
+  <div class="stats">
+    <span>Всего: <b>${submissions.length}</b></span>
+    <span>Подтверждено: <b>${submissions.filter((s: any) => s.status === 'registered' || s.status === 'confirmed').length}</b></span>
+    <span>Лист ожидания: <b>${submissions.filter((s: any) => s.status === 'waitlist').length}</b></span>
+    ${reg.maxParticipants > 0 ? `<span>Лимит: <b>${reg.maxParticipants}</b></span>` : ''}
+  </div>
+  <table>
+    <thead><tr>${tableHeaders.map(h => `<th>${h}</th>`).join('')}</tr></thead>
+    <tbody>${tableRows.map(row => `<tr>${row.map((cell: any, ci: number) => {
+      if (ci === 4) { // Status column
+        const cls = cell === 'Подтверждён' ? 'status-confirmed' : cell === 'Лист ожидания' ? 'status-waitlist' : 'status-registered';
+        return `<td><span class="status ${cls}">${cell}</span></td>`;
+      }
+      return `<td>${cell}</td>`;
+    }).join('')}</tr>`).join('')}</tbody>
+  </table>
+  <script>window.onload = () => { window.print(); };</script>
+</body>
+</html>`;
+
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(html);
+  } catch (error) {
+    console.error('ExportPDF error:', error);
     res.status(500).json({ success: false, error: 'Ошибка сервера' });
   }
 };

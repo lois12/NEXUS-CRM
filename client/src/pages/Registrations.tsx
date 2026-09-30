@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Search, Edit3, Trash2, X, ClipboardList, Eye, QrCode, Copy, Calendar, Users, MapPin, ArrowLeft, Clock, Upload, Camera } from 'lucide-react';
+import { Plus, Search, Edit3, Trash2, X, ClipboardList, Eye, QrCode, Copy, Calendar, Users, MapPin, ArrowLeft, Clock, Upload, Camera, ExternalLink, BarChart3 } from 'lucide-react';
 import { Registration, RegistrationField, RegistrationSubmission, FieldType, FIELD_TYPE_CONFIG } from '../types';
 import { registrationsApi } from '../services/api';
 import { showToast, useNexusConfirm, ConfirmModal } from '../components/ui/NexusModal';
@@ -26,7 +26,7 @@ export default function Registrations() {
   const [activeTab, setActiveTab] = useState<'active' | 'planned' | 'archive'>('active');
   const [view, setView] = useState<'list' | 'constructor' | 'submissions'>('list');
   const [editing, setEditing] = useState<Registration | null>(null);
-  const [form, setForm] = useState({ title: '', description: '', eventDate: '', eventTime: '', location: '', videoUrl: '', maxParticipants: 0, status: 'draft' as string, registrationStart: '', registrationEnd: '', closedMessage: '', mapCoords: '', showLimit: 1, showTimer: 1, organizer: '' });
+  const [form, setForm] = useState({ title: '', description: '', eventDate: '', eventTime: '', location: '', videoUrl: '', maxParticipants: 0, status: 'draft' as string, registrationStart: '', registrationEnd: '', closedMessage: '', mapCoords: '', showLimit: 1, showTimer: 1, organizer: '', color: '' });
   const [regFields, setRegFields] = useState<RegistrationField[]>([]);
   const [submissions, setSubmissions] = useState<RegistrationSubmission[]>([]);
   const [showQR, setShowQR] = useState(false);
@@ -39,6 +39,14 @@ export default function Registrations() {
   const [mediaFiles, setMediaFiles] = useState<File[]>([]);
   const { confirmState, showConfirm, closeConfirm } = useNexusConfirm();
   const [listRef] = useAutoAnimate({ duration: 200 });
+  const [stats, setStats] = useState<any>(null);
+
+  const fetchStats = async (regId: string) => {
+    try {
+      const res = await registrationsApi.getStats(regId);
+      if (res.success) setStats(res.data);
+    } catch {}
+  };
 
   const fetchData = useCallback(async () => {
     try {
@@ -60,7 +68,7 @@ export default function Registrations() {
 
   const openCreate = () => {
     setEditing(null);
-    setForm({ title: '', description: '', eventDate: '', eventTime: '', location: '', videoUrl: '', maxParticipants: 0, status: 'draft', registrationStart: '', registrationEnd: '', closedMessage: '', mapCoords: '', showLimit: 1, showTimer: 1, organizer: '' });
+    setForm({ title: '', description: '', eventDate: '', eventTime: '', location: '', videoUrl: '', maxParticipants: 0, status: 'draft', registrationStart: '', registrationEnd: '', closedMessage: '', mapCoords: '', showLimit: 1, showTimer: 1, organizer: '', color: '' });
     setRegFields([]);
     setImageUrl('');
     setImageFiles([]);
@@ -110,6 +118,7 @@ export default function Registrations() {
           closedMessage: data.closedMessage || '', mapCoords: data.mapCoords || '',
           showLimit: data.showLimit ?? 1, showTimer: data.showTimer ?? 1,
           organizer: data.organizer || '',
+          color: data.color || '',
         });
         setRegFields(normalizeFields(data.fields));
         setImageUrl(data.imageUrl || '');
@@ -137,6 +146,7 @@ export default function Registrations() {
       if (regRes.success && regRes.data) setRegFields(regRes.data.fields || []);
       setEditing(reg);
       setView('submissions');
+      fetchStats(reg.id);
     } catch { showToast('Ошибка', 'error'); }
   };
 
@@ -366,6 +376,49 @@ export default function Registrations() {
         <button onClick={() => setView('list')} className="flex items-center gap-2 font-mono text-sm text-gray-400 hover:text-gray-200 transition-colors">
           <ArrowLeft className="w-4 h-4" /> НАЗАД
         </button>
+
+        {/* Statistics cards */}
+        {stats && (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="glass rounded-xl p-4 text-center">
+              <p className="font-mono text-[10px] text-gray-500 mb-1">ВСЕГО ЗАЯВОК</p>
+              <p className="font-mono text-2xl font-bold" style={{ color: 'var(--color-primary)' }}>{stats.total || submissions.length}</p>
+            </div>
+            <div className="glass rounded-xl p-4 text-center">
+              <p className="font-mono text-[10px] text-gray-500 mb-1">ПОДТВЕРЖДЕНО</p>
+              <p className="font-mono text-2xl font-bold" style={{ color: '#00d4ff' }}>{stats.confirmed || submissions.filter(s => s.status === 'confirmed').length}</p>
+            </div>
+            <div className="glass rounded-xl p-4 text-center">
+              <p className="font-mono text-[10px] text-gray-500 mb-1">ЗАРЕГИСТРИРОВАНО</p>
+              <p className="font-mono text-2xl font-bold" style={{ color: '#00ff88' }}>{stats.registered || submissions.filter(s => s.status === 'registered').length}</p>
+            </div>
+            <div className="glass rounded-xl p-4 text-center">
+              <p className="font-mono text-[10px] text-gray-500 mb-1">В ОЖИДАНИИ</p>
+              <p className="font-mono text-2xl font-bold" style={{ color: '#eab308' }}>{stats.waitlist || submissions.filter(s => s.status === 'waitlist').length}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Daily trend */}
+        {stats?.dailyTrend && stats.dailyTrend.length > 0 && (
+          <div className="glass rounded-xl p-4">
+            <h3 className="font-mono text-xs font-bold text-gray-400 mb-3 flex items-center gap-2"><BarChart3 className="w-3.5 h-3.5" /> РЕГИСТРАЦИИ ПО ДНЯМ</h3>
+            <div className="flex items-end gap-1 h-20">
+              {stats.dailyTrend.map((d: any, i: number) => {
+                const max = Math.max(...stats.dailyTrend.map((x: any) => x.count), 1);
+                const height = (d.count / max) * 100;
+                return (
+                  <div key={i} className="flex-1 flex flex-col items-center gap-1" title={`${d.date}: ${d.count}`}>
+                    <span className="font-mono text-[8px] text-gray-500">{d.count}</span>
+                    <div className="w-full rounded-t" style={{ height: `${height}%`, minHeight: 2, background: 'var(--color-primary)', opacity: 0.7 }} />
+                    <span className="font-mono text-[7px] text-gray-600 truncate w-full text-center">{d.date?.slice(5)}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         <SubmissionsTable registrationId={editing.id} fields={regFields} submissions={submissions} onRefresh={() => openSubmissions(editing)} onClose={() => setView('list')} />
         <ConfirmModal isOpen={confirmState.isOpen} onConfirm={() => { confirmState.onConfirm(); closeConfirm(); }} onCancel={closeConfirm} title={confirmState.title} message={confirmState.message} type={confirmState.type} />
       </div>
@@ -516,6 +569,19 @@ export default function Registrations() {
                   <span className="font-mono text-xs text-gray-300">Показывать таймер</span>
                 </label>
               </div>
+              {/* Color picker */}
+              <label className="block">
+                <span className="font-mono text-sm text-gray-300">ЦВЕТ АКЦЕНТА</span>
+                <div className="flex items-center gap-3 mt-1">
+                  <input type="color" value={form.color || '#00ff88'}
+                    onChange={e => setForm({ ...form, color: e.target.value })}
+                    className="w-10 h-10 rounded-lg cursor-pointer bg-transparent border border-gray-700" />
+                  <span className="font-mono text-xs text-gray-400">{form.color || '#00ff88'}</span>
+                  {form.color && (
+                    <button onClick={() => setForm({ ...form, color: '' })} className="text-xs text-gray-500 hover:text-gray-300">Сбросить</button>
+                  )}
+                </div>
+              </label>
             </div>
 
             <div className="glass rounded-2xl p-6">
@@ -842,7 +908,10 @@ export default function Registrations() {
               )}
               <div className="p-4 space-y-2">
                 <div className="flex items-start justify-between gap-2">
-                  <h3 className="font-mono text-sm font-bold text-gray-200 truncate flex-1">{reg.title}</h3>
+                  <h3 className="font-mono text-sm font-bold text-gray-200 truncate flex-1">
+                    {reg.color && <span className="inline-block w-2 h-2 rounded-full mr-1.5 align-middle" style={{ backgroundColor: reg.color }} />}
+                    {reg.title}
+                  </h3>
                   <span className="text-[10px] font-mono px-2 py-0.5 rounded flex-shrink-0" style={{ backgroundColor: `${status.color}20`, color: status.color }}>{status.label}</span>
                 </div>
                 <div className="flex items-center gap-3 text-[10px] font-mono text-gray-500 flex-wrap">
@@ -855,6 +924,13 @@ export default function Registrations() {
                   <button onClick={e => { e.stopPropagation(); openEdit(reg); }} className="p-1.5 rounded hover:bg-white/10"><Edit3 className="w-3.5 h-3.5 text-gray-400" /></button>
                   <button onClick={e => { e.stopPropagation(); openSubmissions(reg); }} className="p-1.5 rounded hover:bg-white/10"><Eye className="w-3.5 h-3.5 text-gray-400" /></button>
                   <a href={`/registrations/${reg.id}/participants`} onClick={e => e.stopPropagation()} className="p-1.5 rounded hover:bg-white/10"><Users className="w-3.5 h-3.5 text-gray-400" /></a>
+                  {reg.publicSlug && (
+                    <a href={`/reg/${reg.publicSlug}`} target="_blank" rel="noopener"
+                      onClick={e => e.stopPropagation()}
+                      className="p-1.5 rounded hover:bg-white/10" title="Предпросмотр">
+                      <ExternalLink className="w-3.5 h-3.5 text-gray-400" />
+                    </a>
+                  )}
                   <button onClick={e => { e.stopPropagation(); handleDuplicate(reg.id); }} className="p-1.5 rounded hover:bg-white/10" title="Копировать"><Copy className="w-3.5 h-3.5 text-gray-400" /></button>
                   <button onClick={e => { e.stopPropagation(); handleDelete(reg); }} className="p-1.5 rounded hover:bg-red-500/20"><Trash2 className="w-3.5 h-3.5 text-red-400" /></button>
                 </div>

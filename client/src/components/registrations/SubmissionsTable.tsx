@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Download, X, CheckCircle, Clock, XCircle, Search, ArrowUpDown, ArrowUp, ArrowDown, Layers, UserPlus, Mail } from 'lucide-react';
+import { Download, X, CheckCircle, Clock, XCircle, Search, ArrowUpDown, ArrowUp, ArrowDown, Layers, UserPlus, Mail, FileText } from 'lucide-react';
 import { RegistrationField, RegistrationSubmission } from '../../types';
 import { registrationsApi } from '../../services/api';
 import { showToast } from '../ui/NexusModal';
@@ -154,19 +154,34 @@ export default function SubmissionsTable({ registrationId, fields, submissions, 
     } catch { showToast('Ошибка удаления', 'error'); }
   };
 
-  const handleExport = async () => {
-    try {
-      const blob = await registrationsApi.exportCSV(registrationId);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `registration-${registrationId}.csv`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      showToast('CSV загружен', 'success');
-    } catch { showToast('Ошибка экспорта', 'error'); }
+  const handleExportCSV = () => {
+    const fieldLabels = fields.map(f => f.label);
+    const headers = ['№', 'ФИО', 'Email', 'Телефон', 'Статус', 'Дата регистрации', ...fieldLabels];
+
+    const rows = filtered.map((sub, i) => {
+      const answers = JSON.parse(sub.answers || '{}');
+      return [
+        i + 1,
+        sub.contactName || '',
+        sub.contactEmail || '',
+        sub.contactPhone || '',
+        sub.status,
+        sub.createdAt ? new Date(sub.createdAt + 'Z').toLocaleString('ru-RU') : '',
+        ...fields.map(f => answers[f.id] || ''),
+      ];
+    });
+
+    const bom = '\uFEFF';
+    const csv = bom + [headers.join(';'), ...rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(';'))].join('\n');
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `registration-${registrationId}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('CSV загружен', 'success');
   };
 
   const handleAddSubmit = async () => {
@@ -209,9 +224,13 @@ export default function SubmissionsTable({ registrationId, fields, submissions, 
             style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}>
             <UserPlus className="w-3.5 h-3.5" /> ДОБАВИТЬ
           </button>
-          <button onClick={handleExport} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-mono text-xs glass hover:bg-white/10 transition-colors">
+          <button onClick={handleExportCSV} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-mono text-xs glass hover:bg-white/10 transition-colors">
             <Download className="w-3.5 h-3.5" /> CSV
           </button>
+          <a href={`/api/registrations/${registrationId}/submissions/export-pdf`} target="_blank" rel="noopener"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-mono text-xs glass hover:bg-white/10 transition-colors">
+            <FileText className="w-3.5 h-3.5" /> PDF
+          </a>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10"><X className="w-4 h-4 text-gray-400" /></button>
         </div>
       </div>
@@ -280,6 +299,7 @@ export default function SubmissionsTable({ registrationId, fields, submissions, 
               <th className="px-3 py-2 font-mono text-[10px] text-gray-500 cursor-pointer hover:text-gray-300" onClick={() => toggleSort('date')}>
                 ДАТА {sortCol === 'date' && (sortDir === 'asc' ? '↑' : '↓')}
               </th>
+              <th className="px-3 py-2 font-mono text-[10px] text-gray-500">ДАТА РЕГИСТРАЦИИ</th>
               <th className="px-3 py-2"></th>
             </tr>
           </thead>
@@ -307,6 +327,7 @@ export default function SubmissionsTable({ registrationId, fields, submissions, 
                     </span>
                   </td>
                   <td className="px-3 py-2 font-mono text-[10px] text-gray-500">{new Date(sub.createdAt).toLocaleDateString('ru-RU')}</td>
+                  <td className="px-3 py-2 font-mono text-[10px] text-gray-400">{sub.createdAt ? new Date(sub.createdAt + 'Z').toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}</td>
                   <td className="px-3 py-2">
                     {sub.status !== 'cancelled' ? (
                       <button onClick={() => handleCancel(sub.id)} className="p-1 rounded hover:bg-red-500/20 text-gray-400 hover:text-red-400" title="Отменить">

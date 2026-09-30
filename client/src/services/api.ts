@@ -627,6 +627,8 @@ export const registrationsApi = {
     api.get(`/registrations/${regId}/participants`).then((res) => res.data),
   toggleAttended: (regId: string, subId: string): Promise<ApiResponse<any>> =>
     api.post(`/registrations/${regId}/participants/${subId}/attended`).then((res) => res.data),
+  getStats: (regId: string): Promise<ApiResponse<any>> =>
+    api.get(`/registrations/${regId}/stats`).then((res) => res.data),
 };
 
 // CONTROL page API (public, no auth)

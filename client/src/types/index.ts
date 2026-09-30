@@ -410,6 +410,7 @@ export interface Registration {
   registrationStart: string;
   registrationEnd: string;
   closedMessage: string;
+  color?: string;
   fields?: RegistrationField[];
   createdAt: string;
   updatedAt: string;

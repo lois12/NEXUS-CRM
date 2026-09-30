@@ -405,6 +405,7 @@ export default function PublicRegistration() {
 
   return (
     <div className="min-h-screen py-8 px-4 relative" style={{ background: 'var(--color-bg)' }}>
+      {reg?.color && <style>{`:root { --color-primary: ${reg.color}; }`}</style>}
       <CyberBackground />
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
         className="max-w-xl mx-auto space-y-6">

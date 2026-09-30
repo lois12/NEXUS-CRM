@@ -6,6 +6,7 @@ import {
   getMedia, uploadMedia, deleteMedia,
   checkinGet, checkinPost, checkinByCode, getParticipants, toggleAttended, updateAndNotify,
   getPublicRegistrations, getPublicSubmissions, createAdminSubmission,
+  getRegistrationStats, exportPDF,
 } from '../controllers/registrationController';
 import { authenticateToken, requireRole } from '../middleware/auth';
 import { upload } from '../middleware/upload';
@@ -57,6 +58,8 @@ authRouter.post('/:id/admin-submission', requireRole('super_admin', 'руков�
 authRouter.delete('/submissions/:subId', cancelSubmission);
 authRouter.delete('/submissions/:subId/delete', requireRole('super_admin', 'руководитель'), deleteSubmission);
 authRouter.get('/:id/submissions/export', exportCSV);
+authRouter.get('/:id/stats', getRegistrationStats);
+authRouter.get('/:id/submissions/export-pdf', exportPDF);
 
 // Participants
 authRouter.get('/:id/participants', getParticipants);
