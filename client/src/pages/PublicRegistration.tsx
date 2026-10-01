@@ -5,7 +5,7 @@ import { Calendar, MapPin, Clock, Users, Play, XCircle, AlertTriangle, Navigatio
 import { publicRegApi } from '../services/api';
 import FieldRenderer from '../components/registrations/FieldRenderer';
 import MapField from '../components/registrations/MapField';
-import { CyberBackground } from '../components/ui/CyberBackground';
+import VantaBackground from '../components/ui/VantaBackground';
 import { SkeletonForm, SkeletonBlock } from '../components/ui/Skeleton';
 import { QRCodeSVG } from 'qrcode.react';
 import { RegistrationField } from '../types';
@@ -232,7 +232,7 @@ export default function PublicRegistration() {
   if (state === 'loading') {
     return (
       <div className="min-h-screen py-8 px-4 relative" style={{ background: 'var(--color-bg)' }}>
-        <CyberBackground />
+        <VantaBackground effect="fog" />
         <div className="relative z-10 max-w-xl mx-auto space-y-6">
           <SkeletonBlock height="h-48" className="w-full rounded-2xl" />
           <div className="glass rounded-2xl p-6 space-y-3">
@@ -429,7 +429,7 @@ export default function PublicRegistration() {
           return '';
         })() }} />
       )}
-      <CyberBackground />
+      <VantaBackground effect="fog" />
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
         className="max-w-xl mx-auto space-y-6">
 

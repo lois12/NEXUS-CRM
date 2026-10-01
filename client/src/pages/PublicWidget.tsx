@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Puzzle, AlertTriangle, Lock } from 'lucide-react';
 import { publicWidgetApi } from '../services/api';
-import { CyberBackground } from '../components/ui/CyberBackground';
+import VantaBackground from '../components/ui/VantaBackground';
 
 export default function PublicWidget() {
   const { slug } = useParams<{ slug: string }>();
@@ -67,7 +67,7 @@ export default function PublicWidget() {
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--color-bg)' }}>
-      <CyberBackground />
+      <VantaBackground effect="halo" />
       <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="relative z-10 text-center">
         <div className="w-12 h-12 rounded-full border-2 border-t-transparent animate-spin mx-auto mb-4"
           style={{ borderColor: 'var(--color-primary)', borderTopColor: 'transparent' }} />
@@ -78,7 +78,7 @@ export default function PublicWidget() {
 
   if (error) return (
     <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--color-bg)' }}>
-      <CyberBackground />
+      <VantaBackground effect="halo" />
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="relative z-10 text-center">
         <AlertTriangle className="w-16 h-16 mx-auto mb-4 text-red-400" />
         <h2 className="font-mono text-xl font-bold mb-2" style={{ color: 'var(--color-text-primary)' }}>{error}</h2>
@@ -93,7 +93,7 @@ export default function PublicWidget() {
   // Password gate
   if (needsPassword) return (
     <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--color-bg)' }}>
-      <CyberBackground />
+      <VantaBackground effect="halo" />
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="relative z-10 w-full max-w-sm mx-4">
         <div className="rounded-2xl p-6" style={{ background: 'rgba(15,15,25,0.9)', border: '1px solid rgba(0,255,136,0.15)' }}>
           <Lock className="w-10 h-10 mx-auto mb-4" style={{ color: 'var(--color-primary)' }} />
@@ -124,7 +124,7 @@ export default function PublicWidget() {
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--color-bg)' }}>
-      <CyberBackground />
+      <VantaBackground effect="halo" />
 
       {/* Header */}
       <motion.header
