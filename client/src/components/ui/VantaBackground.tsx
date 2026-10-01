@@ -21,6 +21,25 @@ export default function VantaBackground({ effect = 'net', color = '#00ff88', bac
   const vantaRef = useRef<any>(null);
   const [loaded, setLoaded] = useState(false);
 
+  // Forward mouse position to Vanta on document-level move
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!vantaRef.current) return;
+      // Try different Vanta internal methods for mouse tracking
+      if (typeof vantaRef.current.onMouseMove2 === 'function') {
+        vantaRef.current.onMouseMove2(e);
+      } else if (typeof vantaRef.current.onMouseMove === 'function') {
+        vantaRef.current.onMouseMove(e);
+      } else if (vantaRef.current.options) {
+        // Directly update mouse coordinates in Vanta's internal state
+        vantaRef.current.options.mouseX = e.clientX;
+        vantaRef.current.options.mouseY = e.clientY;
+      }
+    };
+    document.addEventListener('mousemove', handleMouseMove, { passive: true });
+    return () => document.removeEventListener('mousemove', handleMouseMove);
+  }, []);
+
   useEffect(() => {
     if (!ref.current) return;
     let cancelled = false;
@@ -39,6 +58,7 @@ export default function VantaBackground({ effect = 'net', color = '#00ff88', bac
           mouseControls: true,
           touchControls: true,
           gyroControls: false,
+          mouseEase: 0.2,
           minHeight: 200.0,
           minWidth: 200.0,
           scale: 1.0,
@@ -69,6 +89,12 @@ export default function VantaBackground({ effect = 'net', color = '#00ff88', bac
           baseColor: color,
           size: 1.5,
         });
+
+        // If Vanta exposes onMouseMove2, rebind it to document
+        if (vantaRef.current && ref.current) {
+          // Remove Vanta's own mouse listener on the element (it won't fire anyway)
+          // The document-level listener above will forward events
+        }
 
         setLoaded(true);
       } catch (err) {
