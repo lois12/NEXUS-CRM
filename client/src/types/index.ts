@@ -411,6 +411,7 @@ export interface Registration {
   registrationEnd: string;
   closedMessage: string;
   color?: string;
+  theme?: string;
   fields?: RegistrationField[];
   createdAt: string;
   updatedAt: string;

@@ -20,13 +20,23 @@ const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
 };
 
 export default function Registrations() {
+  const REG_THEMES = [
+    { id: 'cyberpunk', label: 'Киберпанк', preview: { bg: '#0a0a0f', primary: '#00ff88', text: '#e8e8ec', card: 'rgba(15,15,25,0.9)', border: 'rgba(0,255,136,0.15)' } },
+    { id: 'synthwave', label: 'Синтвейв', preview: { bg: '#1a0a2e', primary: '#ff00ff', text: '#f0e0ff', card: 'rgba(30,10,50,0.9)', border: 'rgba(255,0,255,0.2)' } },
+    { id: 'minimal', label: 'Минимализм', preview: { bg: '#ffffff', primary: '#111827', text: '#374151', card: '#f9fafb', border: '#e5e7eb' } },
+    { id: 'corporate', label: 'Корпоратив', preview: { bg: '#f0f4f8', primary: '#2563eb', text: '#1e293b', card: '#ffffff', border: '#cbd5e1' } },
+    { id: 'nature', label: 'Природа', preview: { bg: '#0f1f0f', primary: '#4ade80', text: '#dcfce7', card: 'rgba(20,40,20,0.9)', border: 'rgba(74,222,128,0.2)' } },
+    { id: 'sunset', label: 'Закат', preview: { bg: '#1a0a0a', primary: '#f97316', text: '#fed7aa', card: 'rgba(30,15,10,0.9)', border: 'rgba(249,115,22,0.2)' } },
+    { id: 'ocean', label: 'Океан', preview: { bg: '#0a1628', primary: '#06b6d4', text: '#cffafe', card: 'rgba(10,25,45,0.9)', border: 'rgba(6,182,212,0.2)' } },
+    { id: 'elegant', label: 'Элегант', preview: { bg: '#0f0f0f', primary: '#d4a574', text: '#f5e6d3', card: 'rgba(20,20,20,0.95)', border: 'rgba(212,165,116,0.2)' } },
+  ];
   const [registrations, setRegistrations] = useState<Registration[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState<'active' | 'planned' | 'archive'>('active');
   const [view, setView] = useState<'list' | 'constructor' | 'submissions'>('list');
   const [editing, setEditing] = useState<Registration | null>(null);
-  const [form, setForm] = useState({ title: '', description: '', eventDate: '', eventTime: '', location: '', videoUrl: '', maxParticipants: 0, status: 'draft' as string, registrationStart: '', registrationEnd: '', closedMessage: '', mapCoords: '', showLimit: 1, showTimer: 1, organizer: '', color: '', waitlistEnabled: 1, maxWaitlist: 0 });
+  const [form, setForm] = useState({ title: '', description: '', eventDate: '', eventTime: '', location: '', videoUrl: '', maxParticipants: 0, status: 'draft' as string, registrationStart: '', registrationEnd: '', closedMessage: '', mapCoords: '', showLimit: 1, showTimer: 1, organizer: '', color: '', theme: 'cyberpunk', waitlistEnabled: 1, maxWaitlist: 0 });
   const [regFields, setRegFields] = useState<RegistrationField[]>([]);
   const [submissions, setSubmissions] = useState<RegistrationSubmission[]>([]);
   const [showQR, setShowQR] = useState(false);
@@ -68,7 +78,7 @@ export default function Registrations() {
 
   const openCreate = () => {
     setEditing(null);
-    setForm({ title: '', description: '', eventDate: '', eventTime: '', location: '', videoUrl: '', maxParticipants: 0, status: 'draft', registrationStart: '', registrationEnd: '', closedMessage: '', mapCoords: '', showLimit: 1, showTimer: 1, organizer: '', color: '', waitlistEnabled: 1, maxWaitlist: 0 });
+    setForm({ title: '', description: '', eventDate: '', eventTime: '', location: '', videoUrl: '', maxParticipants: 0, status: 'draft', registrationStart: '', registrationEnd: '', closedMessage: '', mapCoords: '', showLimit: 1, showTimer: 1, organizer: '', color: '', theme: 'cyberpunk', waitlistEnabled: 1, maxWaitlist: 0 });
     setRegFields([]);
     setImageUrl('');
     setImageFiles([]);
@@ -119,6 +129,7 @@ export default function Registrations() {
           showLimit: data.showLimit ?? 1, showTimer: data.showTimer ?? 1,
           organizer: data.organizer || '',
           color: data.color || '',
+          theme: data.theme || 'cyberpunk',
           waitlistEnabled: data.waitlistEnabled ?? 1,
           maxWaitlist: data.maxWaitlist ?? 0,
         });
@@ -605,6 +616,52 @@ export default function Registrations() {
                   )}
                 </div>
               </label>
+              {/* Theme picker */}
+              <div>
+                <label className="text-xs font-mono text-gray-500 mb-2 block">ТЕМА ОФОРМЛЕНИЯ</label>
+                <div className="grid grid-cols-4 gap-2">
+                  {REG_THEMES.map(t => (
+                    <button key={t.id} onClick={() => setForm({ ...form, theme: t.id })}
+                      className="rounded-xl p-2 transition-all text-center"
+                      style={form.theme === t.id
+                        ? { background: t.preview.primary, color: t.preview.bg, border: `2px solid ${t.preview.primary}`, boxShadow: `0 0 12px ${t.preview.primary}40` }
+                        : { background: t.preview.card, color: t.preview.text, border: `1px solid ${t.preview.border}` }
+                      }>
+                      <div className="text-[10px] font-mono font-bold">{t.label}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {/* Live preview */}
+              {form.theme && (
+                <div>
+                  <label className="text-xs font-mono text-gray-500 mb-2 block">ПРЕДПРОСМОТР</label>
+                  {(() => {
+                    const t = REG_THEMES.find(th => th.id === form.theme);
+                    if (!t) return null;
+                    return (
+                      <div className="rounded-xl overflow-hidden" style={{ background: t.preview.bg, border: `1px solid ${t.preview.border}`, padding: '16px' }}>
+                        <h3 className="font-mono text-sm font-bold mb-2" style={{ color: t.preview.primary }}>{form.title || 'Название мероприятия'}</h3>
+                        <p className="text-[10px] mb-3" style={{ color: t.preview.text, opacity: 0.7 }}>{form.description || 'Описание мероприятия'}</p>
+                        <div className="space-y-2">
+                          <div className="rounded-lg px-3 py-2" style={{ background: 'rgba(0,0,0,0.3)', border: `1px solid ${t.preview.border}` }}>
+                            <span className="text-[10px] font-mono" style={{ color: t.preview.text, opacity: 0.5 }}>// ФАМИЛИЯ *</span>
+                          </div>
+                          <div className="rounded-lg px-3 py-2" style={{ background: 'rgba(0,0,0,0.3)', border: `1px solid ${t.preview.border}` }}>
+                            <span className="text-[10px] font-mono" style={{ color: t.preview.text, opacity: 0.5 }}>// ИМЯ *</span>
+                          </div>
+                          <div className="rounded-lg px-3 py-2" style={{ background: 'rgba(0,0,0,0.3)', border: `1px solid ${t.preview.border}` }}>
+                            <span className="text-[10px] font-mono" style={{ color: t.preview.text, opacity: 0.5 }}>// EMAIL *</span>
+                          </div>
+                          <div className="rounded-lg px-3 py-2 text-center" style={{ background: t.preview.primary, color: t.preview.bg }}>
+                            <span className="text-[10px] font-mono font-bold">ЗАРЕГИСТРИРОВАТЬСЯ</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
             </div>
 
             <div className="glass rounded-2xl p-6">

@@ -751,6 +751,7 @@ export async function initializeDatabase() {
   migrate('ALTER TABLE registrations ADD COLUMN color TEXT DEFAULT ""');
   migrate('ALTER TABLE registrations ADD COLUMN waitlistEnabled INTEGER DEFAULT 1');
   migrate('ALTER TABLE registrations ADD COLUMN maxWaitlist INTEGER DEFAULT 0');
+  migrate('ALTER TABLE registrations ADD COLUMN theme TEXT DEFAULT "cyberpunk"');
   try { run('CREATE INDEX IF NOT EXISTS idx_reg_sub_checkin ON registration_submissions(checkinToken)'); } catch {}
 
   // Knowledge base attachments (photos + documents)

@@ -51,14 +51,14 @@ export const getRegistrationById = (req: AuthRequest, res: Response) => {
 
 export const createRegistration = (req: AuthRequest, res: Response) => {
   try {
-    const { title, description, eventDate, eventTime, location, videoUrl, maxParticipants, status, registrationStart, registrationEnd, closedMessage, mapCoords, showLimit, showTimer, organizer, color, waitlistEnabled, maxWaitlist } = req.body;
+    const { title, description, eventDate, eventTime, location, videoUrl, maxParticipants, status, registrationStart, registrationEnd, closedMessage, mapCoords, showLimit, showTimer, organizer, color, theme, waitlistEnabled, maxWaitlist } = req.body;
     if (!title) return res.status(400).json({ success: false, error: 'Название обязательно' });
 
     const id = uuidv4();
     const slug = uuidv4().slice(0, 8);
-    run(`INSERT INTO registrations (id, title, description, eventDate, eventTime, location, videoUrl, maxParticipants, status, publicSlug, createdBy, registrationStart, registrationEnd, closedMessage, mapCoords, showLimit, showTimer, organizer, color, waitlistEnabled, maxWaitlist)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [id, title, description || '', eventDate || '', eventTime || '', location || '', videoUrl || '', maxParticipants || 0, status || 'draft', slug, req.user?.id, registrationStart || '', registrationEnd || '', closedMessage || '', mapCoords || '', showLimit ?? 1, showTimer ?? 1, organizer || '', color || '', waitlistEnabled ?? 1, maxWaitlist ?? 0]);
+    run(`INSERT INTO registrations (id, title, description, eventDate, eventTime, location, videoUrl, maxParticipants, status, publicSlug, createdBy, registrationStart, registrationEnd, closedMessage, mapCoords, showLimit, showTimer, organizer, color, theme, waitlistEnabled, maxWaitlist)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [id, title, description || '', eventDate || '', eventTime || '', location || '', videoUrl || '', maxParticipants || 0, status || 'draft', slug, req.user?.id, registrationStart || '', registrationEnd || '', closedMessage || '', mapCoords || '', showLimit ?? 1, showTimer ?? 1, organizer || '', color || '', theme || 'cyberpunk', waitlistEnabled ?? 1, maxWaitlist ?? 0]);
 
     const reg = get('SELECT * FROM registrations WHERE id = ?', [id]);
     res.status(201).json({ success: true, data: reg });
@@ -74,7 +74,7 @@ export const updateRegistration = (req: AuthRequest, res: Response) => {
     const reg = get('SELECT * FROM registrations WHERE id = ?', [id]);
     if (!reg) return res.status(404).json({ success: false, error: 'Регистрация не найдена' });
 
-    const { title, description, eventDate, eventTime, location, videoUrl, maxParticipants, status, imageUrl, registrationStart, registrationEnd, closedMessage, mapCoords, showLimit, showTimer, organizer, color, waitlistEnabled, maxWaitlist } = req.body;
+    const { title, description, eventDate, eventTime, location, videoUrl, maxParticipants, status, imageUrl, registrationStart, registrationEnd, closedMessage, mapCoords, showLimit, showTimer, organizer, color, theme, waitlistEnabled, maxWaitlist } = req.body;
     const updates: string[] = [];
     const params: any[] = [];
 
@@ -95,6 +95,7 @@ export const updateRegistration = (req: AuthRequest, res: Response) => {
     if (showTimer !== undefined) { updates.push('showTimer = ?'); params.push(showTimer); }
     if (organizer !== undefined) { updates.push('organizer = ?'); params.push(organizer); }
     if (color !== undefined) { updates.push('color = ?'); params.push(color); }
+    if (theme !== undefined) { updates.push('theme = ?'); params.push(theme); }
     if (waitlistEnabled !== undefined) { updates.push('waitlistEnabled = ?'); params.push(waitlistEnabled); }
     if (maxWaitlist !== undefined) { updates.push('maxWaitlist = ?'); params.push(maxWaitlist); }
 
@@ -239,8 +240,8 @@ export const duplicateRegistration = (req: AuthRequest, res: Response) => {
 
     const newId = uuidv4();
 
-    run(`INSERT INTO registrations (id, title, description, eventDate, eventTime, location, videoUrl, maxParticipants, status, publicSlug, createdBy, registrationStart, registrationEnd, closedMessage, mapCoords, showLimit, showTimer, organizer, color, waitlistEnabled, maxWaitlist) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'draft', NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [newId, reg.title + ' (копия)', reg.description, reg.eventDate, reg.eventTime, reg.location, reg.videoUrl, reg.maxParticipants, req.user?.id, reg.registrationStart, reg.registrationEnd, reg.closedMessage, reg.mapCoords, reg.showLimit, reg.showTimer, reg.organizer, reg.color, reg.waitlistEnabled ?? 1, reg.maxWaitlist ?? 0]);
+    run(`INSERT INTO registrations (id, title, description, eventDate, eventTime, location, videoUrl, maxParticipants, status, publicSlug, createdBy, registrationStart, registrationEnd, closedMessage, mapCoords, showLimit, showTimer, organizer, color, theme, waitlistEnabled, maxWaitlist) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'draft', NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [newId, reg.title + ' (копия)', reg.description, reg.eventDate, reg.eventTime, reg.location, reg.videoUrl, reg.maxParticipants, req.user?.id, reg.registrationStart, reg.registrationEnd, reg.closedMessage, reg.mapCoords, reg.showLimit, reg.showTimer, reg.organizer, reg.color, reg.theme || 'cyberpunk', reg.waitlistEnabled ?? 1, reg.maxWaitlist ?? 0]);
 
     // Copy all fields
     const fields = query('SELECT * FROM registration_fields WHERE registrationId = ? ORDER BY position', [id]);

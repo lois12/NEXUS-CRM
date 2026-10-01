@@ -407,15 +407,27 @@ export default function PublicRegistration() {
 
   return (
     <div className="min-h-screen py-8 px-4 relative" style={{ background: 'var(--color-bg)' }}>
-      {reg.color && (
-        <style dangerouslySetInnerHTML={{ __html: `
-          :root {
-            --color-primary: ${reg.color} !important;
-            --color-glow: ${reg.color}66 !important;
-            --color-accent: ${reg.color} !important;
-            --color-secondary: ${reg.color} !important;
+      {(reg.theme || reg.color) && (
+        <style dangerouslySetInnerHTML={{ __html: (() => {
+          const themes = [
+            { id: 'cyberpunk', primary: '#00ff88', bg: '#0a0a0f', text: '#e8e8ec' },
+            { id: 'synthwave', primary: '#ff00ff', bg: '#1a0a2e', text: '#f0e0ff' },
+            { id: 'minimal', primary: '#111827', bg: '#ffffff', text: '#374151' },
+            { id: 'corporate', primary: '#2563eb', bg: '#f0f4f8', text: '#1e293b' },
+            { id: 'nature', primary: '#4ade80', bg: '#0f1f0f', text: '#dcfce7' },
+            { id: 'sunset', primary: '#f97316', bg: '#1a0a0a', text: '#fed7aa' },
+            { id: 'ocean', primary: '#06b6d4', bg: '#0a1628', text: '#cffafe' },
+            { id: 'elegant', primary: '#d4a574', bg: '#0f0f0f', text: '#f5e6d3' },
+          ];
+          const t = themes.find(th => th.id === reg.theme);
+          if (t) {
+            return `:root { --color-primary: ${t.primary} !important; --color-bg: ${t.bg} !important; --color-text-primary: ${t.text} !important; --color-glow: ${t.primary}66 !important; }`;
           }
-        `}} />
+          if (reg.color) {
+            return `:root { --color-primary: ${reg.color} !important; --color-glow: ${reg.color}66 !important; --color-accent: ${reg.color} !important; }`;
+          }
+          return '';
+        })() }} />
       )}
       <CyberBackground />
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
