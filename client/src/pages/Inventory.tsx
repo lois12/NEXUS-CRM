@@ -4,6 +4,7 @@ import { Plus, Search, Edit3, Trash2, X, Package, MapPin, LayoutGrid, List, Fold
 import { InventoryItem, InventoryType, InventoryStatus } from '../types';
 import { inventoryApi } from '../services/api';
 import { showToast, useNexusConfirm, ConfirmModal } from '../components/ui/NexusModal';
+import { SkeletonGrid, SkeletonHeader } from '../components/ui/Skeleton';
 
 const TYPE_CONFIG: Record<InventoryType, { label: string; color: string }> = {
   'ТМЦ': { label: 'ТМЦ', color: '#00d4ff' },
@@ -205,7 +206,7 @@ export default function Inventory() {
     }, 'danger');
   };
 
-  if (isLoading) return <div className="flex items-center justify-center h-full"><Package className="w-12 h-12 animate-pulse" style={{ color: 'var(--color-primary)' }} /></div>;
+  if (isLoading) return <div className="p-6 space-y-6"><SkeletonHeader /><SkeletonGrid count={6} /></div>;
 
   return (
     <div className="h-dvh-minus-header flex flex-col gap-3">
@@ -234,10 +235,10 @@ export default function Inventory() {
             {Object.entries(STATUS_CONFIG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
           </select>
           <div className="flex rounded-lg overflow-hidden border border-gray-700">
-            <button onClick={() => setView('table')} className={`p-2 transition-all ${view === 'table' ? 'bg-white/10 text-white' : 'text-gray-500 hover:text-gray-300'}`}>
+            <button onClick={() => setView('table')} className={`p-2 transition-all ${view === 'table' ? 'bg-white/10 text-white' : 'text-gray-500 hover:text-gray-300'}`} aria-label="Таблица">
               <List className="w-4 h-4" />
             </button>
-            <button onClick={() => setView('kanban')} className={`p-2 transition-all ${view === 'kanban' ? 'bg-white/10 text-white' : 'text-gray-500 hover:text-gray-300'}`}>
+            <button onClick={() => setView('kanban')} className={`p-2 transition-all ${view === 'kanban' ? 'bg-white/10 text-white' : 'text-gray-500 hover:text-gray-300'}`} aria-label="Канбан">
               <LayoutGrid className="w-4 h-4" />
             </button>
           </div>
@@ -292,8 +293,8 @@ export default function Inventory() {
                     </td>
                     <td className="px-3 py-2.5">
                       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => openEdit(i)} className="p-1 rounded hover:bg-white/10"><Edit3 className="w-3.5 h-3.5 text-gray-400" /></button>
-                        <button onClick={() => handleDelete(i)} className="p-1 rounded hover:bg-red-500/20"><Trash2 className="w-3.5 h-3.5 text-red-400" /></button>
+                        <button onClick={() => openEdit(i)} className="p-1 rounded hover:bg-white/10" aria-label="Редактировать"><Edit3 className="w-3.5 h-3.5 text-gray-400" /></button>
+                        <button onClick={() => handleDelete(i)} className="p-1 rounded hover:bg-red-500/20" aria-label="Удалить"><Trash2 className="w-3.5 h-3.5 text-red-400" /></button>
                       </div>
                     </td>
                   </tr>
@@ -303,7 +304,8 @@ export default function Inventory() {
             {filtered.length === 0 && (
               <div className="text-center py-12">
                 <Package className="w-16 h-16 mx-auto mb-4 opacity-30 text-gray-500" />
-                <p className="font-mono text-gray-500">// СКЛАД ПУСТ</p>
+                <p className="font-mono text-gray-500 mb-4">// СКЛАД ПУСТ</p>
+                <button onClick={openCreate} className="px-5 py-2.5 rounded-xl font-mono text-xs font-bold transition-all" style={{ background: 'rgba(0,255,136,0.15)', color: 'var(--color-primary)', border: '1px solid rgba(0,255,136,0.3)' }}>СОЗДАТЬ ПЕРВЫЙ</button>
               </div>
             )}
           </div>
@@ -340,7 +342,7 @@ export default function Inventory() {
                     <div className="flex items-center gap-2">
                       <span className="font-mono text-xs text-gray-500">{locItems.length}</span>
                       {savedLocations.includes(loc) && (
-                        <button onClick={() => removeLocation(loc)} className="p-0.5 rounded hover:bg-red-500/20 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={() => removeLocation(loc)} className="p-0.5 rounded hover:bg-red-500/20 opacity-0 group-hover:opacity-100 transition-opacity" aria-label="Удалить место">
                           <Trash2 className="w-3 h-3 text-red-400/50" />
                         </button>
                       )}
@@ -376,8 +378,8 @@ export default function Inventory() {
                             {item.responsiblePerson && <p className="text-[10px] font-mono text-gray-600 mt-1">{item.responsiblePerson}</p>}
                           </div>
                           <div className="flex flex-col gap-1 opacity-0 group-hover/item:opacity-100 transition-opacity">
-                            <button onClick={() => openEdit(item)} className="p-1 rounded hover:bg-white/10"><Edit3 className="w-3 h-3 text-gray-400" /></button>
-                            <button onClick={() => handleDelete(item)} className="p-1 rounded hover:bg-red-500/20"><Trash2 className="w-3 h-3 text-red-400" /></button>
+                            <button onClick={() => openEdit(item)} className="p-1 rounded hover:bg-white/10" aria-label="Редактировать"><Edit3 className="w-3 h-3 text-gray-400" /></button>
+                            <button onClick={() => handleDelete(item)} className="p-1 rounded hover:bg-red-500/20" aria-label="Удалить"><Trash2 className="w-3 h-3 text-red-400" /></button>
                           </div>
                         </div>
                       </div>
@@ -416,7 +418,7 @@ export default function Inventory() {
                 <h2 className="font-mono text-lg font-bold neon-text" style={{ color: 'var(--color-primary)' }}>
                   {editing ? 'РЕДАКТИРОВАТЬ' : 'НОВАЯ ЗАПИСЬ'}
                 </h2>
-                <button onClick={() => setShowModal(false)} className="p-1 rounded hover:bg-white/10"><X className="w-5 h-5 text-gray-400" /></button>
+                <button onClick={() => setShowModal(false)} className="p-1 rounded hover:bg-white/10" aria-label="Закрыть"><X className="w-5 h-5 text-gray-400" /></button>
               </div>
               <div className="space-y-3">
                 <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="// НАЗВАНИЕ *"
@@ -470,7 +472,7 @@ export default function Inventory() {
               className="glass-frost rounded-2xl p-6 w-full max-w-sm" style={{ border: '1px solid var(--color-border)' }} onClick={e => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4">
                 <h2 className="font-mono text-lg font-bold neon-text" style={{ color: 'var(--color-primary)' }}>НОВОЕ МЕСТО</h2>
-                <button onClick={() => setShowLocModal(false)} className="p-1 rounded hover:bg-white/10"><X className="w-5 h-5 text-gray-400" /></button>
+                <button onClick={() => setShowLocModal(false)} className="p-1 rounded hover:bg-white/10" aria-label="Закрыть"><X className="w-5 h-5 text-gray-400" /></button>
               </div>
               <input value={newLocName} onChange={e => setNewLocName(e.target.value)} placeholder="// НАЗВАНИЕ МЕСТА"
                 className="w-full px-4 py-2.5 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)]"

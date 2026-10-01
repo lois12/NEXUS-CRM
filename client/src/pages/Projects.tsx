@@ -356,7 +356,7 @@ export default function Projects() {
     return (
       <div className="space-y-4 cyber-grid">
         <div className="flex items-center gap-3">
-          <button onClick={() => setViewing(null)} className="p-2 rounded-lg hover:bg-white/10 transition-colors"><ArrowLeft className="w-5 h-5 text-gray-400" /></button>
+          <button onClick={() => setViewing(null)} className="p-2 rounded-lg hover:bg-white/10 transition-colors" aria-label="Назад"><ArrowLeft className="w-5 h-5 text-gray-400" /></button>
           <div className="flex-1">
             <h1 className="text-2xl font-bold font-mono neon-text" style={{ color: 'var(--color-primary)' }}>{viewing.title}</h1>
             <div className="flex items-center gap-2 mt-1">
@@ -364,7 +364,7 @@ export default function Projects() {
               <span className="text-[10px] font-mono px-2 py-0.5 rounded" style={{ backgroundColor: `${PRIORITY_CONFIG[viewing.priority]?.color}20`, color: PRIORITY_CONFIG[viewing.priority]?.color }}>{PRIORITY_CONFIG[viewing.priority]?.label}</span>
             </div>
           </div>
-          <button onClick={() => openEdit(viewing)} className="p-2 rounded-lg hover:bg-white/10"><Edit3 className="w-4 h-4 text-gray-400" /></button>
+          <button onClick={() => openEdit(viewing)} className="p-2 rounded-lg hover:bg-white/10" aria-label="Редактировать"><Edit3 className="w-4 h-4 text-gray-400" /></button>
         </div>
 
         {/* Tabs */}
@@ -470,10 +470,10 @@ export default function Projects() {
                             <p className="text-[10px] font-mono text-white truncate">{doc.fileName}</p>
                           </div>
                           <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <a href={doc.filePath} download={doc.fileName} onClick={e => e.stopPropagation()} className="p-1 rounded bg-black/60 hover:bg-blue-500/80" title="Скачать">
+                            <a href={doc.filePath} download={doc.fileName} onClick={e => e.stopPropagation()} className="p-1 rounded bg-black/60 hover:bg-blue-500/80" title="Скачать" aria-label="Скачать">
                               <Download className="w-3 h-3 text-white" />
                             </a>
-                            <button onClick={(e) => { e.stopPropagation(); handleDeleteDoc(doc.id); }} className="p-1 rounded bg-black/60 hover:bg-red-500/80" title="Удалить">
+                            <button onClick={(e) => { e.stopPropagation(); handleDeleteDoc(doc.id); }} className="p-1 rounded bg-black/60 hover:bg-red-500/80" title="Удалить" aria-label="Удалить">
                               <Trash2 className="w-3 h-3 text-white" />
                             </button>
                           </div>
@@ -542,10 +542,10 @@ export default function Projects() {
                             <p className="font-mono text-xs text-gray-300 truncate">{doc.fileName}</p>
                             <p className="font-mono text-[10px] text-gray-600">{formatFileSize(doc.fileSize)}</p>
                             <div className="flex gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <a href={`${doc.filePath}`} target="_blank" rel="noopener" className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-white/5 text-gray-400 hover:text-gray-200 text-[10px]">
+                              <a href={`${doc.filePath}`} target="_blank" rel="noopener" className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-white/5 text-gray-400 hover:text-gray-200 text-[10px]" aria-label="Скачать">
                                 <Download className="w-3 h-3" />
                               </a>
-                              <button onClick={() => handleDeleteDoc(doc.id)} className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-white/5 text-gray-400 hover:text-red-400 text-[10px]">
+                              <button onClick={() => handleDeleteDoc(doc.id)} className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-white/5 text-gray-400 hover:text-red-400 text-[10px]" aria-label="Удалить">
                                 <Trash2 className="w-3 h-3" />
                               </button>
                             </div>
@@ -606,8 +606,8 @@ export default function Projects() {
                                     <span className="font-mono text-sm text-gray-200">{point.title}</span>
                                   </div>
                                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <button onClick={() => openEditPoint(point)} className="p-1 rounded hover:bg-white/10"><Edit3 className="w-3.5 h-3.5 text-gray-400" /></button>
-                                    <button onClick={() => handleDeletePoint(point.id)} className="p-1 rounded hover:bg-red-500/20"><Trash2 className="w-3.5 h-3.5 text-red-400" /></button>
+                                    <button onClick={() => openEditPoint(point)} className="p-1 rounded hover:bg-white/10" aria-label="Редактировать"><Edit3 className="w-3.5 h-3.5 text-gray-400" /></button>
+                                    <button onClick={() => handleDeletePoint(point.id)} className="p-1 rounded hover:bg-red-500/20" aria-label="Удалить"><Trash2 className="w-3.5 h-3.5 text-red-400" /></button>
                                   </div>
                                 </div>
                                 {point.date && <p className="font-mono text-[10px] text-gray-500 mb-1"><Calendar className="w-3 h-3 inline mr-1" />{point.date}</p>}
@@ -658,7 +658,7 @@ export default function Projects() {
                           <a href={link.url} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-gray-200 hover:underline truncate block">{link.title}</a>
                           {link.description && <p className="text-[10px] text-gray-500 truncate">{link.description}</p>}
                         </div>
-                        <button onClick={() => handleDeleteLink(link.id)} className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-red-500/10 transition-all">
+                        <button onClick={() => handleDeleteLink(link.id)} className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-red-500/10 transition-all" aria-label="Удалить">
                           <Trash2 className="w-3.5 h-3.5 text-red-400" />
                         </button>
                       </div>
@@ -679,7 +679,7 @@ export default function Projects() {
               <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="glass-frost rounded-2xl p-6 w-full max-w-md" style={{ border: '1px solid var(--color-border)' }} onClick={e => e.stopPropagation()}>
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="font-mono text-lg font-bold neon-text" style={{ color: 'var(--color-primary)' }}>{editingPoint ? 'РЕДАКТИРОВАТЬ' : 'НОВАЯ ТОЧКА'}</h2>
-                  <button onClick={() => setShowTimelineModal(false)} className="p-1 rounded hover:bg-white/10"><X className="w-5 h-5 text-gray-400" /></button>
+                  <button onClick={() => setShowTimelineModal(false)} className="p-1 rounded hover:bg-white/10" aria-label="Закрыть"><X className="w-5 h-5 text-gray-400" /></button>
                 </div>
                 <div className="space-y-3">
                   <div>
@@ -763,7 +763,7 @@ export default function Projects() {
             {p.imageUrl && <img loading="lazy" decoding="async" src={`${p.imageUrl}`} alt="" className="w-full h-32 object-cover rounded-lg mb-3" />}
             <div className="flex items-start justify-between mb-2">
               <h3 className="font-mono text-sm font-bold text-gray-200 truncate flex-1">{p.title}</h3>
-              <button onClick={(e) => { e.stopPropagation(); handleDelete(p.id); }} className="p-1 rounded hover:bg-red-500/20 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 className="w-3.5 h-3.5 text-red-400" /></button>
+              <button onClick={(e) => { e.stopPropagation(); handleDelete(p.id); }} className="p-1 rounded hover:bg-red-500/20 opacity-0 group-hover:opacity-100 transition-opacity" aria-label="Удалить"><Trash2 className="w-3.5 h-3.5 text-red-400" /></button>
             </div>
             <div className="flex items-center gap-2 mb-2">
               <span className="text-[10px] font-mono px-1.5 py-0.5 rounded" style={{ backgroundColor: `${STATUS_CONFIG[p.status]?.color}20`, color: STATUS_CONFIG[p.status]?.color }}>{STATUS_CONFIG[p.status]?.label}</span>
@@ -788,7 +788,7 @@ export default function Projects() {
             <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="glass-frost rounded-2xl p-6 w-full max-w-lg max-h-[85vh] overflow-y-auto" style={{ border: '1px solid var(--color-border)' }} onClick={e => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4">
                 <h2 className="font-mono text-lg font-bold neon-text" style={{ color: 'var(--color-primary)' }}>{editing ? 'РЕДАКТИРОВАТЬ' : 'НОВЫЙ ПРОЕКТ'}</h2>
-                <button onClick={() => setShowModal(false)} className="p-1 rounded hover:bg-white/10"><X className="w-5 h-5 text-gray-400" /></button>
+                <button onClick={() => setShowModal(false)} className="p-1 rounded hover:bg-white/10" aria-label="Закрыть"><X className="w-5 h-5 text-gray-400" /></button>
               </div>
               <div className="space-y-3">
                 <input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="// НАЗВАНИЕ ПРОЕКТА" className="w-full px-4 py-2.5 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)]" />

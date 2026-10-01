@@ -26,7 +26,7 @@ export default function Registrations() {
   const [activeTab, setActiveTab] = useState<'active' | 'planned' | 'archive'>('active');
   const [view, setView] = useState<'list' | 'constructor' | 'submissions'>('list');
   const [editing, setEditing] = useState<Registration | null>(null);
-  const [form, setForm] = useState({ title: '', description: '', eventDate: '', eventTime: '', location: '', videoUrl: '', maxParticipants: 0, status: 'draft' as string, registrationStart: '', registrationEnd: '', closedMessage: '', mapCoords: '', showLimit: 1, showTimer: 1, organizer: '', color: '' });
+  const [form, setForm] = useState({ title: '', description: '', eventDate: '', eventTime: '', location: '', videoUrl: '', maxParticipants: 0, status: 'draft' as string, registrationStart: '', registrationEnd: '', closedMessage: '', mapCoords: '', showLimit: 1, showTimer: 1, organizer: '', color: '', waitlistEnabled: 1, maxWaitlist: 0 });
   const [regFields, setRegFields] = useState<RegistrationField[]>([]);
   const [submissions, setSubmissions] = useState<RegistrationSubmission[]>([]);
   const [showQR, setShowQR] = useState(false);
@@ -68,7 +68,7 @@ export default function Registrations() {
 
   const openCreate = () => {
     setEditing(null);
-    setForm({ title: '', description: '', eventDate: '', eventTime: '', location: '', videoUrl: '', maxParticipants: 0, status: 'draft', registrationStart: '', registrationEnd: '', closedMessage: '', mapCoords: '', showLimit: 1, showTimer: 1, organizer: '', color: '' });
+    setForm({ title: '', description: '', eventDate: '', eventTime: '', location: '', videoUrl: '', maxParticipants: 0, status: 'draft', registrationStart: '', registrationEnd: '', closedMessage: '', mapCoords: '', showLimit: 1, showTimer: 1, organizer: '', color: '', waitlistEnabled: 1, maxWaitlist: 0 });
     setRegFields([]);
     setImageUrl('');
     setImageFiles([]);
@@ -119,6 +119,8 @@ export default function Registrations() {
           showLimit: data.showLimit ?? 1, showTimer: data.showTimer ?? 1,
           organizer: data.organizer || '',
           color: data.color || '',
+          waitlistEnabled: data.waitlistEnabled ?? 1,
+          maxWaitlist: data.maxWaitlist ?? 0,
         });
         setRegFields(normalizeFields(data.fields));
         setImageUrl(data.imageUrl || '');
@@ -568,6 +570,27 @@ export default function Registrations() {
                   </div>
                   <span className="font-mono text-xs text-gray-300">Показывать таймер</span>
                 </label>
+              </div>
+              {/* Waitlist toggle */}
+              <div>
+                <label className="text-xs font-mono text-gray-500 mb-2 block">ВЕЙТЛИСТ</label>
+                <div className="flex items-center gap-3">
+                  <button onClick={() => setForm({ ...form, waitlistEnabled: form.waitlistEnabled ? 0 : 1 })}
+                    className="w-10 h-5 rounded-full transition-colors relative"
+                    style={{ background: form.waitlistEnabled ? 'var(--color-primary)' : '#3a3a50' }}>
+                    <div className="absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform"
+                      style={{ transform: form.waitlistEnabled ? 'translateX(20px)' : 'translateX(2px)' }} />
+                  </button>
+                  <span className="text-xs font-mono text-gray-400">{form.waitlistEnabled ? 'Включён' : 'Выключен'}</span>
+                </div>
+                {form.waitlistEnabled === 1 && (
+                  <div className="mt-2">
+                    <label className="text-xs font-mono text-gray-500 mb-1 block">Лимит вейтлиста (0 = без лимита)</label>
+                    <input type="number" min="0" value={form.maxWaitlist}
+                      onChange={e => setForm({ ...form, maxWaitlist: parseInt(e.target.value) || 0 })}
+                      className="w-full px-4 py-2.5 rounded-xl font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)]" />
+                  </div>
+                )}
               </div>
               {/* Color picker */}
               <label className="block">

@@ -49,6 +49,7 @@ const NexusControl = lazy(() => import('./pages/NexusControl'));
 const Widgets = lazy(() => import('./pages/Widgets'));
 const PublicWidget = lazy(() => import('./pages/PublicWidget'));
 const Lists = lazy(() => import('./pages/Lists'));
+const PublicList = lazy(() => import('./pages/PublicList'));
 
 function PageWrapper({ children }: { children: ReactNode }) {
   return <ErrorBoundary><Suspense fallback={<LoadingScreen />}>{children}</Suspense></ErrorBoundary>;
@@ -102,6 +103,7 @@ function AppRoutes() {
       <Route path="/reg/checkin/:token" element={<PageWrapper><CheckinPage /></PageWrapper>} />
       <Route path="/control" element={<PageWrapper><NexusControl /></PageWrapper>} />
       <Route path="/w/:slug" element={<PageWrapper><PublicWidget /></PageWrapper>} />
+      <Route path="/lists/public/:slug" element={<PageWrapper><PublicList /></PageWrapper>} />
       <Route
         path="/"
         element={

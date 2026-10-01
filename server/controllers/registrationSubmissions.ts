@@ -78,8 +78,21 @@ export const submitRegistration = (req: AuthRequest, res: Response) => {
     let position = 0;
 
     if (reg.maxParticipants > 0 && registeredCount >= reg.maxParticipants) {
-      status = 'waitlist';
+      // All spots taken
+      if (!reg.waitlistEnabled) {
+        // No waitlist — registration is closed
+        return res.status(400).json({ success: false, error: 'Все места заняты. Регистрация закрыта.' });
+      }
+
+      // Waitlist enabled — check waitlist limit
       const waitlistCount = get('SELECT COUNT(*) as cnt FROM registration_submissions WHERE registrationId = ? AND status = ?', [reg.id, 'waitlist'])?.cnt || 0;
+
+      if (reg.maxWaitlist > 0 && waitlistCount >= reg.maxWaitlist) {
+        // Waitlist is also full
+        return res.status(400).json({ success: false, error: 'Все места и лист ожидания заполнены. Регистрация закрыта.' });
+      }
+
+      status = 'waitlist';
       position = waitlistCount + 1;
     }
 
@@ -374,6 +387,40 @@ export const cancelByToken = (req: AuthRequest, res: Response) => {
     res.json({ success: true, message: 'Регистрация отменена' });
   } catch (error) {
     console.error('CancelByToken error:', error);
+    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+  }
+};
+
+// ── Update submission status ──
+
+export const updateSubmissionStatus = (req: AuthRequest, res: Response) => {
+  try {
+    const { subId } = req.params;
+    const { status } = req.body;
+    
+    if (!['registered', 'confirmed', 'waitlist', 'cancelled'].includes(status)) {
+      return res.status(400).json({ success: false, error: 'Неверный статус' });
+    }
+    
+    const sub = get('SELECT * FROM registration_submissions WHERE id = ?', [subId]);
+    if (!sub) return res.status(404).json({ success: false, error: 'Заявка не найдена' });
+    
+    run('UPDATE registration_submissions SET status = ?, updatedAt = datetime(\'now\') WHERE id = ?', [status, subId]);
+    
+    // If cancelling and there are waitlisted people, promote the first one
+    if (status === 'cancelled' && sub.status !== 'waitlist') {
+      const firstWaitlist = get(
+        "SELECT id FROM registration_submissions WHERE registrationId = ? AND status = 'waitlist' ORDER BY position ASC LIMIT 1",
+        [sub.registrationId]
+      );
+      if (firstWaitlist) {
+        run("UPDATE registration_submissions SET status = 'registered', position = 0, updatedAt = datetime('now') WHERE id = ?", [firstWaitlist.id]);
+      }
+    }
+    
+    res.json({ success: true, message: 'Статус обновлён' });
+  } catch (error) {
+    console.error('UpdateSubmissionStatus error:', error);
     res.status(500).json({ success: false, error: 'Ошибка сервера' });
   }
 };

@@ -1,9 +1,10 @@
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Download, X, CheckCircle, Clock, XCircle, Search, ArrowUpDown, ArrowUp, ArrowDown, Layers, UserPlus, Mail, FileText } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 import { RegistrationField, RegistrationSubmission } from '../../types';
 import { registrationsApi } from '../../services/api';
-import { showToast } from '../ui/NexusModal';
+import { showToast, useNexusConfirm, ConfirmModal } from '../ui/NexusModal';
 import FieldRenderer from './FieldRenderer';
 
 interface SubmissionsTableProps {
@@ -42,6 +43,11 @@ export default function SubmissionsTable({ registrationId, fields, submissions, 
   const [addAnswers, setAddAnswers] = useState<Record<string, string>>({});
   const [sendEmail, setSendEmail] = useState(true);
   const [adding, setAdding] = useState(false);
+
+  // Detail modal and context menu
+  const [detailSub, setDetailSub] = useState<RegistrationSubmission | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; sub: RegistrationSubmission } | null>(null);
+  const { confirmState, showConfirm, closeConfirm } = useNexusConfirm();
 
   // Available group columns
   const groupConfigs: GroupConfig[] = useMemo(() => [
@@ -154,6 +160,25 @@ export default function SubmissionsTable({ registrationId, fields, submissions, 
     } catch { showToast('Ошибка удаления', 'error'); }
   };
 
+  const handleChangeStatus = async (subId: string, newStatus: string) => {
+    if (newStatus === 'cancelled') {
+      showConfirm('ОТМЕНИТЬ ЗАЯВКУ?', 'Это действие можно отменить, изменив статус обратно.', async () => {
+        try {
+          await registrationsApi.updateSubmissionStatus(subId, newStatus);
+          showToast('Статус изменён');
+          onRefresh();
+        } catch { showToast('Ошибка', 'error'); }
+      }, 'danger');
+    } else {
+      try {
+        await registrationsApi.updateSubmissionStatus(subId, newStatus);
+        showToast('Статус изменён');
+        onRefresh();
+      } catch { showToast('Ошибка', 'error'); }
+    }
+    setContextMenu(null);
+  };
+
   const handleExportCSV = () => {
     const fieldLabels = fields.map(f => f.label);
     const headers = ['№', 'ФИО', 'Email', 'Телефон', 'Статус', 'Дата регистрации', ...fieldLabels];
@@ -239,7 +264,7 @@ export default function SubmissionsTable({ registrationId, fields, submissions, 
           }} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-mono text-xs glass hover:bg-white/10 transition-colors">
             <FileText className="w-3.5 h-3.5" /> PDF
           </button>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10"><X className="w-4 h-4 text-gray-400" /></button>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10" aria-label="Закрыть"><X className="w-4 h-4 text-gray-400" /></button>
         </div>
       </div>
 
@@ -320,8 +345,10 @@ export default function SubmissionsTable({ registrationId, fields, submissions, 
               const groupBorder = getGroupBorder(i);
 
               return (
-                <tr key={sub.id} className="border-b border-white/5 transition-colors"
-                  style={{ background: groupBg || undefined, borderLeft: groupBg ? `3px solid ${groupBorder}` : undefined }}>
+                <tr key={sub.id} className="border-b border-white/5 transition-colors cursor-pointer hover:bg-white/[0.03]"
+                  style={{ background: groupBg || undefined, borderLeft: groupBg ? `3px solid ${groupBorder}` : undefined }}
+                  onClick={() => setDetailSub(sub)}
+                  onContextMenu={(e) => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, sub }); }}>
                   <td className="px-3 py-2 font-mono text-xs text-gray-400">{i + 1}</td>
                   <td className="px-3 py-2 font-mono text-xs text-gray-200">{sub.contactName || '—'}</td>
                   <td className="px-3 py-2 font-mono text-xs text-gray-300">{sub.contactEmail || '—'}</td>
@@ -338,11 +365,11 @@ export default function SubmissionsTable({ registrationId, fields, submissions, 
                   <td className="px-3 py-2 font-mono text-[10px] text-gray-400">{sub.createdAt ? new Date(sub.createdAt + 'Z').toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}</td>
                   <td className="px-3 py-2">
                     {sub.status !== 'cancelled' ? (
-                      <button onClick={() => handleCancel(sub.id)} className="p-1 rounded hover:bg-red-500/20 text-gray-400 hover:text-red-400" title="Отменить">
+                      <button onClick={() => handleCancel(sub.id)} className="p-1 rounded hover:bg-red-500/20 text-gray-400 hover:text-red-400" title="Отменить" aria-label="Отменить">
                         <XCircle className="w-3.5 h-3.5" />
                       </button>
                     ) : (
-                      <button onClick={() => handleDelete(sub.id)} className="p-1 rounded hover:bg-red-500/20 text-gray-400 hover:text-red-400" title="Удалить">
+                      <button onClick={() => handleDelete(sub.id)} className="p-1 rounded hover:bg-red-500/20 text-gray-400 hover:text-red-400" title="Удалить" aria-label="Удалить">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                       </button>
                     )}
@@ -389,7 +416,7 @@ export default function SubmissionsTable({ registrationId, fields, submissions, 
                 <h3 className="font-mono text-sm font-bold" style={{ color: 'var(--color-primary)' }}>
                   ДОБАВИТЬ УЧАСТНИКА
                 </h3>
-                <button onClick={() => setShowAddModal(false)} className="p-1.5 rounded-lg hover:bg-white/10">
+                <button onClick={() => setShowAddModal(false)} className="p-1.5 rounded-lg hover:bg-white/10" aria-label="Закрыть">
                   <X className="w-4 h-4 text-gray-400" />
                 </button>
               </div>
@@ -481,6 +508,178 @@ export default function SubmissionsTable({ registrationId, fields, submissions, 
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Detail Modal */}
+      <AnimatePresence>
+        {detailSub && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] flex items-center justify-center p-4"
+            style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }}
+            onClick={() => setDetailSub(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="w-full max-w-lg rounded-2xl overflow-hidden"
+              style={{ background: 'linear-gradient(135deg, rgba(20,20,35,0.98), rgba(10,10,20,0.99))', border: '1px solid rgba(255,255,255,0.08)', backdropFilter: 'blur(24px)' }}
+              onClick={e => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                <h3 className="font-mono text-lg font-bold" style={{ color: 'var(--color-primary)' }}>Детали заявки</h3>
+                <button onClick={() => setDetailSub(null)} className="p-1.5 rounded-lg hover:bg-white/10" aria-label="Закрыть">
+                  <X className="w-4 h-4 text-gray-400" />
+                </button>
+              </div>
+              
+              <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+                {/* Name */}
+                <div>
+                  <label className="text-[10px] font-mono text-gray-500">ИМЯ</label>
+                  <p className="text-sm font-mono text-gray-200">{detailSub.contactName || '—'}</p>
+                </div>
+                
+                {/* Email */}
+                <div>
+                  <label className="text-[10px] font-mono text-gray-500">EMAIL</label>
+                  <p className="text-sm font-mono text-gray-300">{detailSub.contactEmail || '—'}</p>
+                </div>
+                
+                {/* Phone */}
+                <div>
+                  <label className="text-[10px] font-mono text-gray-500">ТЕЛЕФОН</label>
+                  <p className="text-sm font-mono text-gray-300">{detailSub.contactPhone || '—'}</p>
+                </div>
+                
+                {/* Status */}
+                <div>
+                  <label className="text-[10px] font-mono text-gray-500">СТАТУС</label>
+                  <div className="mt-1">
+                    <span className="inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded" 
+                      style={{ backgroundColor: `${STATUS_CONFIG[detailSub.status]?.color}20`, color: STATUS_CONFIG[detailSub.status]?.color }}>
+                      {STATUS_CONFIG[detailSub.status]?.label}
+                    </span>
+                  </div>
+                </div>
+                
+                {/* Custom fields */}
+                {fields.map(f => {
+                  const answers = JSON.parse(detailSub.answers || '{}');
+                  const val = answers[f.id];
+                  if (!val) return null;
+                  return (
+                    <div key={f.id}>
+                      <label className="text-[10px] font-mono text-gray-500">{f.label.toUpperCase()}</label>
+                      <p className="text-sm font-mono text-gray-300">{val}</p>
+                    </div>
+                  );
+                })}
+                
+                {/* QR Code + Confirm Code */}
+                {detailSub.checkinToken && (
+                  <div className="flex items-start gap-6 pt-4" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                    <div>
+                      <label className="text-[10px] font-mono text-gray-500 block mb-2">QR-КОД</label>
+                      <div className="p-3 rounded-xl" style={{ background: '#fff' }}>
+                        <QRCodeSVG value={`${window.location.origin}/reg/checkin/${detailSub.checkinToken}`} size={120} />
+                      </div>
+                    </div>
+                    {detailSub.confirmCode && (
+                      <div>
+                        <label className="text-[10px] font-mono text-gray-500 block mb-2">КОД ПОДТВЕРЖДЕНИЯ</label>
+                        <p className="font-mono text-3xl font-bold tracking-[0.3em]" style={{ color: '#00d4ff' }}>{detailSub.confirmCode}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+                
+                {/* Timestamps */}
+                <div className="pt-4" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                  <label className="text-[10px] font-mono text-gray-500">ДАТА РЕГИСТРАЦИИ</label>
+                  <p className="text-xs font-mono text-gray-400">{detailSub.createdAt ? new Date(detailSub.createdAt + 'Z').toLocaleString('ru-RU') : '—'}</p>
+                </div>
+              </div>
+              
+              {/* Actions */}
+              <div className="px-6 py-4 flex gap-2" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                {detailSub.status !== 'confirmed' && (
+                  <button onClick={() => { handleChangeStatus(detailSub.id, 'confirmed'); setDetailSub(null); }}
+                    className="px-4 py-2 rounded-xl font-mono text-xs font-bold" style={{ background: 'rgba(0,212,255,0.15)', color: '#00d4ff', border: '1px solid rgba(0,212,255,0.3)' }}>
+                    ПОДТВЕРДИТЬ
+                  </button>
+                )}
+                {detailSub.status !== 'registered' && detailSub.status !== 'cancelled' && (
+                  <button onClick={() => { handleChangeStatus(detailSub.id, 'registered'); setDetailSub(null); }}
+                    className="px-4 py-2 rounded-xl font-mono text-xs font-bold" style={{ background: 'rgba(0,255,136,0.15)', color: 'var(--color-primary)', border: '1px solid rgba(0,255,136,0.3)' }}>
+                    ЗАРЕГИСТРИРОВАН
+                  </button>
+                )}
+                {detailSub.status !== 'cancelled' && (
+                  <button onClick={() => { handleChangeStatus(detailSub.id, 'cancelled'); setDetailSub(null); }}
+                    className="px-4 py-2 rounded-xl font-mono text-xs" style={{ background: 'rgba(255,59,48,0.08)', color: '#ff6b6b', border: '1px solid rgba(255,59,48,0.15)' }}>
+                    ОТМЕНИТЬ
+                  </button>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Context Menu */}
+      {contextMenu && (
+        <div className="fixed inset-0 z-[200]" onClick={() => setContextMenu(null)}>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="absolute rounded-xl overflow-hidden py-1.5"
+            style={{
+              left: Math.min(contextMenu.x, window.innerWidth - 200),
+              top: Math.min(contextMenu.y, window.innerHeight - 200),
+              background: 'linear-gradient(135deg, rgba(20,20,35,0.95), rgba(15,15,25,0.98))',
+              border: '1px solid rgba(255,255,255,0.08)',
+              backdropFilter: 'blur(24px)',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+              minWidth: 180,
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="px-3 py-1.5 text-[10px] font-mono text-gray-500">ИЗМЕНИТЬ СТАТУС</div>
+            <div className="h-px mx-2 my-1" style={{ background: 'rgba(255,255,255,0.06)' }} />
+            {contextMenu.sub.status !== 'registered' && (
+              <button onClick={() => handleChangeStatus(contextMenu.sub.id, 'registered')}
+                className="w-full flex items-center gap-2 px-3 py-2 text-xs font-mono hover:bg-white/5 transition-colors" style={{ color: '#00ff88' }}>
+                <CheckCircle className="w-3.5 h-3.5" /> Зарегистрирован
+              </button>
+            )}
+            {contextMenu.sub.status !== 'confirmed' && (
+              <button onClick={() => handleChangeStatus(contextMenu.sub.id, 'confirmed')}
+                className="w-full flex items-center gap-2 px-3 py-2 text-xs font-mono hover:bg-white/5 transition-colors" style={{ color: '#00d4ff' }}>
+                <CheckCircle className="w-3.5 h-3.5" /> Подтверждён
+              </button>
+            )}
+            {contextMenu.sub.status !== 'waitlist' && (
+              <button onClick={() => handleChangeStatus(contextMenu.sub.id, 'waitlist')}
+                className="w-full flex items-center gap-2 px-3 py-2 text-xs font-mono hover:bg-white/5 transition-colors" style={{ color: '#eab308' }}>
+                <Clock className="w-3.5 h-3.5" /> Ожидание
+              </button>
+            )}
+            <div className="h-px mx-2 my-1" style={{ background: 'rgba(255,255,255,0.06)' }} />
+            {contextMenu.sub.status !== 'cancelled' && (
+              <button onClick={() => handleChangeStatus(contextMenu.sub.id, 'cancelled')}
+                className="w-full flex items-center gap-2 px-3 py-2 text-xs font-mono hover:bg-white/5 transition-colors" style={{ color: '#ff6b6b' }}>
+                <XCircle className="w-3.5 h-3.5" /> Отменить
+              </button>
+            )}
+          </motion.div>
+        </div>
+      )}
+
+      <ConfirmModal isOpen={confirmState.isOpen} onConfirm={() => { confirmState.onConfirm(); closeConfirm(); }} onCancel={closeConfirm} title={confirmState.title} message={confirmState.message} type={confirmState.type} />
     </div>
   );
 }

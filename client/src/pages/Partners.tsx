@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Search, Edit3, Trash2, X, Building2, Mail, Phone, MapPin, Send, ArrowLeft } from 'lucide-react';
 import { Partner } from '../types';
@@ -6,6 +6,7 @@ import { partnersApi } from '../services/api';
 import { showToast, useNexusConfirm, ConfirmModal } from '../components/ui/NexusModal';
 import { NexusInput, NexusTextarea, NexusSelect } from '../components/common/NexusInput';
 import NexusFormModal from '../components/common/NexusFormModal';
+import { SkeletonGrid, SkeletonHeader } from '../components/ui/Skeleton';
 
 const DEFAULT_CATEGORIES = ['Фотографы', 'Тур-операторы', 'Бизнес'];
 const CAT_STORAGE_KEY = 'nexus-partner-categories';
@@ -136,7 +137,7 @@ export default function Partners() {
     }
   };
 
-  if (isLoading) return <div className="flex items-center justify-center h-full"><Building2 className="w-12 h-12 animate-pulse" style={{ color: 'var(--color-primary)' }} /></div>;
+  if (isLoading) return <div className="p-6 space-y-6"><SkeletonHeader /><SkeletonGrid count={6} /></div>;
 
   // Category tiles view
   if (!activeCategory) {
@@ -203,14 +204,14 @@ export default function Partners() {
                 className="glass-frost rounded-2xl p-6 w-full max-w-sm" style={{ border: '1px solid var(--color-border)' }} onClick={e => e.stopPropagation()}>
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="font-mono text-lg font-bold neon-text" style={{ color: 'var(--color-primary)' }}>КАТЕГОРИИ</h2>
-                  <button onClick={() => setShowCatModal(false)} className="p-1 rounded hover:bg-white/10"><X className="w-5 h-5 text-gray-400" /></button>
+                  <button onClick={() => setShowCatModal(false)} className="p-1 rounded hover:bg-white/10" aria-label="Закрыть"><X className="w-5 h-5 text-gray-400" /></button>
                 </div>
                 <div className="space-y-2 mb-4 max-h-60 overflow-y-auto">
                   {categories.map(c => (
                     <div key={c} className="flex items-center justify-between px-3 py-2 rounded-lg bg-black/20">
                       <span className="font-mono text-sm text-gray-200">{c} <span className="text-gray-500">({catCounts[c] || 0})</span></span>
                       {!DEFAULT_CATEGORIES.includes(c) && (
-                        <button onClick={() => removeCategory(c)} className="p-1 rounded hover:bg-red-500/20"><Trash2 className="w-3.5 h-3.5 text-red-400" /></button>
+                        <button onClick={() => removeCategory(c)} className="p-1 rounded hover:bg-red-500/20" aria-label="Удалить категорию"><Trash2 className="w-3.5 h-3.5 text-red-400" /></button>
                       )}
                     </div>
                   ))}
@@ -235,7 +236,7 @@ export default function Partners() {
     <div className="h-dvh-minus-header flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <button onClick={() => setActiveCategory(null)} className="p-2 rounded-lg glass hover:bg-white/10">
+          <button onClick={() => setActiveCategory(null)} className="p-2 rounded-lg glass hover:bg-white/10" aria-label="Назад">
             <ArrowLeft className="w-5 h-5 text-gray-400" />
           </button>
           <div>
@@ -264,8 +265,8 @@ export default function Partners() {
             <div className="flex items-start justify-between mb-3">
               <h3 className="font-mono text-sm font-bold text-gray-200">{p.name}</h3>
               <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button onClick={() => openEdit(p)} className="p-1.5 rounded hover:bg-white/10"><Edit3 className="w-4 h-4 text-gray-400" /></button>
-                <button onClick={() => handleDelete(p)} className="p-1.5 rounded hover:bg-red-500/20"><Trash2 className="w-4 h-4 text-red-400" /></button>
+                <button onClick={() => openEdit(p)} className="p-1.5 rounded hover:bg-white/10" aria-label="Редактировать"><Edit3 className="w-4 h-4 text-gray-400" /></button>
+                <button onClick={() => handleDelete(p)} className="p-1.5 rounded hover:bg-red-500/20" aria-label="Удалить"><Trash2 className="w-4 h-4 text-red-400" /></button>
               </div>
             </div>
             <div className="space-y-1.5 text-xs font-mono text-gray-400">
@@ -291,7 +292,8 @@ export default function Partners() {
         {filtered.length === 0 && (
           <div className="col-span-full text-center py-12">
             <Building2 className="w-16 h-16 mx-auto mb-4 opacity-30 text-gray-500" />
-            <p className="font-mono text-gray-500">// ПАРТНЁРОВ НЕТ</p>
+            <p className="font-mono text-gray-500 mb-4">// ПАРТНЁРОВ НЕТ</p>
+            <button onClick={openCreate} className="px-5 py-2.5 rounded-xl font-mono text-xs font-bold transition-all" style={{ background: 'rgba(0,255,136,0.15)', color: 'var(--color-primary)', border: '1px solid rgba(0,255,136,0.3)' }}>СОЗДАТЬ ПЕРВОГО</button>
           </div>
         )}
       </div>

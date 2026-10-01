@@ -617,6 +617,8 @@ export const registrationsApi = {
     api.get(`/registrations/${regId}/submissions`).then((res) => res.data),
   createAdminSubmission: (regId: string, data: { contactName?: string; contactLastName?: string; contactFirstName?: string; contactPatronymic?: string; contactEmail?: string; contactPhone?: string; answers?: Record<string, string>; sendEmail?: boolean }): Promise<ApiResponse<any>> =>
     api.post(`/registrations/${regId}/admin-submission`, data).then((res) => res.data),
+  updateSubmissionStatus: (subId: string, status: string): Promise<ApiResponse<any>> =>
+    api.patch(`/registrations/submissions/${subId}/status`, { status }).then((res) => res.data),
   cancelSubmission: (subId: string): Promise<ApiResponse<void>> =>
     api.delete(`/registrations/submissions/${subId}`).then((res) => res.data),
   deleteSubmission: (subId: string): Promise<ApiResponse<void>> =>
@@ -716,6 +718,12 @@ export const listsApi = {
   updateEntry: (listId: string, entryId: string, data: any): Promise<ApiResponse<void>> => api.put(`/lists/${listId}/entries/${entryId}`, data).then(res => res.data),
   deleteEntry: (listId: string, entryId: string): Promise<ApiResponse<void>> => api.delete(`/lists/${listId}/entries/${entryId}`).then(res => res.data),
   toggleEntry: (listId: string, entryId: string, field: 'called' | 'visited'): Promise<ApiResponse<any>> => api.patch(`/lists/${listId}/entries/${entryId}/toggle`, { field }).then(res => res.data),
+  togglePublish: (id: string): Promise<ApiResponse<any>> => api.post(`/lists/${id}/toggle-publish`).then(res => res.data),
+};
+
+// Public Lists API (no auth)
+export const publicListsApi = {
+  getBySlug: (slug: string): Promise<ApiResponse<any>> => api.get(`/lists/public/${slug}`).then(res => res.data),
 };
 
 export default api;

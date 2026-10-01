@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { authenticateToken, requireRole } from '../middleware/auth';
 import {
   getLists, getListById, createList, updateList, deleteList, duplicateList,
+  togglePublish, getPublicList,
   createField, updateField, deleteField, reorderFields,
   createEntry, updateEntry, deleteEntry, toggleEntry,
   exportCSV, exportPDF
@@ -17,6 +18,7 @@ router.post('/', requireRole('super_admin', 'руководитель', 'ред�
 router.put('/:id', requireRole('super_admin', 'руководитель', 'редактор'), updateList);
 router.delete('/:id', requireRole('super_admin', 'руководитель'), deleteList);
 router.post('/:id/duplicate', requireRole('super_admin', 'руководитель', 'редактор'), duplicateList);
+router.post('/:id/toggle-publish', requireRole('super_admin', 'руководитель', 'редактор'), togglePublish);
 
 // Fields
 router.post('/:id/fields', requireRole('super_admin', 'руководитель', 'редактор'), createField);
@@ -35,3 +37,9 @@ router.get('/:id/export/csv', exportCSV);
 router.get('/:id/export/pdf', exportPDF);
 
 export default router;
+
+// Public (unauthenticated) router
+const publicRouter = Router();
+publicRouter.get('/lists/public/:slug', getPublicList);
+
+export { publicRouter };

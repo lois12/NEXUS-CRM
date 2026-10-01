@@ -97,7 +97,7 @@ export default function Widgets() {
           '.cm-scroller': { fontFamily: "'JetBrains Mono', monospace" },
           '.cm-content': { padding: '12px 0' },
           '&.cm-focused': { outline: 'none' },
-          '.cm-gutters': { background: '#1e1e2e', border: 'none' },
+          '.cm-gutters': { background: '#0d0d15', border: 'none' },
         }),
       ],
     });
@@ -290,7 +290,7 @@ export default function Widgets() {
     return (
       <div className="p-4 md:p-6 max-w-lg mx-auto">
         <div className="flex items-center gap-3 mb-6">
-          <button onClick={() => setView('list')} className="p-2 rounded-xl hover:bg-white/5 transition-colors">
+          <button onClick={() => setView('list')} className="p-2 rounded-xl hover:bg-white/5 transition-colors" aria-label="Назад">
             <ChevronLeft className="w-5 h-5 text-gray-400" />
           </button>
           <Settings className="w-5 h-5" style={{ color: 'var(--color-primary)' }} />
@@ -349,7 +349,7 @@ export default function Widgets() {
     return (
       <div className="p-4 md:p-6 h-full flex flex-col">
         <div className="flex items-center gap-3 mb-4">
-          <button onClick={() => setView('list')} className="p-2 rounded-xl hover:bg-white/5 transition-colors">
+          <button onClick={() => setView('list')} className="p-2 rounded-xl hover:bg-white/5 transition-colors" aria-label="Назад">
             <ChevronLeft className="w-5 h-5 text-gray-400" />
           </button>
           <Code className="w-5 h-5" style={{ color: 'var(--color-primary)' }} />
@@ -392,7 +392,7 @@ export default function Widgets() {
     return (
       <div className="p-4 md:p-6 max-w-2xl mx-auto">
         <div className="flex items-center gap-3 mb-6">
-          <button onClick={() => setView('list')} className="p-2 rounded-xl hover:bg-white/5 transition-colors">
+          <button onClick={() => setView('list')} className="p-2 rounded-xl hover:bg-white/5 transition-colors" aria-label="Назад">
             <ChevronLeft className="w-5 h-5 text-gray-400" />
           </button>
           <h2 className="font-mono text-lg font-bold" style={{ color: 'var(--color-text-primary)' }}>
@@ -408,7 +408,7 @@ export default function Widgets() {
               <div className="relative rounded-xl overflow-hidden mb-3 group">
                 <img src={imageUrl} alt="" className="w-full h-40 object-cover rounded-xl" />
                 <button onClick={() => setImageUrl('')}
-                  className="absolute top-2 right-2 p-1 rounded-full bg-black/60 hover:bg-red-500/80 opacity-0 group-hover:opacity-100 transition-opacity">
+                  className="absolute top-2 right-2 p-1 rounded-full bg-black/60 hover:bg-red-500/80 opacity-0 group-hover:opacity-100 transition-opacity" aria-label="Удалить изображение">
                   <span className="text-white text-sm">✕</span>
                 </button>
               </div>
@@ -418,7 +418,7 @@ export default function Widgets() {
                 <div className="relative rounded-xl overflow-hidden mb-2">
                   <img src={URL.createObjectURL(imageFile)} alt="" className="w-full h-40 object-cover rounded-xl" />
                   <button onClick={() => setImageFile(null)}
-                    className="absolute top-2 right-2 p-1 rounded-full bg-black/60 hover:bg-black/80">
+                    className="absolute top-2 right-2 p-1 rounded-full bg-black/60 hover:bg-black/80" aria-label="Удалить изображение">
                     <span className="text-white text-sm">✕</span>
                   </button>
                 </div>
@@ -548,7 +548,7 @@ export default function Widgets() {
                   <div key={img.id} className="relative rounded-xl overflow-hidden group aspect-square">
                     <img src={img.url} alt="" className="w-full h-full object-cover" />
                     <button onClick={() => handleGalleryDelete(img.id)}
-                      className="absolute top-1 right-1 p-1 rounded-full bg-black/60 hover:bg-red-500/80 opacity-0 group-hover:opacity-100 transition-opacity">
+                      className="absolute top-1 right-1 p-1 rounded-full bg-black/60 hover:bg-red-500/80 opacity-0 group-hover:opacity-100 transition-opacity" aria-label="Удалить фото">
                       <X className="w-3 h-3 text-white" />
                     </button>
                   </div>
@@ -763,51 +763,51 @@ export default function Widgets() {
 
                 {/* Actions */}
                 <div className="flex items-center gap-1 flex-wrap">
-                  <button onClick={() => openEdit(w)} title="Редактировать"
+                  <button onClick={() => openEdit(w)} title="Редактировать" aria-label="Редактировать"
                     className="p-2 rounded-lg hover:bg-white/5 transition-colors text-gray-400 hover:text-gray-200">
                     <Edit3 className="w-4 h-4" />
                   </button>
-                  <button onClick={() => openCodeEditor(w)} title="Код"
+                  <button onClick={() => openCodeEditor(w)} title="Код" aria-label="Код"
                     className="p-2 rounded-lg hover:bg-white/5 transition-colors text-gray-400 hover:text-gray-200">
                     <Code className="w-4 h-4" />
                   </button>
-                  <button onClick={() => handleTogglePublish(w)} title={w.isPublic ? 'Снять с публикации' : 'Опубликовать'}
+                  <button onClick={() => handleTogglePublish(w)} title={w.isPublic ? 'Снять с публикации' : 'Опубликовать'} aria-label={w.isPublic ? 'Снять с публикации' : 'Опубликовать'}
                     className="p-2 rounded-lg hover:bg-white/5 transition-colors"
                     style={{ color: w.isPublic ? 'var(--color-primary)' : undefined }}>
                     {w.isPublic ? <Globe className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
                   </button>
                   {w.isPublic && (
-                    <button onClick={() => openSettings(w)} title="Настройки публикации"
+                    <button onClick={() => openSettings(w)} title="Настройки публикации" aria-label="Настройки публикации"
                       className="p-2 rounded-lg hover:bg-white/5 transition-colors text-gray-400 hover:text-gray-200">
                       <Settings className="w-4 h-4" />
                     </button>
                   )}
                   {w.isPublic && w.publicSlug && (
                     <>
-                      <button onClick={() => handleCopyLink(w.publicSlug!)} title="Копировать ссылку"
+                      <button onClick={() => handleCopyLink(w.publicSlug!)} title="Копировать ссылку" aria-label="Копировать ссылку"
                         className="p-2 rounded-lg hover:bg-white/5 transition-colors text-gray-400 hover:text-gray-200">
                         <Copy className="w-4 h-4" />
                       </button>
-                      <button onClick={() => handleCopyEmbed(w.publicSlug!)} title="Embed-код"
+                      <button onClick={() => handleCopyEmbed(w.publicSlug!)} title="Embed-код" aria-label="Embed-код"
                         className="p-2 rounded-lg hover:bg-white/5 transition-colors text-gray-400 hover:text-gray-200">
                         <Code className="w-3.5 h-3.5" />
                       </button>
-                      <a href={`/w/${w.publicSlug}`} target="_blank" rel="noopener noreferrer" title="Открыть"
+                      <a href={`/w/${w.publicSlug}`} target="_blank" rel="noopener noreferrer" title="Открыть" aria-label="Открыть"
                         className="p-2 rounded-lg hover:bg-white/5 transition-colors text-gray-400 hover:text-gray-200">
                         <ExternalLink className="w-4 h-4" />
                       </a>
                     </>
                   )}
-                  <button onClick={() => handleTogglePin(w)} title={w.isPinned ? 'Открепить' : 'Закрепить'}
+                  <button onClick={() => handleTogglePin(w)} title={w.isPinned ? 'Открепить' : 'Закрепить'} aria-label={w.isPinned ? 'Открепить' : 'Закрепить'}
                     className="p-2 rounded-lg hover:bg-white/5 transition-colors"
                     style={{ color: w.isPinned ? 'var(--color-primary)' : undefined }}>
                     {w.isPinned ? <PinOff className="w-4 h-4" /> : <Pin className="w-4 h-4" />}
                   </button>
-                  <button onClick={() => handleDuplicate(w)} title="Дублировать"
+                  <button onClick={() => handleDuplicate(w)} title="Дублировать" aria-label="Дублировать"
                     className="p-2 rounded-lg hover:bg-white/5 transition-colors text-gray-400 hover:text-gray-200">
                     <CopyPlus className="w-4 h-4" />
                   </button>
-                  <button onClick={() => handleDelete(w)} title="Удалить"
+                  <button onClick={() => handleDelete(w)} title="Удалить" aria-label="Удалить"
                     className="p-2 rounded-lg hover:bg-red-500/10 transition-colors text-gray-400 hover:text-red-400 ml-auto">
                     <Trash2 className="w-4 h-4" />
                   </button>

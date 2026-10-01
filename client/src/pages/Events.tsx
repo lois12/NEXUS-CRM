@@ -1,4 +1,4 @@
-﻿import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Search, Edit3, Trash2, Calendar, MapPin, DollarSign, ArrowLeft, Clock, Camera, Image, ChevronRight, User } from 'lucide-react';
 import { eventsApi } from '../services/api';
@@ -6,6 +6,7 @@ import { showToast, ConfirmModal } from '../components/ui/NexusModal';
 import { NexusInput, NexusTextarea, NexusSelect } from '../components/common/NexusInput';
 import NexusFormModal from '../components/common/NexusFormModal';
 import { useCrudPage } from '../hooks/useCrudPage';
+import { SkeletonGrid, SkeletonHeader } from '../components/ui/Skeleton';
 import { formatDateTimeKR } from '../utils/timezone';
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
@@ -88,7 +89,7 @@ export default function Events() {
 
   useEffect(() => { if (viewing) fetchBlocks(viewing.id); else setBlocks([]); }, [viewing?.id]);
 
-  if (isLoading) return <div className="flex items-center justify-center h-full"><Calendar className="w-12 h-12 animate-pulse" style={{ color: 'var(--color-primary)' }} /></div>;
+  if (isLoading) return <div className="p-6 space-y-6"><SkeletonHeader /><SkeletonGrid count={6} /></div>;
 
   if (viewing) {
     const sc = STATUS_CONFIG[viewing.status] || STATUS_CONFIG.planned;
@@ -111,8 +112,8 @@ export default function Events() {
               <h1 className="text-2xl font-bold font-mono text-gray-200">{viewing.title}</h1>
             </div>
             <div className="flex gap-2">
-              <button onClick={() => { setViewing(null); openEdit(viewing); }} className="p-2 rounded-lg hover:bg-white/10"><Edit3 className="w-4 h-4 text-gray-400" /></button>
-              <button onClick={() => onDeleteEvent(viewing)} className="p-2 rounded-lg hover:bg-red-500/20"><Trash2 className="w-4 h-4 text-red-400" /></button>
+              <button onClick={() => { setViewing(null); openEdit(viewing); }} className="p-2 rounded-lg hover:bg-white/10" aria-label="Редактировать"><Edit3 className="w-4 h-4 text-gray-400" /></button>
+              <button onClick={() => onDeleteEvent(viewing)} className="p-2 rounded-lg hover:bg-red-500/20" aria-label="Удалить"><Trash2 className="w-4 h-4 text-red-400" /></button>
             </div>
           </div>
 
@@ -267,8 +268,8 @@ export default function Events() {
                       style={{ backgroundColor: `${sc.color}20`, color: sc.color }}>{sc.label}</span>
                   </div>
                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={ev => ev.stopPropagation()}>
-                    <button onClick={() => openEdit(e)} className="p-1 rounded hover:bg-white/10"><Edit3 className="w-3.5 h-3.5 text-gray-400" /></button>
-                    <button onClick={() => onDeleteEvent(e)} className="p-1 rounded hover:bg-red-500/20"><Trash2 className="w-3.5 h-3.5 text-red-400" /></button>
+                    <button onClick={() => openEdit(e)} className="p-1 rounded hover:bg-white/10" aria-label="Редактировать"><Edit3 className="w-3.5 h-3.5 text-gray-400" /></button>
+                    <button onClick={() => onDeleteEvent(e)} className="p-1 rounded hover:bg-red-500/20" aria-label="Удалить"><Trash2 className="w-3.5 h-3.5 text-red-400" /></button>
                   </div>
                 </div>
                 {e.description && <p className="font-mono text-xs text-gray-500 mb-2 line-clamp-2">{e.description}</p>}
@@ -284,7 +285,8 @@ export default function Events() {
         {filtered.length === 0 && (
           <div className="col-span-full text-center py-12">
             <Calendar className="w-16 h-16 mx-auto mb-4 opacity-30 text-gray-500" />
-            <p className="font-mono text-gray-500">// МЕРОПРИЯТИЙ НЕТ</p>
+            <p className="font-mono text-gray-500 mb-4">// МЕРОПРИЯТИЙ НЕТ</p>
+            <button onClick={openCreate} className="px-5 py-2.5 rounded-xl font-mono text-xs font-bold transition-all" style={{ background: 'rgba(0,255,136,0.15)', color: 'var(--color-primary)', border: '1px solid rgba(0,255,136,0.3)' }}>СОЗДАТЬ ПЕРВОЕ</button>
           </div>
         )}
       </div>

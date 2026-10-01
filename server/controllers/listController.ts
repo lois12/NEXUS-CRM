@@ -133,6 +133,48 @@ export const duplicateList = (req: AuthRequest, res: Response) => {
   }
 };
 
+export const togglePublish = (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const list = get('SELECT * FROM lists WHERE id = ?', [id]);
+    if (!list) return res.status(404).json({ success: false, error: 'Список не найден' });
+
+    if (list.isPublic) {
+      run("UPDATE lists SET isPublic = 0, publicSlug = NULL, updatedAt = datetime('now') WHERE id = ?", [id]);
+    } else {
+      const slug = uuidv4().slice(0, 8);
+      run("UPDATE lists SET isPublic = 1, publicSlug = ?, updatedAt = datetime('now') WHERE id = ?", [slug, id]);
+    }
+
+    const updated = get('SELECT * FROM lists WHERE id = ?', [id]);
+    res.json({ success: true, data: updated });
+  } catch (error) {
+    console.error('TogglePublish error:', error);
+    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+  }
+};
+
+export const getPublicList = (req: AuthRequest, res: Response) => {
+  try {
+    const { slug } = req.params;
+    const list = get(`
+      SELECT l.*, u.fullName as creatorName
+      FROM lists l
+      LEFT JOIN users u ON l.createdBy = u.id
+      WHERE l.publicSlug = ? AND l.isPublic = 1
+    `, [slug]);
+    if (!list) return res.status(404).json({ success: false, error: 'Список не найден' });
+
+    const fields = query('SELECT * FROM list_fields WHERE listId = ? ORDER BY position ASC', [list.id]);
+    const entries = query('SELECT * FROM list_entries WHERE listId = ? ORDER BY createdAt ASC', [list.id]);
+
+    res.json({ success: true, data: { ...list, fields, entries } });
+  } catch (error) {
+    console.error('GetPublicList error:', error);
+    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+  }
+};
+
 // ── Fields CRUD ──
 
 export const createField = (req: AuthRequest, res: Response) => {

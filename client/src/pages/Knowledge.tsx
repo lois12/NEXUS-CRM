@@ -7,6 +7,7 @@ import { showToast, useNexusConfirm, ConfirmModal } from '../components/ui/Nexus
 import { NexusInput, NexusTextarea, NexusSelect } from '../components/common/NexusInput';
 import NexusFormModal from '../components/common/NexusFormModal';
 import { formatDateKR } from '../utils/timezone';
+import { SkeletonGrid, SkeletonHeader } from '../components/ui/Skeleton';
 
 interface Article {
   id: string; title: string; content: string; category: string; tags: string;
@@ -184,7 +185,7 @@ export default function Knowledge() {
     setPendingFiles(prev => [...prev, ...Array.from(files)]);
   };
 
-  if (isLoading) return <div className="flex items-center justify-center h-full"><BookOpen className="w-12 h-12 animate-pulse" style={{ color: 'var(--color-primary)' }} /></div>;
+  if (isLoading) return <div className="p-6 space-y-6"><SkeletonHeader /><SkeletonGrid count={6} /></div>;
 
   // ── Article detail view ──
   if (viewing) {
@@ -206,11 +207,11 @@ export default function Knowledge() {
               <h1 className="text-2xl font-mono text-gray-200 heading-neon">{viewing.title}</h1>
             </div>
             <div className="flex gap-2 flex-shrink-0 ml-3">
-              <button onClick={() => { setViewing(null); openEdit(viewing); }} className="p-2 rounded hover:bg-white/10">
+              <button onClick={() => { setViewing(null); openEdit(viewing); }} className="p-2 rounded hover:bg-white/10" aria-label="Редактировать">
                 <Edit3 className="w-4 h-4 text-gray-400" />
               </button>
               {canDeleteArticle(viewing) && (
-                <button onClick={() => { setViewing(null); handleDelete(viewing); }} className="p-2 rounded hover:bg-red-500/20">
+                <button onClick={() => { setViewing(null); handleDelete(viewing); }} className="p-2 rounded hover:bg-red-500/20" aria-label="Удалить">
                   <Trash2 className="w-4 h-4 text-red-400" />
                 </button>
               )}
@@ -251,11 +252,11 @@ export default function Knowledge() {
                     <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between">
                       <span className="text-[9px] font-mono text-gray-300 truncate max-w-[60%]">{att.originalName}</span>
                       <div className="flex gap-1">
-                        <button onClick={() => handleDownload(att)} className="p-1 rounded bg-black/50 hover:bg-black/80" title="Скачать">
+                        <button onClick={() => handleDownload(att)} className="p-1 rounded bg-black/50 hover:bg-black/80" title="Скачать" aria-label="Скачать">
                           <Download className="w-3 h-3 text-white" />
                         </button>
                         {canDeleteAttachment(att) && (
-                          <button onClick={() => handleDeleteAttachment(att)} className="p-1 rounded bg-black/50 hover:bg-red-500/80" title="Удалить">
+                          <button onClick={() => handleDeleteAttachment(att)} className="p-1 rounded bg-black/50 hover:bg-red-500/80" title="Удалить" aria-label="Удалить">
                             <X className="w-3 h-3 text-white" />
                           </button>
                         )}
@@ -289,11 +290,11 @@ export default function Knowledge() {
                       <span className="font-mono text-[10px] text-gray-500">{ext} &middot; {formatSize(att.size)}</span>
                     </div>
                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => handleDownload(att)} className="p-2 rounded hover:bg-white/10" title="Скачать">
+                      <button onClick={() => handleDownload(att)} className="p-2 rounded hover:bg-white/10" title="Скачать" aria-label="Скачать">
                         <Download className="w-4 h-4 text-gray-400" />
                       </button>
                       {canDeleteAttachment(att) && (
-                        <button onClick={() => handleDeleteAttachment(att)} className="p-2 rounded hover:bg-red-500/20" title="Удалить">
+                        <button onClick={() => handleDeleteAttachment(att)} className="p-2 rounded hover:bg-red-500/20" title="Удалить" aria-label="Удалить">
                           <Trash2 className="w-4 h-4 text-red-400" />
                         </button>
                       )}
@@ -338,7 +339,7 @@ export default function Knowledge() {
               style={{ background: 'rgba(0,0,0,0.9)', backdropFilter: 'blur(12px)' }}
               onClick={() => setLightboxIdx(null)}>
               <button onClick={e => { e.stopPropagation(); setLightboxIdx(i => i !== null && i > 0 ? i - 1 : images.length - 1); }}
-                className="absolute left-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-white/10 hover:bg-white/20 z-10">
+                className="absolute left-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-white/10 hover:bg-white/20 z-10" aria-label="Предыдущее изображение">
                 <ChevronLeft className="w-6 h-6 text-white" />
               </button>
               <motion.img key={images[lightboxIdx]?.id}
@@ -347,7 +348,7 @@ export default function Knowledge() {
                 className="max-w-[90vw] max-h-[85vh] object-contain rounded-xl select-none"
                 onClick={e => e.stopPropagation()} />
               <button onClick={e => { e.stopPropagation(); setLightboxIdx(i => i !== null && i < images.length - 1 ? i + 1 : 0); }}
-                className="absolute right-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-white/10 hover:bg-white/20 z-10">
+                className="absolute right-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-white/10 hover:bg-white/20 z-10" aria-label="Следующее изображение">
                 <ChevronRight className="w-6 h-6 text-white" />
               </button>
               <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-4">
@@ -358,7 +359,7 @@ export default function Knowledge() {
                 </button>
               </div>
               <button onClick={() => setLightboxIdx(null)}
-                className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20">
+                className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20" aria-label="Закрыть">
                 <X className="w-6 h-6 text-white" />
               </button>
             </motion.div>
@@ -420,9 +421,9 @@ export default function Knowledge() {
                 <h3 className="font-mono text-sm font-bold text-gray-200 truncate">{a.title}</h3>
               </div>
               <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
-                <button onClick={() => openEdit(a)} className="p-1 rounded hover:bg-white/10"><Edit3 className="w-3.5 h-3.5 text-gray-400" /></button>
+                <button onClick={() => openEdit(a)} className="p-1 rounded hover:bg-white/10" aria-label="Редактировать"><Edit3 className="w-3.5 h-3.5 text-gray-400" /></button>
                 {canDeleteArticle(a) && (
-                  <button onClick={() => handleDelete(a)} className="p-1 rounded hover:bg-red-500/20"><Trash2 className="w-3.5 h-3.5 text-red-400" /></button>
+                  <button onClick={() => handleDelete(a)} className="p-1 rounded hover:bg-red-500/20" aria-label="Удалить"><Trash2 className="w-3.5 h-3.5 text-red-400" /></button>
                 )}
               </div>
             </div>
@@ -447,7 +448,8 @@ export default function Knowledge() {
         {filtered.length === 0 && (
           <div className="col-span-full text-center py-12">
             <BookOpen className="w-16 h-16 mx-auto mb-4 opacity-30 text-gray-500" />
-            <p className="font-mono text-gray-500">// СТАТЕЙ НЕТ</p>
+            <p className="font-mono text-gray-500 mb-4">// СТАТЕЙ НЕТ</p>
+            <button onClick={openCreate} className="px-5 py-2.5 rounded-xl font-mono text-xs font-bold transition-all" style={{ background: 'rgba(0,255,136,0.15)', color: 'var(--color-primary)', border: '1px solid rgba(0,255,136,0.3)' }}>СОЗДАТЬ ПЕРВУЮ</button>
           </div>
         )}
       </div>
@@ -478,7 +480,7 @@ export default function Knowledge() {
                     <span className="font-mono text-xs text-gray-300 flex-1 truncate">{f.name}</span>
                     <span className="font-mono text-[10px] text-gray-600">{formatSize(f.size)}</span>
                     <button onClick={() => setPendingFiles(prev => prev.filter((_, j) => j !== i))}
-                      className="text-gray-500 hover:text-red-400"><X className="w-3 h-3" /></button>
+                      className="text-gray-500 hover:text-red-400" aria-label="Удалить файл"><X className="w-3 h-3" /></button>
                   </div>
                 ))}
               </div>

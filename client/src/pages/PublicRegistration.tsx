@@ -402,6 +402,8 @@ export default function PublicRegistration() {
   if (!reg) return null;
 
   const isFull = reg.maxParticipants > 0 && (reg.confirmedCount || 0) >= reg.maxParticipants;
+  const isWaitlistFull = isFull && reg.waitlistEnabled && reg.maxWaitlist > 0 && (reg.waitlistCount || 0) >= reg.maxWaitlist;
+  const isClosed = isFull && (!reg.waitlistEnabled || isWaitlistFull);
 
   return (
     <div className="min-h-screen py-8 px-4 relative" style={{ background: 'var(--color-bg)' }}>
@@ -579,14 +581,21 @@ export default function PublicRegistration() {
           </button>
 
         {/* Status banners */}
-        {isFull && (
+        {isClosed && (
+          <div className="rounded-xl px-4 py-3 flex items-center gap-3" style={{ background: 'rgba(255,59,48,0.08)', border: '1px solid rgba(255,59,48,0.2)' }}>
+            <AlertTriangle className="w-5 h-5 flex-shrink-0" style={{ color: '#ff3b30' }} />
+            <span className="font-mono text-xs" style={{ color: '#ff3b30' }}>Все места заняты. Регистрация закрыта.</span>
+          </div>
+        )}
+        {isFull && !isClosed && (
           <div className="rounded-xl px-4 py-3 flex items-center gap-3" style={{ background: 'rgba(234,179,8,0.08)', border: '1px solid rgba(234,179,8,0.2)' }}>
             <AlertTriangle className="w-5 h-5 flex-shrink-0" style={{ color: '#eab308' }} />
-            <span className="font-mono text-xs" style={{ color: '#eab308' }}>Места закончились — вы будете в очереди ожидания</span>
+            <span className="font-mono text-xs" style={{ color: '#eab308' }}>Все места заняты — вы будете в очереди ожидания</span>
           </div>
         )}
 
         {/* Form */}
+        {!isClosed && (
         <div className="glass rounded-2xl p-6 space-y-5">
           <h2 className="font-mono text-sm font-bold" style={{ color: 'var(--color-primary)' }}>ФОРМА РЕГИСТРАЦИИ</h2>
 
@@ -670,6 +679,7 @@ export default function PublicRegistration() {
             </div>
           )}
         </div>
+        )}
 
         <p className="text-center font-mono text-[10px] text-gray-600">Powered by NEXUS CRM</p>
       </motion.div>

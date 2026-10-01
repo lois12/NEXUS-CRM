@@ -11,7 +11,7 @@ import { Material, MaterialType, ChatConversation } from '../types';
 import { materialsApi, chatApi } from '../services/api';
 import { showToast, useNexusConfirm, ConfirmModal } from '../components/ui/NexusModal';
 import { formatDateKR } from '../utils/timezone';
-import Spinner from '../components/common/Spinner';
+import { SkeletonGrid, SkeletonHeader } from '../components/ui/Skeleton';
 
 interface UploadItem {
   id: string;
@@ -223,7 +223,7 @@ export default function Materials() {
     } catch { showToast('Ошибка перемещения', 'error'); }
   }, [fetchMaterials]);
 
-  if (isLoading) return <Spinner text="ЗАГРУЗКА МАТЕРИАЛОВ..." />;
+  if (isLoading) return <div className="p-6 space-y-6"><SkeletonHeader /><SkeletonGrid count={6} /></div>;
 
   return (
     <div className="space-y-6 cyber-grid">
@@ -281,11 +281,11 @@ export default function Materials() {
 
         <div className="flex gap-2">
           <button onClick={() => setViewMode('grid')}
-            className={`p-2 rounded-lg transition-colors ${viewMode === 'grid' ? 'glass-accent' : 'bg-white/5 text-gray-400'}`}>
+            className={`p-2 rounded-lg transition-colors ${viewMode === 'grid' ? 'glass-accent' : 'bg-white/5 text-gray-400'}`} aria-label="Сетка">
             <Grid className="w-5 h-5" style={viewMode === 'grid' ? { color: 'var(--color-primary)' } : {}} />
           </button>
           <button onClick={() => setViewMode('list')}
-            className={`p-2 rounded-lg transition-colors ${viewMode === 'list' ? 'glass-accent' : 'bg-white/5 text-gray-400'}`}>
+            className={`p-2 rounded-lg transition-colors ${viewMode === 'list' ? 'glass-accent' : 'bg-white/5 text-gray-400'}`} aria-label="Список">
             <List className="w-5 h-5" style={viewMode === 'list' ? { color: 'var(--color-primary)' } : {}} />
           </button>
         </div>
@@ -321,7 +321,7 @@ export default function Materials() {
               <span className="text-xs font-mono font-bold" style={{ color: 'var(--color-primary)' }}>
                 // ЗАГРУЗКА ({uploadQueue.filter(u => u.status === 'done').length}/{uploadQueue.length})
               </span>
-              <button onClick={() => { setShowUploadPanel(false); setUploadQueue([]); }} className="p-1 rounded hover:bg-white/10">
+              <button onClick={() => { setShowUploadPanel(false); setUploadQueue([]); }} className="p-1 rounded hover:bg-white/10" aria-label="Закрыть">
                 <X className="w-4 h-4 text-gray-400" />
               </button>
             </div>
@@ -385,13 +385,13 @@ export default function Materials() {
                         style={{ background: 'rgba(0,255,136,0.1)', color: 'var(--color-primary)', border: '1px solid rgba(0,255,136,0.2)' }}>
                         <Send className="w-3 h-3" /> Чат
                       </button>
-                      <a href={material.url} download className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-white/5 text-gray-400 hover:text-gray-200 text-[10px]">
+                      <a href={material.url} download className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-white/5 text-gray-400 hover:text-gray-200 text-[10px]" aria-label="Скачать">
                         <Download className="w-3 h-3" />
                       </a>
-                      <button onClick={() => handleCopyLink(material)} className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-white/5 text-gray-400 hover:text-gray-200 text-[10px]">
+                      <button onClick={() => handleCopyLink(material)} className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-white/5 text-gray-400 hover:text-gray-200 text-[10px]" aria-label="Копировать ссылку">
                         <Link className="w-3 h-3" />
                       </button>
-                      <button onClick={() => handleDelete(material.id)} className="p-1.5 rounded-lg bg-white/5 text-gray-400 hover:text-red-400 hover:bg-red-500/10">
+                      <button onClick={() => handleDelete(material.id)} className="p-1.5 rounded-lg bg-white/5 text-gray-400 hover:text-red-400 hover:bg-red-500/10" aria-label="Удалить">
                         <Trash className="w-3 h-3" />
                       </button>
                     </div>
@@ -424,12 +424,12 @@ export default function Materials() {
                     <td className="p-4 text-sm text-gray-400">{formatDateKR(material.createdAt)}</td>
                     <td className="p-4 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <button onClick={() => openSendModal(material)} className="p-2 rounded-lg bg-white/5 text-gray-400 hover:text-green-400" title="Отправить в чат">
+                        <button onClick={() => openSendModal(material)} className="p-2 rounded-lg bg-white/5 text-gray-400 hover:text-green-400" title="Отправить в чат" aria-label="Отправить в чат">
                           <Send className="w-4 h-4" />
                         </button>
-                        <a href={material.url} download className="p-2 rounded-lg bg-white/5 text-gray-400 hover:text-gray-200"><Download className="w-4 h-4" /></a>
-                        <button onClick={() => handleCopyLink(material)} className="p-2 rounded-lg bg-white/5 text-gray-400 hover:text-gray-200"><Link className="w-4 h-4" /></button>
-                        <button onClick={() => handleDelete(material.id)} className="p-2 rounded-lg bg-white/5 text-gray-400 hover:text-red-400"><Trash className="w-4 h-4" /></button>
+                        <a href={material.url} download className="p-2 rounded-lg bg-white/5 text-gray-400 hover:text-gray-200" aria-label="Скачать"><Download className="w-4 h-4" /></a>
+                        <button onClick={() => handleCopyLink(material)} className="p-2 rounded-lg bg-white/5 text-gray-400 hover:text-gray-200" aria-label="Копировать ссылку"><Link className="w-4 h-4" /></button>
+                        <button onClick={() => handleDelete(material.id)} className="p-2 rounded-lg bg-white/5 text-gray-400 hover:text-red-400" aria-label="Удалить"><Trash className="w-4 h-4" /></button>
                       </div>
                     </td>
                   </tr>
@@ -443,9 +443,9 @@ export default function Materials() {
       </div>
 
       {filteredMaterials.length === 0 && (
-        <div className="text-center py-12 text-gray-400">
-          <FolderOpen className="w-16 h-16 mx-auto mb-4 opacity-50" />
-          <p className="text-lg">Нет материалов</p>
+        <div className="text-center py-12">
+          <FolderOpen className="w-16 h-16 mx-auto mb-4 opacity-30 text-gray-500" />
+          <p className="font-mono text-gray-500">// НЕТ МАТЕРИАЛОВ</p>
         </div>
       )}
 
@@ -462,7 +462,7 @@ export default function Materials() {
               {/* Header */}
               <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
                 <span className="text-sm font-mono font-bold" style={{ color: 'var(--color-primary)' }}>ОТПРАВИТЬ В ЧАТ</span>
-                <button onClick={() => setSendModal(null)} className="p-1.5 rounded-xl hover:bg-white/5"><X className="w-4 h-4 text-gray-400" /></button>
+                <button onClick={() => setSendModal(null)} className="p-1.5 rounded-xl hover:bg-white/5" aria-label="Закрыть"><X className="w-4 h-4 text-gray-400" /></button>
               </div>
 
               {/* Preview */}

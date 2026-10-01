@@ -447,7 +447,7 @@ export default function Dashboard() {
           animate={{ top: '100%' }}
           transition={{ duration: 1.5, ease: 'easeOut' }}
           className="absolute left-0 right-0 h-[2px]"
-          style={{ background: 'linear-gradient(90deg, transparent, var(--color-primary), transparent)', boxShadow: '0 0 20px var(--color-primary), 0 0 40px rgba(0,255,136,0.3)' }}
+          style={{ background: 'linear-gradient(90deg, transparent, var(--color-primary), transparent)', boxShadow: '0 0 20px var(--color-primary), 0 0 40px var(--color-glow)' }}
         />
         <motion.div
           initial={{ opacity: 0, scale: 0.8, filter: 'blur(10px)' }}
@@ -461,7 +461,7 @@ export default function Dashboard() {
               animate={{ opacity: [0, 1, 0, 1, 0, 1] }}
               transition={{ duration: 0.8, delay: 0.5, times: [0, 0.1, 0.15, 0.2, 0.25, 1] }}
               className="text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-bold font-mono tracking-[0.2em] md:tracking-[0.3em] relative"
-              style={{ color: 'var(--color-primary)', textShadow: '0 0 30px rgba(0,255,136,0.5), 0 0 60px rgba(0,255,136,0.3), 0 0 100px rgba(0,255,136,0.15)' }}
+              style={{ color: 'var(--color-primary)', textShadow: '0 0 30px var(--color-glow), 0 0 60px var(--color-glow), 0 0 100px var(--color-glow)' }}
             >
               NEXUS CRM
               <motion.span initial={{ opacity: 0 }} animate={{ opacity: [0, 0.7, 0] }} transition={{ duration: 0.3, delay: 0.6 }} className="absolute inset-0" style={{ color: '#ff0040', clipPath: 'inset(20% 0 60% 0)', transform: 'translate(-3px, 0)' }}>NEXUS CRM</motion.span>

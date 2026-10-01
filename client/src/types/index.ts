@@ -426,6 +426,8 @@ export interface RegistrationSubmission {
   contactPhone: string;
   status: 'registered' | 'confirmed' | 'waitlist' | 'cancelled';
   cancelToken: string;
+  checkinToken?: string;
+  confirmCode?: string;
   position: number;
   userName?: string;
   createdAt: string;
@@ -511,6 +513,8 @@ export interface List {
   fields?: ListField[];
   entries?: ListEntry[];
   entryCount?: number;
+  isPublic?: boolean;
+  publicSlug?: string;
   createdAt: string;
   updatedAt: string;
 }

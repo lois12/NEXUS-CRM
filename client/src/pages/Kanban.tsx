@@ -120,12 +120,12 @@ function SortableTask({
           </div>
           <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
             {onArchive && (
-              <button onClick={(e) => { e.stopPropagation(); onArchive(); }} className="p-1 rounded hover:bg-blue-500/20" title="В архив">
+              <button onClick={(e) => { e.stopPropagation(); onArchive(); }} className="p-1 rounded hover:bg-blue-500/20" title="В архив" aria-label="В архив">
                 <Archive className="w-3.5 h-3.5 text-blue-400" />
               </button>
             )}
-            <button onClick={(e) => { e.stopPropagation(); onEdit(); }} className="p-1 rounded hover:bg-white/10"><Edit3 className="w-3.5 h-3.5 text-gray-400" /></button>
-            <button onClick={(e) => { e.stopPropagation(); onDelete(); }} className="p-1 rounded hover:bg-red-500/20"><Trash2 className="w-3.5 h-3.5 text-red-400" /></button>
+            <button onClick={(e) => { e.stopPropagation(); onEdit(); }} className="p-1 rounded hover:bg-white/10" aria-label="Редактировать"><Edit3 className="w-3.5 h-3.5 text-gray-400" /></button>
+            <button onClick={(e) => { e.stopPropagation(); onDelete(); }} className="p-1 rounded hover:bg-red-500/20" aria-label="Удалить"><Trash2 className="w-3.5 h-3.5 text-red-400" /></button>
           </div>
         </div>
       </div>
@@ -456,8 +456,8 @@ export default function Kanban() {
                   {task.description && <p className="font-mono text-xs text-gray-500 mt-1">{task.description}</p>}
                 </div>
                 <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button onClick={() => handleUnarchive(task.id)} className="p-1.5 rounded hover:bg-green-500/20"><ArchiveRestore className="w-4 h-4 text-green-400" /></button>
-                  <button onClick={() => handleDelete(task.id)} className="p-1.5 rounded hover:bg-red-500/20"><Trash2 className="w-4 h-4 text-red-400" /></button>
+                  <button onClick={() => handleUnarchive(task.id)} className="p-1.5 rounded hover:bg-green-500/20" aria-label="Восстановить"><ArchiveRestore className="w-4 h-4 text-green-400" /></button>
+                  <button onClick={() => handleDelete(task.id)} className="p-1.5 rounded hover:bg-red-500/20" aria-label="Удалить"><Trash2 className="w-4 h-4 text-red-400" /></button>
                 </div>
               </motion.div>
             ))
@@ -476,7 +476,7 @@ export default function Kanban() {
                 <h2 className="font-mono text-lg font-bold neon-text" style={{ color: 'var(--color-primary)' }}>
                   {editingTask ? 'РЕДАКТИРОВАТЬ' : 'НОВАЯ ЗАДАЧА'}
                 </h2>
-                <button onClick={() => setShowModal(false)} className="p-1 rounded hover:bg-white/10"><X className="w-5 h-5 text-gray-400" /></button>
+                <button onClick={() => setShowModal(false)} className="p-1 rounded hover:bg-white/10" aria-label="Закрыть"><X className="w-5 h-5 text-gray-400" /></button>
               </div>
               <div className="space-y-3">
                 <input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="// ЗАГОЛОВОК"
@@ -531,10 +531,10 @@ export default function Kanban() {
                                 <p className="font-mono text-[10px] text-gray-600">{formatFileSize(att.fileSize)}</p>
                               </div>
                               <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <a href={`${att.filePath}`} target="_blank" rel="noopener" className="p-1 rounded hover:bg-white/10" title="Скачать">
+                                <a href={`${att.filePath}`} target="_blank" rel="noopener" className="p-1 rounded hover:bg-white/10" title="Скачать" aria-label="Скачать">
                                   <Download className="w-3.5 h-3.5 text-gray-400" />
                                 </a>
-                                <button onClick={() => handleDeleteAttachment(att.id)} className="p-1 rounded hover:bg-red-500/20" title="Удалить">
+                                <button onClick={() => handleDeleteAttachment(att.id)} className="p-1 rounded hover:bg-red-500/20" title="Удалить" aria-label="Удалить">
                                   <Trash2 className="w-3.5 h-3.5 text-red-400" />
                                 </button>
                               </div>

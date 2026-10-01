@@ -14,15 +14,15 @@ export function LoadingScreen({ message = 'Загрузка...' }: LoadingScreen
       <div className="flex flex-col items-center gap-2">
         <span
           className="font-mono text-sm tracking-widest"
-          style={{ color: '#00ff88', textShadow: '0 0 10px rgba(0, 255, 136, 0.3)' }}
+          style={{ color: 'var(--color-primary)', textShadow: '0 0 10px var(--color-glow)' }}
         >
           {message}
         </span>
-        <div className="w-48 h-1 rounded-full overflow-hidden" style={{ background: 'rgba(0, 255, 136, 0.1)' }}>
+        <div className="w-48 h-1 rounded-full overflow-hidden" style={{ background: 'color-mix(in srgb, var(--color-primary) 10%, transparent)' }}>
           <div
             className="h-full rounded-full"
             style={{
-              background: 'linear-gradient(90deg, #00ff88, #00d4ff)',
+              background: 'linear-gradient(90deg, var(--color-primary), var(--color-accent))',
               animation: 'loading-bar 1.5s ease-in-out infinite',
               width: '30%',
             }}

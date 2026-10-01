@@ -749,6 +749,8 @@ export async function initializeDatabase() {
   migrate('ALTER TABLE registration_submissions ADD COLUMN contactPatronymic TEXT DEFAULT ""');
   migrate('ALTER TABLE registrations ADD COLUMN organizer TEXT DEFAULT ""');
   migrate('ALTER TABLE registrations ADD COLUMN color TEXT DEFAULT ""');
+  migrate('ALTER TABLE registrations ADD COLUMN waitlistEnabled INTEGER DEFAULT 1');
+  migrate('ALTER TABLE registrations ADD COLUMN maxWaitlist INTEGER DEFAULT 0');
   try { run('CREATE INDEX IF NOT EXISTS idx_reg_sub_checkin ON registration_submissions(checkinToken)'); } catch {}
 
   // Knowledge base attachments (photos + documents)
@@ -903,6 +905,9 @@ export async function initializeDatabase() {
       FOREIGN KEY (createdBy) REFERENCES users(id)
     )
   `); } catch {}
+
+  migrate('ALTER TABLE lists ADD COLUMN publicSlug TEXT UNIQUE');
+  migrate('ALTER TABLE lists ADD COLUMN isPublic INTEGER DEFAULT 0');
 
   try { run(`
     CREATE TABLE IF NOT EXISTS list_fields (

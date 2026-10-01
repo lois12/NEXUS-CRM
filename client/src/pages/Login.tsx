@@ -69,7 +69,7 @@ export default function Login() {
             transition={{ delay: 0.3, duration: 0.8 }}
             className="text-4xl font-bold font-mono mb-2"
             style={{
-              background: 'linear-gradient(135deg, #00ff88 0%, #00d4ff 50%, #00ff88 100%)',
+              background: 'linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent) 50%, var(--color-primary) 100%)',
               backgroundSize: '200% 100%',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
@@ -85,7 +85,7 @@ export default function Login() {
             transition={{ delay: 0.5, duration: 0.6 }}
             className="h-px mx-auto mb-2"
             style={{
-              background: 'linear-gradient(90deg, transparent, rgba(0,255,136,0.3), rgba(0,212,255,0.3), transparent)',
+              background: 'linear-gradient(90deg, transparent, var(--color-glow), color-mix(in srgb, var(--color-accent) 30%, transparent), transparent)',
               maxWidth: 200,
             }}
           />
@@ -111,7 +111,7 @@ export default function Login() {
           <div
             className="absolute -inset-px rounded-2xl opacity-50"
             style={{
-              background: 'linear-gradient(135deg, rgba(0,255,136,0.2), transparent, rgba(0,212,255,0.2))',
+              background: 'linear-gradient(135deg, color-mix(in srgb, var(--color-primary) 20%, transparent), transparent, color-mix(in srgb, var(--color-accent) 20%, transparent))',
               filter: 'blur(1px)',
             }}
           />
@@ -120,8 +120,8 @@ export default function Login() {
             {/* Header */}
             <div className="mb-6">
               <div className="flex items-center gap-2 mb-1">
-                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#00ff88', boxShadow: '0 0 6px #00ff88' }} />
-                <span className="font-mono text-xs" style={{ color: '#00ff88' }}>SECURE CONNECTION</span>
+                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--color-primary)', boxShadow: '0 0 6px var(--color-primary)' }} />
+                <span className="font-mono text-xs" style={{ color: 'var(--color-primary)' }}>SECURE CONNECTION</span>
               </div>
               <h2 className="text-lg font-semibold font-mono" style={{ color: '#e8e8ec' }}>
                 Авторизация
@@ -207,14 +207,14 @@ export default function Login() {
                   <div
                     className="w-4 h-4 rounded border transition-all flex items-center justify-center"
                     style={{
-                      backgroundColor: rememberMe ? 'rgba(0,255,136,0.15)' : 'rgba(0,0,0,0.4)',
-                      borderColor: rememberMe ? 'rgba(0,255,136,0.5)' : 'rgba(255,255,255,0.1)',
-                      boxShadow: rememberMe ? '0 0 8px rgba(0,255,136,0.2)' : 'none',
+                      backgroundColor: rememberMe ? 'color-mix(in srgb, var(--color-primary) 15%, transparent)' : 'rgba(0,0,0,0.4)',
+                      borderColor: rememberMe ? 'color-mix(in srgb, var(--color-primary) 50%, transparent)' : 'rgba(255,255,255,0.1)',
+                      boxShadow: rememberMe ? '0 0 8px color-mix(in srgb, var(--color-primary) 20%, transparent)' : 'none',
                     }}
                   >
                     {rememberMe && (
                       <svg className="w-2.5 h-2.5" viewBox="0 0 12 12" fill="none">
-                        <path d="M2 6L5 9L10 3" stroke="#00ff88" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        <path d="M2 6L5 9L10 3" stroke="var(--color-primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
                     )}
                   </div>
@@ -232,9 +232,9 @@ export default function Login() {
                 disabled={isLoading}
                 className="w-full py-3.5 px-4 rounded-xl font-bold font-mono text-sm flex items-center justify-center gap-2 disabled:opacity-50"
                 style={{
-                  background: 'linear-gradient(135deg, #00ff88, #00cc6a)',
+                  background: 'linear-gradient(135deg, var(--color-primary), var(--color-secondary))',
                   color: '#000',
-                  boxShadow: '0 0 20px rgba(0,255,136,0.2)',
+                  boxShadow: '0 0 20px var(--color-glow)',
                 }}
               >
                 {isLoading ? (
