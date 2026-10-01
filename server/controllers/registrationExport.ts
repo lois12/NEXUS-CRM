@@ -327,3 +327,31 @@ export const getPublicSubmissions = (req: AuthRequest, res: Response) => {
     res.status(500).json({ success: false, error: 'Ошибка сервера' });
   }
 };
+
+// ── Contacts Database: all contacts across registrations ──
+
+export const getAllContacts = (req: AuthRequest, res: Response) => {
+  try {
+    const contacts = query(`
+      SELECT 
+        rs.contactLastName,
+        rs.contactFirstName,
+        rs.contactPatronymic,
+        rs.contactName,
+        rs.contactPhone,
+        rs.contactEmail,
+        COUNT(DISTINCT rs.registrationId) as eventCount,
+        MAX(rs.createdAt) as lastRegistration
+      FROM registration_submissions rs
+      WHERE rs.status != 'cancelled'
+      GROUP BY COALESCE(rs.contactLastName, ''), COALESCE(rs.contactFirstName, ''), COALESCE(rs.contactEmail, '')
+      HAVING COALESCE(rs.contactLastName, '') != '' OR COALESCE(rs.contactName, '') != ''
+      ORDER BY MAX(rs.createdAt) DESC
+    `);
+
+    res.json({ success: true, data: contacts });
+  } catch (error) {
+    console.error('GetAllContacts error:', error);
+    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+  }
+};

@@ -50,12 +50,25 @@ export default function Registrations() {
   const { confirmState, showConfirm, closeConfirm } = useNexusConfirm();
   const [listRef] = useAutoAnimate({ duration: 200 });
   const [stats, setStats] = useState<any>(null);
+  const [showContacts, setShowContacts] = useState(false);
+  const [contacts, setContacts] = useState<any[]>([]);
+  const [contactSearch, setContactSearch] = useState('');
+  const [contactsLoading, setContactsLoading] = useState(false);
 
   const fetchStats = async (regId: string) => {
     try {
       const res = await registrationsApi.getStats(regId);
       if (res.success) setStats(res.data);
     } catch {}
+  };
+
+  const fetchContacts = async () => {
+    setContactsLoading(true);
+    try {
+      const res = await registrationsApi.getAllContacts();
+      if (res.success && res.data) setContacts(res.data);
+    } catch { showToast('Ошибка загрузки контактов', 'error'); }
+    finally { setContactsLoading(false); }
   };
 
   const fetchData = useCallback(async () => {
@@ -929,6 +942,9 @@ export default function Registrations() {
           <a href="/checkin-scanner" className="flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-sm glass hover:bg-white/10 transition-all">
             <Camera className="w-4 h-4" /> СКАНЕР
           </a>
+          <button onClick={() => { setShowContacts(true); fetchContacts(); }} className="flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-sm glass hover:bg-white/10 transition-all">
+            <Users className="w-4 h-4" /> БАЗА
+          </button>
           <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-sm font-bold"
             style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}>
             <Plus className="w-4 h-4" /> СОЗДАТЬ
@@ -1028,6 +1044,107 @@ export default function Registrations() {
       )}
 
       <ConfirmModal isOpen={confirmState.isOpen} onConfirm={() => { confirmState.onConfirm(); closeConfirm(); }} onCancel={closeConfirm} title={confirmState.title} message={confirmState.message} type={confirmState.type} />
+
+      {/* Contacts Database Modal */}
+      <AnimatePresence>
+        {showContacts && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] flex items-center justify-center p-4"
+            style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }}
+            onClick={() => setShowContacts(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              className="w-full max-w-3xl max-h-[85vh] rounded-2xl overflow-hidden flex flex-col"
+              style={{ background: 'linear-gradient(135deg, rgba(20,20,35,0.98), rgba(10,10,20,0.99))', border: '1px solid rgba(255,255,255,0.08)', backdropFilter: 'blur(24px)' }}
+              onClick={e => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                <h3 className="font-mono text-lg font-bold" style={{ color: 'var(--color-primary)' }}>БАЗА КОНТАКТОВ</h3>
+                <button onClick={() => setShowContacts(false)} className="p-1.5 rounded-lg hover:bg-white/10" aria-label="Закрыть">
+                  <X className="w-4 h-4 text-gray-400" />
+                </button>
+              </div>
+              
+              {/* Search */}
+              <div className="px-6 py-3">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" />
+                  <input
+                    value={contactSearch}
+                    onChange={e => setContactSearch(e.target.value)}
+                    placeholder="Поиск по имени, телефону, email..."
+                    className="w-full pl-10 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-gray-200 focus:border-white/20 transition-colors placeholder:text-gray-600"
+                  />
+                </div>
+              </div>
+              
+              {/* Table */}
+              <div className="flex-1 overflow-y-auto px-6">
+                {contactsLoading ? (
+                  <div className="text-center py-8">
+                    <div className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin mx-auto" style={{ borderColor: 'var(--color-primary)', borderTopColor: 'transparent' }} />
+                  </div>
+                ) : (
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="border-b border-white/5">
+                        <th className="px-3 py-2 font-mono text-[10px] text-gray-500">№</th>
+                        <th className="px-3 py-2 font-mono text-[10px] text-gray-500">ФАМИЛИЯ</th>
+                        <th className="px-3 py-2 font-mono text-[10px] text-gray-500">ИМЯ</th>
+                        <th className="px-3 py-2 font-mono text-[10px] text-gray-500">ОТЧЕСТВО</th>
+                        <th className="px-3 py-2 font-mono text-[10px] text-gray-500">ТЕЛЕФОН</th>
+                        <th className="px-3 py-2 font-mono text-[10px] text-gray-500">ПОЧТА</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {contacts
+                        .filter(c => {
+                          if (!contactSearch) return true;
+                          const q = contactSearch.toLowerCase();
+                          return (
+                            (c.contactLastName || '').toLowerCase().includes(q) ||
+                            (c.contactFirstName || '').toLowerCase().includes(q) ||
+                            (c.contactPatronymic || '').toLowerCase().includes(q) ||
+                            (c.contactName || '').toLowerCase().includes(q) ||
+                            (c.contactPhone || '').toLowerCase().includes(q) ||
+                            (c.contactEmail || '').toLowerCase().includes(q)
+                          );
+                        })
+                        .map((c, i) => (
+                          <tr key={i} className="border-b border-white/5 hover:bg-white/[0.02]">
+                            <td className="px-3 py-2 font-mono text-xs text-gray-500">{i + 1}</td>
+                            <td className="px-3 py-2 font-mono text-sm text-gray-200">{c.contactLastName || c.contactName?.split(' ')[0] || '—'}</td>
+                            <td className="px-3 py-2 font-mono text-sm text-gray-200">{c.contactFirstName || c.contactName?.split(' ')[1] || '—'}</td>
+                            <td className="px-3 py-2 font-mono text-xs text-gray-400">{c.contactPatronymic || c.contactName?.split(' ')[2] || '—'}</td>
+                            <td className="px-3 py-2 font-mono text-xs text-gray-300">{c.contactPhone || '—'}</td>
+                            <td className="px-3 py-2 font-mono text-xs text-gray-300">{c.contactEmail || '—'}</td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                )}
+                {!contactsLoading && contacts.length === 0 && (
+                  <div className="text-center py-8">
+                    <p className="font-mono text-xs text-gray-500">// НЕТ КОНТАКТОВ</p>
+                  </div>
+                )}
+              </div>
+              
+              {/* Footer */}
+              <div className="px-6 py-3 text-right" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                <span className="font-mono text-[10px] text-gray-500">{contacts.length} контактов</span>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

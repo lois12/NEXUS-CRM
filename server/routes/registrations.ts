@@ -6,7 +6,7 @@ import {
   getMedia, uploadMedia, deleteMedia,
   checkinGet, checkinPost, checkinByCode, getParticipants, toggleAttended, updateAndNotify,
   getPublicRegistrations, getPublicSubmissions, createAdminSubmission,
-  getRegistrationStats, exportPDF,
+  getRegistrationStats, exportPDF, getAllContacts,
 } from '../controllers/registrationController';
 import { authenticateToken, requireRole } from '../middleware/auth';
 import { upload } from '../middleware/upload';
@@ -29,6 +29,9 @@ router.get('/control/registrations/:id/submissions', getPublicSubmissions);
 // ── Authenticated routes ──
 const authRouter = Router();
 authRouter.use(authenticateToken);
+
+// Contacts
+authRouter.get('/contacts', getAllContacts);
 
 // Registrations CRUD
 authRouter.get('/', getRegistrations);
