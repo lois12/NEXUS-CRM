@@ -48,6 +48,7 @@ const ParticipantsList = lazy(() => import('./pages/ParticipantsList'));
 const NexusControl = lazy(() => import('./pages/NexusControl'));
 const Widgets = lazy(() => import('./pages/Widgets'));
 const PublicWidget = lazy(() => import('./pages/PublicWidget'));
+const Lists = lazy(() => import('./pages/Lists'));
 
 function PageWrapper({ children }: { children: ReactNode }) {
   return <ErrorBoundary><Suspense fallback={<LoadingScreen />}>{children}</Suspense></ErrorBoundary>;
@@ -137,6 +138,7 @@ function AppRoutes() {
         <Route path="brandbank" element={<PageWrapper><BrandBank /></PageWrapper>} />
         <Route path="registrations" element={<PageWrapper><Registrations /></PageWrapper>} />
         <Route path="widgets" element={<PageWrapper><Widgets /></PageWrapper>} />
+        <Route path="lists" element={<PageWrapper><Lists /></PageWrapper>} />
         <Route path="checkin-scanner" element={<PageWrapper><CheckinScanner /></PageWrapper>} />
         <Route path="registrations/:id/participants" element={<PageWrapper><ParticipantsList /></PageWrapper>} />
         <Route path="profile" element={<PageWrapper><Profile /></PageWrapper>} />

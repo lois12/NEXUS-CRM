@@ -890,4 +890,53 @@ export async function initializeDatabase() {
       FOREIGN KEY (widgetId) REFERENCES widgets(id) ON DELETE CASCADE
     )
   `); } catch {}
+
+  // ── Lists (Списки) ──
+  try { run(`
+    CREATE TABLE IF NOT EXISTS lists (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      description TEXT DEFAULT '',
+      createdBy TEXT NOT NULL,
+      createdAt TEXT DEFAULT (datetime('now')),
+      updatedAt TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (createdBy) REFERENCES users(id)
+    )
+  `); } catch {}
+
+  try { run(`
+    CREATE TABLE IF NOT EXISTS list_fields (
+      id TEXT PRIMARY KEY,
+      listId TEXT NOT NULL,
+      type TEXT NOT NULL,
+      label TEXT NOT NULL,
+      placeholder TEXT DEFAULT '',
+      required INTEGER NOT NULL DEFAULT 0,
+      options TEXT DEFAULT '[]',
+      position INTEGER NOT NULL DEFAULT 0,
+      createdAt TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (listId) REFERENCES lists(id) ON DELETE CASCADE
+    )
+  `); } catch {}
+  try { run('CREATE INDEX IF NOT EXISTS idx_list_fields ON list_fields(listId, position)'); } catch {}
+
+  try { run(`
+    CREATE TABLE IF NOT EXISTS list_entries (
+      id TEXT PRIMARY KEY,
+      listId TEXT NOT NULL,
+      lastName TEXT DEFAULT '',
+      firstName TEXT DEFAULT '',
+      patronymic TEXT DEFAULT '',
+      phone TEXT DEFAULT '',
+      email TEXT DEFAULT '',
+      comment TEXT DEFAULT '',
+      called INTEGER NOT NULL DEFAULT 0,
+      visited INTEGER NOT NULL DEFAULT 0,
+      answers TEXT NOT NULL DEFAULT '{}',
+      createdAt TEXT DEFAULT (datetime('now')),
+      updatedAt TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (listId) REFERENCES lists(id) ON DELETE CASCADE
+    )
+  `); } catch {}
+  try { run('CREATE INDEX IF NOT EXISTS idx_list_entries ON list_entries(listId)'); } catch {}
 }

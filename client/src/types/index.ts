@@ -471,3 +471,46 @@ export const FIELD_TYPE_CONFIG: Record<FieldType, { label: string; icon: string;
   acknowledgment: { label: 'Ознакомлен(а)', icon: '✅', category: 'choice' },
   button_block: { label: 'Кнопка', icon: '🔲', category: 'layout' },
 };
+
+// ── Lists (Списки) ──
+
+export interface ListField {
+  id: string;
+  listId: string;
+  type: FieldType;
+  label: string;
+  placeholder: string;
+  required: number;
+  options: string;
+  position: number;
+  createdAt: string;
+}
+
+export interface ListEntry {
+  id: string;
+  listId: string;
+  lastName: string;
+  firstName: string;
+  patronymic: string;
+  phone: string;
+  email: string;
+  comment: string;
+  called: number;
+  visited: number;
+  answers: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface List {
+  id: string;
+  name: string;
+  description: string;
+  createdBy: string;
+  creatorName?: string;
+  fields?: ListField[];
+  entries?: ListEntry[];
+  entryCount?: number;
+  createdAt: string;
+  updatedAt: string;
+}

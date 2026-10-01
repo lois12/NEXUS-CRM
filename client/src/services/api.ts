@@ -698,4 +698,24 @@ export const publicWidgetApi = {
     api.get(`/w/${slug}`).then((res) => res.data),
 };
 
+// Lists API
+export const listsApi = {
+  getAll: (): Promise<ApiResponse<any[]>> => api.get('/lists').then(res => res.data),
+  getOne: (id: string): Promise<ApiResponse<any>> => api.get(`/lists/${id}`).then(res => res.data),
+  create: (data: any): Promise<ApiResponse<any>> => api.post('/lists', data).then(res => res.data),
+  update: (id: string, data: any): Promise<ApiResponse<any>> => api.put(`/lists/${id}`, data).then(res => res.data),
+  delete: (id: string): Promise<ApiResponse<void>> => api.delete(`/lists/${id}`).then(res => res.data),
+  duplicate: (id: string): Promise<ApiResponse<any>> => api.post(`/lists/${id}/duplicate`).then(res => res.data),
+  // Fields
+  createField: (listId: string, data: any): Promise<ApiResponse<any>> => api.post(`/lists/${listId}/fields`, data).then(res => res.data),
+  updateField: (listId: string, fieldId: string, data: any): Promise<ApiResponse<void>> => api.put(`/lists/${listId}/fields/${fieldId}`, data).then(res => res.data),
+  deleteField: (listId: string, fieldId: string): Promise<ApiResponse<void>> => api.delete(`/lists/${listId}/fields/${fieldId}`).then(res => res.data),
+  reorderFields: (listId: string, order: string[]): Promise<ApiResponse<void>> => api.put(`/lists/${listId}/fields-reorder`, { order }).then(res => res.data),
+  // Entries
+  createEntry: (listId: string, data: any): Promise<ApiResponse<any>> => api.post(`/lists/${listId}/entries`, data).then(res => res.data),
+  updateEntry: (listId: string, entryId: string, data: any): Promise<ApiResponse<void>> => api.put(`/lists/${listId}/entries/${entryId}`, data).then(res => res.data),
+  deleteEntry: (listId: string, entryId: string): Promise<ApiResponse<void>> => api.delete(`/lists/${listId}/entries/${entryId}`).then(res => res.data),
+  toggleEntry: (listId: string, entryId: string, field: 'called' | 'visited'): Promise<ApiResponse<any>> => api.patch(`/lists/${listId}/entries/${entryId}/toggle`, { field }).then(res => res.data),
+};
+
 export default api;
