@@ -16,16 +16,18 @@ export default function Lists() {
   const [listFields, setListFields] = useState<ListField[]>([]);
   const [entries, setEntries] = useState<ListEntry[]>([]);
   const [search, setSearch] = useState('');
-  const [filterCalled, setFilterCalled] = useState<'' | '1' | '0'>('');
-  const [filterVisited, setFilterVisited] = useState<'' | '1' | '0'>('');
   const [sortField, setSortField] = useState('lastName');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [showAddEntry, setShowAddEntry] = useState(false);
-  const [entryForm, setEntryForm] = useState({ lastName: '', firstName: '', patronymic: '', phone: '', email: '', comment: '' });
+  const [entryForm, setEntryForm] = useState({ lastName: '', firstName: '', patronymic: '', phone: '', email: '', comment: '', called: 0, visited: 0 });
   const [entryAnswers, setEntryAnswers] = useState<Record<string, string>>({});
   const [editingEntry, setEditingEntry] = useState<ListEntry | null>(null);
   const [showPdfTheme, setShowPdfTheme] = useState(false);
   const { confirmState, showConfirm, closeConfirm } = useNexusConfirm();
+
+  // Check if toggle fields are present in the current list
+  const hasCalled = listFields.some(f => f.type === 'toggle_called');
+  const hasVisited = listFields.some(f => f.type === 'toggle_visited');
 
   const fetchData = useCallback(async () => {
     try {
@@ -68,8 +70,6 @@ export default function Lists() {
         setEntries(Array.isArray(res.data.entries) ? res.data.entries : []);
         setView('entries');
         setSearch('');
-        setFilterCalled('');
-        setFilterVisited('');
         setSortField('lastName');
         setSortDir('asc');
       }
@@ -239,7 +239,7 @@ export default function Lists() {
       }
       setShowAddEntry(false);
       setEditingEntry(null);
-      setEntryForm({ lastName: '', firstName: '', patronymic: '', phone: '', email: '', comment: '' });
+      setEntryForm({ lastName: '', firstName: '', patronymic: '', phone: '', email: '', comment: '', called: 0, visited: 0 });
       setEntryAnswers({});
       // Refresh entries
       const res = await listsApi.getOne(editing.id);
@@ -256,6 +256,8 @@ export default function Lists() {
       phone: entry.phone || '',
       email: entry.email || '',
       comment: entry.comment || '',
+      called: entry.called || 0,
+      visited: entry.visited || 0,
     });
     try {
       const parsed = JSON.parse(entry.answers || '{}');
@@ -288,10 +290,6 @@ export default function Lists() {
   // ── Filtering & Sorting for entries ──
   const filteredEntries = useMemo(() => {
     return entries.filter(e => {
-      if (filterCalled === '1' && !e.called) return false;
-      if (filterCalled === '0' && e.called) return false;
-      if (filterVisited === '1' && !e.visited) return false;
-      if (filterVisited === '0' && e.visited) return false;
       if (search) {
         const q = search.toLowerCase();
         const textFields = [e.lastName, e.firstName, e.patronymic, e.phone, e.email, e.comment];
@@ -304,7 +302,7 @@ export default function Lists() {
       }
       return true;
     });
-  }, [entries, filterCalled, filterVisited, search]);
+  }, [entries, search]);
 
   const sortedEntries = useMemo(() => {
     const sorted = [...filteredEntries];
@@ -337,14 +335,16 @@ export default function Lists() {
 
   // ── CSV Export ──
   const handleExportCSV = () => {
-    const fieldLabels = listFields.map(f => f.label);
-    const headers = ['№', 'Фамилия', 'Имя', 'Отчество', 'Телефон', 'Email', 'Комментарий', 'Обзвон', 'Посещение', ...fieldLabels];
+    const fieldLabels = listFields.filter(f => f.type !== 'toggle_called' && f.type !== 'toggle_visited').map(f => f.label);
+    const headers = ['№', 'Фамилия', 'Имя', 'Отчество', 'Телефон', 'Email', 'Комментарий',
+      ...(hasCalled ? ['Обзвон'] : []), ...(hasVisited ? ['Посещение'] : []), ...fieldLabels];
     const rows = sortedEntries.map((e, i) => {
       const answers = (() => { try { return JSON.parse(e.answers || '{}'); } catch { return {}; } })();
       return [
         i + 1, e.lastName, e.firstName, e.patronymic, e.phone, e.email, e.comment,
-        e.called ? 'Да' : 'Нет', e.visited ? 'Да' : 'Нет',
-        ...listFields.map(f => answers[f.id] || ''),
+        ...(hasCalled ? [e.called ? 'Да' : 'Нет'] : []),
+        ...(hasVisited ? [e.visited ? 'Да' : 'Нет'] : []),
+        ...listFields.filter(f => f.type !== 'toggle_called' && f.type !== 'toggle_visited').map(f => answers[f.id] || ''),
       ];
     });
     const bom = '\uFEFF';
@@ -451,7 +451,7 @@ export default function Lists() {
             <button onClick={() => setShowPdfTheme(true)} className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-xs glass hover:bg-white/10">
               <FileText className="w-3.5 h-3.5" /> PDF
             </button>
-            <button onClick={() => { setEditingEntry(null); setEntryForm({ lastName: '', firstName: '', patronymic: '', phone: '', email: '', comment: '' }); setEntryAnswers({}); setShowAddEntry(true); }}
+            <button onClick={() => { setEditingEntry(null); setEntryForm({ lastName: '', firstName: '', patronymic: '', phone: '', email: '', comment: '', called: 0, visited: 0 }); setEntryAnswers({}); setShowAddEntry(true); }}
               className="flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-sm font-bold"
               style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}>
               <Plus className="w-4 h-4" /> ДОБАВИТЬ
@@ -471,18 +471,6 @@ export default function Lists() {
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="ПОИСК..."
               className="w-full pl-9 pr-4 py-2 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none" />
           </div>
-          <select value={filterCalled} onChange={e => setFilterCalled(e.target.value as any)}
-            className="px-3 py-2 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none">
-            <option value="">ОБЗВОН: ВСЕ</option>
-            <option value="1">Да</option>
-            <option value="0">Нет</option>
-          </select>
-          <select value={filterVisited} onChange={e => setFilterVisited(e.target.value as any)}
-            className="px-3 py-2 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none">
-            <option value="">ПОСЕЩЕНИЕ: ВСЕ</option>
-            <option value="1">Да</option>
-            <option value="0">Нет</option>
-          </select>
         </div>
 
         {/* Entries table */}
@@ -498,9 +486,9 @@ export default function Lists() {
                   <th onClick={() => toggleSort('phone')} className="px-3 py-2 font-mono text-xs text-gray-500 cursor-pointer hover:text-gray-300 select-none"><span className="flex items-center gap-1">ТЕЛЕФОН <SortIcon field="phone" /></span></th>
                   <th onClick={() => toggleSort('email')} className="px-3 py-2 font-mono text-xs text-gray-500 cursor-pointer hover:text-gray-300 select-none"><span className="flex items-center gap-1">EMAIL <SortIcon field="email" /></span></th>
                   <th className="px-3 py-2 font-mono text-xs text-gray-500">КОММЕНТАРИЙ</th>
-                  <th onClick={() => toggleSort('called')} className="px-3 py-2 font-mono text-xs text-gray-500 cursor-pointer hover:text-gray-300 select-none text-center"><span className="flex items-center gap-1 justify-center">ОБЗВОН <SortIcon field="called" /></span></th>
-                  <th onClick={() => toggleSort('visited')} className="px-3 py-2 font-mono text-xs text-gray-500 cursor-pointer hover:text-gray-300 select-none text-center"><span className="flex items-center gap-1 justify-center">ПОСЕЩЕНИЕ <SortIcon field="visited" /></span></th>
-                  {listFields.map(f => (
+                  {hasCalled && <th onClick={() => toggleSort('called')} className="px-3 py-2 font-mono text-xs text-gray-500 cursor-pointer hover:text-gray-300 select-none text-center"><span className="flex items-center gap-1 justify-center">ОБЗВОН <SortIcon field="called" /></span></th>}
+                  {hasVisited && <th onClick={() => toggleSort('visited')} className="px-3 py-2 font-mono text-xs text-gray-500 cursor-pointer hover:text-gray-300 select-none text-center"><span className="flex items-center gap-1 justify-center">ПОСЕЩЕНИЕ <SortIcon field="visited" /></span></th>}
+                  {listFields.filter(f => f.type !== 'toggle_called' && f.type !== 'toggle_visited').map(f => (
                     <th key={f.id} className="px-3 py-2 font-mono text-xs text-gray-500">{f.label}</th>
                   ))}
                   <th className="px-3 py-2"></th>
@@ -518,25 +506,29 @@ export default function Lists() {
                       <td className="px-3 py-2.5 font-mono text-sm text-gray-300">{e.phone}</td>
                       <td className="px-3 py-2.5 font-mono text-sm text-gray-300">{e.email}</td>
                       <td className="px-3 py-2.5 font-mono text-xs text-gray-400 max-w-[150px] truncate">{e.comment}</td>
-                      <td className="px-3 py-2.5 text-center">
-                        <button onClick={() => handleToggle(e.id, 'called')}
-                          className="inline-flex items-center justify-center w-7 h-7 rounded-lg transition-all hover:scale-110"
-                          style={e.called
-                            ? { background: 'rgba(0,255,136,0.15)', border: '1px solid rgba(0,255,136,0.3)' }
-                            : { background: 'rgba(255,59,48,0.1)', border: '1px solid rgba(255,59,48,0.2)' }}>
-                          {e.called ? <Check className="w-4 h-4" style={{ color: '#00ff88' }} /> : <XIcon className="w-4 h-4" style={{ color: '#ff3b30' }} />}
-                        </button>
-                      </td>
-                      <td className="px-3 py-2.5 text-center">
-                        <button onClick={() => handleToggle(e.id, 'visited')}
-                          className="inline-flex items-center justify-center w-7 h-7 rounded-lg transition-all hover:scale-110"
-                          style={e.visited
-                            ? { background: 'rgba(0,255,136,0.15)', border: '1px solid rgba(0,255,136,0.3)' }
-                            : { background: 'rgba(255,59,48,0.1)', border: '1px solid rgba(255,59,48,0.2)' }}>
-                          {e.visited ? <Check className="w-4 h-4" style={{ color: '#00ff88' }} /> : <XIcon className="w-4 h-4" style={{ color: '#ff3b30' }} />}
-                        </button>
-                      </td>
-                      {listFields.map(f => (
+                      {hasCalled && (
+                        <td className="px-3 py-2.5 text-center">
+                          <button onClick={() => handleToggle(e.id, 'called')}
+                            className="inline-flex items-center justify-center w-7 h-7 rounded-lg transition-all hover:scale-110"
+                            style={e.called
+                              ? { background: 'rgba(0,255,136,0.15)', border: '1px solid rgba(0,255,136,0.3)' }
+                              : { background: 'rgba(255,59,48,0.1)', border: '1px solid rgba(255,59,48,0.2)' }}>
+                            {e.called ? <Check className="w-4 h-4" style={{ color: '#00ff88' }} /> : <XIcon className="w-4 h-4" style={{ color: '#ff3b30' }} />}
+                          </button>
+                        </td>
+                      )}
+                      {hasVisited && (
+                        <td className="px-3 py-2.5 text-center">
+                          <button onClick={() => handleToggle(e.id, 'visited')}
+                            className="inline-flex items-center justify-center w-7 h-7 rounded-lg transition-all hover:scale-110"
+                            style={e.visited
+                              ? { background: 'rgba(0,255,136,0.15)', border: '1px solid rgba(0,255,136,0.3)' }
+                              : { background: 'rgba(255,59,48,0.1)', border: '1px solid rgba(255,59,48,0.2)' }}>
+                            {e.visited ? <Check className="w-4 h-4" style={{ color: '#00ff88' }} /> : <XIcon className="w-4 h-4" style={{ color: '#ff3b30' }} />}
+                          </button>
+                        </td>
+                      )}
+                      {listFields.filter(f => f.type !== 'toggle_called' && f.type !== 'toggle_visited').map(f => (
                         <td key={f.id} className="px-3 py-2.5 font-mono text-xs text-gray-300 max-w-[120px] truncate">{answers[f.id] || '—'}</td>
                       ))}
                       <td className="px-3 py-2.5">
@@ -590,6 +582,34 @@ export default function Lists() {
                   </div>
                   <textarea value={entryForm.comment} onChange={e => setEntryForm({ ...entryForm, comment: e.target.value })} placeholder="// КОММЕНТАРИЙ" rows={2}
                     className="w-full px-4 py-2.5 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none resize-none" />
+
+                  {/* Toggle fields (called/visited) */}
+                  {(hasCalled || hasVisited) && (
+                    <div className="border-t border-white/5 pt-3 mt-1">
+                      <div className="flex gap-4">
+                        {hasCalled && (
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <div onClick={() => setEntryForm({ ...entryForm, called: entryForm.called ? 0 : 1 })}
+                              className={`w-10 h-5 rounded-full transition-colors relative ${entryForm.called ? '' : 'bg-gray-700'}`}
+                              style={entryForm.called ? { background: 'var(--color-primary)' } : {}}>
+                              <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${entryForm.called ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                            </div>
+                            <span className="font-mono text-xs text-gray-300">Обзвон</span>
+                          </label>
+                        )}
+                        {hasVisited && (
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <div onClick={() => setEntryForm({ ...entryForm, visited: entryForm.visited ? 0 : 1 })}
+                              className={`w-10 h-5 rounded-full transition-colors relative ${entryForm.visited ? '' : 'bg-gray-700'}`}
+                              style={entryForm.visited ? { background: 'var(--color-primary)' } : {}}>
+                              <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${entryForm.visited ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                            </div>
+                            <span className="font-mono text-xs text-gray-300">Посещение</span>
+                          </label>
+                        )}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Custom field answers */}
                   {listFields.length > 0 && (

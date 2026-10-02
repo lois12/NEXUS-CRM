@@ -376,7 +376,8 @@ export type FieldType =
   | 'file' | 'multi_file' | 'signature'
   | 'checkbox' | 'rating'
   | 'url' | 'address' | 'heading' | 'paragraph' | 'divider' | 'page_break'
-  | 'map' | 'link_block' | 'acknowledgment' | 'button_block';
+  | 'map' | 'link_block' | 'acknowledgment' | 'button_block'
+  | 'toggle_called' | 'toggle_visited';
 
 export interface RegistrationField {
   id: string;
@@ -473,6 +474,9 @@ export const FIELD_TYPE_CONFIG: Record<FieldType, { label: string; icon: string;
   link_block: { label: 'Ссылка', icon: '🔗', category: 'layout' },
   acknowledgment: { label: 'Ознакомлен(а)', icon: '✅', category: 'choice' },
   button_block: { label: 'Кнопка', icon: '🔲', category: 'layout' },
+  // ── List toggles (optional, stored in dedicated columns) ──
+  toggle_called: { label: 'Обзвон', icon: '📞', category: 'choice' },
+  toggle_visited: { label: 'Посещение', icon: '🏠', category: 'choice' },
 };
 
 // ── Lists (Списки) ──

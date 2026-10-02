@@ -377,7 +377,13 @@ export const exportCSV = (req: AuthRequest, res: Response) => {
     const fields = query('SELECT * FROM list_fields WHERE listId = ? ORDER BY position ASC', [id]);
     const entries = query('SELECT * FROM list_entries WHERE listId = ? ORDER BY createdAt ASC', [id]);
 
-    const headers = ['№', 'Фамилия', 'Имя', 'Отчество', 'Телефон', 'Email', 'Комментарий', 'Обзвон', 'Посещение', ...fields.map((f: any) => f.label)];
+    const hasCalled = fields.some((f: any) => f.type === 'toggle_called');
+    const hasVisited = fields.some((f: any) => f.type === 'toggle_visited');
+    const customFields = fields.filter((f: any) => f.type !== 'toggle_called' && f.type !== 'toggle_visited');
+
+    const headers = ['№', 'Фамилия', 'Имя', 'Отчество', 'Телефон', 'Email', 'Комментарий',
+      ...(hasCalled ? ['Обзвон'] : []), ...(hasVisited ? ['Посещение'] : []),
+      ...customFields.map((f: any) => f.label)];
 
     const rows = entries.map((entry: any, i: number) => {
       const answers = JSON.parse(entry.answers || '{}');
@@ -389,9 +395,9 @@ export const exportCSV = (req: AuthRequest, res: Response) => {
         entry.phone || '',
         entry.email || '',
         entry.comment || '',
-        entry.called ? 'Да' : 'Нет',
-        entry.visited ? 'Да' : 'Нет',
-        ...fields.map((f: any) => answers[f.id] || ''),
+        ...(hasCalled ? [entry.called ? 'Да' : 'Нет'] : []),
+        ...(hasVisited ? [entry.visited ? 'Да' : 'Нет'] : []),
+        ...customFields.map((f: any) => answers[f.id] || ''),
       ];
     });
 
@@ -421,15 +427,21 @@ export const exportPDF = (req: AuthRequest, res: Response) => {
 
     const escapeHtml = (str: string) => (str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
+    // Check if toggle fields are configured
+    const hasCalled = fields.some((f: any) => f.type === 'toggle_called');
+    const hasVisited = fields.some((f: any) => f.type === 'toggle_visited');
+    const customFields = fields.filter((f: any) => f.type !== 'toggle_called' && f.type !== 'toggle_visited');
+
     const totalEntries = entries.length;
     const calledCount = entries.filter((e: any) => e.called).length;
     const visitedCount = entries.filter((e: any) => e.visited).length;
 
-    const tableHeaders = ['№', 'Фамилия', 'Имя', 'Отчество', 'Телефон', 'Email', 'Комментарий', 'Обзвон', 'Посещение', ...fields.map((f: any) => escapeHtml(f.label))];
+    const tableHeaders = ['№', 'Фамилия', 'Имя', 'Отчество', 'Телефон', 'Email', 'Комментарий',
+      ...(hasCalled ? ['Обзон'] : []), ...(hasVisited ? ['Посещение'] : []),
+      ...customFields.map((f: any) => escapeHtml(f.label))];
 
     const tableRows = entries.map((entry: any, i: number) => {
       const answers = JSON.parse(entry.answers || '{}');
-      const createdDate = entry.createdAt ? new Date(entry.createdAt + 'Z').toLocaleString('ru-RU') : '—';
       return [
         i + 1,
         escapeHtml(entry.lastName || '—'),
@@ -438,9 +450,9 @@ export const exportPDF = (req: AuthRequest, res: Response) => {
         escapeHtml(entry.phone || '—'),
         escapeHtml(entry.email || '—'),
         escapeHtml(entry.comment || '—'),
-        entry.called ? 'Да' : 'Нет',
-        entry.visited ? 'Да' : 'Нет',
-        ...fields.map((f: any) => escapeHtml(answers[f.id] || '—')),
+        ...(hasCalled ? [entry.called ? 'Да' : 'Нет'] : []),
+        ...(hasVisited ? [entry.visited ? 'Да' : 'Нет'] : []),
+        ...customFields.map((f: any) => escapeHtml(answers[f.id] || '—')),
       ];
     });
 
@@ -496,18 +508,22 @@ export const exportPDF = (req: AuthRequest, res: Response) => {
   <div class="meta">NEXUS CRM • Список${list.description ? ' • ' + escapeHtml(list.description) : ''} • ${new Date().toLocaleString('ru-RU')}</div>
   <div class="stats">
     <span>Всего записей: <b>${totalEntries}</b></span>
-    <span>Обзвон: <b>${calledCount}</b></span>
-    <span>Посещение: <b>${visitedCount}</b></span>
+    ${hasCalled ? `<span>Обзвон: <b>${calledCount}</b></span>` : ''}
+    ${hasVisited ? `<span>Посещение: <b>${visitedCount}</b></span>` : ''}
   </div>
   <table>
     <thead><tr>${tableHeaders.map(h => `<th>${h}</th>`).join('')}</tr></thead>
-    <tbody>${tableRows.map(row => `<tr>${row.map((cell: any, ci: number) => {
-      if (ci === 7 || ci === 8) {
-        const cls = cell === 'Да' ? 'badge-yes' : 'badge-no';
-        return `<td><span class="badge ${cls}">${cell}</span></td>`;
-      }
-      return `<td>${cell}</td>`;
-    }).join('')}</tr>`).join('')}</tbody>
+    <tbody>${tableRows.map(row => {
+      const calledIdx = hasCalled ? 7 : -1;
+      const visitedIdx = hasVisited ? (hasCalled ? 8 : 7) : -1;
+      return `<tr>${row.map((cell: any, ci: number) => {
+        if (ci === calledIdx || ci === visitedIdx) {
+          const cls = cell === 'Да' ? 'badge-yes' : 'badge-no';
+          return `<td><span class="badge ${cls}">${cell}</span></td>`;
+        }
+        return `<td>${cell}</td>`;
+      }).join('')}</tr>`;
+    }).join('')}</tbody>
   </table>
   <script>window.onload = () => { window.print(); };</script>
 </body>
