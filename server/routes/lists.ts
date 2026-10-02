@@ -5,7 +5,9 @@ import {
   togglePublish, getPublicList,
   createField, updateField, deleteField, reorderFields,
   createEntry, updateEntry, deleteEntry, toggleEntry,
-  exportCSV, exportPDF
+  exportCSV, exportPDF,
+  restoreEntry, permanentDelete, emptyTrash, getTrash,
+  togglePin, toggleStar, massAction
 } from '../controllers/listController';
 
 const router = Router();
@@ -31,6 +33,13 @@ router.post('/:id/entries', requireRole('super_admin', 'руководитель
 router.put('/:id/entries/:entryId', requireRole('super_admin', 'руководитель', 'редактор'), updateEntry);
 router.delete('/:id/entries/:entryId', requireRole('super_admin', 'руководитель', 'редактор'), deleteEntry);
 router.patch('/:id/entries/:entryId/toggle', requireRole('super_admin', 'руководитель', 'редактор'), toggleEntry);
+router.patch('/:id/entries/:entryId/pin', requireRole('super_admin', 'руководитель', 'редактор'), togglePin);
+router.patch('/:id/entries/:entryId/star', requireRole('super_admin', 'руководитель', 'редактор'), toggleStar);
+router.post('/:id/entries/:entryId/restore', requireRole('super_admin', 'руководитель', 'редактор'), restoreEntry);
+router.delete('/:id/entries/:entryId/permanent', requireRole('super_admin', 'руководитель'), permanentDelete);
+router.delete('/:id/trash', requireRole('super_admin', 'руководитель'), emptyTrash);
+router.get('/:id/trash', requireRole('super_admin', 'руководитель', 'редактор'), getTrash);
+router.post('/:id/mass-action', requireRole('super_admin', 'руководитель', 'редактор'), massAction);
 
 // Export
 router.get('/:id/export/csv', exportCSV);

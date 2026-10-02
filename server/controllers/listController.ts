@@ -33,7 +33,7 @@ export const getListById = (req: AuthRequest, res: Response) => {
     if (!list) return res.status(404).json({ success: false, error: 'Список не найден' });
 
     const fields = query('SELECT * FROM list_fields WHERE listId = ? ORDER BY position ASC', [id]);
-    const entries = query('SELECT * FROM list_entries WHERE listId = ? ORDER BY createdAt DESC', [id]);
+    const entries = query('SELECT * FROM list_entries WHERE listId = ? AND deleted = 0 ORDER BY pinned DESC, createdAt DESC', [id]);
     res.json({ success: true, data: { ...list, fields, entries } });
   } catch (error) {
     console.error('GetListById error:', error);
@@ -337,10 +337,129 @@ export const deleteEntry = (req: AuthRequest, res: Response) => {
     const entry = get('SELECT id FROM list_entries WHERE id = ?', [entryId]);
     if (!entry) return res.status(404).json({ success: false, error: 'Запись не найдена' });
 
-    run('DELETE FROM list_entries WHERE id = ?', [entryId]);
+    run("UPDATE list_entries SET deleted = 1, deletedAt = datetime('now'), updatedAt = datetime('now') WHERE id = ?", [entryId]);
     res.json({ success: true, message: 'Удалено' });
   } catch (error) {
     console.error('DeleteEntry error:', error);
+    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+  }
+};
+
+export const restoreEntry = (req: AuthRequest, res: Response) => {
+  try {
+    const { entryId } = req.params;
+    const entry = get('SELECT id FROM list_entries WHERE id = ? AND deleted = 1', [entryId]);
+    if (!entry) return res.status(404).json({ success: false, error: 'Запись не найдена в корзине' });
+
+    run("UPDATE list_entries SET deleted = 0, deletedAt = NULL, updatedAt = datetime('now') WHERE id = ?", [entryId]);
+    res.json({ success: true, message: 'Восстановлено' });
+  } catch (error) {
+    console.error('RestoreEntry error:', error);
+    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+  }
+};
+
+export const permanentDelete = (req: AuthRequest, res: Response) => {
+  try {
+    const { entryId } = req.params;
+    const entry = get('SELECT id FROM list_entries WHERE id = ?', [entryId]);
+    if (!entry) return res.status(404).json({ success: false, error: 'Запись не найдена' });
+
+    run('DELETE FROM list_entries WHERE id = ?', [entryId]);
+    res.json({ success: true, message: 'Удалено навсегда' });
+  } catch (error) {
+    console.error('PermanentDelete error:', error);
+    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+  }
+};
+
+export const emptyTrash = (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    run('DELETE FROM list_entries WHERE listId = ? AND deleted = 1', [id]);
+    res.json({ success: true, message: 'Корзина очищена' });
+  } catch (error) {
+    console.error('EmptyTrash error:', error);
+    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+  }
+};
+
+export const getTrash = (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const entries = query('SELECT * FROM list_entries WHERE listId = ? AND deleted = 1 ORDER BY deletedAt DESC', [id]);
+    res.json({ success: true, data: entries });
+  } catch (error) {
+    console.error('GetTrash error:', error);
+    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+  }
+};
+
+export const togglePin = (req: AuthRequest, res: Response) => {
+  try {
+    const { entryId } = req.params;
+    const entry = get('SELECT * FROM list_entries WHERE id = ?', [entryId]);
+    if (!entry) return res.status(404).json({ success: false, error: 'Запись не найдена' });
+
+    const newValue = entry.pinned ? 0 : 1;
+    run("UPDATE list_entries SET pinned = ?, updatedAt = datetime('now') WHERE id = ?", [newValue, entryId]);
+    res.json({ success: true, data: { pinned: newValue } });
+  } catch (error) {
+    console.error('TogglePin error:', error);
+    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+  }
+};
+
+export const toggleStar = (req: AuthRequest, res: Response) => {
+  try {
+    const { entryId } = req.params;
+    const entry = get('SELECT * FROM list_entries WHERE id = ?', [entryId]);
+    if (!entry) return res.status(404).json({ success: false, error: 'Запись не найдена' });
+
+    const newValue = entry.starred ? 0 : 1;
+    run("UPDATE list_entries SET starred = ?, updatedAt = datetime('now') WHERE id = ?", [newValue, entryId]);
+    res.json({ success: true, data: { starred: newValue } });
+  } catch (error) {
+    console.error('ToggleStar error:', error);
+    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+  }
+};
+
+export const massAction = (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { action, entryIds } = req.body;
+    if (!Array.isArray(entryIds) || entryIds.length === 0) {
+      return res.status(400).json({ success: false, error: 'Нет записей' });
+    }
+
+    const placeholders = entryIds.map(() => '?').join(',');
+    switch (action) {
+      case 'delete':
+        run(`UPDATE list_entries SET deleted = 1, deletedAt = datetime('now'), updatedAt = datetime('now') WHERE id IN (${placeholders})`, entryIds);
+        break;
+      case 'restore':
+        run(`UPDATE list_entries SET deleted = 0, deletedAt = NULL, updatedAt = datetime('now') WHERE id IN (${placeholders})`, entryIds);
+        break;
+      case 'pin':
+        run(`UPDATE list_entries SET pinned = 1, updatedAt = datetime('now') WHERE id IN (${placeholders})`, entryIds);
+        break;
+      case 'unpin':
+        run(`UPDATE list_entries SET pinned = 0, updatedAt = datetime('now') WHERE id IN (${placeholders})`, entryIds);
+        break;
+      case 'star':
+        run(`UPDATE list_entries SET starred = 1, updatedAt = datetime('now') WHERE id IN (${placeholders})`, entryIds);
+        break;
+      case 'unstar':
+        run(`UPDATE list_entries SET starred = 0, updatedAt = datetime('now') WHERE id IN (${placeholders})`, entryIds);
+        break;
+      default:
+        return res.status(400).json({ success: false, error: 'Неизвестное действие' });
+    }
+
+    res.json({ success: true, message: `Выполнено: ${action} для ${entryIds.length} записей` });
+  } catch (error) {
+    console.error('MassAction error:', error);
     res.status(500).json({ success: false, error: 'Ошибка сервера' });
   }
 };
@@ -349,8 +468,8 @@ export const toggleEntry = (req: AuthRequest, res: Response) => {
   try {
     const { entryId } = req.params;
     const { field } = req.body;
-    if (field !== 'called' && field !== 'visited') {
-      return res.status(400).json({ success: false, error: 'Поле должно быть called или visited' });
+    if (!['called', 'visited', 'pinned', 'starred'].includes(field)) {
+      return res.status(400).json({ success: false, error: 'Поле должно быть called, visited, pinned или starred' });
     }
 
     const entry = get(`SELECT * FROM list_entries WHERE id = ?`, [entryId]);

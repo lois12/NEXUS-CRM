@@ -719,7 +719,14 @@ export const listsApi = {
   createEntry: (listId: string, data: any): Promise<ApiResponse<any>> => api.post(`/lists/${listId}/entries`, data).then(res => res.data),
   updateEntry: (listId: string, entryId: string, data: any): Promise<ApiResponse<void>> => api.put(`/lists/${listId}/entries/${entryId}`, data).then(res => res.data),
   deleteEntry: (listId: string, entryId: string): Promise<ApiResponse<void>> => api.delete(`/lists/${listId}/entries/${entryId}`).then(res => res.data),
-  toggleEntry: (listId: string, entryId: string, field: 'called' | 'visited'): Promise<ApiResponse<any>> => api.patch(`/lists/${listId}/entries/${entryId}/toggle`, { field }).then(res => res.data),
+  toggleEntry: (listId: string, entryId: string, field: 'called' | 'visited' | 'pinned' | 'starred'): Promise<ApiResponse<any>> => api.patch(`/lists/${listId}/entries/${entryId}/toggle`, { field }).then(res => res.data),
+  togglePin: (listId: string, entryId: string): Promise<ApiResponse<any>> => api.patch(`/lists/${listId}/entries/${entryId}/pin`).then(res => res.data),
+  toggleStar: (listId: string, entryId: string): Promise<ApiResponse<any>> => api.patch(`/lists/${listId}/entries/${entryId}/star`).then(res => res.data),
+  restoreEntry: (listId: string, entryId: string): Promise<ApiResponse<any>> => api.post(`/lists/${listId}/entries/${entryId}/restore`).then(res => res.data),
+  permanentDelete: (listId: string, entryId: string): Promise<ApiResponse<any>> => api.delete(`/lists/${listId}/entries/${entryId}/permanent`).then(res => res.data),
+  emptyTrash: (listId: string): Promise<ApiResponse<any>> => api.delete(`/lists/${listId}/trash`).then(res => res.data),
+  getTrash: (listId: string): Promise<ApiResponse<any>> => api.get(`/lists/${listId}/trash`).then(res => res.data),
+  massAction: (listId: string, action: string, entryIds: string[]): Promise<ApiResponse<any>> => api.post(`/lists/${listId}/mass-action`, { action, entryIds }).then(res => res.data),
   togglePublish: (id: string): Promise<ApiResponse<any>> => api.post(`/lists/${id}/toggle-publish`).then(res => res.data),
 };
 

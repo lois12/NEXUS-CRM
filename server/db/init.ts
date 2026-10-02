@@ -945,4 +945,10 @@ export async function initializeDatabase() {
     )
   `); } catch {}
   try { run('CREATE INDEX IF NOT EXISTS idx_list_entries ON list_entries(listId)'); } catch {}
+
+  // List entries: pinned, starred, soft delete
+  try { run('ALTER TABLE list_entries ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0'); } catch {}
+  try { run('ALTER TABLE list_entries ADD COLUMN starred INTEGER NOT NULL DEFAULT 0'); } catch {}
+  try { run('ALTER TABLE list_entries ADD COLUMN deleted INTEGER NOT NULL DEFAULT 0'); } catch {}
+  try { run('ALTER TABLE list_entries ADD COLUMN deletedAt TEXT'); } catch {}
 }

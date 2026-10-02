@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Search, Edit3, Trash2, Copy, ChevronLeft, List as ListIcon, Users, Download, FileText, ArrowUpDown, ArrowUp, ArrowDown, Check, X as XIcon, Eye, EyeOff } from 'lucide-react';
+import { Plus, Search, Edit3, Trash2, Copy, ChevronLeft, List as ListIcon, Users, Download, FileText, ArrowUpDown, ArrowUp, ArrowDown, Check, X as XIcon, Eye, EyeOff, Star, Pin, Phone, LayoutGrid, LayoutList, CheckSquare, RotateCcw, Trash } from 'lucide-react';
 import { listsApi } from '../services/api';
 import { showToast, useNexusConfirm, ConfirmModal } from '../components/ui/NexusModal';
 import { SkeletonGrid, SkeletonHeader } from '../components/ui/Skeleton';
@@ -23,6 +23,12 @@ export default function Lists() {
   const [entryAnswers, setEntryAnswers] = useState<Record<string, string>>({});
   const [editingEntry, setEditingEntry] = useState<ListEntry | null>(null);
   const [showPdfTheme, setShowPdfTheme] = useState(false);
+  const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showTrash, setShowTrash] = useState(false);
+  const [trashEntries, setTrashEntries] = useState<ListEntry[]>([]);
+  const [colWidths, setColWidths] = useState<Record<string, number>>({});
+  const tableRef = useRef<HTMLDivElement>(null);
   const { confirmState, showConfirm, closeConfirm } = useNexusConfirm();
 
   // Check if toggle fields are present in the current list
@@ -277,7 +283,7 @@ export default function Lists() {
     }, 'danger');
   };
 
-  const handleToggle = async (entryId: string, field: 'called' | 'visited') => {
+  const handleToggle = async (entryId: string, field: 'called' | 'visited' | 'pinned' | 'starred') => {
     if (!editing) return;
     try {
       const res = await listsApi.toggleEntry(editing.id, entryId, field);
@@ -285,6 +291,85 @@ export default function Lists() {
         setEntries(prev => prev.map(e => e.id === entryId ? { ...e, [field]: e[field] ? 0 : 1 } : e));
       }
     } catch { showToast('Ошибка', 'error'); }
+  };
+
+  const handleRestoreEntry = async (entryId: string) => {
+    if (!editing) return;
+    try {
+      await listsApi.restoreEntry(editing.id, entryId);
+      setTrashEntries(prev => prev.filter(e => e.id !== entryId));
+      showToast('Восстановлено', 'success');
+      refreshEntries();
+    } catch { showToast('Ошибка', 'error'); }
+  };
+
+  const handlePermanentDelete = (entryId: string) => {
+    if (!editing) return;
+    showConfirm('УДАЛИТЬ НАВСЕГДА?', 'Это действие нельзя отменить.', async () => {
+      try {
+        await listsApi.permanentDelete(editing.id, entryId);
+        setTrashEntries(prev => prev.filter(e => e.id !== entryId));
+        showToast('Удалено навсегда', 'success');
+      } catch { showToast('Ошибка', 'error'); }
+    }, 'danger');
+  };
+
+  const handleEmptyTrash = () => {
+    if (!editing) return;
+    showConfirm('ОЧИСТИТЬ КОРЗИНУ?', 'Все записи в корзине будут удалены навсегда.', async () => {
+      try {
+        await listsApi.emptyTrash(editing.id);
+        setTrashEntries([]);
+        showToast('Корзина очищена', 'success');
+      } catch { showToast('Ошибка', 'error'); }
+    }, 'danger');
+  };
+
+  const refreshEntries = async () => {
+    if (!editing) return;
+    try {
+      const res = await listsApi.getOne(editing.id);
+      if (res.success && res.data) setEntries(Array.isArray(res.data.entries) ? res.data.entries : []);
+    } catch {}
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const selectAll = () => {
+    if (selectedIds.size === sortedEntries.length) setSelectedIds(new Set());
+    else setSelectedIds(new Set(sortedEntries.map(e => e.id)));
+  };
+
+  const handleMassAction = async (action: string) => {
+    if (!editing || selectedIds.size === 0) return;
+    try {
+      await listsApi.massAction(editing.id, action, Array.from(selectedIds));
+      setSelectedIds(new Set());
+      showToast(`Готово: ${action}`, 'success');
+      refreshEntries();
+    } catch { showToast('Ошибка', 'error'); }
+  };
+
+  const handleColumnResize = (field: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startWidth = colWidths[field] || 150;
+    const onMouseMove = (ev: MouseEvent) => {
+      const diff = ev.clientX - startX;
+      setColWidths(prev => ({ ...prev, [field]: Math.max(60, startWidth + diff) }));
+    };
+    const onMouseUp = () => {
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+    };
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
   };
 
   // ── Filtering & Sorting for entries ──
@@ -307,6 +392,10 @@ export default function Lists() {
   const sortedEntries = useMemo(() => {
     const sorted = [...filteredEntries];
     sorted.sort((a, b) => {
+      // Pinned always first
+      if (a.pinned !== b.pinned) return b.pinned - a.pinned;
+      // Then starred
+      if (a.starred !== b.starred) return b.starred - a.starred;
       let va = '', vb = '';
       switch (sortField) {
         case 'lastName': va = a.lastName; vb = b.lastName; break;
@@ -441,15 +530,32 @@ export default function Lists() {
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between flex-wrap gap-3">
-          <button onClick={() => setView('list')} className="flex items-center gap-2 font-mono text-sm text-gray-400 hover:text-gray-200 transition-colors">
+          <button onClick={() => { setView('list'); setSelectedIds(new Set()); setShowTrash(false); }} className="flex items-center gap-2 font-mono text-sm text-gray-400 hover:text-gray-200 transition-colors">
             <ChevronLeft className="w-4 h-4" /> НАЗАД
           </button>
-          <div className="flex gap-2 flex-wrap">
+          <div className="flex gap-2 flex-wrap items-center">
+            {/* View mode toggle */}
+            <div className="flex rounded-lg overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.1)' }}>
+              <button onClick={() => setViewMode('table')} className="px-2.5 py-1.5 text-xs" style={viewMode === 'table' ? { background: 'var(--color-primary)', color: '#000' } : { background: 'transparent', color: '#888' }}>
+                <LayoutList className="w-3.5 h-3.5" />
+              </button>
+              <button onClick={() => setViewMode('cards')} className="px-2.5 py-1.5 text-xs" style={viewMode === 'cards' ? { background: 'var(--color-primary)', color: '#000' } : { background: 'transparent', color: '#888' }}>
+                <LayoutGrid className="w-3.5 h-3.5" />
+              </button>
+            </div>
             <button onClick={handleExportCSV} className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-xs glass hover:bg-white/10">
               <Download className="w-3.5 h-3.5" /> CSV
             </button>
             <button onClick={() => setShowPdfTheme(true)} className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-xs glass hover:bg-white/10">
               <FileText className="w-3.5 h-3.5" /> PDF
+            </button>
+            <button onClick={async () => {
+              setShowTrash(!showTrash);
+              if (!showTrash && editing) {
+                try { const res = await listsApi.getTrash(editing.id); if (res.success) setTrashEntries(res.data || []); } catch {}
+              }
+            }} className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-xs glass hover:bg-white/10">
+              <Trash className="w-3.5 h-3.5" />
             </button>
             <button onClick={() => { setEditingEntry(null); setEntryForm({ lastName: '', firstName: '', patronymic: '', phone: '', email: '', comment: '', called: 0, visited: 0 }); setEntryAnswers({}); setShowAddEntry(true); }}
               className="flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-sm font-bold"
@@ -458,6 +564,19 @@ export default function Lists() {
             </button>
           </div>
         </div>
+
+        {/* Mass action bar */}
+        {selectedIds.size > 0 && (
+          <div className="flex items-center gap-3 px-4 py-2 rounded-xl" style={{ background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.2)' }}>
+            <CheckSquare className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />
+            <span className="font-mono text-xs text-gray-300">{selectedIds.size} выбрано</span>
+            <div className="flex gap-1.5 ml-auto">
+              <button onClick={() => handleMassAction('pin')} className="px-2.5 py-1 rounded-lg font-mono text-[10px] glass hover:bg-white/10 flex items-center gap-1"><Pin className="w-3 h-3" /> Закрепить</button>
+              <button onClick={() => handleMassAction('star')} className="px-2.5 py-1 rounded-lg font-mono text-[10px] glass hover:bg-white/10 flex items-center gap-1"><Star className="w-3 h-3" /> Избранное</button>
+              <button onClick={() => handleMassAction('delete')} className="px-2.5 py-1 rounded-lg font-mono text-[10px] hover:bg-red-500/20 text-red-400 flex items-center gap-1"><Trash2 className="w-3 h-3" /> Удалить</button>
+            </div>
+          </div>
+        )}
 
         <h2 className="font-mono text-lg font-bold neon-text flex items-center gap-2" style={{ color: 'var(--color-primary)' }}>
           <ListIcon className="w-5 h-5" /> {editing.name}
@@ -474,17 +593,33 @@ export default function Lists() {
         </div>
 
         {/* Entries table */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto" ref={tableRef}>
           <div className="overflow-x-auto">
             <table className="w-full text-left">
-              <thead>
+              <thead className="sticky top-0 z-10 hidden md:table-header-group" style={{ background: 'rgba(10,10,15,0.95)', backdropFilter: 'blur(8px)' }}>
                 <tr className="border-b border-gray-700/50">
-                  <th className="px-3 py-2 font-mono text-xs text-gray-500 w-10">№</th>
-                  <th onClick={() => toggleSort('lastName')} className="px-3 py-2 font-mono text-xs text-gray-500 cursor-pointer hover:text-gray-300 select-none"><span className="flex items-center gap-1">ФАМИЛИЯ <SortIcon field="lastName" /></span></th>
-                  <th onClick={() => toggleSort('firstName')} className="px-3 py-2 font-mono text-xs text-gray-500 cursor-pointer hover:text-gray-300 select-none"><span className="flex items-center gap-1">ИМЯ <SortIcon field="firstName" /></span></th>
-                  <th onClick={() => toggleSort('patronymic')} className="px-3 py-2 font-mono text-xs text-gray-500 cursor-pointer hover:text-gray-300 select-none"><span className="flex items-center gap-1">ОТЧЕСТВО <SortIcon field="patronymic" /></span></th>
-                  <th onClick={() => toggleSort('phone')} className="px-3 py-2 font-mono text-xs text-gray-500 cursor-pointer hover:text-gray-300 select-none"><span className="flex items-center gap-1">ТЕЛЕФОН <SortIcon field="phone" /></span></th>
-                  <th onClick={() => toggleSort('email')} className="px-3 py-2 font-mono text-xs text-gray-500 cursor-pointer hover:text-gray-300 select-none"><span className="flex items-center gap-1">EMAIL <SortIcon field="email" /></span></th>
+                  <th className="px-2 py-2 font-mono text-xs text-gray-500 w-8"><input type="checkbox" checked={selectedIds.size === sortedEntries.length && sortedEntries.length > 0} onChange={selectAll} className="accent-[var(--color-primary)]" /></th>
+                  <th className="px-2 py-2 font-mono text-xs text-gray-500 w-8" />
+                  <th onClick={() => toggleSort('lastName')} className="px-3 py-2 font-mono text-xs text-gray-500 cursor-pointer hover:text-gray-300 select-none" style={colWidths.lastName ? { width: colWidths.lastName } : {}}>
+                    <span className="flex items-center gap-1">ФАМИЛИЯ <SortIcon field="lastName" /></span>
+                    <div className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-[var(--color-primary)]/30" onMouseDown={e => handleColumnResize('lastName', e)} />
+                  </th>
+                  <th onClick={() => toggleSort('firstName')} className="px-3 py-2 font-mono text-xs text-gray-500 cursor-pointer hover:text-gray-300 select-none relative" style={colWidths.firstName ? { width: colWidths.firstName } : {}}>
+                    <span className="flex items-center gap-1">ИМЯ <SortIcon field="firstName" /></span>
+                    <div className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-[var(--color-primary)]/30" onMouseDown={e => handleColumnResize('firstName', e)} />
+                  </th>
+                  <th onClick={() => toggleSort('patronymic')} className="px-3 py-2 font-mono text-xs text-gray-500 cursor-pointer hover:text-gray-300 select-none relative" style={colWidths.patronymic ? { width: colWidths.patronymic } : {}}>
+                    <span className="flex items-center gap-1">ОТЧЕСТВО <SortIcon field="patronymic" /></span>
+                    <div className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-[var(--color-primary)]/30" onMouseDown={e => handleColumnResize('patronymic', e)} />
+                  </th>
+                  <th onClick={() => toggleSort('phone')} className="px-3 py-2 font-mono text-xs text-gray-500 cursor-pointer hover:text-gray-300 select-none relative" style={colWidths.phone ? { width: colWidths.phone } : {}}>
+                    <span className="flex items-center gap-1">ТЕЛЕФОН <SortIcon field="phone" /></span>
+                    <div className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-[var(--color-primary)]/30" onMouseDown={e => handleColumnResize('phone', e)} />
+                  </th>
+                  <th onClick={() => toggleSort('email')} className="px-3 py-2 font-mono text-xs text-gray-500 cursor-pointer hover:text-gray-300 select-none relative" style={colWidths.email ? { width: colWidths.email } : {}}>
+                    <span className="flex items-center gap-1">EMAIL <SortIcon field="email" /></span>
+                    <div className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-[var(--color-primary)]/30" onMouseDown={e => handleColumnResize('email', e)} />
+                  </th>
                   <th className="px-3 py-2 font-mono text-xs text-gray-500">КОММЕНТАРИЙ</th>
                   {hasCalled && <th onClick={() => toggleSort('called')} className="px-3 py-2 font-mono text-xs text-gray-500 cursor-pointer hover:text-gray-300 select-none text-center"><span className="flex items-center gap-1 justify-center">ОБЗВОН <SortIcon field="called" /></span></th>}
                   {hasVisited && <th onClick={() => toggleSort('visited')} className="px-3 py-2 font-mono text-xs text-gray-500 cursor-pointer hover:text-gray-300 select-none text-center"><span className="flex items-center gap-1 justify-center">ПОСЕЩЕНИЕ <SortIcon field="visited" /></span></th>}
@@ -495,15 +630,27 @@ export default function Lists() {
                 </tr>
               </thead>
               <tbody>
-                {sortedEntries.map((e, idx) => {
+                {sortedEntries.map((e) => {
                   const answers = (() => { try { return JSON.parse(e.answers || '{}'); } catch { return {}; } })();
                   return (
-                    <tr key={e.id} className="border-b border-gray-800/50 hover:bg-white/5 group transition-colors">
-                      <td className="px-3 py-2.5 font-mono text-xs text-gray-500">{idx + 1}</td>
+                    <tr key={e.id} className={`border-b border-gray-800/50 hover:bg-white/5 group transition-colors ${e.pinned ? 'bg-[var(--color-primary)]/[0.03]' : ''}`}>
+                      <td className="px-2 py-2.5 hidden md:table-cell"><input type="checkbox" checked={selectedIds.has(e.id)} onChange={() => toggleSelect(e.id)} className="accent-[var(--color-primary)]" /></td>
+                      <td className="px-2 py-2.5">
+                        <div className="flex items-center gap-0.5">
+                          <button onClick={() => handleToggle(e.id, 'starred')} className="p-0.5 rounded hover:bg-white/10" title={e.starred ? 'Убрать из избранного' : 'В избранное'}>
+                            <Star className="w-3.5 h-3.5" style={e.starred ? { color: '#ffd700', fill: '#ffd700' } : { color: '#555' }} />
+                          </button>
+                          <button onClick={() => handleToggle(e.id, 'pinned')} className="p-0.5 rounded hover:bg-white/10" title={e.pinned ? 'Открепить' : 'Закрепить'}>
+                            <Pin className="w-3 h-3" style={e.pinned ? { color: 'var(--color-primary)', fill: 'var(--color-primary)' } : { color: '#555' }} />
+                          </button>
+                        </div>
+                      </td>
                       <td className="px-3 py-2.5 font-mono text-sm text-gray-200">{e.lastName}</td>
                       <td className="px-3 py-2.5 font-mono text-sm text-gray-200">{e.firstName}</td>
                       <td className="px-3 py-2.5 font-mono text-sm text-gray-200">{e.patronymic}</td>
-                      <td className="px-3 py-2.5 font-mono text-sm text-gray-300">{e.phone}</td>
+                      <td className="px-3 py-2.5 font-mono text-sm text-gray-300">
+                        {e.phone ? <a href={`tel:${e.phone.replace(/[^\d+]/g, '')}`} className="flex items-center gap-1 hover:text-[var(--color-primary)] transition-colors"><Phone className="w-3 h-3 text-gray-500" />{e.phone}</a> : '—'}
+                      </td>
                       <td className="px-3 py-2.5 font-mono text-sm text-gray-300">{e.email}</td>
                       <td className="px-3 py-2.5 font-mono text-xs text-gray-400 max-w-[150px] truncate">{e.comment}</td>
                       {hasCalled && (
@@ -550,6 +697,75 @@ export default function Lists() {
             )}
           </div>
         </div>
+
+        {/* Card view */}
+        {viewMode === 'cards' && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+            {sortedEntries.map(e => {
+              const answers = (() => { try { return JSON.parse(e.answers || '{}'); } catch { return {}; } })();
+              return (
+                <motion.div key={e.id} layout className={`glass-card rounded-xl p-4 group ${e.pinned ? 'ring-1 ring-[var(--color-primary)]/30' : ''}`}>
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex items-center gap-1.5">
+                      <button onClick={() => handleToggle(e.id, 'starred')} className="p-0.5">
+                        <Star className="w-3.5 h-3.5" style={e.starred ? { color: '#ffd700', fill: '#ffd700' } : { color: '#555' }} />
+                      </button>
+                      <button onClick={() => handleToggle(e.id, 'pinned')} className="p-0.5">
+                        <Pin className="w-3 h-3" style={e.pinned ? { color: 'var(--color-primary)', fill: 'var(--color-primary)' } : { color: '#555' }} />
+                      </button>
+                    </div>
+                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button onClick={() => openEditEntry(e)} className="p-1 rounded hover:bg-white/10"><Edit3 className="w-3.5 h-3.5 text-gray-400" /></button>
+                      <button onClick={() => handleDeleteEntry(e.id)} className="p-1 rounded hover:bg-red-500/20"><Trash2 className="w-3.5 h-3.5 text-red-400" /></button>
+                    </div>
+                  </div>
+                  <h3 className="font-mono text-sm font-bold text-gray-200 truncate">{e.lastName}</h3>
+                  {e.firstName && <p className="font-mono text-xs text-gray-400 truncate">{e.firstName} {e.patronymic}</p>}
+                  <div className="mt-2 space-y-1 text-xs font-mono text-gray-400">
+                    {e.phone && <a href={`tel:${e.phone.replace(/[^\d+]/g, '')}`} className="flex items-center gap-1 hover:text-[var(--color-primary)]"><Phone className="w-3 h-3" />{e.phone}</a>}
+                    {e.email && <p className="truncate">{e.email}</p>}
+                    {e.comment && <p className="text-gray-500 truncate">{e.comment}</p>}
+                  </div>
+                  {Object.keys(answers).length > 0 && (
+                    <div className="mt-2 pt-2 border-t border-white/5 space-y-0.5">
+                      {listFields.filter(f => f.type !== 'toggle_called' && f.type !== 'toggle_visited' && answers[f.id]).map(f => (
+                        <p key={f.id} className="font-mono text-[10px] text-gray-500"><span className="text-gray-400">{f.label}:</span> {answers[f.id]}</p>
+                      ))}
+                    </div>
+                  )}
+                </motion.div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Trash view */}
+        {showTrash && (
+          <div className="mt-4 glass rounded-2xl p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-mono text-sm font-bold text-gray-300 flex items-center gap-2"><Trash className="w-4 h-4" /> КОРЗИНА</h3>
+              <div className="flex gap-2">
+                {trashEntries.length > 0 && (
+                  <button onClick={handleEmptyTrash} className="px-3 py-1.5 rounded-lg font-mono text-xs text-red-400 hover:bg-red-500/10">ОЧИСТИТЬ</button>
+                )}
+                <button onClick={() => setShowTrash(false)} className="p-1 rounded hover:bg-white/10"><XIcon className="w-4 h-4 text-gray-400" /></button>
+              </div>
+            </div>
+            {trashEntries.length === 0 ? (
+              <p className="font-mono text-xs text-gray-500 text-center py-4">// КОРЗИНА ПУСТА</p>
+            ) : (
+              <div className="space-y-2">
+                {trashEntries.map(e => (
+                  <div key={e.id} className="flex items-center gap-3 px-3 py-2 rounded-lg bg-black/20">
+                    <span className="font-mono text-sm text-gray-300 flex-1 truncate">{e.lastName} {e.firstName}</span>
+                    <button onClick={() => handleRestoreEntry(e.id)} className="px-2 py-1 rounded-lg font-mono text-[10px] glass hover:bg-white/10 flex items-center gap-1"><RotateCcw className="w-3 h-3" /> Восстановить</button>
+                    <button onClick={() => handlePermanentDelete(e.id)} className="px-2 py-1 rounded-lg font-mono text-[10px] text-red-400 hover:bg-red-500/10">Удалить навсегда</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Add/Edit Entry Modal */}
         <AnimatePresence>

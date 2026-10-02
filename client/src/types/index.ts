@@ -504,6 +504,10 @@ export interface ListEntry {
   comment: string;
   called: number;
   visited: number;
+  pinned: number;
+  starred: number;
+  deleted: number;
+  deletedAt?: string;
   answers: string;
   createdAt: string;
   updatedAt: string;
