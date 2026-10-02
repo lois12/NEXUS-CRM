@@ -42,6 +42,9 @@ export default function PublicList() {
 
   const fields = list.fields || [];
   const entries = list.entries || [];
+  const hasCalled = fields.some((f: any) => f.type === 'toggle_called');
+  const hasVisited = fields.some((f: any) => f.type === 'toggle_visited');
+  const customFields = fields.filter((f: any) => f.type !== 'toggle_called' && f.type !== 'toggle_visited');
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--color-bg)' }}>
@@ -77,14 +80,18 @@ export default function PublicList() {
             <span className="text-[10px] font-mono text-gray-500">Всего записей</span>
             <p className="font-mono text-lg font-bold" style={{ color: 'var(--color-primary)' }}>{entries.length}</p>
           </div>
-          <div className="px-4 py-2 rounded-xl" style={{ background: 'rgba(0,212,255,0.08)', border: '1px solid rgba(0,212,255,0.15)' }}>
-            <span className="text-[10px] font-mono text-gray-500">Обзвонено</span>
-            <p className="font-mono text-lg font-bold" style={{ color: '#00d4ff' }}>{entries.filter((e: any) => e.called).length}</p>
-          </div>
-          <div className="px-4 py-2 rounded-xl" style={{ background: 'rgba(191,0,255,0.08)', border: '1px solid rgba(191,0,255,0.15)' }}>
-            <span className="text-[10px] font-mono text-gray-500">Посещено</span>
-            <p className="font-mono text-lg font-bold" style={{ color: '#bf00ff' }}>{entries.filter((e: any) => e.visited).length}</p>
-          </div>
+          {hasCalled && (
+            <div className="px-4 py-2 rounded-xl" style={{ background: 'rgba(0,212,255,0.08)', border: '1px solid rgba(0,212,255,0.15)' }}>
+              <span className="text-[10px] font-mono text-gray-500">Обзвонено</span>
+              <p className="font-mono text-lg font-bold" style={{ color: '#00d4ff' }}>{entries.filter((e: any) => e.called).length}</p>
+            </div>
+          )}
+          {hasVisited && (
+            <div className="px-4 py-2 rounded-xl" style={{ background: 'rgba(191,0,255,0.08)', border: '1px solid rgba(191,0,255,0.15)' }}>
+              <span className="text-[10px] font-mono text-gray-500">Посещено</span>
+              <p className="font-mono text-lg font-bold" style={{ color: '#bf00ff' }}>{entries.filter((e: any) => e.visited).length}</p>
+            </div>
+          )}
         </div>
 
         {/* Table */}
@@ -99,9 +106,9 @@ export default function PublicList() {
                 <th className="px-3 py-2 font-mono text-xs text-gray-500">ТЕЛЕФОН</th>
                 <th className="px-3 py-2 font-mono text-xs text-gray-500">ПОЧТА</th>
                 <th className="px-3 py-2 font-mono text-xs text-gray-500">КОММЕНТАРИЙ</th>
-                <th className="px-3 py-2 font-mono text-xs text-gray-500 text-center">ОБЗВОН</th>
-                <th className="px-3 py-2 font-mono text-xs text-gray-500 text-center">ПОСЕЩЕНИЕ</th>
-                {fields.map((f: any) => <th key={f.id} className="px-3 py-2 font-mono text-xs text-gray-500">{f.label}</th>)}
+                {hasCalled && <th className="px-3 py-2 font-mono text-xs text-gray-500 text-center">ОБЗВОН</th>}
+                {hasVisited && <th className="px-3 py-2 font-mono text-xs text-gray-500 text-center">ПОСЕЩЕНИЕ</th>}
+                {customFields.map((f: any) => <th key={f.id} className="px-3 py-2 font-mono text-xs text-gray-500">{f.label}</th>)}
               </tr>
             </thead>
             <tbody>
@@ -120,13 +127,17 @@ export default function PublicList() {
                       {entry.email ? <span className="flex items-center gap-1"><Mail className="w-3 h-3 text-gray-500" />{entry.email}</span> : '—'}
                     </td>
                     <td className="px-3 py-2 font-mono text-xs text-gray-400">{entry.comment || '—'}</td>
-                    <td className="px-3 py-2 text-center">
-                      {entry.called ? <Check className="w-4 h-4 mx-auto" style={{ color: 'var(--color-primary)' }} /> : <XIcon className="w-4 h-4 mx-auto text-gray-600" />}
-                    </td>
-                    <td className="px-3 py-2 text-center">
-                      {entry.visited ? <Check className="w-4 h-4 mx-auto" style={{ color: 'var(--color-primary)' }} /> : <XIcon className="w-4 h-4 mx-auto text-gray-600" />}
-                    </td>
-                    {fields.map((f: any) => <td key={f.id} className="px-3 py-2 font-mono text-xs text-gray-400">{answers[f.id] || '—'}</td>)}
+                    {hasCalled && (
+                      <td className="px-3 py-2 text-center">
+                        {entry.called ? <Check className="w-4 h-4 mx-auto" style={{ color: 'var(--color-primary)' }} /> : <XIcon className="w-4 h-4 mx-auto text-gray-600" />}
+                      </td>
+                    )}
+                    {hasVisited && (
+                      <td className="px-3 py-2 text-center">
+                        {entry.visited ? <Check className="w-4 h-4 mx-auto" style={{ color: 'var(--color-primary)' }} /> : <XIcon className="w-4 h-4 mx-auto text-gray-600" />}
+                      </td>
+                    )}
+                    {customFields.map((f: any) => <td key={f.id} className="px-3 py-2 font-mono text-xs text-gray-400">{answers[f.id] || '—'}</td>)}
                   </tr>
                 );
               })}
