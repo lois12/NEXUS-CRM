@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { List as ListIcon, AlertTriangle, Phone, Mail, Check, X as XIcon } from 'lucide-react';
+import { List as ListIcon, AlertTriangle, Phone, Mail, Check, X as XIcon, Download, FileText } from 'lucide-react';
 import { publicListsApi } from '../services/api';
 import { CyberBackground } from '../components/ui/CyberBackground';
 
@@ -92,6 +92,39 @@ export default function PublicList() {
               <p className="font-mono text-lg font-bold" style={{ color: '#bf00ff' }}>{entries.filter((e: any) => e.visited).length}</p>
             </div>
           )}
+        </div>
+
+        {/* Export buttons */}
+        <div className="flex gap-2 mb-4">
+          <button onClick={() => {
+            const fieldLabels = customFields.map((f: any) => f.label);
+            const headers = ['№', 'Фамилия', 'Имя', 'Отчество', 'Телефон', 'Email', 'Комментарий', ...fieldLabels];
+            const rows = entries.map((e: any, i: number) => {
+              const ans = (() => { try { return JSON.parse(e.answers || '{}'); } catch { return {}; } })();
+              return [i + 1, e.lastName, e.firstName, e.patronymic, e.phone, e.email, e.comment, ...customFields.map((f: any) => ans[f.id] || '')];
+            });
+            const bom = '\uFEFF';
+            const csv = bom + [headers.join(';'), ...rows.map((r: any[]) => r.map((c: any) => `"${String(c).replace(/"/g, '""')}"`).join(';'))].join('\n');
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a'); a.href = url; a.download = `${list.name}.csv`; a.click(); URL.revokeObjectURL(url);
+          }} className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-xs glass hover:bg-white/10 transition-all">
+            <Download className="w-3.5 h-3.5" /> Excel
+          </button>
+          <button onClick={() => {
+            const win = window.open('', '_blank');
+            if (!win) return;
+            const fieldHeaders = customFields.map((f: any) => `<th>${f.label}</th>`).join('');
+            const rows = entries.map((e: any, i: number) => {
+              const ans = (() => { try { return JSON.parse(e.answers || '{}'); } catch { return {}; } })();
+              const cells = customFields.map((f: any) => `<td>${ans[f.id] || '—'}</td>`).join('');
+              return `<tr><td>${i + 1}</td><td>${e.lastName || '—'}</td><td>${e.firstName || '—'}</td><td>${e.patronymic || '—'}</td><td>${e.phone || '—'}</td><td>${e.email || '—'}</td><td>${e.comment || '—'}</td>${cells}</tr>`;
+            }).join('');
+            win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${list.name}</title><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:Segoe UI,Arial,sans-serif;padding:30px;color:#333;font-size:11px}h1{font-size:18px;margin-bottom:16px}table{width:100%;border-collapse:collapse;font-size:10px}th{background:#f0f0f0;text-align:left;padding:6px 8px;border-bottom:2px solid #ddd;font-weight:600}td{padding:5px 8px;border-bottom:1px solid #eee}tr:hover td{background:#fafafa}@media print{@page{margin:12mm}}</style></head><body><h1>${list.name}</h1><p style="color:#888;margin-bottom:16px">${entries.length} записей • ${new Date().toLocaleDateString('ru-RU')}</p><table><thead><tr><th>№</th><th>ФАМИЛИЯ</th><th>ИМЯ</th><th>ОТЧЕСТВО</th><th>ТЕЛЕФОН</th><th>EMAIL</th><th>КОММЕНТАРИЙ</th>${fieldHeaders}</tr></thead><tbody>${rows}</tbody></table><script>window.onload=()=>window.print()</script></body></html>`);
+            win.document.close();
+          }} className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-xs glass hover:bg-white/10 transition-all">
+            <FileText className="w-3.5 h-3.5" /> PDF
+          </button>
         </div>
 
         {/* Table */}
