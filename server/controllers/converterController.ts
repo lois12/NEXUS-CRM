@@ -10,6 +10,12 @@ import { pdfToXlsxBuffer } from '../utils/pdfTableExtract';
 
 const OFFICE_EXTS = new Set(['.docx', '.doc', '.xlsx', '.xls', '.pptx', '.ppt', '.odt', '.ods', '.odp', '.rtf', '.csv', '.txt']);
 
+/** Cross-device safe move: copy + unlink (uploads/ and /tmp may be different filesystems). */
+function moveFile(src: string, dest: string): void {
+  fs.copyFileSync(src, dest);
+  try { fs.unlinkSync(src); } catch {}
+}
+
 function fail(res: Response, status: number, error: string) {
   return res.status(status).json({ success: false, error });
 }
@@ -42,7 +48,7 @@ export const officeToPdf = async (req: AuthRequest, res: Response) => {
     if (!lo.ok) return fail(res, 503, 'LibreOffice не установлен на сервере');
 
     const { jobDir, inputPath } = prepareJobDir(file.originalname);
-    fs.renameSync(file.path, inputPath);
+    moveFile(file.path, inputPath);
 
     const originalBase = path.basename(file.originalname, ext);
     try {
@@ -74,7 +80,7 @@ export const pdfToDocx = async (req: AuthRequest, res: Response) => {
     if (!lo.ok) return fail(res, 503, 'LibreOffice не установлен на сервере');
 
     const { jobDir, inputPath } = prepareJobDir(file.originalname);
-    fs.renameSync(file.path, inputPath);
+    moveFile(file.path, inputPath);
 
     const originalBase = path.basename(file.originalname, '.pdf');
     try {

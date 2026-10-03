@@ -59,7 +59,9 @@ if ! grep -q '^\*\.db$' "$APP_DIR/.gitignore" 2>/dev/null; then
 fi
 log ".gitignore verified: *.db is protected"
 
-# Pull latest
+# Pull latest — npm install mutates lockfiles on the VPS, so discard those
+# local build-artifact changes before merging (npm install restores them later).
+git checkout -- client/package-lock.json server/package-lock.json 2>/dev/null || true
 log "Pulling from GitHub..."
 git fetch origin main 2>&1 | tee -a "$LOG_FILE"
 LOCAL=$(git rev-parse HEAD)
@@ -71,7 +73,9 @@ if [ "$LOCAL" = "$REMOTE" ]; then
     exit 0
 fi
 
-git pull origin main 2>&1 | tee -a "$LOG_FILE"
+if ! git pull origin main 2>&1 | tee -a "$LOG_FILE" || [ "${PIPESTATUS[0]}" != "0" ]; then
+    fail "git pull failed — local changes may block the merge. Aborting before build."
+fi
 AFTER=$(git rev-parse HEAD)
 log "Pulled: ${BEFORE:0:7} -> ${AFTER:0:7}"
 
