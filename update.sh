@@ -22,6 +22,9 @@ log "=== DEPLOY START === (from ${BEFORE:0:7})"
 mkdir -p "$BACKUP_DIR"
 if [ -f "$DB_FILE" ]; then
     cp "$DB_FILE" "$BACKUP_FILE"
+    # Backup WAL and SHM files if present (WAL mode from better-sqlite3)
+    [ -f "${DB_FILE}-wal" ] && cp "${DB_FILE}-wal" "${BACKUP_FILE}-wal"
+    [ -f "${DB_FILE}-shm" ] && cp "${DB_FILE}-shm" "${BACKUP_FILE}-shm"
     DB_SIZE=$(stat -c%s "$DB_FILE" 2>/dev/null || echo 0)
     log "DB backed up → $BACKUP_FILE (${DB_SIZE} bytes)"
 
@@ -37,6 +40,9 @@ if [ -f "$DB_FILE" ]; then
     BACKUP_COUNT=$(ls -1 "$BACKUP_DIR"/nexus_*.db 2>/dev/null | wc -l)
     if [ "$BACKUP_COUNT" -gt 10 ]; then
         ls -1t "$BACKUP_DIR"/nexus_*.db | tail -n +11 | xargs rm -f
+        # Also clean WAL/SHM sidecar files
+        ls -1t "$BACKUP_DIR"/nexus_*.db-wal 2>/dev/null | tail -n +11 | xargs rm -f
+        ls -1t "$BACKUP_DIR"/nexus_*.db-shm 2>/dev/null | tail -n +11 | xargs rm -f
         log "Cleaned old backups (kept last 10)"
     fi
 else
@@ -74,6 +80,8 @@ if [ -f "$BACKUP_FILE" ]; then
     if [ ! -f "$DB_FILE" ]; then
         log "DB DISAPPEARED after git pull! Restoring..."
         cp "$BACKUP_FILE" "$DB_FILE"
+        [ -f "${BACKUP_FILE}-wal" ] && cp "${BACKUP_FILE}-wal" "${DB_FILE}-wal"
+        [ -f "${BACKUP_FILE}-shm" ] && cp "${BACKUP_FILE}-shm" "${DB_FILE}-shm"
         log "DB restored from backup"
     else
         # Check DB header is still valid
@@ -81,6 +89,8 @@ if [ -f "$BACKUP_FILE" ]; then
         if ! echo "$POST_HEADER" | grep -q "SQLite format"; then
             log "DB CORRUPTED after git pull (bad header)! Restoring..."
             cp "$BACKUP_FILE" "$DB_FILE"
+            [ -f "${BACKUP_FILE}-wal" ] && cp "${BACKUP_FILE}-wal" "${DB_FILE}-wal"
+            [ -f "${BACKUP_FILE}-shm" ] && cp "${BACKUP_FILE}-shm" "${DB_FILE}-shm"
             log "DB restored from backup"
         fi
     fi
@@ -139,12 +149,16 @@ if [ -f "$BACKUP_FILE" ]; then
     if [ ! -f "$DB_FILE" ]; then
         log "DB DISAPPEARED after build! Restoring..."
         cp "$BACKUP_FILE" "$DB_FILE"
+        [ -f "${BACKUP_FILE}-wal" ] && cp "${BACKUP_FILE}-wal" "${DB_FILE}-wal"
+        [ -f "${BACKUP_FILE}-shm" ] && cp "${BACKUP_FILE}-shm" "${DB_FILE}-shm"
         log "DB restored from backup"
     else
         BUILD_HEADER=$(head -c 16 "$DB_FILE" 2>/dev/null)
         if ! echo "$BUILD_HEADER" | grep -q "SQLite format"; then
             log "DB CORRUPTED after build (bad header)! Restoring..."
             cp "$BACKUP_FILE" "$DB_FILE"
+            [ -f "${BACKUP_FILE}-wal" ] && cp "${BACKUP_FILE}-wal" "${DB_FILE}-wal"
+            [ -f "${BACKUP_FILE}-shm" ] && cp "${BACKUP_FILE}-shm" "${DB_FILE}-shm"
             log "DB restored from backup"
         else
             # Size sanity check
@@ -153,6 +167,8 @@ if [ -f "$BACKUP_FILE" ]; then
             if [ "$BACKUP_SIZE" -gt 0 ] && [ "$DB_SIZE_NOW" -lt $((BACKUP_SIZE / 2)) ]; then
                 log "DB shrank suspiciously (${BACKUP_SIZE} → ${DB_SIZE_NOW})! Restoring..."
                 cp "$BACKUP_FILE" "$DB_FILE"
+                [ -f "${BACKUP_FILE}-wal" ] && cp "${BACKUP_FILE}-wal" "${DB_FILE}-wal"
+                [ -f "${BACKUP_FILE}-shm" ] && cp "${BACKUP_FILE}-shm" "${DB_FILE}-shm"
                 log "DB restored from backup"
             else
                 log "DB OK after build (${DB_SIZE_NOW} bytes)"
@@ -179,6 +195,8 @@ else
     # Restore DB on rollback
     if [ -f "$BACKUP_FILE" ]; then
         cp "$BACKUP_FILE" "$DB_FILE"
+        [ -f "${BACKUP_FILE}-wal" ] && cp "${BACKUP_FILE}-wal" "${DB_FILE}-wal"
+        [ -f "${BACKUP_FILE}-shm" ] && cp "${BACKUP_FILE}-shm" "${DB_FILE}-shm"
         log "DB restored on rollback"
     fi
     pm2 start nexus-crm
