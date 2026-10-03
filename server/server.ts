@@ -193,8 +193,8 @@ app.get('*', (req, res) => {
 // Initialize database and start server
 async function start() {
   try {
-    await initDatabase();
-    await initializeDatabase();
+    initDatabase();
+    initializeDatabase();
     runMigrations();
 
     const server = http.createServer(app);

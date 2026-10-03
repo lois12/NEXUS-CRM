@@ -37,9 +37,9 @@ export function run(sql: string, params: any[] = [], silent: boolean = false): v
   try {
     const stmt = db.prepare(sql);
     stmt.run(...params);
-  } catch (error) {
+  } catch (error: any) {
     if (!silent) console.error('Run error:', error);
-    throw error;
+    if (!silent) throw error;
   }
 }
 
