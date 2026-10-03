@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { Lock, User, Eye, EyeOff, ArrowRight, Smartphone } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { NexusLogo } from '../components/ui/NexusLogo';
-import VantaBackground from '../components/ui/VantaBackground';
+
 import { GlitchTransition } from '../components/ui/GlitchTransition';
 import QRLogin from '../components/auth/QRLogin';
 
@@ -49,7 +49,7 @@ export default function Login() {
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
       <GlitchTransition active={glitchActive} onComplete={handleGlitchComplete} duration={800} />
-      <VantaBackground effect="net" />
+
 
       <div className="w-full max-w-md relative z-10">
         {/* Logo */}
