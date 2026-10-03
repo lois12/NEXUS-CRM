@@ -9,6 +9,8 @@ import {
   getRegistrationStats, exportPDF, getAllContacts,
 } from '../controllers/registrationController';
 import { authenticateToken, requireRole } from '../middleware/auth';
+import { controlAuth } from '../middleware/controlAuth';
+import { getControlStatus, authControl, setControlPassword } from '../controllers/controlAuthController';
 import { upload } from '../middleware/upload';
 
 
@@ -22,9 +24,11 @@ router.get('/reg/checkin/:token', checkinGet);
 router.post('/reg/checkin/:token', checkinPost);
 router.get('/reg/checkin-code/:registrationId/:code', checkinByCode);
 
-// CONTROL page (public, no auth)
-router.get('/control/registrations', getPublicRegistrations);
-router.get('/control/registrations/:id/submissions', getPublicSubmissions);
+// CONTROL page (public, password-gated when set)
+router.get('/control/status', getControlStatus);
+router.post('/control/auth', authControl);
+router.get('/control/registrations', controlAuth, getPublicRegistrations);
+router.get('/control/registrations/:id/submissions', controlAuth, getPublicSubmissions);
 
 // ── Authenticated routes ──
 const authRouter = Router();
@@ -32,6 +36,9 @@ authRouter.use(authenticateToken);
 
 // Contacts
 authRouter.get('/contacts', getAllContacts);
+
+// CONTROL password management (admin)
+authRouter.put('/control-password', requireRole('super_admin', 'руководитель'), setControlPassword);
 
 // Registrations CRUD
 authRouter.get('/', getRegistrations);

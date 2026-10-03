@@ -36,6 +36,7 @@ import { publicRegRouter, registrationAuthRouter } from './routes/registrations'
 import { publicWidgetRouter, widgetAuthRouter } from './routes/widgets';
 import swaggerJsdoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
+import { errorHandler } from './middleware/errorHandler';
 
 const app = express();
 const PORT: number = Number(process.env.PORT) || 8080;
@@ -189,6 +190,9 @@ app.get('*', (req, res) => {
   }
   res.sendFile(path.join(CLIENT_DIST, 'index.html'));
 });
+
+// Global error handler — must be last
+app.use(errorHandler);
 
 // Initialize database and start server
 async function start() {

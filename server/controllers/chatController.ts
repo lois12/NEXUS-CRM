@@ -1,6 +1,6 @@
 import { Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
-import { query, run, get } from '../db/database';
+import { query, run, get, transaction } from '../db/database';
 import { AuthRequest } from '../middleware/auth';
 import { createNotification, createNotificationsBatch } from './notificationController';
 import { sendPushNotification, sendPushBatch } from '../utils/push';
@@ -102,12 +102,18 @@ export const createGroup = (req: AuthRequest, res: Response) => {
 
     const id = uuidv4();
     const inviteLink = uuidv4().substring(0, 8);
-    run('INSERT INTO chat_conversations (id, type, name, user1Id, user2Id, inviteLink) VALUES (?, ?, ?, ?, ?, ?)', [id, 'group', name, userId, userId, inviteLink]);
-    run('INSERT INTO chat_group_members (id, conversationId, userId, role) VALUES (?, ?, ?, ?)', [uuidv4(), id, userId, 'admin']);
-
     const uniqueMembers = [...new Set(memberIds)].filter(uid => uid !== userId);
+
+    transaction(() => {
+      run('INSERT INTO chat_conversations (id, type, name, user1Id, user2Id, inviteLink) VALUES (?, ?, ?, ?, ?, ?)', [id, 'group', name, userId, userId, inviteLink]);
+      run('INSERT INTO chat_group_members (id, conversationId, userId, role) VALUES (?, ?, ?, ?)', [uuidv4(), id, userId, 'admin']);
+      for (const uid of uniqueMembers) {
+        run('INSERT INTO chat_group_members (id, conversationId, userId) VALUES (?, ?, ?)', [uuidv4(), id, uid]);
+      }
+    });
+
+    // Notifications outside the transaction — external side effects shouldn't roll back
     for (const uid of uniqueMembers) {
-      run('INSERT INTO chat_group_members (id, conversationId, userId) VALUES (?, ?, ?)', [uuidv4(), id, uid]);
       createNotification({ userId: uid, type: 'chat_message', title: `Добавлены в группу "${name}"`, body: `${req.user!.username} добавил вас`, link: `/chat?conv=${id}`, senderId: userId });
     }
 

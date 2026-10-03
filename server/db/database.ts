@@ -1,5 +1,4 @@
 import Database from 'better-sqlite3';
-import fs from 'fs';
 import { DB_PATH } from '../paths';
 
 let db: Database.Database;
@@ -21,11 +20,12 @@ export function initDatabase(testMode = false): void {
   db.pragma('busy_timeout = 5000');
 }
 
-// Execute a query and return results
-export function query(sql: string, params: any[] = []): any[] {
+// Execute a query and return rows. Pass a type param for typed results: query<User>(...)
+// Default is `any` for gradual typing — existing call sites stay valid.
+export function query<T = any>(sql: string, params: any[] = []): T[] {
   try {
     const stmt = db.prepare(sql);
-    return stmt.all(...params) as any[];
+    return stmt.all(...params) as T[];
   } catch (error) {
     console.error('Query error:', error);
     throw error;
@@ -33,7 +33,7 @@ export function query(sql: string, params: any[] = []): any[] {
 }
 
 // Execute a statement (INSERT, UPDATE, DELETE)
-export function run(sql: string, params: any[] = [], silent: boolean = false): void {
+export function run(sql: string, params: any[] = [], silent = false): void {
   try {
     const stmt = db.prepare(sql);
     stmt.run(...params);
@@ -43,15 +43,25 @@ export function run(sql: string, params: any[] = [], silent: boolean = false): v
   }
 }
 
-// Get a single row
-export function get(sql: string, params: any[] = []): any | null {
+// Get a single row. Pass a type param for typed results: get<User>(...)
+export function get<T = any>(sql: string, params: any[] = []): T | null {
   try {
     const stmt = db.prepare(sql);
-    return stmt.get(...params) || null;
+    return (stmt.get(...params) as T | undefined) || null;
   } catch (error) {
     console.error('Get error:', error);
     throw error;
   }
+}
+
+/**
+ * Run multiple statements inside a single transaction.
+ * Rolls back everything on any throw — safe for multi-row writes
+ * (duplicate registration, kanban reorder, notification fan-out, etc.).
+ */
+export function transaction(fn: () => void): void {
+  const trx = db.transaction(fn);
+  trx();
 }
 
 // Get the database instance
@@ -72,4 +82,4 @@ process.on('SIGINT', () => { saveDatabase(); process.exit(0); });
 process.on('SIGTERM', () => { saveDatabase(); process.exit(0); });
 process.on('exit', () => { try { saveDatabase(); } catch {} });
 
-export default { initDatabase, saveDatabase, query, run, get, getDb };
+export default { initDatabase, saveDatabase, query, run, get, transaction, getDb };

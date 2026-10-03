@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Shield, Camera, X, CheckCircle, XCircle, Users, Type, Upload, List, Clock, Search } from 'lucide-react';
-import { controlApi, publicRegApi } from '../services/api';
+import { Shield, Camera, X, CheckCircle, XCircle, Users, Type, Upload, List, Clock, Search, Lock, Eye, EyeOff } from 'lucide-react';
+import { controlApi, publicRegApi, setControlToken, getControlToken } from '../services/api';
 import { CyberBackground } from '../components/ui/CyberBackground';
 
 type Tab = 'scan' | 'list';
@@ -22,11 +22,55 @@ export default function NexusControl() {
   const scannerRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Password gate
+  const [authChecked, setAuthChecked] = useState(false);
+  const [passwordRequired, setPasswordRequired] = useState(false);
+  const [unlocked, setUnlocked] = useState(false);
+  const [passwordInput, setPasswordInput] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+
   useEffect(() => {
-    controlApi.getRegistrations().then(res => {
-      if (res.success && res.data) setRegistrations(res.data);
+    controlApi.getStatus().then(res => {
+      const required = !!(res.success && res.data?.passwordRequired);
+      setPasswordRequired(required);
+      if (!required || getControlToken()) {
+        setUnlocked(true);
+      }
+      setAuthChecked(true);
+    }).catch(() => {
+      setAuthChecked(true);
     });
   }, []);
+
+  const handlePasswordSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (!passwordInput.trim() || passwordLoading) return;
+    setPasswordLoading(true);
+    setPasswordError('');
+    try {
+      const res = await controlApi.auth(passwordInput.trim());
+      if (res.success && res.data?.token) {
+        setControlToken(res.data.token);
+        setUnlocked(true);
+        setPasswordInput('');
+      } else {
+        setPasswordError('Неверный пароль');
+      }
+    } catch (err: any) {
+      setPasswordError(err?.response?.data?.error || 'Неверный пароль');
+    }
+    setPasswordLoading(false);
+  };
+
+  useEffect(() => {
+    if (unlocked && authChecked) {
+      controlApi.getRegistrations().then(res => {
+        if (res.success && res.data) setRegistrations(res.data);
+      }).catch(() => {});
+    }
+  }, [unlocked, authChecked]);
 
   useEffect(() => {
     if (fullscreen) {
@@ -179,6 +223,74 @@ export default function NexusControl() {
 
   const statusLabel: Record<string, string> = { registered: 'Зарегистрирован', confirmed: 'Подтверждён', waitlist: 'Лист ожидания', cancelled: 'Отменён' };
   const statusColor: Record<string, string> = { registered: '#00d4ff', confirmed: '#00ff88', waitlist: '#eab308', cancelled: '#ff3b30' };
+
+  // ── Password gate screen ──
+  if (authChecked && passwordRequired && !unlocked) {
+    return (
+      <div className="min-h-screen relative flex items-center justify-center" style={{ backgroundColor: 'var(--color-bg)', color: 'var(--color-text-primary)' }}>
+        <CyberBackground />
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="relative z-10 w-full max-w-sm mx-4"
+        >
+          <div className="glass rounded-2xl p-8 space-y-6">
+            <div className="text-center space-y-2">
+              <div className="w-16 h-16 mx-auto rounded-full flex items-center justify-center" style={{ background: 'rgba(0,255,136,0.1)', border: '1px solid rgba(0,255,136,0.3)' }}>
+                <Lock className="w-8 h-8" style={{ color: 'var(--color-primary)' }} />
+              </div>
+              <h1 className="text-2xl font-bold font-mono neon-text">NEXUS CONTROL</h1>
+              <p className="text-gray-400 font-mono text-sm">// ВВЕДИТЕ ПАРОЛЬ ДОСТУПА</p>
+            </div>
+
+            <form onSubmit={handlePasswordSubmit} className="space-y-4">
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={passwordInput}
+                  onChange={e => { setPasswordInput(e.target.value); setPasswordError(''); }}
+                  placeholder="ПАРОЛЬ"
+                  autoFocus
+                  className="w-full px-4 py-3 pr-12 rounded-xl font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)]"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
+                  aria-label={showPassword ? 'Скрыть пароль' : 'Показать пароль'}
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+
+              {passwordError && (
+                <p className="text-red-400 font-mono text-xs text-center">{passwordError}</p>
+              )}
+
+              <button
+                type="submit"
+                disabled={passwordLoading || !passwordInput.trim()}
+                className="w-full py-3 rounded-xl font-mono text-sm font-bold transition-all disabled:opacity-50"
+                style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}
+              >
+                {passwordLoading ? 'ПРОВЕРКА...' : 'ВОЙТИ'}
+              </button>
+            </form>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
+
+  // Loading state while checking password requirement
+  if (!authChecked) {
+    return (
+      <div className="min-h-screen relative flex items-center justify-center" style={{ backgroundColor: 'var(--color-bg)' }}>
+        <CyberBackground />
+        <p className="relative z-10 font-mono text-sm text-gray-500">// ЗАГРУЗКА...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen relative" style={{ backgroundColor: 'var(--color-bg)', color: 'var(--color-text-primary)' }}>

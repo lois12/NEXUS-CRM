@@ -1,5 +1,8 @@
 import axios, { AxiosInstance, InternalAxiosRequestConfig, AxiosResponse } from 'axios';
-import { ApiResponse, LoginRequest, LoginResponse, User, ContentPost, Material, DashboardStats, ContentComment, ContentApproval, Notification, ChatConversation, ChatMessage, ChatGroupMember, ChatReaction, ChatPinnedMessage, ChatReadReceipt } from '../types';
+import {
+  ApiResponse, LoginRequest, LoginResponse, User, ContentPost, Material, DashboardStats, ContentComment, ContentApproval, Notification, ChatConversation, ChatMessage, ChatGroupMember, ChatReaction, ChatPinnedMessage, ChatReadReceipt,
+  Partner, Vacation, InventoryItem, EventItem, ProjectItem, KnowledgeArticle,
+} from '../types';
 
 const API_BASE_URL = '/api';
 
@@ -43,6 +46,45 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+// ── Public/control client — no login redirect, uses control token ──
+const CONTROL_TOKEN_KEY = 'nexus_control_token';
+
+const publicApi: AxiosInstance = axios.create({
+  baseURL: API_BASE_URL,
+  headers: { 'Content-Type': 'application/json' },
+});
+
+publicApi.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+  const token = localStorage.getItem(CONTROL_TOKEN_KEY) || sessionStorage.getItem(CONTROL_TOKEN_KEY);
+  if (token && config.headers) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+export function setControlToken(token: string | null): void {
+  if (token) localStorage.setItem(CONTROL_TOKEN_KEY, token);
+  else localStorage.removeItem(CONTROL_TOKEN_KEY);
+}
+
+export function getControlToken(): string | null {
+  return localStorage.getItem(CONTROL_TOKEN_KEY) || sessionStorage.getItem(CONTROL_TOKEN_KEY);
+}
+
+// ── Typed CRUD factory — kills the `create: (data: any)` boilerplate ──
+export function crudApi<T, TCreate = Partial<T>, TUpdate = Partial<T>>(base: string) {
+  return {
+    getAll: (): Promise<ApiResponse<T[]>> =>
+      api.get(base).then((res) => res.data),
+    create: (data: TCreate): Promise<ApiResponse<T>> =>
+      api.post(base, data).then((res) => res.data),
+    update: (id: string, data: TUpdate): Promise<ApiResponse<void>> =>
+      api.put(`${base}/${id}`, data).then((res) => res.data),
+    delete: (id: string): Promise<ApiResponse<void>> =>
+      api.delete(`${base}/${id}`).then((res) => res.data),
+  };
+}
 
 // Auth API
 export const authApi = {
@@ -268,51 +310,17 @@ export const kanbanApi = {
 };
 
 // Partners API
-export const partnersApi = {
-  getAll: (): Promise<ApiResponse<any[]>> =>
-    api.get('/partners').then((res) => res.data),
-  create: (data: any): Promise<ApiResponse<any>> =>
-    api.post('/partners', data).then((res) => res.data),
-  update: (id: string, data: any): Promise<ApiResponse<void>> =>
-    api.put(`/partners/${id}`, data).then((res) => res.data),
-  delete: (id: string): Promise<ApiResponse<void>> =>
-    api.delete(`/partners/${id}`).then((res) => res.data),
-};
+export const partnersApi = crudApi<Partner, Partial<Partner>>('/partners');
 
 // Vacations API
-export const vacationsApi = {
-  getAll: (): Promise<ApiResponse<any[]>> =>
-    api.get('/vacations').then((res) => res.data),
-  create: (data: any): Promise<ApiResponse<any>> =>
-    api.post('/vacations', data).then((res) => res.data),
-  update: (id: string, data: any): Promise<ApiResponse<void>> =>
-    api.put(`/vacations/${id}`, data).then((res) => res.data),
-  delete: (id: string): Promise<ApiResponse<void>> =>
-    api.delete(`/vacations/${id}`).then((res) => res.data),
-};
+export const vacationsApi = crudApi<Vacation, Partial<Vacation>>('/vacations');
 
 // Inventory API
-export const inventoryApi = {
-  getAll: (): Promise<ApiResponse<any[]>> =>
-    api.get('/inventory').then((res) => res.data),
-  create: (data: any): Promise<ApiResponse<any>> =>
-    api.post('/inventory', data).then((res) => res.data),
-  update: (id: string, data: any): Promise<ApiResponse<void>> =>
-    api.put(`/inventory/${id}`, data).then((res) => res.data),
-  delete: (id: string): Promise<ApiResponse<void>> =>
-    api.delete(`/inventory/${id}`).then((res) => res.data),
-};
+export const inventoryApi = crudApi<InventoryItem, Partial<InventoryItem>>('/inventory');
 
 // Events API
 export const eventsApi = {
-  getAll: (): Promise<ApiResponse<any[]>> =>
-    api.get('/events').then((res) => res.data),
-  create: (data: any): Promise<ApiResponse<any>> =>
-    api.post('/events', data).then((res) => res.data),
-  update: (id: string, data: any): Promise<ApiResponse<void>> =>
-    api.put(`/events/${id}`, data).then((res) => res.data),
-  delete: (id: string): Promise<ApiResponse<void>> =>
-    api.delete(`/events/${id}`).then((res) => res.data),
+  ...crudApi<EventItem, Partial<EventItem>>('/events'),
   uploadImage: (id: string, file: File): Promise<ApiResponse<any>> => {
     const formData = new FormData();
     formData.append('file', file);
@@ -331,14 +339,7 @@ export const eventsApi = {
 
 // Projects API
 export const projectsApi = {
-  getAll: (): Promise<ApiResponse<any[]>> =>
-    api.get('/projects').then((res) => res.data),
-  create: (data: any): Promise<ApiResponse<any>> =>
-    api.post('/projects', data).then((res) => res.data),
-  update: (id: string, data: any): Promise<ApiResponse<void>> =>
-    api.put(`/projects/${id}`, data).then((res) => res.data),
-  delete: (id: string): Promise<ApiResponse<void>> =>
-    api.delete(`/projects/${id}`).then((res) => res.data),
+  ...crudApi<ProjectItem, Partial<ProjectItem>>('/projects'),
   uploadImage: (id: string, file: File): Promise<ApiResponse<any>> => {
     const formData = new FormData();
     formData.append('file', file);
@@ -374,14 +375,7 @@ export const projectsApi = {
 
 // Knowledge Base API
 export const knowledgeApi = {
-  getAll: (): Promise<ApiResponse<any[]>> =>
-    api.get('/knowledge').then((res) => res.data),
-  create: (data: any): Promise<ApiResponse<any>> =>
-    api.post('/knowledge', data).then((res) => res.data),
-  update: (id: string, data: any): Promise<ApiResponse<void>> =>
-    api.put(`/knowledge/${id}`, data).then((res) => res.data),
-  delete: (id: string): Promise<ApiResponse<void>> =>
-    api.delete(`/knowledge/${id}`).then((res) => res.data),
+  ...crudApi<KnowledgeArticle, Partial<KnowledgeArticle>>('/knowledge'),
   getAttachments: (articleId: string): Promise<ApiResponse<any[]>> =>
     api.get(`/knowledge/${articleId}/attachments`).then((res) => res.data),
   uploadAttachment: (articleId: string, file: File): Promise<ApiResponse<any>> => {
@@ -635,12 +629,18 @@ export const registrationsApi = {
     api.get(`/registrations/${regId}/stats`).then((res) => res.data),
 };
 
-// CONTROL page API (public, no auth)
+// CONTROL page API (public, password-gated when set)
 export const controlApi = {
+  getStatus: (): Promise<ApiResponse<{ passwordRequired: boolean }>> =>
+    publicApi.get('/control/status').then((res) => res.data),
+  auth: (password: string): Promise<ApiResponse<{ token: string; passwordRequired: boolean }>> =>
+    publicApi.post('/control/auth', { password }).then((res) => res.data),
   getRegistrations: (): Promise<ApiResponse<any[]>> =>
-    api.get('/control/registrations').then((res) => res.data),
+    publicApi.get('/control/registrations').then((res) => res.data),
   getSubmissions: (regId: string): Promise<ApiResponse<any[]>> =>
-    api.get(`/control/registrations/${regId}/submissions`).then((res) => res.data),
+    publicApi.get(`/control/registrations/${regId}/submissions`).then((res) => res.data),
+  setPassword: (password: string | null): Promise<ApiResponse<void>> =>
+    api.put('/registrations/control-password', { password }).then((res) => res.data),
 };
 
 // Public Registration API (no auth)

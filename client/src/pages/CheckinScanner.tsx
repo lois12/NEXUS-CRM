@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Camera, X, CheckCircle, Clock, XCircle, Users, Type, Upload } from 'lucide-react';
-import { registrationsApi, publicRegApi } from '../services/api';
+import { Camera, X, CheckCircle, Clock, XCircle, Users, Type, Upload, Lock, Eye, EyeOff, Trash2 } from 'lucide-react';
+import { registrationsApi, publicRegApi, controlApi } from '../services/api';
 import { Registration } from '../types';
 
 type ScanResult = { type: 'confirmed' | 'already' | 'error'; data?: any; message: string } | null;
@@ -17,11 +17,45 @@ export default function CheckinScanner() {
   const scannerRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // CONTROL password management
+  const [showPwdForm, setShowPwdForm] = useState(false);
+  const [pwdInput, setPwdInput] = useState('');
+  const [pwdShow, setPwdShow] = useState(false);
+  const [pwdStatus, setPwdStatus] = useState<string | null>(null);
+  const [pwdBusy, setPwdBusy] = useState(false);
+
   useEffect(() => {
     registrationsApi.getAll().then(res => {
       if (res.success && res.data) setRegistrations(res.data.filter((r: any) => r.status === 'active'));
     });
+    controlApi.getStatus().then(res => {
+      if (res.success && res.data) setPwdStatus(res.data.passwordRequired ? 'set' : 'none');
+    }).catch(() => {});
   }, []);
+
+  const saveControlPassword = async () => {
+    if (!pwdInput.trim() || pwdBusy) return;
+    setPwdBusy(true);
+    try {
+      await controlApi.setPassword(pwdInput.trim());
+      setPwdStatus('set');
+      setPwdInput('');
+      setShowPwdForm(false);
+    } catch { /* keep form open */ }
+    setPwdBusy(false);
+  };
+
+  const clearControlPassword = async () => {
+    if (pwdBusy) return;
+    setPwdBusy(true);
+    try {
+      await controlApi.setPassword(null);
+      setPwdStatus('none');
+      setPwdInput('');
+      setShowPwdForm(false);
+    } catch { /* noop */ }
+    setPwdBusy(false);
+  };
 
   // Auto-dismiss fullscreen after 3 seconds
   useEffect(() => {
@@ -255,7 +289,50 @@ export default function CheckinScanner() {
           </h1>
           <p className="text-gray-400 mt-1 font-mono text-sm">// ПОДТВЕРЖДЕНИЕ УЧАСТИЯ</p>
         </div>
+        <div className="flex items-center gap-2">
+          {pwdStatus === 'set' ? (
+            <button onClick={clearControlPassword} disabled={pwdBusy}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg font-mono text-xs glass hover:bg-white/10 transition-all text-yellow-400">
+              <Trash2 className="w-3.5 h-3.5" /> ПАРОЛЬ CONTROL: ВКЛ
+            </button>
+          ) : (
+            <button onClick={() => setShowPwdForm(v => !v)}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg font-mono text-xs glass hover:bg-white/10 transition-all">
+              <Lock className="w-3.5 h-3.5" /> ПАРОЛЬ CONTROL
+            </button>
+          )}
+        </div>
       </div>
+
+      {/* CONTROL password form */}
+      {showPwdForm && (
+        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="glass rounded-xl p-4">
+          <label className="font-mono text-xs text-gray-500 mb-2 block">ПАРОЛЬ ДЛЯ ВХОДА В /control</label>
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <input
+                type={pwdShow ? 'text' : 'password'}
+                value={pwdInput}
+                onChange={e => setPwdInput(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && saveControlPassword()}
+                placeholder="// пароль для публичной страницы CONTROL"
+                className="w-full px-3 py-2 pr-10 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)]"
+              />
+              <button type="button" onClick={() => setPwdShow(!pwdShow)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
+                aria-label={pwdShow ? 'Скрыть пароль' : 'Показать пароль'}>
+                {pwdShow ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+            <button onClick={saveControlPassword} disabled={pwdBusy || !pwdInput.trim()}
+              className="px-4 py-2 rounded-lg font-mono text-xs font-bold disabled:opacity-50"
+              style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}>
+              {pwdBusy ? '...' : 'СОХРАНИТЬ'}
+            </button>
+          </div>
+          <p className="font-mono text-[10px] text-gray-600 mt-2">Посетители /control должны будут ввести этот пароль. Минимум 4 символа.</p>
+        </motion.div>
+      )}
 
       {/* Registration selector */}
       <div className="glass rounded-xl p-4">

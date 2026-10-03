@@ -2,7 +2,7 @@ import { Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
 import fs from 'fs';
-import { query, get, run } from '../db/database';
+import { query, get, run, transaction } from '../db/database';
 import { AuthRequest } from '../middleware/auth';
 import { UPLOADS_DIR } from '../paths';
 import { sendEventUpdate } from '../utils/email';
@@ -240,15 +240,17 @@ export const duplicateRegistration = (req: AuthRequest, res: Response) => {
 
     const newId = uuidv4();
 
-    run(`INSERT INTO registrations (id, title, description, eventDate, eventTime, location, videoUrl, maxParticipants, status, publicSlug, createdBy, registrationStart, registrationEnd, closedMessage, mapCoords, showLimit, showTimer, organizer, color, theme, waitlistEnabled, maxWaitlist) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'draft', NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [newId, reg.title + ' (копия)', reg.description, reg.eventDate, reg.eventTime, reg.location, reg.videoUrl, reg.maxParticipants, req.user?.id, reg.registrationStart, reg.registrationEnd, reg.closedMessage, reg.mapCoords, reg.showLimit, reg.showTimer, reg.organizer, reg.color, reg.theme || 'cyberpunk', reg.waitlistEnabled ?? 1, reg.maxWaitlist ?? 0]);
+    transaction(() => {
+      run(`INSERT INTO registrations (id, title, description, eventDate, eventTime, location, videoUrl, maxParticipants, status, publicSlug, createdBy, registrationStart, registrationEnd, closedMessage, mapCoords, showLimit, showTimer, organizer, color, theme, waitlistEnabled, maxWaitlist) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'draft', NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [newId, reg.title + ' (копия)', reg.description, reg.eventDate, reg.eventTime, reg.location, reg.videoUrl, reg.maxParticipants, req.user?.id, reg.registrationStart, reg.registrationEnd, reg.closedMessage, reg.mapCoords, reg.showLimit, reg.showTimer, reg.organizer, reg.color, reg.theme || 'cyberpunk', reg.waitlistEnabled ?? 1, reg.maxWaitlist ?? 0]);
 
-    // Copy all fields
-    const fields = query('SELECT * FROM registration_fields WHERE registrationId = ? ORDER BY position', [id]);
-    for (const field of fields) {
-      run('INSERT INTO registration_fields (id, registrationId, type, label, placeholder, required, options, settings, position) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        [uuidv4(), newId, field.type, field.label, field.placeholder, field.required, field.options, field.settings, field.position]);
-    }
+      // Copy all fields
+      const fields = query('SELECT * FROM registration_fields WHERE registrationId = ? ORDER BY position', [id]);
+      for (const field of fields) {
+        run('INSERT INTO registration_fields (id, registrationId, type, label, placeholder, required, options, settings, position) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          [uuidv4(), newId, field.type, field.label, field.placeholder, field.required, field.options, field.settings, field.position]);
+      }
+    });
 
     // Return the new registration with fields
     const newReg = get('SELECT * FROM registrations WHERE id = ?', [newId]);

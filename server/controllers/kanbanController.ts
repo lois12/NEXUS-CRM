@@ -2,7 +2,7 @@ import { Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
 import fs from 'fs';
-import { query, get, run } from '../db/database';
+import { query, get, run, transaction } from '../db/database';
 import { AuthRequest } from '../middleware/auth';
 import { UPLOADS_DIR } from '../paths';
 
@@ -119,10 +119,12 @@ export const reorderTasks = (req: AuthRequest, res: Response) => {
     const { tasks } = req.body;
     if (!Array.isArray(tasks)) return res.status(400).json({ success: false, error: 'tasks массив обязателен' });
 
-    for (const t of tasks) {
-      run("UPDATE kanban_tasks SET status = ?, position = ?, updatedAt = datetime('now') WHERE id = ? AND userId = ?",
-        [t.status, t.position, t.id, req.user?.id]);
-    }
+    transaction(() => {
+      for (const t of tasks) {
+        run("UPDATE kanban_tasks SET status = ?, position = ?, updatedAt = datetime('now') WHERE id = ? AND userId = ?",
+          [t.status, t.position, t.id, req.user?.id]);
+      }
+    });
 
     res.json({ success: true, message: 'Порядок обновлён' });
   } catch (error) {

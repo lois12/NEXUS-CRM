@@ -258,6 +258,86 @@ export interface InventoryItem {
   updatedAt: string;
 }
 
+// Events types
+export interface EventItem {
+  id: string;
+  title: string;
+  description: string;
+  date?: string | null;
+  location: string;
+  status: string;
+  responsiblePerson: string;
+  budget: number;
+  imageUrl: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Projects types
+export interface ProjectItem {
+  id: string;
+  title: string;
+  description: string;
+  status: string;
+  priority: string;
+  startDate: string;
+  endDate: string;
+  responsiblePerson: string;
+  budget: number;
+  progress: number;
+  imageUrl: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TimelinePoint {
+  id: string;
+  projectId: string;
+  type: string;
+  title: string;
+  description: string;
+  date?: string | null;
+  position: number;
+}
+
+export interface ProjectDocument {
+  id: string;
+  projectId: string;
+  fileName: string;
+  filePath: string;
+  fileSize: number;
+  mimeType: string;
+  thumbnailPath?: string;
+  createdAt: string;
+}
+
+// Knowledge base types
+export interface KnowledgeArticle {
+  id: string;
+  title: string;
+  content: string;
+  category: string;
+  tags: string;
+  authorId: string;
+  authorName: string;
+  attachmentCount?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface KnowledgeAttachment {
+  id: string;
+  articleId: string;
+  type: string;
+  url: string;
+  filename: string;
+  originalName: string;
+  size: number;
+  uploadedBy: string;
+  position: number;
+  createdAt: string;
+}
+
 // Notification types
 export interface Notification {
   id: string;

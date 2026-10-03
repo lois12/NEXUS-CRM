@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { query, get, run } from '../db/database';
+import { updateById } from '../db/sqlBuilder';
 import { AuthRequest } from '../middleware/auth';
 
 // ── Lists CRUD ──
@@ -64,19 +65,7 @@ export const updateList = (req: AuthRequest, res: Response) => {
     const list = get('SELECT * FROM lists WHERE id = ?', [id]);
     if (!list) return res.status(404).json({ success: false, error: 'Список не найден' });
 
-    const { name, description } = req.body;
-    const updates: string[] = [];
-    const params: any[] = [];
-
-    if (name !== undefined) { updates.push('name = ?'); params.push(name); }
-    if (description !== undefined) { updates.push('description = ?'); params.push(description); }
-
-    updates.push("updatedAt = datetime('now')");
-    params.push(id);
-
-    if (updates.length > 1) {
-      run(`UPDATE lists SET ${updates.join(', ')} WHERE id = ?`, params);
-    }
+    updateById('lists', id, req.body, ['name', 'description'], { touch: true });
 
     res.json({ success: true, message: 'Обновлено' });
   } catch (error) {
