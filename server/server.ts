@@ -30,6 +30,7 @@ import imageGenRoutes from './routes/imageGen';
 import aiChatRoutes from './routes/aiChat';
 import searchRoutes from './routes/search';
 import listsRoutes, { publicRouter as publicListsRouter } from './routes/lists';
+import converterRoutes from './routes/converter';
 import qrAuthRoutes from './routes/qrAuth';
 import pushRoutes from './routes/push';
 import { publicRegRouter, registrationAuthRouter } from './routes/registrations';
@@ -120,6 +121,7 @@ app.use('/api/widgets', widgetAuthRouter);
 app.use('/api', publicWidgetRouter);
 app.use('/api', publicListsRouter);
 app.use('/api/lists', listsRoutes);
+app.use('/api/converter', converterRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

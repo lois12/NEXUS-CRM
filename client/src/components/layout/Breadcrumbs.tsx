@@ -21,6 +21,7 @@ const ROUTE_NAMES: Record<string, string> = {
   'random': 'Рандомайзер',
   'weather': 'Погода',
   'image-converter': 'Конвертер',
+  'doc-converter': 'Конвертер документов',
   'ai-chat': 'AI Чат',
   'bg-remover': 'Удаление фона',
   'profile': 'Профиль',

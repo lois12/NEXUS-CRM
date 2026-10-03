@@ -24,6 +24,7 @@ const PingTool = lazy(() => import('./pages/PingTool'));
 const Randomizer = lazy(() => import('./pages/Randomizer'));
 const Weather = lazy(() => import('./pages/Weather'));
 const ImageConverter = lazy(() => import('./pages/ImageConverter'));
+const DocConverter = lazy(() => import('./pages/DocConverter'));
 const Users = lazy(() => import('./pages/Users'));
 const IdeaMap = lazy(() => import('./pages/IdeaMap'));
 const Kanban = lazy(() => import('./pages/Kanban'));
@@ -134,6 +135,8 @@ function AppRoutes() {
         <Route path="random" element={<PageWrapper><Randomizer /></PageWrapper>} />
         <Route path="weather" element={<PageWrapper><Weather /></PageWrapper>} />
         <Route path="image-converter" element={<PageWrapper><ImageConverter /></PageWrapper>} />
+        <Route path="doc-converter" element={<PageWrapper><DocConverter /></PageWrapper>} />
+        <Route path="doc-converter/:tool" element={<PageWrapper><DocConverter /></PageWrapper>} />
         <Route path="ai-chat" element={<PageWrapper><AIChat /></PageWrapper>} />
         <Route path="bg-remover" element={<PageWrapper><BackgroundRemover /></PageWrapper>} />
         <Route path="aurora" element={<PageWrapper><AuroraForecast /></PageWrapper>} />
