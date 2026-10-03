@@ -2,12 +2,7 @@ import { run, get } from './database';
 import bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
 
-// Silent migration helper — catches errors without logging (for ALTER TABLE on existing columns)
-function migrate(sql: string) {
-  try { run(sql, [], true); } catch {}
-}
-
-export async function initializeDatabase() {
+export function initializeDatabase() {
   // Create users table
   run(`
     CREATE TABLE IF NOT EXISTS users (
@@ -23,16 +18,6 @@ export async function initializeDatabase() {
       updatedAt TEXT DEFAULT (datetime('now'))
     )
   `);
-
-  // Add roles column if missing (migration)
-  migrate('ALTER TABLE users ADD COLUMN roles TEXT DEFAULT ""');
-
-  // Profile fields migrations
-  migrate('ALTER TABLE users ADD COLUMN position TEXT DEFAULT ""');
-  migrate('ALTER TABLE users ADD COLUMN about TEXT DEFAULT ""');
-  migrate('ALTER TABLE users ADD COLUMN status TEXT DEFAULT ""');
-  migrate('ALTER TABLE users ADD COLUMN socialLinks TEXT DEFAULT "{}"');
-  migrate('ALTER TABLE users ADD COLUMN lastSeen TEXT');
 
   // Create content_posts table
   run(`
@@ -172,9 +157,6 @@ export async function initializeDatabase() {
     )
   `);
 
-  // Add archived column if missing (migration for existing DB)
-  migrate('ALTER TABLE kanban_tasks ADD COLUMN archived INTEGER NOT NULL DEFAULT 0');
-
   // Create partners table
   run(`
     CREATE TABLE IF NOT EXISTS partners (
@@ -193,9 +175,6 @@ export async function initializeDatabase() {
       updatedAt TEXT DEFAULT (datetime('now'))
     )
   `);
-
-  // Add category column if missing (migration)
-  migrate('ALTER TABLE partners ADD COLUMN category TEXT DEFAULT ""');
 
   // Create vacations table (HR)
   run(`
@@ -246,6 +225,7 @@ export async function initializeDatabase() {
       status TEXT NOT NULL DEFAULT 'planned',
       responsiblePerson TEXT DEFAULT '',
       budget REAL DEFAULT 0,
+      imageUrl TEXT DEFAULT '',
       createdAt TEXT DEFAULT (datetime('now')),
       updatedAt TEXT DEFAULT (datetime('now'))
     )
@@ -265,19 +245,6 @@ export async function initializeDatabase() {
     )
   `);
 
-  // Create project links table
-  run(`
-    CREATE TABLE IF NOT EXISTS project_links (
-      id TEXT PRIMARY KEY,
-      projectId TEXT NOT NULL,
-      title TEXT NOT NULL,
-      url TEXT NOT NULL,
-      description TEXT DEFAULT '',
-      createdAt TEXT DEFAULT (datetime('now')),
-      FOREIGN KEY (projectId) REFERENCES projects(id) ON DELETE CASCADE
-    )
-  `);
-
   // Create projects table (tourism department)
   run(`
     CREATE TABLE IF NOT EXISTS projects (
@@ -291,16 +258,24 @@ export async function initializeDatabase() {
       responsiblePerson TEXT DEFAULT '',
       budget REAL DEFAULT 0,
       progress INTEGER DEFAULT 0,
+      imageUrl TEXT DEFAULT '',
       createdAt TEXT DEFAULT (datetime('now')),
       updatedAt TEXT DEFAULT (datetime('now'))
     )
   `);
 
-  // Add imageUrl column to events if missing
-  migrate('ALTER TABLE events ADD COLUMN imageUrl TEXT DEFAULT ""');
-
-  // Add imageUrl column to projects if missing
-  migrate('ALTER TABLE projects ADD COLUMN imageUrl TEXT DEFAULT ""');
+  // Create project links table
+  run(`
+    CREATE TABLE IF NOT EXISTS project_links (
+      id TEXT PRIMARY KEY,
+      projectId TEXT NOT NULL,
+      title TEXT NOT NULL,
+      url TEXT NOT NULL,
+      description TEXT DEFAULT '',
+      createdAt TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (projectId) REFERENCES projects(id) ON DELETE CASCADE
+    )
+  `);
 
   // Create brand_assets table
   run(`
@@ -333,12 +308,6 @@ export async function initializeDatabase() {
       FOREIGN KEY (authorId) REFERENCES users(id)
     )
   `);
-
-  // ─── Content approval migrations ─────────────────────────────
-  migrate('ALTER TABLE content_posts ADD COLUMN scheduledAt TEXT');
-  migrate('ALTER TABLE content_posts ADD COLUMN approvedAt TEXT');
-  migrate('ALTER TABLE content_posts ADD COLUMN finalizedAt TEXT');
-  migrate('ALTER TABLE content_posts ADD COLUMN rejectionReason TEXT DEFAULT ""');
 
   // Create content_comments table
   run(`
@@ -397,16 +366,15 @@ export async function initializeDatabase() {
       user2Id TEXT NOT NULL,
       lastMessageAt TEXT,
       lastMessagePreview TEXT DEFAULT '',
+      description TEXT DEFAULT '',
+      inviteLink TEXT DEFAULT '',
+      archived INTEGER NOT NULL DEFAULT 0,
+      pinned INTEGER NOT NULL DEFAULT 0,
       createdAt TEXT DEFAULT (datetime('now')),
       FOREIGN KEY (user1Id) REFERENCES users(id),
       FOREIGN KEY (user2Id) REFERENCES users(id)
     )
   `);
-
-  // Group chat migrations
-  migrate('ALTER TABLE chat_conversations ADD COLUMN type TEXT NOT NULL DEFAULT "private"');
-  migrate('ALTER TABLE chat_conversations ADD COLUMN name TEXT DEFAULT ""');
-  migrate('ALTER TABLE chat_conversations ADD COLUMN avatar TEXT DEFAULT ""');
 
   // Create chat_group_members table
   run(`
@@ -434,6 +402,11 @@ export async function initializeDatabase() {
       replyToSenderName TEXT DEFAULT '',
       mentionedUserIds TEXT DEFAULT '',
       isRead INTEGER NOT NULL DEFAULT 0,
+      editedAt TEXT,
+      deleted INTEGER NOT NULL DEFAULT 0,
+      forwardedFrom TEXT DEFAULT '',
+      caption TEXT DEFAULT '',
+      transcript TEXT DEFAULT '',
       createdAt TEXT DEFAULT (datetime('now')),
       FOREIGN KEY (conversationId) REFERENCES chat_conversations(id),
       FOREIGN KEY (senderId) REFERENCES users(id)
@@ -453,16 +426,6 @@ export async function initializeDatabase() {
       FOREIGN KEY (messageId) REFERENCES chat_messages(id)
     )
   `);
-
-  // Chat message extensions
-  migrate('ALTER TABLE chat_messages ADD COLUMN editedAt TEXT');
-  migrate('ALTER TABLE chat_messages ADD COLUMN deleted INTEGER NOT NULL DEFAULT 0');
-  migrate('ALTER TABLE chat_messages ADD COLUMN forwardedFrom TEXT DEFAULT ""');
-  migrate('ALTER TABLE chat_messages ADD COLUMN caption TEXT DEFAULT ""');
-
-  // Group chat extensions
-  migrate('ALTER TABLE chat_conversations ADD COLUMN description TEXT DEFAULT ""');
-  migrate('ALTER TABLE chat_conversations ADD COLUMN inviteLink TEXT DEFAULT ""');
 
   // Chat reactions
   run(`
@@ -502,6 +465,381 @@ export async function initializeDatabase() {
       FOREIGN KEY (userId) REFERENCES users(id)
     )
   `);
+
+  // Chat favorited messages
+  run(`
+    CREATE TABLE IF NOT EXISTS chat_favorites (
+      id TEXT PRIMARY KEY,
+      messageId TEXT NOT NULL,
+      userId TEXT NOT NULL,
+      createdAt TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (messageId) REFERENCES chat_messages(id),
+      FOREIGN KEY (userId) REFERENCES users(id)
+    )
+  `);
+
+  // Chat polls
+  run(`
+    CREATE TABLE IF NOT EXISTS chat_polls (
+      id TEXT PRIMARY KEY,
+      messageId TEXT NOT NULL,
+      question TEXT NOT NULL,
+      createdBy TEXT NOT NULL,
+      createdAt TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (messageId) REFERENCES chat_messages(id),
+      FOREIGN KEY (createdBy) REFERENCES users(id)
+    )
+  `);
+  run(`
+    CREATE TABLE IF NOT EXISTS chat_poll_options (
+      id TEXT PRIMARY KEY,
+      pollId TEXT NOT NULL,
+      text TEXT NOT NULL,
+      position INTEGER DEFAULT 0,
+      FOREIGN KEY (pollId) REFERENCES chat_polls(id) ON DELETE CASCADE
+    )
+  `);
+  run(`
+    CREATE TABLE IF NOT EXISTS chat_poll_votes (
+      id TEXT PRIMARY KEY,
+      pollId TEXT NOT NULL,
+      optionId TEXT NOT NULL,
+      userId TEXT NOT NULL,
+      createdAt TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (pollId) REFERENCES chat_polls(id) ON DELETE CASCADE,
+      FOREIGN KEY (optionId) REFERENCES chat_poll_options(id) ON DELETE CASCADE,
+      FOREIGN KEY (userId) REFERENCES users(id)
+    )
+  `);
+
+  // Chat muted members in groups
+  run(`
+    CREATE TABLE IF NOT EXISTS chat_muted (
+      id TEXT PRIMARY KEY,
+      conversationId TEXT NOT NULL,
+      userId TEXT NOT NULL,
+      mutedBy TEXT NOT NULL,
+      mutedUntil TEXT,
+      createdAt TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (conversationId) REFERENCES chat_conversations(id),
+      FOREIGN KEY (userId) REFERENCES users(id),
+      FOREIGN KEY (mutedBy) REFERENCES users(id)
+    )
+  `);
+
+  // Chat user-level conversation mutes
+  run(`
+    CREATE TABLE IF NOT EXISTS chat_user_mutes (
+      id TEXT PRIMARY KEY,
+      conversationId TEXT NOT NULL,
+      userId TEXT NOT NULL,
+      until TEXT,
+      createdAt TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (conversationId) REFERENCES chat_conversations(id),
+      FOREIGN KEY (userId) REFERENCES users(id)
+    )
+  `);
+
+  // Image generation tracking table
+  run(`
+    CREATE TABLE IF NOT EXISTS image_gen_log (
+      id TEXT PRIMARY KEY,
+      userId TEXT NOT NULL,
+      month TEXT NOT NULL,
+      createdAt TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (userId) REFERENCES users(id)
+    )
+  `);
+
+  // Task attachments table
+  run(`
+    CREATE TABLE IF NOT EXISTS task_attachments (
+      id TEXT PRIMARY KEY,
+      taskId TEXT NOT NULL,
+      fileName TEXT NOT NULL,
+      filePath TEXT NOT NULL,
+      fileSize INTEGER DEFAULT 0,
+      mimeType TEXT DEFAULT '',
+      createdAt TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (taskId) REFERENCES kanban_tasks(id) ON DELETE CASCADE
+    )
+  `);
+
+  // Project timeline table
+  run(`
+    CREATE TABLE IF NOT EXISTS project_timeline (
+      id TEXT PRIMARY KEY,
+      projectId TEXT NOT NULL,
+      type TEXT NOT NULL DEFAULT 'milestone',
+      title TEXT NOT NULL,
+      description TEXT DEFAULT '',
+      date TEXT,
+      position INTEGER NOT NULL DEFAULT 0,
+      createdAt TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (projectId) REFERENCES projects(id) ON DELETE CASCADE
+    )
+  `);
+
+  // Project documents table
+  run(`
+    CREATE TABLE IF NOT EXISTS project_documents (
+      id TEXT PRIMARY KEY,
+      projectId TEXT NOT NULL,
+      fileName TEXT NOT NULL,
+      filePath TEXT NOT NULL,
+      fileSize INTEGER DEFAULT 0,
+      mimeType TEXT DEFAULT '',
+      thumbnailPath TEXT,
+      createdAt TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (projectId) REFERENCES projects(id) ON DELETE CASCADE
+    )
+  `);
+
+  // ── Performance indexes ──────────────────────────────────────
+  try { run('CREATE INDEX IF NOT EXISTS idx_kanban_user_archived ON kanban_tasks(userId, archived, status)'); } catch {}
+  try { run('CREATE INDEX IF NOT EXISTS idx_chat_messages_conv ON chat_messages(conversationId, createdAt)'); } catch {}
+  try { run('CREATE INDEX IF NOT EXISTS idx_chat_messages_read ON chat_messages(conversationId, isRead, deleted)'); } catch {}
+  try { run('CREATE INDEX IF NOT EXISTS idx_chat_conv_users ON chat_conversations(user1Id, user2Id, type)'); } catch {}
+  try { run('CREATE INDEX IF NOT EXISTS idx_chat_group_members ON chat_group_members(conversationId, userId)'); } catch {}
+  try { run('CREATE INDEX IF NOT EXISTS idx_chat_reactions_msg ON chat_reactions(messageId)'); } catch {}
+  try { run('CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(userId, isRead)'); } catch {}
+  try { run('CREATE INDEX IF NOT EXISTS idx_content_posts_status ON content_posts(status)'); } catch {}
+  try { run('CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)'); } catch {}
+  try { run('CREATE INDEX IF NOT EXISTS idx_image_gen_user_month ON image_gen_log(userId, month)'); } catch {}
+  try { run('CREATE INDEX IF NOT EXISTS idx_event_blocks_event ON event_blocks(eventId)'); } catch {}
+  try { run('CREATE INDEX IF NOT EXISTS idx_project_links_project ON project_links(projectId)'); } catch {}
+  try { run('CREATE INDEX IF NOT EXISTS idx_project_docs_project ON project_documents(projectId)'); } catch {}
+  try { run('CREATE INDEX IF NOT EXISTS idx_project_timeline_project ON project_timeline(projectId)'); } catch {}
+  try { run('CREATE INDEX IF NOT EXISTS idx_materials_folder ON materials(folder)'); } catch {}
+  try { run('CREATE INDEX IF NOT EXISTS idx_content_posts_date ON content_posts(scheduledDate)'); } catch {}
+  try { run('CREATE INDEX IF NOT EXISTS idx_notifications_created ON notifications(createdAt)'); } catch {}
+
+  // Create push_subscriptions table
+  run(`
+    CREATE TABLE IF NOT EXISTS push_subscriptions (
+      id TEXT PRIMARY KEY,
+      userId TEXT NOT NULL,
+      endpoint TEXT NOT NULL,
+      p256dh TEXT NOT NULL,
+      auth TEXT NOT NULL,
+      userAgent TEXT DEFAULT '',
+      createdAt TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
+    )
+  `);
+  try { run('CREATE INDEX IF NOT EXISTS idx_push_subs_user ON push_subscriptions(userId)'); } catch {}
+  try { run('CREATE UNIQUE INDEX IF NOT EXISTS idx_push_subs_endpoint ON push_subscriptions(endpoint)'); } catch {}
+
+  // ─── Registrations module ────────────────────────────────────
+  run(`
+    CREATE TABLE IF NOT EXISTS registrations (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      description TEXT DEFAULT '',
+      eventDate TEXT,
+      eventTime TEXT,
+      location TEXT DEFAULT '',
+      imageUrl TEXT DEFAULT '',
+      videoUrl TEXT DEFAULT '',
+      maxParticipants INTEGER DEFAULT 0,
+      status TEXT NOT NULL DEFAULT 'draft',
+      publicSlug TEXT UNIQUE,
+      createdBy TEXT NOT NULL,
+      registrationStart TEXT DEFAULT '',
+      registrationEnd TEXT DEFAULT '',
+      closedMessage TEXT DEFAULT '',
+      mapCoords TEXT DEFAULT '',
+      showLimit INTEGER DEFAULT 1,
+      showTimer INTEGER DEFAULT 1,
+      organizer TEXT DEFAULT '',
+      color TEXT DEFAULT '',
+      waitlistEnabled INTEGER DEFAULT 1,
+      maxWaitlist INTEGER DEFAULT 0,
+      theme TEXT DEFAULT 'cyberpunk',
+      createdAt TEXT DEFAULT (datetime('now')),
+      updatedAt TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (createdBy) REFERENCES users(id)
+    )
+  `);
+
+  run(`
+    CREATE TABLE IF NOT EXISTS registration_fields (
+      id TEXT PRIMARY KEY,
+      registrationId TEXT NOT NULL,
+      type TEXT NOT NULL,
+      label TEXT NOT NULL,
+      placeholder TEXT DEFAULT '',
+      required INTEGER NOT NULL DEFAULT 0,
+      options TEXT DEFAULT '[]',
+      settings TEXT DEFAULT '{}',
+      position INTEGER NOT NULL DEFAULT 0,
+      createdAt TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (registrationId) REFERENCES registrations(id) ON DELETE CASCADE
+    )
+  `);
+
+  run(`
+    CREATE TABLE IF NOT EXISTS registration_submissions (
+      id TEXT PRIMARY KEY,
+      registrationId TEXT NOT NULL,
+      userId TEXT,
+      answers TEXT NOT NULL DEFAULT '{}',
+      contactName TEXT DEFAULT '',
+      contactEmail TEXT DEFAULT '',
+      contactPhone TEXT DEFAULT '',
+      contactLastName TEXT DEFAULT '',
+      contactFirstName TEXT DEFAULT '',
+      contactPatronymic TEXT DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'confirmed',
+      cancelToken TEXT,
+      checkinToken TEXT DEFAULT '',
+      attended INTEGER NOT NULL DEFAULT 0,
+      attendedAt TEXT,
+      confirmCode TEXT DEFAULT '',
+      position INTEGER DEFAULT 0,
+      createdAt TEXT DEFAULT (datetime('now')),
+      updatedAt TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (registrationId) REFERENCES registrations(id) ON DELETE CASCADE,
+      FOREIGN KEY (userId) REFERENCES users(id)
+    )
+  `);
+
+  try { run('CREATE INDEX IF NOT EXISTS idx_reg_fields ON registration_fields(registrationId, position)'); } catch {}
+  try { run('CREATE INDEX IF NOT EXISTS idx_reg_submissions ON registration_submissions(registrationId, status)'); } catch {}
+  try { run('CREATE UNIQUE INDEX IF NOT EXISTS idx_reg_slug ON registrations(publicSlug)'); } catch {}
+  try { run('CREATE INDEX IF NOT EXISTS idx_reg_sub_cancel ON registration_submissions(cancelToken)'); } catch {}
+  try { run('CREATE INDEX IF NOT EXISTS idx_reg_sub_checkin ON registration_submissions(checkinToken)'); } catch {}
+
+  // Registration media gallery (photos + videos)
+  run(`
+    CREATE TABLE IF NOT EXISTS registration_media (
+      id TEXT PRIMARY KEY,
+      registrationId TEXT NOT NULL,
+      type TEXT NOT NULL DEFAULT 'image',
+      url TEXT NOT NULL,
+      filename TEXT DEFAULT '',
+      size INTEGER DEFAULT 0,
+      position INTEGER NOT NULL DEFAULT 0,
+      createdAt TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (registrationId) REFERENCES registrations(id) ON DELETE CASCADE
+    )
+  `);
+  try { run('CREATE INDEX IF NOT EXISTS idx_reg_media ON registration_media(registrationId, position)'); } catch {}
+
+  // Knowledge base attachments (photos + documents)
+  run(`
+    CREATE TABLE IF NOT EXISTS knowledge_attachments (
+      id TEXT PRIMARY KEY,
+      articleId TEXT NOT NULL,
+      type TEXT NOT NULL DEFAULT 'image',
+      url TEXT NOT NULL,
+      filename TEXT DEFAULT '',
+      originalName TEXT DEFAULT '',
+      size INTEGER DEFAULT 0,
+      uploadedBy TEXT,
+      position INTEGER DEFAULT 0,
+      createdAt TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (articleId) REFERENCES knowledge_base(id) ON DELETE CASCADE,
+      FOREIGN KEY (uploadedBy) REFERENCES users(id)
+    )
+  `);
+  try { run('CREATE INDEX IF NOT EXISTS idx_kb_attach_article ON knowledge_attachments(articleId)'); } catch {}
+
+  // Widgets — embeddable HTML cards with public sharing
+  run(`
+    CREATE TABLE IF NOT EXISTS widgets (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      description TEXT DEFAULT '',
+      imageUrl TEXT DEFAULT '',
+      htmlCode TEXT DEFAULT '',
+      publicSlug TEXT UNIQUE,
+      isPublic INTEGER DEFAULT 0,
+      customSlug TEXT DEFAULT '',
+      password TEXT DEFAULT '',
+      viewCount INTEGER DEFAULT 0,
+      category TEXT DEFAULT '',
+      isPinned INTEGER DEFAULT 0,
+      folder TEXT DEFAULT '',
+      createdBy TEXT NOT NULL,
+      createdAt TEXT DEFAULT (datetime('now')),
+      updatedAt TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (createdBy) REFERENCES users(id)
+    )
+  `);
+
+  // Widget gallery images
+  run(`
+    CREATE TABLE IF NOT EXISTS widget_images (
+      id TEXT PRIMARY KEY,
+      widgetId TEXT NOT NULL,
+      url TEXT NOT NULL,
+      position INTEGER DEFAULT 0,
+      createdAt TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (widgetId) REFERENCES widgets(id) ON DELETE CASCADE
+    )
+  `);
+
+  // ── Lists (Списки) ──
+  run(`
+    CREATE TABLE IF NOT EXISTS lists (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      description TEXT DEFAULT '',
+      publicSlug TEXT UNIQUE,
+      isPublic INTEGER DEFAULT 0,
+      createdBy TEXT NOT NULL,
+      createdAt TEXT DEFAULT (datetime('now')),
+      updatedAt TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (createdBy) REFERENCES users(id)
+    )
+  `);
+
+  run(`
+    CREATE TABLE IF NOT EXISTS list_fields (
+      id TEXT PRIMARY KEY,
+      listId TEXT NOT NULL,
+      type TEXT NOT NULL,
+      label TEXT NOT NULL,
+      placeholder TEXT DEFAULT '',
+      required INTEGER NOT NULL DEFAULT 0,
+      options TEXT DEFAULT '[]',
+      position INTEGER NOT NULL DEFAULT 0,
+      createdAt TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (listId) REFERENCES lists(id) ON DELETE CASCADE
+    )
+  `);
+  try { run('CREATE INDEX IF NOT EXISTS idx_list_fields ON list_fields(listId, position)'); } catch {}
+
+  run(`
+    CREATE TABLE IF NOT EXISTS list_entries (
+      id TEXT PRIMARY KEY,
+      listId TEXT NOT NULL,
+      lastName TEXT DEFAULT '',
+      firstName TEXT DEFAULT '',
+      patronymic TEXT DEFAULT '',
+      phone TEXT DEFAULT '',
+      email TEXT DEFAULT '',
+      comment TEXT DEFAULT '',
+      called INTEGER NOT NULL DEFAULT 0,
+      visited INTEGER NOT NULL DEFAULT 0,
+      answers TEXT NOT NULL DEFAULT '{}',
+      pinned INTEGER NOT NULL DEFAULT 0,
+      starred INTEGER NOT NULL DEFAULT 0,
+      deleted INTEGER NOT NULL DEFAULT 0,
+      deletedAt TEXT,
+      createdAt TEXT DEFAULT (datetime('now')),
+      updatedAt TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (listId) REFERENCES lists(id) ON DELETE CASCADE
+    )
+  `);
+  try { run('CREATE INDEX IF NOT EXISTS idx_list_entries ON list_entries(listId)'); } catch {}
+
+  // Chat unique indexes
+  try { run('CREATE UNIQUE INDEX IF NOT EXISTS idx_chat_fav_unique ON chat_favorites(messageId, userId)'); } catch {}
+  try { run('CREATE UNIQUE INDEX IF NOT EXISTS idx_chat_vote_unique ON chat_poll_votes(pollId, userId)'); } catch {}
+  try { run('CREATE UNIQUE INDEX IF NOT EXISTS idx_chat_muted_unique ON chat_muted(conversationId, userId)'); } catch {}
+  try { run('CREATE UNIQUE INDEX IF NOT EXISTS idx_chat_umute_unique ON chat_user_mutes(conversationId, userId)'); } catch {}
 
   // Seed default admin user if not exists
   const adminExists = get('SELECT id FROM users WHERE username = ?', ['admin']);
@@ -554,401 +892,4 @@ export async function initializeDatabase() {
   }
 
   console.log('Database initialized successfully');
-
-  // Image generation tracking table
-  run(`
-    CREATE TABLE IF NOT EXISTS image_gen_log (
-      id TEXT PRIMARY KEY,
-      userId TEXT NOT NULL,
-      month TEXT NOT NULL,
-      createdAt TEXT DEFAULT (datetime('now')),
-      FOREIGN KEY (userId) REFERENCES users(id)
-    )
-  `);
-
-  // Index for fast monthly count lookups
-  try { run('CREATE INDEX IF NOT EXISTS idx_image_gen_user_month ON image_gen_log(userId, month)'); } catch {}
-
-  // Task attachments table
-  run(`
-    CREATE TABLE IF NOT EXISTS task_attachments (
-      id TEXT PRIMARY KEY,
-      taskId TEXT NOT NULL,
-      fileName TEXT NOT NULL,
-      filePath TEXT NOT NULL,
-      fileSize INTEGER DEFAULT 0,
-      mimeType TEXT DEFAULT '',
-      createdAt TEXT DEFAULT (datetime('now')),
-      FOREIGN KEY (taskId) REFERENCES kanban_tasks(id) ON DELETE CASCADE
-    )
-  `);
-
-  // Project timeline table
-  run(`
-    CREATE TABLE IF NOT EXISTS project_timeline (
-      id TEXT PRIMARY KEY,
-      projectId TEXT NOT NULL,
-      type TEXT NOT NULL DEFAULT 'milestone',
-      title TEXT NOT NULL,
-      description TEXT DEFAULT '',
-      date TEXT,
-      position INTEGER NOT NULL DEFAULT 0,
-      createdAt TEXT DEFAULT (datetime('now')),
-      FOREIGN KEY (projectId) REFERENCES projects(id) ON DELETE CASCADE
-    )
-  `);
-
-  // Project documents table
-  run(`
-    CREATE TABLE IF NOT EXISTS project_documents (
-      id TEXT PRIMARY KEY,
-      projectId TEXT NOT NULL,
-      fileName TEXT NOT NULL,
-      filePath TEXT NOT NULL,
-      fileSize INTEGER DEFAULT 0,
-      mimeType TEXT DEFAULT '',
-      thumbnailPath TEXT,
-      createdAt TEXT DEFAULT (datetime('now')),
-      FOREIGN KEY (projectId) REFERENCES projects(id) ON DELETE CASCADE
-    )
-  `);
-
-  // ─── Schema migrations (add columns to existing tables) ──────
-  migrate('ALTER TABLE content_posts ADD COLUMN thumbnailUrl TEXT');
-  migrate('ALTER TABLE project_documents ADD COLUMN thumbnailPath TEXT');
-
-  // ─── Performance indexes ──────────────────────────────────────
-  try { run('CREATE INDEX IF NOT EXISTS idx_kanban_user_archived ON kanban_tasks(userId, archived, status)'); } catch {}
-  try { run('CREATE INDEX IF NOT EXISTS idx_chat_messages_conv ON chat_messages(conversationId, createdAt)'); } catch {}
-  try { run('CREATE INDEX IF NOT EXISTS idx_chat_messages_read ON chat_messages(conversationId, isRead, deleted)'); } catch {}
-  try { run('CREATE INDEX IF NOT EXISTS idx_chat_conv_users ON chat_conversations(user1Id, user2Id, type)'); } catch {}
-  try { run('CREATE INDEX IF NOT EXISTS idx_chat_group_members ON chat_group_members(conversationId, userId)'); } catch {}
-  try { run('CREATE INDEX IF NOT EXISTS idx_chat_reactions_msg ON chat_reactions(messageId)'); } catch {}
-  try { run('CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(userId, isRead)'); } catch {}
-  try { run('CREATE INDEX IF NOT EXISTS idx_content_posts_status ON content_posts(status)'); } catch {}
-  try { run('CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)'); } catch {}
-
-  // Create push_subscriptions table
-  run(`
-    CREATE TABLE IF NOT EXISTS push_subscriptions (
-      id TEXT PRIMARY KEY,
-      userId TEXT NOT NULL,
-      endpoint TEXT NOT NULL,
-      p256dh TEXT NOT NULL,
-      auth TEXT NOT NULL,
-      userAgent TEXT DEFAULT '',
-      createdAt TEXT DEFAULT (datetime('now')),
-      FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
-    )
-  `);
-  try { run('CREATE INDEX IF NOT EXISTS idx_push_subs_user ON push_subscriptions(userId)'); } catch {}
-  try { run('CREATE UNIQUE INDEX IF NOT EXISTS idx_push_subs_endpoint ON push_subscriptions(endpoint)'); } catch {}
-
-  // New table indexes
-  try { run('CREATE INDEX IF NOT EXISTS idx_event_blocks_event ON event_blocks(eventId)'); } catch {}
-  try { run('CREATE INDEX IF NOT EXISTS idx_project_links_project ON project_links(projectId)'); } catch {}
-  try { run('CREATE INDEX IF NOT EXISTS idx_project_docs_project ON project_documents(projectId)'); } catch {}
-  try { run('CREATE INDEX IF NOT EXISTS idx_project_timeline_project ON project_timeline(projectId)'); } catch {}
-  try { run('CREATE INDEX IF NOT EXISTS idx_materials_folder ON materials(folder)'); } catch {}
-  try { run('CREATE INDEX IF NOT EXISTS idx_content_posts_date ON content_posts(scheduledDate)'); } catch {}
-  try { run('CREATE INDEX IF NOT EXISTS idx_notifications_created ON notifications(createdAt)'); } catch {}
-
-  // ─── Registrations module ────────────────────────────────────
-  run(`
-    CREATE TABLE IF NOT EXISTS registrations (
-      id TEXT PRIMARY KEY,
-      title TEXT NOT NULL,
-      description TEXT DEFAULT '',
-      eventDate TEXT,
-      eventTime TEXT,
-      location TEXT DEFAULT '',
-      imageUrl TEXT DEFAULT '',
-      videoUrl TEXT DEFAULT '',
-      maxParticipants INTEGER DEFAULT 0,
-      status TEXT NOT NULL DEFAULT 'draft',
-      publicSlug TEXT UNIQUE,
-      createdBy TEXT NOT NULL,
-      createdAt TEXT DEFAULT (datetime('now')),
-      updatedAt TEXT DEFAULT (datetime('now')),
-      FOREIGN KEY (createdBy) REFERENCES users(id)
-    )
-  `);
-
-  run(`
-    CREATE TABLE IF NOT EXISTS registration_fields (
-      id TEXT PRIMARY KEY,
-      registrationId TEXT NOT NULL,
-      type TEXT NOT NULL,
-      label TEXT NOT NULL,
-      placeholder TEXT DEFAULT '',
-      required INTEGER NOT NULL DEFAULT 0,
-      options TEXT DEFAULT '[]',
-      settings TEXT DEFAULT '{}',
-      position INTEGER NOT NULL DEFAULT 0,
-      createdAt TEXT DEFAULT (datetime('now')),
-      FOREIGN KEY (registrationId) REFERENCES registrations(id) ON DELETE CASCADE
-    )
-  `);
-
-  run(`
-    CREATE TABLE IF NOT EXISTS registration_submissions (
-      id TEXT PRIMARY KEY,
-      registrationId TEXT NOT NULL,
-      userId TEXT,
-      answers TEXT NOT NULL DEFAULT '{}',
-      contactName TEXT DEFAULT '',
-      contactEmail TEXT DEFAULT '',
-      contactPhone TEXT DEFAULT '',
-      status TEXT NOT NULL DEFAULT 'confirmed',
-      cancelToken TEXT,
-      position INTEGER DEFAULT 0,
-      createdAt TEXT DEFAULT (datetime('now')),
-      updatedAt TEXT DEFAULT (datetime('now')),
-      FOREIGN KEY (registrationId) REFERENCES registrations(id) ON DELETE CASCADE,
-      FOREIGN KEY (userId) REFERENCES users(id)
-    )
-  `);
-
-  try { run('CREATE INDEX IF NOT EXISTS idx_reg_fields ON registration_fields(registrationId, position)'); } catch {}
-  try { run('CREATE INDEX IF NOT EXISTS idx_reg_submissions ON registration_submissions(registrationId, status)'); } catch {}
-  try { run('CREATE UNIQUE INDEX IF NOT EXISTS idx_reg_slug ON registrations(publicSlug)'); } catch {}
-  try { run('CREATE INDEX IF NOT EXISTS idx_reg_sub_cancel ON registration_submissions(cancelToken)'); } catch {}
-
-  // Registration time fields migration
-  migrate('ALTER TABLE registrations ADD COLUMN registrationStart TEXT DEFAULT ""');
-  migrate('ALTER TABLE registrations ADD COLUMN registrationEnd TEXT DEFAULT ""');
-  migrate('ALTER TABLE registrations ADD COLUMN closedMessage TEXT DEFAULT ""');
-  migrate('ALTER TABLE registrations ADD COLUMN mapCoords TEXT DEFAULT ""');
-  migrate('ALTER TABLE registrations ADD COLUMN showLimit INTEGER DEFAULT 1');
-  migrate('ALTER TABLE registrations ADD COLUMN showTimer INTEGER DEFAULT 1');
-
-  // Registration media gallery (photos + videos)
-  run(`
-    CREATE TABLE IF NOT EXISTS registration_media (
-      id TEXT PRIMARY KEY,
-      registrationId TEXT NOT NULL,
-      type TEXT NOT NULL DEFAULT 'image',
-      url TEXT NOT NULL,
-      filename TEXT DEFAULT '',
-      size INTEGER DEFAULT 0,
-      position INTEGER NOT NULL DEFAULT 0,
-      createdAt TEXT DEFAULT (datetime('now')),
-      FOREIGN KEY (registrationId) REFERENCES registrations(id) ON DELETE CASCADE
-    )
-  `);
-  try { run('CREATE INDEX IF NOT EXISTS idx_reg_media ON registration_media(registrationId, position)'); } catch {}
-
-  // Check-in system migrations
-  migrate('ALTER TABLE registration_submissions ADD COLUMN checkinToken TEXT DEFAULT ""');
-  migrate('ALTER TABLE registration_submissions ADD COLUMN attended INTEGER NOT NULL DEFAULT 0');
-  migrate('ALTER TABLE registration_submissions ADD COLUMN attendedAt TEXT');
-  migrate('ALTER TABLE registration_submissions ADD COLUMN confirmCode TEXT DEFAULT ""');
-  // ФИО split
-  migrate('ALTER TABLE registration_submissions ADD COLUMN contactLastName TEXT DEFAULT ""');
-  migrate('ALTER TABLE registration_submissions ADD COLUMN contactFirstName TEXT DEFAULT ""');
-  migrate('ALTER TABLE registration_submissions ADD COLUMN contactPatronymic TEXT DEFAULT ""');
-  migrate('ALTER TABLE registrations ADD COLUMN organizer TEXT DEFAULT ""');
-  migrate('ALTER TABLE registrations ADD COLUMN color TEXT DEFAULT ""');
-  migrate('ALTER TABLE registrations ADD COLUMN waitlistEnabled INTEGER DEFAULT 1');
-  migrate('ALTER TABLE registrations ADD COLUMN maxWaitlist INTEGER DEFAULT 0');
-  migrate('ALTER TABLE registrations ADD COLUMN theme TEXT DEFAULT "cyberpunk"');
-  try { run('CREATE INDEX IF NOT EXISTS idx_reg_sub_checkin ON registration_submissions(checkinToken)'); } catch {}
-
-  // Knowledge base attachments (photos + documents)
-  run(`
-    CREATE TABLE IF NOT EXISTS knowledge_attachments (
-      id TEXT PRIMARY KEY,
-      articleId TEXT NOT NULL,
-      type TEXT NOT NULL DEFAULT 'image',
-      url TEXT NOT NULL,
-      filename TEXT DEFAULT '',
-      originalName TEXT DEFAULT '',
-      size INTEGER DEFAULT 0,
-      uploadedBy TEXT,
-      position INTEGER DEFAULT 0,
-      createdAt TEXT DEFAULT (datetime('now')),
-      FOREIGN KEY (articleId) REFERENCES knowledge_base(id) ON DELETE CASCADE,
-      FOREIGN KEY (uploadedBy) REFERENCES users(id)
-    )
-  `);
-  try { run('CREATE INDEX IF NOT EXISTS idx_kb_attach_article ON knowledge_attachments(articleId)'); } catch {}
-
-  // Chat: archived conversations
-  migrate('ALTER TABLE chat_conversations ADD COLUMN archived INTEGER NOT NULL DEFAULT 0');
-  migrate('ALTER TABLE chat_conversations ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0');
-
-  // Chat: favorited messages
-  run(`
-    CREATE TABLE IF NOT EXISTS chat_favorites (
-      id TEXT PRIMARY KEY,
-      messageId TEXT NOT NULL,
-      userId TEXT NOT NULL,
-      createdAt TEXT DEFAULT (datetime('now')),
-      FOREIGN KEY (messageId) REFERENCES chat_messages(id),
-      FOREIGN KEY (userId) REFERENCES users(id)
-    )
-  `);
-  try { run('CREATE UNIQUE INDEX IF NOT EXISTS idx_chat_fav_unique ON chat_favorites(messageId, userId)'); } catch {}
-
-  // Chat: polls
-  run(`
-    CREATE TABLE IF NOT EXISTS chat_polls (
-      id TEXT PRIMARY KEY,
-      messageId TEXT NOT NULL,
-      question TEXT NOT NULL,
-      createdBy TEXT NOT NULL,
-      createdAt TEXT DEFAULT (datetime('now')),
-      FOREIGN KEY (messageId) REFERENCES chat_messages(id),
-      FOREIGN KEY (createdBy) REFERENCES users(id)
-    )
-  `);
-  run(`
-    CREATE TABLE IF NOT EXISTS chat_poll_options (
-      id TEXT PRIMARY KEY,
-      pollId TEXT NOT NULL,
-      text TEXT NOT NULL,
-      position INTEGER DEFAULT 0,
-      FOREIGN KEY (pollId) REFERENCES chat_polls(id) ON DELETE CASCADE
-    )
-  `);
-  run(`
-    CREATE TABLE IF NOT EXISTS chat_poll_votes (
-      id TEXT PRIMARY KEY,
-      pollId TEXT NOT NULL,
-      optionId TEXT NOT NULL,
-      userId TEXT NOT NULL,
-      createdAt TEXT DEFAULT (datetime('now')),
-      FOREIGN KEY (pollId) REFERENCES chat_polls(id) ON DELETE CASCADE,
-      FOREIGN KEY (optionId) REFERENCES chat_poll_options(id) ON DELETE CASCADE,
-      FOREIGN KEY (userId) REFERENCES users(id)
-    )
-  `);
-  try { run('CREATE UNIQUE INDEX IF NOT EXISTS idx_chat_vote_unique ON chat_poll_votes(pollId, userId)'); } catch {}
-
-  // Chat: muted members in groups
-  run(`
-    CREATE TABLE IF NOT EXISTS chat_muted (
-      id TEXT PRIMARY KEY,
-      conversationId TEXT NOT NULL,
-      userId TEXT NOT NULL,
-      mutedBy TEXT NOT NULL,
-      mutedUntil TEXT,
-      createdAt TEXT DEFAULT (datetime('now')),
-      FOREIGN KEY (conversationId) REFERENCES chat_conversations(id),
-      FOREIGN KEY (userId) REFERENCES users(id),
-      FOREIGN KEY (mutedBy) REFERENCES users(id)
-    )
-  `);
-  try { run('CREATE UNIQUE INDEX IF NOT EXISTS idx_chat_muted_unique ON chat_muted(conversationId, userId)'); } catch {}
-
-  // Chat: user-level conversation mutes
-  run(`
-    CREATE TABLE IF NOT EXISTS chat_user_mutes (
-      id TEXT PRIMARY KEY,
-      conversationId TEXT NOT NULL,
-      userId TEXT NOT NULL,
-      until TEXT,
-      createdAt TEXT DEFAULT (datetime('now')),
-      FOREIGN KEY (conversationId) REFERENCES chat_conversations(id),
-      FOREIGN KEY (userId) REFERENCES users(id)
-    )
-  `);
-  try { run('CREATE UNIQUE INDEX IF NOT EXISTS idx_chat_umute_unique ON chat_user_mutes(conversationId, userId)'); } catch {}
-
-  // Chat: voice transcription
-  migrate('ALTER TABLE chat_messages ADD COLUMN transcript TEXT DEFAULT ""');
-
-  // Widgets — embeddable HTML cards with public sharing
-  run(`
-    CREATE TABLE IF NOT EXISTS widgets (
-      id TEXT PRIMARY KEY,
-      title TEXT NOT NULL,
-      description TEXT DEFAULT '',
-      imageUrl TEXT DEFAULT '',
-      htmlCode TEXT DEFAULT '',
-      publicSlug TEXT UNIQUE,
-      isPublic INTEGER DEFAULT 0,
-      createdBy TEXT NOT NULL,
-      createdAt TEXT DEFAULT (datetime('now')),
-      updatedAt TEXT DEFAULT (datetime('now')),
-      FOREIGN KEY (createdBy) REFERENCES users(id)
-    )
-  `);
-  // Widget feature migrations
-  migrate('ALTER TABLE widgets ADD COLUMN customSlug TEXT DEFAULT ""');
-  migrate('ALTER TABLE widgets ADD COLUMN password TEXT DEFAULT ""');
-  migrate('ALTER TABLE widgets ADD COLUMN viewCount INTEGER DEFAULT 0');
-  migrate('ALTER TABLE widgets ADD COLUMN category TEXT DEFAULT ""');
-  migrate('ALTER TABLE widgets ADD COLUMN isPinned INTEGER DEFAULT 0');
-  migrate('ALTER TABLE widgets ADD COLUMN folder TEXT DEFAULT ""');
-
-  // Widget gallery images
-  try { run(`
-    CREATE TABLE IF NOT EXISTS widget_images (
-      id TEXT PRIMARY KEY,
-      widgetId TEXT NOT NULL,
-      url TEXT NOT NULL,
-      position INTEGER DEFAULT 0,
-      createdAt TEXT DEFAULT (datetime('now')),
-      FOREIGN KEY (widgetId) REFERENCES widgets(id) ON DELETE CASCADE
-    )
-  `); } catch {}
-
-  // ── Lists (Списки) ──
-  try { run(`
-    CREATE TABLE IF NOT EXISTS lists (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      description TEXT DEFAULT '',
-      createdBy TEXT NOT NULL,
-      createdAt TEXT DEFAULT (datetime('now')),
-      updatedAt TEXT DEFAULT (datetime('now')),
-      FOREIGN KEY (createdBy) REFERENCES users(id)
-    )
-  `); } catch {}
-
-  migrate('ALTER TABLE lists ADD COLUMN publicSlug TEXT UNIQUE');
-  migrate('ALTER TABLE lists ADD COLUMN isPublic INTEGER DEFAULT 0');
-
-  try { run(`
-    CREATE TABLE IF NOT EXISTS list_fields (
-      id TEXT PRIMARY KEY,
-      listId TEXT NOT NULL,
-      type TEXT NOT NULL,
-      label TEXT NOT NULL,
-      placeholder TEXT DEFAULT '',
-      required INTEGER NOT NULL DEFAULT 0,
-      options TEXT DEFAULT '[]',
-      position INTEGER NOT NULL DEFAULT 0,
-      createdAt TEXT DEFAULT (datetime('now')),
-      FOREIGN KEY (listId) REFERENCES lists(id) ON DELETE CASCADE
-    )
-  `); } catch {}
-  try { run('CREATE INDEX IF NOT EXISTS idx_list_fields ON list_fields(listId, position)'); } catch {}
-
-  try { run(`
-    CREATE TABLE IF NOT EXISTS list_entries (
-      id TEXT PRIMARY KEY,
-      listId TEXT NOT NULL,
-      lastName TEXT DEFAULT '',
-      firstName TEXT DEFAULT '',
-      patronymic TEXT DEFAULT '',
-      phone TEXT DEFAULT '',
-      email TEXT DEFAULT '',
-      comment TEXT DEFAULT '',
-      called INTEGER NOT NULL DEFAULT 0,
-      visited INTEGER NOT NULL DEFAULT 0,
-      answers TEXT NOT NULL DEFAULT '{}',
-      createdAt TEXT DEFAULT (datetime('now')),
-      updatedAt TEXT DEFAULT (datetime('now')),
-      FOREIGN KEY (listId) REFERENCES lists(id) ON DELETE CASCADE
-    )
-  `); } catch {}
-  try { run('CREATE INDEX IF NOT EXISTS idx_list_entries ON list_entries(listId)'); } catch {}
-
-  // List entries: pinned, starred, soft delete
-  try { run('ALTER TABLE list_entries ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0'); } catch {}
-  try { run('ALTER TABLE list_entries ADD COLUMN starred INTEGER NOT NULL DEFAULT 0'); } catch {}
-  try { run('ALTER TABLE list_entries ADD COLUMN deleted INTEGER NOT NULL DEFAULT 0'); } catch {}
-  try { run('ALTER TABLE list_entries ADD COLUMN deletedAt TEXT'); } catch {}
 }
