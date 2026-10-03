@@ -4,10 +4,12 @@ import { motion } from 'framer-motion';
 import {
   FileText, FileSpreadsheet, FileImage, Scissors, Droplets,
   Upload, Download, X, CheckCircle, AlertCircle, ArrowLeft, RefreshCw, Layers,
+  RotateCw, Hash, Crop, Archive, ArrowUp, ArrowDown, Trash2,
 } from 'lucide-react';
 import {
   mergePdfs, splitPdf, watermarkPdf, imagesToPdf, csvToXlsx, xlsxToCsv,
   downloadBlob, formatFileSize,
+  rotatePdf, organizePdf, addPageNumbers, cropPdf, compressPdf, downloadZip,
 } from '../utils/docTools';
 import { showToast } from '../components/ui/NexusModal';
 import { getControlToken } from '../services/api';
@@ -15,7 +17,8 @@ import { getControlToken } from '../services/api';
 type ToolId =
   | 'office-to-pdf' | 'pdf-to-docx' | 'pdf-to-xlsx'
   | 'merge' | 'split' | 'watermark' | 'jpg-to-pdf'
-  | 'csv-to-xlsx' | 'xlsx-to-csv';
+  | 'csv-to-xlsx' | 'xlsx-to-csv'
+  | 'rotate' | 'organize' | 'pagenum' | 'crop' | 'compress';
 
 type ItemStatus = 'pending' | 'converting' | 'done' | 'error';
 
@@ -50,6 +53,11 @@ const TOOLS: ToolDef[] = [
   { id: 'jpg-to-pdf', label: 'JPG → PDF', desc: 'Картинки в один PDF', icon: FileImage, engine: 'browser', accept: '.jpg,.jpeg,.png', multiple: true },
   { id: 'csv-to-xlsx', label: 'CSV → Excel', desc: 'Таблицы онлайн', icon: FileSpreadsheet, engine: 'browser', accept: '.csv', multiple: true },
   { id: 'xlsx-to-csv', label: 'Excel → CSV', desc: 'Обратная конвертация', icon: FileSpreadsheet, engine: 'browser', accept: '.xlsx,.xls', multiple: true },
+  { id: 'rotate', label: 'Повернуть PDF', desc: 'Страницы на 90/180/270°', icon: RotateCw, engine: 'browser', accept: '.pdf', multiple: true },
+  { id: 'organize', label: 'Организовать страницы', desc: 'Порядок, удаление, поворот', icon: Layers, engine: 'browser', accept: '.pdf', multiple: false },
+  { id: 'pagenum', label: 'Номера страниц', desc: 'Пронумеровать страницы', icon: Hash, engine: 'browser', accept: '.pdf', multiple: true },
+  { id: 'crop', label: 'Обрезать PDF', desc: 'Убрать поля в %', icon: Crop, engine: 'browser', accept: '.pdf', multiple: true },
+  { id: 'compress', label: 'Сжать PDF', desc: 'Уменьшить размер файла', icon: Archive, engine: 'browser', accept: '.pdf', multiple: true },
 ];
 
 const MAX_FILES = 5;
@@ -134,17 +142,36 @@ function ToolPanel({ tool, onBack }: { tool: ToolDef; onBack: () => void }) {
   const [wmText, setWmText] = useState('КОНФИДЕНЦИАЛЬНО');
   const [wmOpacity, setWmOpacity] = useState(25);
   const [wmPosition, setWmPosition] = useState<'center' | 'diagonal' | 'top' | 'bottom'>('diagonal');
+  const [rotateAngle, setRotateAngle] = useState<90 | 180 | 270>(90);
+  const [rotatePages, setRotatePages] = useState('');
+  const [pnPosition, setPnPosition] = useState<'bottom-center' | 'bottom-right' | 'bottom-left' | 'top-center' | 'top-right' | 'top-left'>('bottom-center');
+  const [pnFormat, setPnFormat] = useState<'n' | 'n/total' | 'Стр n из total'>('n');
+  const [pnStart, setPnStart] = useState(1);
+  const [cropTop, setCropTop] = useState(0);
+  const [cropBottom, setCropBottom] = useState(0);
+  const [cropLeft, setCropLeft] = useState(0);
+  const [cropRight, setCropRight] = useState(0);
+  // Organize: page list state — one entry per source page
+  const [pageList, setPageList] = useState<{ num: number; keep: boolean; rot: number }[]>([]);
 
   const addFiles = useCallback((files: FileList | File[]) => {
     const arr = Array.from(files);
     const remaining = MAX_FILES - items.length;
     if (remaining <= 0) { showToast(`Максимум ${MAX_FILES} файлов`, 'error'); return; }
     const toAdd = arr.slice(0, tool.multiple ? remaining : 1);
-    setItems(prev => [
-      ...prev,
-      ...toAdd.map(f => ({ id: Math.random().toString(36).slice(2), file: f, status: 'pending' as ItemStatus })),
-    ]);
-  }, [items.length, tool.multiple]);
+    const newItems = toAdd.map(f => ({ id: Math.random().toString(36).slice(2), file: f, status: 'pending' as ItemStatus }));
+    setItems(prev => [...prev, ...newItems]);
+
+    // Organize tool: build page list from the first PDF
+    if (tool.id === 'organize' && toAdd[0]) {
+      import('pdf-lib').then(async ({ PDFDocument }) => {
+        try {
+          const doc = await PDFDocument.load(await toAdd[0].arrayBuffer());
+          setPageList(doc.getPageIndices().map(i => ({ num: i + 1, keep: true, rot: 0 })));
+        } catch { setPageList([]); }
+      });
+    }
+  }, [items.length, tool.multiple, tool.id]);
 
   const removeItem = (id: string) => setItems(prev => prev.filter(i => i.id !== id));
 
@@ -206,6 +233,28 @@ function ToolPanel({ tool, onBack }: { tool: ToolDef; onBack: () => void }) {
         } else if (tool.id === 'xlsx-to-csv') {
           blob = await xlsxToCsv(item.file);
           name += '.csv';
+        } else if (tool.id === 'rotate') {
+          blob = await rotatePdf(item.file, rotateAngle, rotatePages || undefined);
+          name += '_rotated.pdf';
+        } else if (tool.id === 'organize') {
+          const kept = pageList.filter(p => p.keep);
+          if (kept.length === 0) throw new Error('Оставьте хотя бы одну страницу');
+          const order = kept.map(p => p.num);
+          const rots: Record<number, number> = {};
+          kept.forEach((p, i) => { if (p.rot) rots[i] = p.rot; });
+          blob = await organizePdf(item.file, order, rots);
+          name += '_organized.pdf';
+        } else if (tool.id === 'pagenum') {
+          blob = await addPageNumbers(item.file, { position: pnPosition, format: pnFormat, startNumber: pnStart });
+          name += '_numbered.pdf';
+        } else if (tool.id === 'crop') {
+          blob = await cropPdf(item.file, { top: cropTop, bottom: cropBottom, left: cropLeft, right: cropRight });
+          name += '_cropped.pdf';
+        } else if (tool.id === 'compress') {
+          const res = await compressPdf(item.file);
+          blob = res.blob;
+          name += '_compressed.pdf';
+          showToast(`Сжато: ${formatFileSize(res.before)} → ${formatFileSize(res.after)}`, 'success');
         } else {
           throw new Error('Неизвестный инструмент');
         }
@@ -307,6 +356,98 @@ function ToolPanel({ tool, onBack }: { tool: ToolDef; onBack: () => void }) {
           </div>
         </div>
       )}
+      {tool.id === 'rotate' && (
+        <div className="glass rounded-xl p-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="font-mono text-xs text-gray-500 mb-2 block">УГОЛ</label>
+            <div className="flex gap-2">
+              {([90, 180, 270] as const).map(a => (
+                <button key={a} onClick={() => setRotateAngle(a)}
+                  className="px-4 py-2 rounded-lg font-mono text-sm transition-all"
+                  style={rotateAngle === a
+                    ? { background: 'var(--color-primary)', color: '#000' }
+                    : { background: 'rgba(255,255,255,0.05)', color: '#888' }}>
+                  {a}°
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="font-mono text-xs text-gray-500 mb-2 block">СТРАНИЦЫ (пусто = все)</label>
+            <input value={rotatePages} onChange={e => setRotatePages(e.target.value)}
+              placeholder="например: 1-3,5"
+              className="w-full px-3 py-2 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none" />
+          </div>
+        </div>
+      )}
+      {tool.id === 'organize' && pageList.length > 0 && (
+        <div className="glass rounded-xl p-4">
+          <label className="font-mono text-xs text-gray-500 mb-2 block">СТРАНИЦЫ — ПОРЯДОК, УДАЛЕНИЕ, ПОВОРОТ</label>
+          <div className="space-y-1.5 max-h-72 overflow-y-auto">
+            {pageList.map((p, i) => (
+              <div key={p.num} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-black/20"
+                style={{ opacity: p.keep ? 1 : 0.4 }}>
+                <span className="font-mono text-xs text-gray-400 w-12">#{p.num}</span>
+                <button onClick={() => setPageList(list => {
+                  if (i === 0) return list;
+                  const next = [...list]; [next[i - 1], next[i]] = [next[i], next[i - 1]]; return next;
+                })} className="p-1 rounded hover:bg-white/10" aria-label="Выше"><ArrowUp className="w-3.5 h-3.5 text-gray-400" /></button>
+                <button onClick={() => setPageList(list => {
+                  if (i === list.length - 1) return list;
+                  const next = [...list]; [next[i + 1], next[i]] = [next[i], next[i + 1]]; return next;
+                })} className="p-1 rounded hover:bg-white/10" aria-label="Ниже"><ArrowDown className="w-3.5 h-3.5 text-gray-400" /></button>
+                <button onClick={() => setPageList(list => list.map((x, j) => j === i ? { ...x, rot: (x.rot + 90) % 360 } : x))}
+                  className="p-1 rounded hover:bg-white/10" aria-label="Повернуть"><RotateCw className="w-3.5 h-3.5 text-gray-400" /></button>
+                {p.rot > 0 && <span className="font-mono text-[9px] text-gray-500 w-8">{p.rot}°</span>}
+                <button onClick={() => setPageList(list => list.map((x, j) => j === i ? { ...x, keep: !x.keep } : x))}
+                  className="ml-auto p-1 rounded hover:bg-white/10" aria-label="Удалить/вернуть">
+                  {p.keep ? <Trash2 className="w-3.5 h-3.5 text-red-400" /> : <RefreshCw className="w-3.5 h-3.5 text-gray-500" />}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {tool.id === 'pagenum' && (
+        <div className="glass rounded-xl p-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <label className="font-mono text-xs text-gray-500 mb-2 block">ПОЗИЦИЯ</label>
+            <select value={pnPosition} onChange={e => setPnPosition(e.target.value as any)}
+              className="w-full px-3 py-2 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none">
+              <option value="bottom-center">Снизу по центру</option>
+              <option value="bottom-right">Снизу справа</option>
+              <option value="bottom-left">Снизу слева</option>
+              <option value="top-center">Сверху по центру</option>
+              <option value="top-right">Сверху справа</option>
+              <option value="top-left">Сверху слева</option>
+            </select>
+          </div>
+          <div>
+            <label className="font-mono text-xs text-gray-500 mb-2 block">ФОРМАТ</label>
+            <select value={pnFormat} onChange={e => setPnFormat(e.target.value as any)}
+              className="w-full px-3 py-2 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none">
+              <option value="n">1, 2, 3</option>
+              <option value="n/total">1/10</option>
+              <option value="Стр n из total">Page 1 of 10</option>
+            </select>
+          </div>
+          <div>
+            <label className="font-mono text-xs text-gray-500 mb-2 block">НАЧАТЬ С</label>
+            <input type="number" min={0} value={pnStart} onChange={e => setPnStart(+e.target.value)}
+              className="w-full px-3 py-2 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none" />
+          </div>
+        </div>
+      )}
+      {tool.id === 'crop' && (
+        <div className="glass rounded-xl p-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {([['ВЕРХ', cropTop, setCropTop], ['НИЗ', cropBottom, setCropBottom], ['ЛЕВО', cropLeft, setCropLeft], ['ПРАВО', cropRight, setCropRight]] as const).map(([label, val, set]) => (
+            <div key={label}>
+              <label className="font-mono text-xs text-gray-500 mb-2 block">{label}: {val}%</label>
+              <input type="range" min={0} max={40} value={val} onChange={e => set(+e.target.value)} className="w-full accent-[var(--color-primary)]" />
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Drop zone */}
       <div
@@ -365,6 +506,25 @@ function ToolPanel({ tool, onBack }: { tool: ToolDef; onBack: () => void }) {
               style={{ background: 'var(--color-primary)', color: '#000' }}>
               {isBusy ? 'КОНВЕРТАЦИЯ...' : 'КОНВЕРТИРОВАТЬ'}
             </button>
+            {items.filter(i => i.status === 'done' && (i.resultBlob || i.resultUrl)).length > 1 && (
+              <button onClick={async () => {
+                const done = items.filter(i => i.status === 'done');
+                const files: { name: string; blob: Blob }[] = [];
+                for (const i of done) {
+                  if (i.resultBlob && i.resultName) {
+                    files.push({ name: i.resultName, blob: i.resultBlob });
+                  } else if (i.resultUrl) {
+                    const token = localStorage.getItem('nexus_token') || sessionStorage.getItem('nexus_token') || '';
+                    const res = await fetch(i.resultUrl, { headers: { Authorization: `Bearer ${token}` } });
+                    files.push({ name: i.resultName || 'file', blob: await res.blob() });
+                  }
+                }
+                if (files.length) await downloadZip(files, 'nexus-converted.zip');
+              }} className="px-4 py-2.5 rounded-xl font-mono text-sm font-bold transition-all"
+                style={{ background: 'rgba(0,212,255,0.15)', color: '#00d4ff', border: '1px solid rgba(0,212,255,0.3)' }}>
+                <Archive className="w-3.5 h-3.5 inline mr-1" />ZIP
+              </button>
+            )}
             <button onClick={() => setItems([])} className="px-4 py-2.5 rounded-xl glass text-gray-400 hover:text-gray-200 font-mono text-sm">
               ОЧИСТИТЬ
             </button>

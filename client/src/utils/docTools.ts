@@ -1,5 +1,6 @@
 import { PDFDocument, StandardFonts, degrees, rgb } from 'pdf-lib';
 import * as XLSX from 'xlsx';
+import JSZip from 'jszip';
 
 // ── PDF: merge ──
 export async function mergePdfs(files: File[]): Promise<Blob> {
@@ -144,6 +145,129 @@ export function downloadBlob(blob: Blob, name: string): void {
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
+
+// ── PDF: rotate all (or selected) pages ──
+export async function rotatePdf(file: File, angle: 90 | 180 | 270, pages?: string): Promise<Blob> {
+  const doc = await PDFDocument.load(await file.arrayBuffer());
+  const targets = pages ? parseRanges(pages, doc.getPageCount()).flat() : doc.getPages().map((_, i) => i + 1);
+  for (const n of targets) {
+    const page = doc.getPage(n - 1);
+    const current = page.getRotation().angle % 360;
+    page.setRotation(degrees((current + angle) % 360));
+  }
+  const bytes = await doc.save();
+  return new Blob([bytes as unknown as BlobPart], { type: 'application/pdf' });
+}
+
+// ── PDF: organize — reorder / delete pages ──
+// pageOrder: desired sequence of source page numbers (1-based); pages omitted are deleted
+// rotations: optional per-output-page extra rotation
+export async function organizePdf(file: File, pageOrder: number[], rotations: Record<number, number> = {}): Promise<Blob> {
+  const src = await PDFDocument.load(await file.arrayBuffer());
+  const out = await PDFDocument.create();
+  const copied = await out.copyPages(src, pageOrder.map(n => n - 1));
+  copied.forEach((page, i) => {
+    const extra = rotations[i] || 0;
+    if (extra) {
+      const current = page.getRotation().angle % 360;
+      page.setRotation(degrees((current + extra) % 360));
+    }
+    out.addPage(page);
+  });
+  const bytes = await out.save();
+  return new Blob([bytes as unknown as BlobPart], { type: 'application/pdf' });
+}
+
+// ── PDF: page numbers ──
+export interface PageNumberOptions {
+  position?: 'bottom-center' | 'bottom-right' | 'bottom-left' | 'top-center' | 'top-right' | 'top-left';
+  startNumber?: number;
+  fontSize?: number;
+  opacity?: number;
+  format?: 'n' | 'n/total' | 'Стр n из total';
+}
+
+export async function addPageNumbers(file: File, opts: PageNumberOptions = {}): Promise<Blob> {
+  const {
+    position = 'bottom-center', startNumber = 1, fontSize = 10,
+    opacity = 0.7, format = 'n',
+  } = opts;
+  const doc = await PDFDocument.load(await file.arrayBuffer());
+  const font = await doc.embedFont(StandardFonts.Helvetica);
+  const pages = doc.getPages();
+  const total = pages.length;
+
+  pages.forEach((page, i) => {
+    const { width, height } = page.getSize();
+    const num = startNumber + i;
+    const text = format === 'n/total' ? `${num}/${total}`
+      : format === 'Стр n из total' ? `Page ${num} of ${total}`
+      : `${num}`;
+    const textWidth = font.widthOfTextAtSize(text, fontSize);
+    const margin = 20;
+
+    let x = margin;
+    let y = margin;
+    if (position.includes('center')) x = (width - textWidth) / 2;
+    if (position.includes('right')) x = width - textWidth - margin;
+    if (position.includes('top')) y = height - fontSize - margin;
+
+    page.drawText(text, {
+      x, y, size: fontSize, font, opacity,
+      color: rgb(0.3, 0.3, 0.3),
+    });
+  });
+  const bytes = await doc.save();
+  return new Blob([bytes as unknown as BlobPart], { type: 'application/pdf' });
+}
+
+// ── PDF: crop margins (percent of page size) ──
+export interface CropOptions {
+  top: number; right: number; bottom: number; left: number; // percent 0..49
+}
+
+export async function cropPdf(file: File, opts: CropOptions): Promise<Blob> {
+  const doc = await PDFDocument.load(await file.arrayBuffer());
+  for (const page of doc.getPages()) {
+    const { width, height } = page.getSize();
+    const x = (width * opts.left) / 100;
+    const y = (height * opts.bottom) / 100;
+    const w = width * (1 - (opts.left + opts.right) / 100);
+    const h = height * (1 - (opts.top + opts.bottom) / 100);
+    if (w > 0 && h > 0) {
+      page.setCropBox(x, y, w, h);
+      page.setMediaBox(x, y, w, h);
+    }
+  }
+  const bytes = await doc.save();
+  return new Blob([bytes as unknown as BlobPart], { type: 'application/pdf' });
+}
+
+// ── PDF: compress (object streams + strip junk) — modest gains ──
+export async function compressPdf(file: File): Promise<{ blob: Blob; before: number; after: number }> {
+  const bytes = await file.arrayBuffer();
+  const doc = await PDFDocument.load(bytes);
+  doc.setProducer('');
+  doc.setCreator('');
+  const out = await doc.save({ useObjectStreams: true });
+  return {
+    blob: new Blob([out as unknown as BlobPart], { type: 'application/pdf' }),
+    before: bytes.byteLength,
+    after: out.length,
+  };
+}
+
+// ── ZIP download for batch results ──
+export async function downloadZip(files: { name: string; blob: Blob }[], zipName = 'converted.zip'): Promise<void> {
+  const zip = new JSZip();
+  for (const f of files) {
+    zip.file(f.name, await f.blob.arrayBuffer());
+  }
+  const content = await zip.generateAsync({ type: 'blob' });
+  downloadBlob(content, zipName);
+}
+
+// ── helpers ──
 
 export function formatFileSize(bytes: number): string {
   if (bytes === 0) return '0 B';
