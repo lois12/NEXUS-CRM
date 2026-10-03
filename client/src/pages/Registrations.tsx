@@ -11,6 +11,7 @@ import RichEditor from '../components/ui/RichEditor';
 import { QRCodeSVG } from 'qrcode.react';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
 import { SkeletonGrid, SkeletonHeader } from '../components/ui/Skeleton';
+import { shareToMax } from '../utils/shareToMax';
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   draft: { label: 'Черновик', color: '#6b7280' },
@@ -1155,19 +1156,8 @@ export default function Registrations() {
           const cleanPhone = (c.contactPhone || '').replace(/[^\d+]/g, '');
           const copyText = [displayName, c.contactPhone, c.contactEmail].filter(Boolean).join('\n');
 
-          // МАКС: Web Share API (на телефоне откроется шейлер с МАКС),
-          // иначе копируем текст и открываем веб-версию
-          const shareToMax = async () => {
-            if (navigator.share) {
-              try {
-                await navigator.share({ title: displayName, text: copyText });
-                return;
-              } catch { /* отменено — фолбэк */ }
-            }
-            await navigator.clipboard.writeText(copyText);
-            showToast('Скопировано — вставьте в МАКС');
-            window.open('https://web.max.ru', '_blank', 'noopener');
-          };
+          // МАКС: на телефоне — шейлер с приложением, на десктопе — web.max.ru
+          const shareToMaxHandler = () => shareToMax(displayName, copyText);
 
           return (
             <motion.div
@@ -1259,7 +1249,7 @@ export default function Registrations() {
                       <span className="font-mono text-[9px] text-gray-500">ВКонтакте</span>
                     </a>
 
-                    <button onClick={shareToMax}
+                    <button onClick={shareToMaxHandler}
                       className="flex flex-col items-center gap-1 p-2.5 rounded-xl glass hover:bg-white/10 transition-all no-underline">
                       <svg viewBox="0 0 100 100" className="w-4 h-4" fill="currentColor"><path fillRule="evenodd" d="M50.76 0c27.53 0 49.12 22.34 49.12 49.89S77.61 99.23 51.02 99.23c-9.43 0-14.01-1.33-21.37-6.54-.5-.36-1.2-.26-1.63.19-5.66 6.04-20.17 10.28-20.83 2.03C7.19 80.53 0 71.18 0 49.61 0 21.3 23.22 0 50.76 0m.77 24.55c-13.07-.68-23.26 8.39-25.51 22.58-1.86 11.75 1.44 26.07 4.26 26.8 1.2.3 4.08-1.9 6.18-3.88.4-.37.99-.44 1.45-.15 3.27 2 6.97 3.5 11.05 3.71 13.42.7 25.3-9.8 26-23.21.71-13.42-10.01-25.14-23.43-25.85" clipRule="evenodd"/></svg>
                       <span className="font-mono text-[9px] text-gray-500">МАКС</span>

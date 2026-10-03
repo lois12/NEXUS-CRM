@@ -7,6 +7,7 @@ import { showToast, useNexusConfirm, ConfirmModal } from '../components/ui/Nexus
 import { NexusInput, NexusTextarea, NexusSelect } from '../components/common/NexusInput';
 import NexusFormModal from '../components/common/NexusFormModal';
 import { SkeletonGrid, SkeletonHeader } from '../components/ui/Skeleton';
+import { shareToMax } from '../utils/shareToMax';
 
 const DEFAULT_CATEGORIES = ['Фотографы', 'Тур-операторы', 'Бизнес'];
 const CAT_STORAGE_KEY = 'nexus-partner-categories';
@@ -116,25 +117,8 @@ export default function Partners() {
     window.open(`https://t.me/share/url?text=${text}`, '_blank');
   };
 
-  const sendMax = async (p: Partner) => {
-    const text = getShareText(p);
-    // Try Web Share API first — opens native share sheet where user picks chat
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: p.name, text });
-        return;
-      } catch (e) { /* user cancelled */ }
-    }
-    // Fallback: copy to clipboard
-    try {
-      await navigator.clipboard.writeText(text);
-      showToast('Скопировано — вставьте в МАКС', 'success');
-    } catch (e) {
-      // Fallback for older browsers
-      const ta = document.createElement('textarea');
-      ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
-      showToast('Скопировано — вставьте в МАКС', 'success');
-    }
+  const sendMax = (p: Partner) => {
+    shareToMax(p.name, getShareText(p));
   };
 
   if (isLoading) return <div className="p-6 space-y-6"><SkeletonHeader /><SkeletonGrid count={6} /></div>;
@@ -284,7 +268,9 @@ export default function Partners() {
               </button>
               <button onClick={() => sendMax(p)}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-mono font-bold bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 transition-colors">
-                <Send className="w-3 h-3" /> МАКС
+                {/* Official MAX logo — circular M mark (max.ru) */}
+                <svg viewBox="0 0 100 100" className="w-3 h-3" fill="currentColor"><path fillRule="evenodd" d="M50.76 0c27.53 0 49.12 22.34 49.12 49.89S77.61 99.23 51.02 99.23c-9.43 0-14.01-1.33-21.37-6.54-.5-.36-1.2-.26-1.63.19-5.66 6.04-20.17 10.28-20.83 2.03C7.19 80.53 0 71.18 0 49.61 0 21.3 23.22 0 50.76 0m.77 24.55c-13.07-.68-23.26 8.39-25.51 22.58-1.86 11.75 1.44 26.07 4.26 26.8 1.2.3 4.08-1.9 6.18-3.88.4-.37.99-.44 1.45-.15 3.27 2 6.97 3.5 11.05 3.71 13.42.7 25.3-9.8 26-23.21.71-13.42-10.01-25.14-23.43-25.85" clipRule="evenodd"/></svg>
+                МАКС
               </button>
             </div>
           </motion.div>
