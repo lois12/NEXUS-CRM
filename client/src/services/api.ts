@@ -466,6 +466,18 @@ export const chatApi = {
   updateGroup: (id: string, data: { name?: string; avatar?: string; description?: string }): Promise<ApiResponse<void>> =>
     api.put(`/chat/groups/${id}`, data).then((res) => res.data),
 
+  deleteGroup: (id: string): Promise<ApiResponse<void>> =>
+    api.delete(`/chat/groups/${id}`).then((res) => res.data),
+
+  leaveGroup: (id: string): Promise<ApiResponse<void>> =>
+    api.post(`/chat/groups/${id}/leave`).then((res) => res.data),
+
+  // Hide conversation for me ("delete chat")
+  hideConversation: (id: string): Promise<ApiResponse<void>> =>
+    api.delete(`/chat/conversations/${id}`).then((res) => res.data),
+  unhideConversation: (id: string): Promise<ApiResponse<void>> =>
+    api.put(`/chat/conversations/${id}/unhide`).then((res) => res.data),
+
   getGroupMembers: (id: string): Promise<ApiResponse<ChatGroupMember[]>> =>
     api.get(`/chat/groups/${id}/members`).then((res) => res.data),
 

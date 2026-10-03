@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageCircle, X, Send, Paperclip, Smile, Mic, ArrowLeft, Reply, File as FileIcon, Square, Maximize2, Minimize2, Users, Image as ImageIcon, UserPlus, Volume2, VolumeX, Check, Search, Pin, Forward, Edit3, Info, MoreHorizontal, Download, ZoomIn, Upload } from 'lucide-react';
+import { MessageCircle, X, Send, Paperclip, Smile, Mic, ArrowLeft, Reply, File as FileIcon, Square, Maximize2, Minimize2, Users, Image as ImageIcon, UserPlus, Volume2, VolumeX, Check, Search, Pin, Forward, Edit3, Info, MoreHorizontal, Download, ZoomIn, Upload, Trash2, LogOut } from 'lucide-react';
 import { chatApi, usersApi } from '../../services/api';
 import { ChatConversation, ChatMessage, ChatGroupMember, ChatReaction, ChatPinnedMessage, User } from '../../types';
 import { useAuth } from '../../context/AuthContext';
@@ -60,9 +60,15 @@ export default function ChatWidget() {
   const [groupName, setGroupName] = useState('');
   const [groupMembersIds, setGroupMembersIds] = useState<string[]>([]);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; msg: ChatMessage } | null>(null);
+  const [convMenu, setConvMenu] = useState<{ x: number; y: number; conv: ChatConversation } | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<ChatConversation | null>(null);
   const [typingUsers, setTypingUsers] = useState<{ userId: string; name: string }[]>([]);
   const [profileModal, setProfileModal] = useState<User | null>(null);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const isAdminOfActiveGroup = !!activeConv?.isGroup && (
+    groupMembers.find(m => m.userId === user?.id)?.role === 'admin' ||
+    (user?.roles || [user?.role]).includes('super_admin')
+  );
 
   // Favorites
   const [showFavorites, setShowFavorites] = useState(false);
@@ -190,6 +196,7 @@ export default function ChatWidget() {
     }
   }, [newMessage, activeConv]);
   useEffect(() => { if (!contextMenu) return; const close = () => setContextMenu(null); document.addEventListener('click', close); return () => document.removeEventListener('click', close); }, [contextMenu]);
+  useEffect(() => { if (!convMenu) return; const close = () => setConvMenu(null); document.addEventListener('click', close); return () => document.removeEventListener('click', close); }, [convMenu]);
 
   // ─── Socket connection ──────────────────────────────────────
   useEffect(() => {
@@ -245,17 +252,34 @@ export default function ChatWidget() {
       }, 3000);
     };
 
+    const handleConvDeleted = ({ conversationId }: { conversationId: string }) => {
+      setConversations(prev => prev.filter(c => c.id !== conversationId));
+      if (activeConvRef.current?.id === conversationId) {
+        setActiveConv(null); activeConvRef.current = null; setMessages([]);
+      }
+      fetchUnreadCount();
+    };
+
+    const handleMemberLeft = ({ conversationId }: { conversationId: string }) => {
+      setConversations(prev => prev.map(c => c.id === conversationId && c.memberCount
+        ? { ...c, memberCount: c.memberCount - 1 } : c));
+    };
+
     socket.on('chat:message', handleMessage);
     socket.on('chat:message-edit', handleEdit);
     socket.on('chat:message-delete', handleDelete);
     socket.on('chat:reaction', handleReaction);
     socket.on('chat:typing', handleTyping);
+    socket.on('chat:conversation-deleted', handleConvDeleted);
+    socket.on('chat:member-left', handleMemberLeft);
     return () => {
       socket.off('chat:message', handleMessage);
       socket.off('chat:message-edit', handleEdit);
       socket.off('chat:message-delete', handleDelete);
       socket.off('chat:reaction', handleReaction);
       socket.off('chat:typing', handleTyping);
+      socket.off('chat:conversation-deleted', handleConvDeleted);
+      socket.off('chat:member-left', handleMemberLeft);
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     };
   }, [user?.id, soundEnabled, isOpen, soundPrivate, soundGroup, fetchUnreadCount, fetchConversations]);
@@ -465,7 +489,7 @@ export default function ChatWidget() {
     return (
     <button onClick={() => openConversation(conv)} className={`w-full flex items-center gap-3 px-4 py-3.5 transition-all duration-200 text-left relative overflow-hidden ${active ? '' : 'hover:bg-white/[0.03]'}`}
       style={active ? { background: 'linear-gradient(135deg, rgba(0,255,136,0.08) 0%, rgba(0,212,255,0.04) 100%)', borderLeft: '2px solid var(--color-primary)' } : { borderLeft: '2px solid transparent' }}
-      onContextMenu={async e => { e.preventDefault(); if (!conv.isGeneral) { try { if (isPinned) await chatApi.unpinConversation(conv.id); else await chatApi.pinConversation(conv.id); showToast(isPinned ? 'Чат откреплён' : 'Чат закреплён', 'success'); fetchConversations(); } catch { showToast('Ошибка', 'error'); } } }}>
+      onContextMenu={e => { e.preventDefault(); if (!conv.isGeneral) setConvMenu({ x: e.clientX, y: e.clientY, conv }); }}>
       {conv.isGeneral ? (
         <div className="w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'linear-gradient(135deg, rgba(0,255,136,0.15), rgba(0,212,255,0.1))', border: '1.5px solid rgba(0,255,136,0.3)', boxShadow: active ? '0 0 12px rgba(0,255,136,0.3)' : 'none' }}>
           <svg viewBox="0 0 120 120" width="24" height="24">
@@ -834,11 +858,57 @@ export default function ChatWidget() {
   const handleDeleteGroup = async () => {
     if (!activeConv) return;
     try {
-      await chatApi.updateGroup(activeConv.id, { name: `[Удалено] ${activeConv.name}` });
+      await chatApi.deleteGroup(activeConv.id);
       showToast('Группа удалена', 'success');
       setActiveConv(null); activeConvRef.current = null; setMessages([]);
+      setShowGroupInfo(false);
+      fetchConversations();
+      fetchUnreadCount();
+    } catch { showToast('Ошибка', 'error'); }
+  };
+
+  const handleLeaveGroup = async () => {
+    if (!activeConv) return;
+    try {
+      await chatApi.leaveGroup(activeConv.id);
+      showToast('Вы покинули группу', 'success');
+      setActiveConv(null); activeConvRef.current = null; setMessages([]);
+      fetchConversations();
+      fetchUnreadCount();
+    } catch { showToast('Ошибка', 'error'); }
+  };
+
+  const handleDeleteChat = async (conv: ChatConversation) => {
+    try {
+      await chatApi.hideConversation(conv.id);
+      showToast('Чат удалён', 'success');
+      if (activeConv?.id === conv.id) { setActiveConv(null); activeConvRef.current = null; setMessages([]); }
+      fetchConversations();
+      fetchUnreadCount();
+    } catch { showToast('Ошибка', 'error'); }
+    setDeleteConfirm(null);
+    setConvMenu(null);
+  };
+
+  const handleTogglePinConv = async (conv: ChatConversation) => {
+    try {
+      if (conv.pinned) await chatApi.unpinConversation(conv.id);
+      else await chatApi.pinConversation(conv.id);
+      showToast(conv.pinned ? 'Чат откреплён' : 'Чат закреплён', 'success');
       fetchConversations();
     } catch { showToast('Ошибка', 'error'); }
+    setConvMenu(null);
+  };
+
+  const handleToggleMuteConv = async (conv: ChatConversation) => {
+    try {
+      const muted = conv.isMuted;
+      if (muted) await chatApi.unmuteConversation(conv.id);
+      else await chatApi.muteConversation(conv.id);
+      showToast(muted ? 'Уведомления включены' : 'Чат заглушён', 'success');
+      fetchConversations();
+    } catch { showToast('Ошибка', 'error'); }
+    setConvMenu(null);
   };
 
   // All side panels + SoundSettings → imported from ChatSidePanels.tsx / SoundSettingsPanel.tsx
@@ -979,7 +1049,7 @@ export default function ChatWidget() {
             </div>
             <div className="flex-1 flex flex-col min-w-0">
               {activeConv ? (
-                <><ChatHeader conv={activeConv} /><div className="flex-1 flex min-h-0"><div className="flex-1 flex flex-col min-w-0">{messagesAreaContent}</div>{showMedia && <MediaPanel mediaTab={mediaTab} setMediaTab={setMediaTab} mediaPhotos={mediaPhotos} mediaFiles={mediaFiles} mediaAudio={mediaAudio} onClose={() => setShowMedia(false)} />}{showMembers && activeConv.isGroup && <MembersPanel groupMembers={groupMembers} users={users} user={user} activeConv={activeConv} onClose={() => setShowMembers(false)} onProfileClick={setProfileModal} />}{showPinned && <PinnedPanel pinnedMessages={pinnedMessages} onClose={() => setShowPinned(false)} />}{showFavorites && <FavoritesPanel favoriteMessages={favoriteMessages} onClose={() => setShowFavorites(false)} />}{showGroupInfo && activeConv.isGroup && <GroupInfoPanel activeConv={activeConv} onClose={() => setShowGroupInfo(false)} onDelete={handleDeleteGroup} />}</div></>
+                <><ChatHeader conv={activeConv} /><div className="flex-1 flex min-h-0"><div className="flex-1 flex flex-col min-w-0">{messagesAreaContent}</div>{showMedia && <MediaPanel mediaTab={mediaTab} setMediaTab={setMediaTab} mediaPhotos={mediaPhotos} mediaFiles={mediaFiles} mediaAudio={mediaAudio} onClose={() => setShowMedia(false)} />}{showMembers && activeConv.isGroup && <MembersPanel groupMembers={groupMembers} users={users} user={user} activeConv={activeConv} onClose={() => setShowMembers(false)} onProfileClick={setProfileModal} />}{showPinned && <PinnedPanel pinnedMessages={pinnedMessages} onClose={() => setShowPinned(false)} />}{showFavorites && <FavoritesPanel favoriteMessages={favoriteMessages} onClose={() => setShowFavorites(false)} />}{showGroupInfo && activeConv.isGroup && <GroupInfoPanel activeConv={activeConv} onClose={() => setShowGroupInfo(false)} onDelete={handleDeleteGroup} onLeave={handleLeaveGroup} isAdmin={groupMembers.find(m => m.userId === user?.id)?.role === 'admin' || (user?.roles || [user?.role]).includes('super_admin')} />}</div></>
               ) : <div className="flex-1 flex flex-col items-center justify-center"><MessageCircle className="w-20 h-20 mb-4 opacity-5" style={{ color: 'var(--color-primary)' }} /><p className="font-mono text-sm" style={{ color: '#4a4a60' }}>Выберите диалог или начните новый</p></div>}
             </div>
             {showUserSearch && <UserSearchOverlay onSelect={startConversation} title="Найти пользователя..." />}
@@ -1024,6 +1094,76 @@ export default function ChatWidget() {
       </AnimatePresence>
 
       {contextMenu && <ContextMenuOverlay contextMenu={contextMenu} onClose={() => setContextMenu(null)} onReply={msg => { setReplyTo(msg); setContextMenu(null); }} onForward={msg => { setForwardMsg(msg); setContextMenu(null); }} onPin={handlePin} onEdit={msg => { setEditingMsg(msg); setNewMessage(msg.content); setContextMenu(null); }} onDelete={handleDeleteMessage} onReaction={(id, e) => { handleReaction(id, e); setContextMenu(null); }} user={user} />}
+
+      {/* Conversation context menu (right-click on chat in sidebar) */}
+      {convMenu && (
+        <div
+          className="fixed rounded-xl p-1.5 w-52"
+          style={{
+            left: Math.min(convMenu.x, window.innerWidth - 220),
+            top: Math.min(convMenu.y, window.innerHeight - 220),
+            zIndex: 99999,
+            background: 'linear-gradient(135deg, rgba(20,20,35,0.98), rgba(10,10,20,0.99))',
+            border: '1px solid rgba(255,255,255,0.1)',
+            backdropFilter: 'blur(24px)',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+          }}
+          onClick={e => e.stopPropagation()}
+        >
+          <button onClick={() => handleTogglePinConv(convMenu.conv)} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs hover:bg-white/5" style={{ color: '#c0c0d0' }}>
+            <Pin className="w-3.5 h-3.5" /> {convMenu.conv.pinned ? 'Открепить' : 'Закрепить'}
+          </button>
+          <button onClick={() => handleToggleMuteConv(convMenu.conv)} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs hover:bg-white/5" style={{ color: '#c0c0d0' }}>
+            {convMenu.conv.isMuted ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
+            {convMenu.conv.isMuted ? 'Включить уведомления' : 'Заглушить'}
+          </button>
+          <button onClick={() => {
+            const c = convMenu.conv;
+            setConvMenu(null);
+            setDeleteConfirm(c);
+          }} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs hover:bg-red-500/10 transition-colors" style={{ color: '#ff6b6b' }}>
+            <Trash2 className="w-3.5 h-3.5" /> {convMenu.conv.isGroup ? 'Удалить группу' : 'Удалить чат'}
+          </button>
+        </div>
+      )}
+
+      {/* Delete confirmation modal (Telegram-style) */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }} onClick={() => setDeleteConfirm(null)}>
+          <div className="w-full max-w-sm rounded-2xl p-6 space-y-4" onClick={e => e.stopPropagation()}
+            style={{ background: 'linear-gradient(135deg, rgba(20,20,35,0.98), rgba(10,10,20,0.99))', border: '1px solid rgba(255,255,255,0.1)' }}>
+            <h3 className="text-base font-bold font-mono text-gray-200">
+              {deleteConfirm.isGroup ? 'Удалить группу?' : 'Удалить чат?'}
+            </h3>
+            <p className="text-xs text-gray-400">
+              {deleteConfirm.isGroup
+                ? `Группа «${deleteConfirm.name}» и все сообщения будут удалены безвозвратно.`
+                : `Чат с «${deleteConfirm.otherName}» будет удалён из вашего списка. Сообщения останутся у собеседника.`}
+            </p>
+            <div className="flex gap-2">
+              <button onClick={() => setDeleteConfirm(null)} className="flex-1 py-2.5 rounded-xl glass text-gray-400 hover:text-gray-200 font-mono text-xs">ОТМЕНА</button>
+              <button onClick={async () => {
+                const conv = deleteConfirm;
+                setDeleteConfirm(null);
+                if (conv.isGroup) {
+                  try {
+                    await chatApi.deleteGroup(conv.id);
+                    showToast('Группа удалена', 'success');
+                    if (activeConv?.id === conv.id) { setActiveConv(null); activeConvRef.current = null; setMessages([]); }
+                    fetchConversations();
+                    fetchUnreadCount();
+                  } catch { showToast('Ошибка', 'error'); }
+                } else {
+                  await handleDeleteChat(conv);
+                }
+              }} className="flex-1 py-2.5 rounded-xl font-mono text-xs font-bold text-white"
+                style={{ background: 'linear-gradient(135deg, #ff3b30, #cc0000)' }}>
+                УДАЛИТЬ
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {showPollCreate && (
         <div className="fixed inset-0 flex items-center justify-center z-[200]" style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)' }} onClick={() => setShowPollCreate(false)}>
           <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="w-80 rounded-2xl p-5 space-y-3" style={{ background: 'linear-gradient(135deg, rgba(20,20,35,0.98), rgba(10,10,20,0.99))', border: '1px solid rgba(255,255,255,0.1)' }} onClick={e => e.stopPropagation()}>
@@ -1047,7 +1187,17 @@ export default function ChatWidget() {
           <button onClick={() => { setShowPinned(!showPinned); setShowMedia(false); setShowMembers(false); setShowGroupInfo(false); setShowFavorites(false); setShowMoreMenu(false); if (!showPinned && activeConv) chatApi.getPinnedMessages(activeConv.id).then(r => { if (r.success && r.data) setPinnedMessages(r.data); }).catch(() => {}); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs hover:bg-white/5" style={{ color: '#c0c0d0' }}><Pin className="w-3.5 h-3.5" /> Закреплённые</button>
           <button onClick={() => { setShowFavorites(!showFavorites); setShowMedia(false); setShowMembers(false); setShowPinned(false); setShowGroupInfo(false); setShowMoreMenu(false); if (!showFavorites && activeConv) chatApi.getFavorites(activeConv.id).then(r => { if (r.success && r.data) setFavoriteMessages(r.data); }).catch(() => {}); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs hover:bg-white/5" style={{ color: '#c0c0d0' }}>⭐ Избранное</button>
           <button onClick={() => { setShowMedia(!showMedia); setShowMembers(false); setShowPinned(false); setShowGroupInfo(false); setShowMoreMenu(false); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs hover:bg-white/5" style={{ color: '#c0c0d0' }}><ImageIcon className="w-3.5 h-3.5" /> Медиа</button>
-          <button onClick={async () => { setShowMoreMenu(false); if (!activeConv) return; const muted = (activeConv as any).isMuted; try { if (muted) { await chatApi.unmuteConversation(activeConv.id); (activeConv as any).isMuted = 0; showToast('Уведомления включены', 'success'); } else { await chatApi.muteConversation(activeConv.id); (activeConv as any).isMuted = 1; showToast('Чат заглушён', 'success'); } fetchConversations(); } catch { showToast('Ошибка', 'error'); } }} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs hover:bg-white/5" style={{ color: '#c0c0d0' }}>{(activeConv as any)?.isMuted ? <><Volume2 className="w-3.5 h-3.5" /> Включить уведомления</> : <><VolumeX className="w-3.5 h-3.5" /> Заглушить</>}</button>
+          <button onClick={() => { setShowMoreMenu(false); if (!activeConv) return; handleToggleMuteConv(activeConv); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs hover:bg-white/5" style={{ color: '#c0c0d0' }}>{activeConv?.isMuted ? <><Volume2 className="w-3.5 h-3.5" /> Включить уведомления</> : <><VolumeX className="w-3.5 h-3.5" /> Заглушить</>}</button>
+          {activeConv?.isGroup && (
+            <button onClick={() => { setShowMoreMenu(false); handleLeaveGroup(); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs hover:bg-white/5" style={{ color: '#eab308' }}>
+              <LogOut className="w-3.5 h-3.5" /> Выйти из группы
+            </button>
+          )}
+          {activeConv && !activeConv.isGeneral && (!activeConv.isGroup || isAdminOfActiveGroup) && (
+            <button onClick={() => { setShowMoreMenu(false); setDeleteConfirm(activeConv); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs hover:bg-red-500/10 transition-colors" style={{ color: '#ff6b6b' }}>
+              <Trash2 className="w-3.5 h-3.5" /> {activeConv.isGroup ? 'Удалить группу' : 'Удалить чат'}
+            </button>
+          )}
         </motion.div>
       )}
       <AnimatePresence>{profileModal && <ProfileModalOverlay profileModal={profileModal} onClose={() => setProfileModal(null)} onStartChat={startConversation} user={user} />}</AnimatePresence>

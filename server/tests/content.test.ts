@@ -1,19 +1,34 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
 import request from 'supertest';
 import express from 'express';
 import contentRoutes from '../routes/content';
 import { generateToken } from '../middleware/auth';
+import { initDatabase, run } from '../db/database';
+import { initializeDatabase } from '../db/init';
 
 const app = express();
 app.use(express.json());
 app.use('/api/content', contentRoutes);
 
+beforeAll(() => {
+  initDatabase(true);
+  initializeDatabase();
+  // Satisfy FK constraints on activities/content_posts
+  run('INSERT INTO users (id, username, password, email, fullName, role) VALUES (?, ?, ?, ?, ?, ?)',
+    ['test-admin-id', 'testadmin', 'x', 'test@test.local', 'Test Admin', 'smm']);
+});
+
+beforeEach(() => {
+  run('DELETE FROM content_posts');
+  run('DELETE FROM activities');
+});
+
 function adminToken() {
   return generateToken({
     id: 'test-admin-id',
     username: 'testadmin',
-    role: 'руководитель',
-    roles: ['руководитель'],
+    role: 'smm',
+    roles: ['smm'],
   });
 }
 

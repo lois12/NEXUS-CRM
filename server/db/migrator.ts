@@ -20,6 +20,7 @@ import './migrations/004_chat_extensions';
 import './migrations/005_registrations';
 import './migrations/006_widgets_lists';
 import './migrations/007_control_password';
+import './migrations/008_chat_hidden';
 
 export function runMigrations(): void {
   run(`CREATE TABLE IF NOT EXISTS schema_migrations (

@@ -540,6 +540,17 @@ export function initializeDatabase() {
     )
   `);
 
+  // Per-user hidden conversations ("delete chat for me")
+  run(`
+    CREATE TABLE IF NOT EXISTS chat_hidden (
+      id TEXT PRIMARY KEY,
+      conversationId TEXT NOT NULL,
+      userId TEXT NOT NULL,
+      createdAt TEXT DEFAULT (datetime('now')),
+      UNIQUE(conversationId, userId)
+    )
+  `);
+
   // Image generation tracking table
   run(`
     CREATE TABLE IF NOT EXISTS image_gen_log (

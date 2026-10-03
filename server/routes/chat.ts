@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getConversations, getOrCreateConversation, createGroup, updateGroup, addGroupMember, removeGroupMember, getGroupMembers, joinByInvite, getMessages, sendMessage, editMessage, deleteMessage, addReaction, removeReaction, pinMessage, unpinMessage, getPinnedMessages, getReadReceipts, setTyping, getTyping, uploadChatFile, markConversationRead, getChatUnreadCount, archiveConversation, unarchiveConversation, pinConversation, unpinConversation, addFavorite, removeFavorite, getFavorites, createPoll, getPollResults, votePoll, muteMember, unmuteMember, muteConversation, unmuteConversation } from '../controllers/chatController';
+import { getConversations, getOrCreateConversation, createGroup, updateGroup, addGroupMember, removeGroupMember, getGroupMembers, joinByInvite, getMessages, sendMessage, editMessage, deleteMessage, addReaction, removeReaction, pinMessage, unpinMessage, getPinnedMessages, getReadReceipts, setTyping, getTyping, uploadChatFile, markConversationRead, getChatUnreadCount, archiveConversation, unarchiveConversation, pinConversation, unpinConversation, addFavorite, removeFavorite, getFavorites, createPoll, getPollResults, votePoll, muteMember, unmuteMember, muteConversation, unmuteConversation, hideConversation, unhideConversation, deleteGroup, leaveGroup } from '../controllers/chatController';
 import { authenticateToken } from '../middleware/auth';
 import { upload } from '../middleware/upload';
 
@@ -13,10 +13,16 @@ router.post('/conversations', getOrCreateConversation);
 // Groups
 router.post('/groups', createGroup);
 router.put('/groups/:id', updateGroup);
+router.delete('/groups/:id', deleteGroup);
+router.post('/groups/:id/leave', leaveGroup);
 router.get('/groups/:id/members', getGroupMembers);
 router.post('/groups/:id/members', addGroupMember);
 router.delete('/groups/:id/members/:userId', removeGroupMember);
 router.post('/invite/:link', joinByInvite);
+
+// Hide / unhide conversation ("delete chat for me")
+router.delete('/conversations/:id', hideConversation);
+router.put('/conversations/:id/unhide', unhideConversation);
 
 // Messages
 router.get('/conversations/:id/messages', getMessages);

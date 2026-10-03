@@ -123,8 +123,8 @@ export function FavoritesPanel({ favoriteMessages, onClose }: { favoriteMessages
 }
 
 // ── GroupInfoPanel ──
-export function GroupInfoPanel({ activeConv, onClose, onDelete }: {
-  activeConv: ChatConversation; onClose: () => void; onDelete: () => void;
+export function GroupInfoPanel({ activeConv, onClose, onDelete, onLeave, isAdmin }: {
+  activeConv: ChatConversation; onClose: () => void; onDelete: () => void; onLeave: () => void; isAdmin: boolean;
 }) {
   const [desc, setDesc] = useState(activeConv?.description || '');
   const [saving, setSaving] = useState(false);
@@ -148,19 +148,25 @@ export function GroupInfoPanel({ activeConv, onClose, onDelete }: {
             </div>
           </div>
         )}
-        <div style={{ borderTop: GLASS_BORDER }} className="pt-4">
-          {!showDeleteConfirm ? (
-            <button onClick={() => setShowDeleteConfirm(true)} className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-mono text-xs font-bold transition-all" style={{ background: 'rgba(255,59,48,0.08)', color: '#ff6b6b', border: '1px solid rgba(255,59,48,0.15)' }}>
-              <Trash2 className="w-3.5 h-3.5" /> УДАЛИТЬ ГРУППУ
-            </button>
-          ) : (
-            <div className="space-y-2">
-              <p className="text-[10px] font-mono text-center" style={{ color: '#ff6b6b' }}>Вы уверены? Это действие необратимо.</p>
-              <div className="flex gap-2">
-                <button onClick={() => setShowDeleteConfirm(false)} className="flex-1 px-3 py-2 rounded-xl font-mono text-xs" style={{ background: 'rgba(255,255,255,0.05)', color: '#8a8aa0', border: GLASS_BORDER }}>ОТМЕНА</button>
-                <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={onDelete} className="flex-1 px-3 py-2 rounded-xl font-mono text-xs font-bold" style={{ background: 'linear-gradient(135deg, #ff3b30, #cc0000)', color: '#fff' }}>УДАЛИТЬ</motion.button>
+        <div style={{ borderTop: GLASS_BORDER }} className="pt-4 space-y-2">
+          {isAdmin ? (
+            !showDeleteConfirm ? (
+              <button onClick={() => setShowDeleteConfirm(true)} className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-mono text-xs font-bold transition-all" style={{ background: 'rgba(255,59,48,0.08)', color: '#ff6b6b', border: '1px solid rgba(255,59,48,0.15)' }}>
+                <Trash2 className="w-3.5 h-3.5" /> УДАЛИТЬ ГРУППУ
+              </button>
+            ) : (
+              <div className="space-y-2">
+                <p className="text-[10px] font-mono text-center" style={{ color: '#ff6b6b' }}>Вы уверены? Это действие необратимо.</p>
+                <div className="flex gap-2">
+                  <button onClick={() => setShowDeleteConfirm(false)} className="flex-1 px-3 py-2 rounded-xl font-mono text-xs" style={{ background: 'rgba(255,255,255,0.05)', color: '#8a8aa0', border: GLASS_BORDER }}>ОТМЕНА</button>
+                  <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={onDelete} className="flex-1 px-3 py-2 rounded-xl font-mono text-xs font-bold" style={{ background: 'linear-gradient(135deg, #ff3b30, #cc0000)', color: '#fff' }}>УДАЛИТЬ</motion.button>
+                </div>
               </div>
-            </div>
+            )
+          ) : (
+            <button onClick={onLeave} className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-mono text-xs font-bold transition-all" style={{ background: 'rgba(234,179,8,0.08)', color: '#eab308', border: '1px solid rgba(234,179,8,0.15)' }}>
+              ВЫЙТИ ИЗ ГРУППЫ
+            </button>
           )}
         </div>
       </div>

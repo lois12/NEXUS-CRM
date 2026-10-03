@@ -20,26 +20,32 @@ export const getConversations = (req: AuthRequest, res: Response) => {
         CASE WHEN c.user1Id = ? THEN u2.position ELSE u1.position END as otherPosition,
         CASE WHEN c.user1Id = ? THEN u2.lastSeen ELSE u1.lastSeen END as otherLastSeen,
         CASE WHEN c.user1Id = ? THEN u2.id ELSE u1.id END as otherId,
-        (SELECT COUNT(*) FROM chat_messages m WHERE m.conversationId = c.id AND m.senderId != ? AND m.isRead = 0 AND m.deleted = 0) as unreadCount
+        (SELECT COUNT(*) FROM chat_messages m WHERE m.conversationId = c.id AND m.senderId != ? AND m.isRead = 0 AND m.deleted = 0) as unreadCount,
+        (SELECT COUNT(*) FROM chat_user_mutes um WHERE um.conversationId = c.id AND um.userId = ?) as isMuted
       FROM chat_conversations c
       LEFT JOIN users u1 ON c.user1Id = u1.id
       LEFT JOIN users u2 ON c.user2Id = u2.id
       WHERE (c.user1Id = ? OR c.user2Id = ?) AND c.type = 'private'
+        AND NOT EXISTS (SELECT 1 FROM chat_hidden h WHERE h.conversationId = c.id AND h.userId = ?)
       ORDER BY c.lastMessageAt DESC
-    `, [userId, userId, userId, userId, userId, userId, userId, userId]);
+    `, [userId, userId, userId, userId, userId, userId, userId, userId, userId, userId]);
 
     const groupConvs = query(`
       SELECT c.*,
         (SELECT COUNT(*) FROM chat_messages m WHERE m.conversationId = c.id AND m.senderId != ? AND m.isRead = 0 AND m.deleted = 0) as unreadCount,
-        (SELECT COUNT(*) FROM chat_group_members gm WHERE gm.conversationId = c.id) as memberCount
+        (SELECT COUNT(*) FROM chat_group_members gm WHERE gm.conversationId = c.id) as memberCount,
+        (SELECT COUNT(*) FROM chat_user_mutes um WHERE um.conversationId = c.id AND um.userId = ?) as isMuted,
+        (SELECT gm.role FROM chat_group_members gm WHERE gm.conversationId = c.id AND gm.userId = ?) as myRole
       FROM chat_conversations c
       JOIN chat_group_members gm ON c.id = gm.conversationId AND gm.userId = ?
       WHERE c.type = 'group'
+        AND NOT EXISTS (SELECT 1 FROM chat_hidden h WHERE h.conversationId = c.id AND h.userId = ?)
       ORDER BY c.lastMessageAt DESC
-    `, [userId, userId]);
+    `, [userId, userId, userId, userId, userId]);
 
     const generalLast = get(`SELECT content, createdAt FROM chat_messages WHERE conversationId = ? AND deleted = 0 ORDER BY createdAt DESC LIMIT 1`, [GENERAL_CHAT_ID]);
     const generalUnread = get(`SELECT COUNT(*) as count FROM chat_messages WHERE conversationId = ? AND senderId != ? AND isRead = 0 AND deleted = 0`, [GENERAL_CHAT_ID, userId]);
+    const generalMuted = get(`SELECT COUNT(*) as count FROM chat_user_mutes WHERE conversationId = ? AND userId = ?`, [GENERAL_CHAT_ID, userId]);
 
     const generalConv = {
       id: GENERAL_CHAT_ID, type: 'general', name: 'Общий чат', avatar: '', description: '', inviteLink: '',
@@ -48,6 +54,7 @@ export const getConversations = (req: AuthRequest, res: Response) => {
       lastMessageAt: generalLast?.createdAt || null,
       lastMessagePreview: generalLast?.content?.substring(0, 100) || 'Нет сообщений',
       unreadCount: generalUnread?.count || 0, isGeneral: true, createdAt: '',
+      isMuted: generalMuted?.count || 0,
     };
 
     const allConvs = [
@@ -82,6 +89,9 @@ export const getOrCreateConversation = (req: AuthRequest, res: Response) => {
       const id = uuidv4();
       run('INSERT INTO chat_conversations (id, type, user1Id, user2Id) VALUES (?, ?, ?, ?)', [id, 'private', u1, u2]);
       conv = get('SELECT * FROM chat_conversations WHERE id = ?', [id]);
+    } else {
+      // Reopening a previously deleted chat — unhide it for both users
+      run('DELETE FROM chat_hidden WHERE conversationId = ?', [conv.id]);
     }
     res.json({ success: true, data: conv });
   } catch (error) {
@@ -265,7 +275,11 @@ export const sendMessage = (req: AuthRequest, res: Response) => {
       [msgId, conversationId, senderId, type, content, replyToId || null, replyToContent, replyToSenderName, mentionedUserIds || '', forwardedFrom || '', caption || '']);
 
     const preview = type === 'text' ? content.substring(0, 100) : (caption ? caption.substring(0, 100) : `[${type}]`);
-    if (!isGeneral) run("UPDATE chat_conversations SET lastMessageAt = datetime('now'), lastMessagePreview = ? WHERE id = ?", [preview, conversationId]);
+    if (!isGeneral) {
+      run("UPDATE chat_conversations SET lastMessageAt = datetime('now'), lastMessagePreview = ? WHERE id = ?", [preview, conversationId]);
+      // Unhide chat for other participants (new message brings chat back)
+      run('DELETE FROM chat_hidden WHERE conversationId = ? AND userId != ?', [conversationId, senderId]);
+    }
 
     const sender = get('SELECT fullName FROM users WHERE id = ?', [senderId]);
 
@@ -478,6 +492,143 @@ export const getChatUnreadCount = (req: AuthRequest, res: Response) => {
     const generalUnread = get(`SELECT COUNT(*) as count FROM chat_messages WHERE conversationId = ? AND senderId != ? AND isRead = 0 AND deleted = 0`, [GENERAL_CHAT_ID, userId]);
     res.json({ success: true, data: { count: (privateUnread?.count || 0) + (groupUnread?.count || 0) + (generalUnread?.count || 0) } });
   } catch (error) { console.error('GetChatUnreadCount error:', error); res.status(500).json({ success: false, error: 'Ошибка сервера' }); }
+};
+
+// ── Hide / Delete / Leave ──
+
+/** Hide conversation for current user only ("delete chat for me", like Telegram). */
+export const hideConversation = (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user!.id;
+
+    // Verify membership
+    const conv = get('SELECT * FROM chat_conversations WHERE id = ?', [id]);
+    if (!conv) return res.status(404).json({ success: false, error: 'Чат не найден' });
+    if (conv.type === 'general' || id === GENERAL_CHAT_ID) return res.status(400).json({ success: false, error: 'Общий чат нельзя удалить' });
+
+    const isMember = conv.type === 'private'
+      ? (conv.user1Id === userId || conv.user2Id === userId)
+      : !!get('SELECT 1 FROM chat_group_members WHERE conversationId = ? AND userId = ?', [id, userId]);
+    if (!isMember) return res.status(403).json({ success: false, error: 'Вы не участник этого чата' });
+
+    run('INSERT OR IGNORE INTO chat_hidden (id, conversationId, userId) VALUES (?, ?, ?)', [uuidv4(), id, userId]);
+    res.json({ success: true, message: 'Чат удалён' });
+  } catch (error) {
+    console.error('HideConversation error:', error);
+    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+  }
+};
+
+/** Unhide conversation (when a new message arrives or user reopens via profile). */
+export const unhideConversation = (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    run('DELETE FROM chat_hidden WHERE conversationId = ? AND userId = ?', [id, req.user!.id]);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('UnhideConversation error:', error);
+    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+  }
+};
+
+// Note: getOrCreateConversation also un-hides when reopening a deleted private chat.
+
+/** Permanently delete a group (admin only). Removes members, messages, reactions, etc. */
+export const deleteGroup = (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user!.id;
+
+    const conv = get("SELECT * FROM chat_conversations WHERE id = ? AND type = 'group'", [id]);
+    if (!conv) return res.status(404).json({ success: false, error: 'Группа не найдена' });
+
+    const membership = get('SELECT role FROM chat_group_members WHERE conversationId = ? AND userId = ?', [id, userId]);
+    const isSuperAdmin = (req.user!.roles || [req.user!.role]).includes('super_admin');
+    if ((!membership || membership.role !== 'admin') && !isSuperAdmin) {
+      return res.status(403).json({ success: false, error: 'Только админ группы может удалить её' });
+    }
+
+    transaction(() => {
+      run('DELETE FROM chat_reactions WHERE messageId IN (SELECT id FROM chat_messages WHERE conversationId = ?)', [id]);
+      run('DELETE FROM chat_pinned WHERE messageId IN (SELECT id FROM chat_messages WHERE conversationId = ?)', [id]);
+      run('DELETE FROM chat_favorites WHERE messageId IN (SELECT id FROM chat_messages WHERE conversationId = ?)', [id]);
+      run('DELETE FROM chat_attachments WHERE messageId IN (SELECT id FROM chat_messages WHERE conversationId = ?)', [id]);
+      run('DELETE FROM chat_poll_votes WHERE pollId IN (SELECT id FROM chat_polls WHERE conversationId = ?)', [id]);
+      run('DELETE FROM chat_poll_options WHERE pollId IN (SELECT id FROM chat_polls WHERE conversationId = ?)', [id]);
+      run('DELETE FROM chat_polls WHERE conversationId = ?', [id]);
+      run('DELETE FROM chat_messages WHERE conversationId = ?', [id]);
+      run('DELETE FROM chat_reads WHERE conversationId = ?', [id]);
+      run('DELETE FROM chat_muted WHERE conversationId = ?', [id]);
+      run('DELETE FROM chat_user_mutes WHERE conversationId = ?', [id]);
+      run('DELETE FROM chat_group_members WHERE conversationId = ?', [id]);
+      run('DELETE FROM chat_hidden WHERE conversationId = ?', [id]);
+      run('DELETE FROM chat_conversations WHERE id = ?', [id]);
+    });
+
+    const io = req.app.get('io');
+    if (io) io.emit('chat:conversation-deleted', { conversationId: id });
+
+    res.json({ success: true, message: 'Группа удалена' });
+  } catch (error) {
+    console.error('DeleteGroup error:', error);
+    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+  }
+};
+
+/** Leave a group (member removes self). */
+export const leaveGroup = (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user!.id;
+
+    const conv = get("SELECT * FROM chat_conversations WHERE id = ? AND type = 'group'", [id]);
+    if (!conv) return res.status(404).json({ success: false, error: 'Группа не найдена' });
+
+    const membership = get('SELECT * FROM chat_group_members WHERE conversationId = ? AND userId = ?', [id, userId]);
+    if (!membership) return res.status(400).json({ success: false, error: 'Вы не состоите в этой группе' });
+
+    // If last admin is leaving — promote another member or delete group
+    const adminCount = get("SELECT COUNT(*) as count FROM chat_group_members WHERE conversationId = ? AND role = 'admin'", [id]);
+    if (membership.role === 'admin' && adminCount?.count <= 1) {
+      const other = get("SELECT userId FROM chat_group_members WHERE conversationId = ? AND userId != ? LIMIT 1", [id, userId]);
+      if (other) {
+        run("UPDATE chat_group_members SET role = 'admin' WHERE conversationId = ? AND userId = ?", [id, other.userId]);
+      } else {
+        // Last member leaving — delete group entirely (full cascade)
+        transaction(() => {
+          run('DELETE FROM chat_reactions WHERE messageId IN (SELECT id FROM chat_messages WHERE conversationId = ?)', [id]);
+          run('DELETE FROM chat_pinned WHERE messageId IN (SELECT id FROM chat_messages WHERE conversationId = ?)', [id]);
+          run('DELETE FROM chat_favorites WHERE messageId IN (SELECT id FROM chat_messages WHERE conversationId = ?)', [id]);
+          run('DELETE FROM chat_attachments WHERE messageId IN (SELECT id FROM chat_messages WHERE conversationId = ?)', [id]);
+          run('DELETE FROM chat_poll_votes WHERE pollId IN (SELECT id FROM chat_polls WHERE conversationId = ?)', [id]);
+          run('DELETE FROM chat_poll_options WHERE pollId IN (SELECT id FROM chat_polls WHERE conversationId = ?)', [id]);
+          run('DELETE FROM chat_polls WHERE conversationId = ?', [id]);
+          run('DELETE FROM chat_messages WHERE conversationId = ?', [id]);
+          run('DELETE FROM chat_reads WHERE conversationId = ?', [id]);
+          run('DELETE FROM chat_muted WHERE conversationId = ?', [id]);
+          run('DELETE FROM chat_user_mutes WHERE conversationId = ?', [id]);
+          run('DELETE FROM chat_group_members WHERE conversationId = ?', [id]);
+          run('DELETE FROM chat_hidden WHERE conversationId = ?', [id]);
+          run('DELETE FROM chat_conversations WHERE id = ?', [id]);
+        });
+        const io = req.app.get('io');
+        if (io) io.emit('chat:conversation-deleted', { conversationId: id });
+        return res.json({ success: true, message: 'Группа удалена' });
+      }
+    }
+
+    run('DELETE FROM chat_group_members WHERE conversationId = ? AND userId = ?', [id, userId]);
+    run('INSERT OR IGNORE INTO chat_hidden (id, conversationId, userId) VALUES (?, ?, ?)', [uuidv4(), id, userId]);
+
+    const io = req.app.get('io');
+    if (io) io.to(`conv:${id}`).emit('chat:member-left', { conversationId: id, userId });
+
+    res.json({ success: true, message: 'Вы покинули группу' });
+  } catch (error) {
+    console.error('LeaveGroup error:', error);
+    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+  }
 };
 
 // ── Archive / Unarchive ──

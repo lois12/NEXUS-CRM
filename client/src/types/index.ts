@@ -377,6 +377,8 @@ export interface ChatConversation {
   isGeneral?: boolean;
   pinned?: number;
   archived?: number;
+  isMuted?: number;
+  myRole?: string;
   createdAt: string;
 }
 
