@@ -233,6 +233,8 @@ async function start() {
       io.emit('users:online', Array.from(new Set(onlineUsers.values())));
 
       socket.on('chat:join', (conversationId: string) => {
+        // General chat — any authenticated user can join
+        if (conversationId === 'general') { socket.join('conv:general'); return; }
         // Verify membership before joining room
         const conv = get('SELECT * FROM chat_conversations WHERE id = ?', [conversationId]);
         if (!conv) return;

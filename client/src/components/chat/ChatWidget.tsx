@@ -28,6 +28,8 @@ export default function ChatWidget() {
   const [isOpen, setIsOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
+  const conversationsRef = useRef<ChatConversation[]>([]);
+  useEffect(() => { conversationsRef.current = conversations; }, [conversations]);
   const [activeConv, setActiveConv] = useState<ChatConversation | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
@@ -213,15 +215,18 @@ export default function ChatWidget() {
 
     const handleMessage = (msg: ChatMessage) => {
       const conv = activeConvRef.current;
-      if (msg.conversationId === conv?.id) {
+      const isCurrentChat = msg.conversationId === conv?.id;
+      if (isCurrentChat) {
         setMessages(prev => {
           if (prev.some(m => m.id === msg.id)) return prev;
           return [...prev, msg];
         });
       }
       if (msg.senderId !== user?.id) {
+        // Sound depends on the message's conversation type, not the active one
+        const isGroupMsg = msg.conversationId === 'general' || conversationsRef.current.find(c => c.id === msg.conversationId)?.isGroup;
         if (soundEnabled && isOpen && !isDndActive()) {
-          playSound(conv?.isGroup || conv?.isGeneral ? soundGroup : soundPrivate);
+          playSound(isGroupMsg ? soundGroup : soundPrivate);
         }
       }
       fetchUnreadCount();
@@ -505,10 +510,13 @@ export default function ChatWidget() {
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between">
           <span className={`text-sm truncate ${active ? 'font-bold' : 'font-medium'}`} style={{ color: active ? '#fff' : '#c0c0d0' }}>{conv.otherName}</span>
-          {(conv.unreadCount || 0) > 0 && <span className="min-w-[20px] h-[20px] rounded-full flex items-center justify-center text-[9px] font-bold font-mono px-1" style={{ background: 'linear-gradient(135deg, #00ff88, #00cc6a)', color: '#000', boxShadow: '0 0 10px rgba(0,255,136,0.4)' }}>{conv.unreadCount}</span>}
+          <div className="flex items-center gap-1 flex-shrink-0">
+            {conv.isMuted ? <span className="text-[10px] opacity-60">🔇</span> : null}
+            {(conv.unreadCount || 0) > 0 && <span className="min-w-[20px] h-[20px] rounded-full flex items-center justify-center text-[9px] font-bold font-mono px-1" style={{ background: conv.isMuted ? 'rgba(120,120,140,0.6)' : 'linear-gradient(135deg, #00ff88, #00cc6a)', color: conv.isMuted ? '#fff' : '#000', boxShadow: conv.isMuted ? 'none' : '0 0 10px rgba(0,255,136,0.4)' }}>{conv.unreadCount}</span>}
+          </div>
         </div>
         {conv.isGroup && <span className="text-[9px] font-mono" style={{ color: '#5a5a70' }}>{conv.memberCount} участников</span>}
-        {conv.otherPosition && !conv.isGroup && <span className="text-[9px] font-mono" style={{ color: '#5a5a70' }}>{conv.otherPosition}</span>}
+        {conv.otherPosition && !conv.isGroup && !conv.isGeneral && <span className="text-[9px] font-mono" style={{ color: '#5a5a70' }}>{conv.otherPosition}</span>}
         <p className="text-xs truncate mt-0.5" style={{ color: '#6a6a80' }}>{conv.lastMessagePreview || 'Нет сообщений'}</p>
       </div>
       {isPinned && <span className="absolute top-1 right-1 text-[10px] opacity-50">📌</span>}
@@ -951,8 +959,9 @@ export default function ChatWidget() {
       <div className="flex-1 min-w-0 cursor-pointer" onClick={() => { if (conv.isGroup) { setShowMembers(!showMembers); setShowMedia(false); setShowPinned(false); setShowGroupInfo(false); } }}>
         <span className="text-sm font-medium truncate block" style={{ color: '#e0e0e0' }}>{conv.otherName}</span>
         {conv.isGroup && <span className="text-[9px] font-mono" style={{ color: '#5a5a70' }}>{conv.memberCount} участников</span>}
-        {conv.otherPosition && !conv.isGroup && <span className="text-[9px] font-mono" style={{ color: '#5a5a70' }}>{conv.otherPosition}</span>}
-        {!conv.isGroup && !conv.otherPosition && conv.otherLastSeen && !isOnline(conv.otherLastSeen) && (
+        {conv.isGeneral && <span className="text-[9px] font-mono" style={{ color: '#5a5a70' }}>Все сотрудники</span>}
+        {conv.otherPosition && !conv.isGroup && !conv.isGeneral && <span className="text-[9px] font-mono" style={{ color: '#5a5a70' }}>{conv.otherPosition}</span>}
+        {!conv.isGroup && !conv.isGeneral && !conv.otherPosition && conv.otherLastSeen && !isOnline(conv.otherLastSeen) && (
           <span className="text-[9px] font-mono" style={{ color: '#5a5a70' }}>Был(а) {formatLastSeen(conv.otherLastSeen)}</span>
         )}
         {!isConnected && <span className="text-[9px] font-mono px-2 py-0.5 rounded-full" style={{ background: 'rgba(234,179,8,0.1)', color: '#eab308', border: '1px solid rgba(234,179,8,0.2)' }}>Переподключение...</span>}

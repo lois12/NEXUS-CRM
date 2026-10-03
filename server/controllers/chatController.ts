@@ -209,23 +209,35 @@ export const getMessages = (req: AuthRequest, res: Response) => {
     const after = req.query.after as string;
     const limit = parseInt(req.query.limit as string) || 50;
 
-    // Verify user is a member of this conversation
-    const conv = get('SELECT * FROM chat_conversations WHERE id = ?', [conversationId]);
-    if (!conv) return res.status(404).json({ success: false, error: 'Чат не найден' });
+    // General chat has no DB row — skip membership lookup for it
+    if (conversationId !== GENERAL_CHAT_ID) {
+      const conv = get('SELECT * FROM chat_conversations WHERE id = ?', [conversationId]);
+      if (!conv) return res.status(404).json({ success: false, error: 'Чат не найден' });
 
-    if (conv.type !== 'general') {
       const isMember = conv.user1Id === userId || conv.user2Id === userId ||
         (conv.type === 'group' && !!get('SELECT 1 FROM chat_group_members WHERE conversationId = ? AND userId = ?', [conversationId, userId]));
       if (!isMember) return res.status(403).json({ success: false, error: 'Нет доступа' });
     }
 
-    let sql = `SELECT m.*, u.fullName as senderName, u.avatar as senderAvatar, u.position as senderPosition
+    let sql: string;
+    const params: any[] = [];
+    if (after) {
+      // Pagination forward: messages after a cursor
+      sql = `SELECT m.*, u.fullName as senderName, u.avatar as senderAvatar, u.position as senderPosition
+             FROM chat_messages m LEFT JOIN users u ON m.senderId = u.id
+             WHERE m.conversationId = ? AND m.deleted = 0 AND m.createdAt > ?
+             ORDER BY m.createdAt ASC LIMIT ?`;
+      params.push(conversationId, after, limit);
+    } else {
+      // Initial load: return the NEWEST `limit` messages in chronological order
+      sql = `SELECT * FROM (
+               SELECT m.*, u.fullName as senderName, u.avatar as senderAvatar, u.position as senderPosition
                FROM chat_messages m LEFT JOIN users u ON m.senderId = u.id
-               WHERE m.conversationId = ? AND m.deleted = 0`;
-    const params: any[] = [conversationId];
-    if (after) { sql += ' AND m.createdAt > ?'; params.push(after); }
-    sql += ' ORDER BY m.createdAt ASC LIMIT ?';
-    params.push(limit);
+               WHERE m.conversationId = ? AND m.deleted = 0
+               ORDER BY m.createdAt DESC LIMIT ?
+             ) ORDER BY createdAt ASC`;
+      params.push(conversationId, limit);
+    }
 
     const messages = query(sql, params);
 
