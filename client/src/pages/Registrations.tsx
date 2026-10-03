@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Search, Edit3, Trash2, X, ClipboardList, Eye, QrCode, Copy, Calendar, Users, MapPin, ArrowLeft, Clock, Upload, Camera, ExternalLink, BarChart3 } from 'lucide-react';
+import { Plus, Search, Edit3, Trash2, X, ClipboardList, Eye, QrCode, Copy, Calendar, Users, MapPin, ArrowLeft, Clock, Upload, Camera, ExternalLink, BarChart3, Phone } from 'lucide-react';
 import { Registration, RegistrationField, RegistrationSubmission, FieldType, FIELD_TYPE_CONFIG } from '../types';
 import { registrationsApi } from '../services/api';
 import { showToast, useNexusConfirm, ConfirmModal } from '../components/ui/NexusModal';
@@ -54,6 +54,7 @@ export default function Registrations() {
   const [contacts, setContacts] = useState<any[]>([]);
   const [contactSearch, setContactSearch] = useState('');
   const [contactsLoading, setContactsLoading] = useState(false);
+  const [selectedContact, setSelectedContact] = useState<any | null>(null);
 
   const fetchStats = async (regId: string) => {
     try {
@@ -1054,7 +1055,7 @@ export default function Registrations() {
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[200] flex items-center justify-center p-4"
             style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }}
-            onClick={() => setShowContacts(false)}
+            onClick={() => { setShowContacts(false); setSelectedContact(null); }}
           >
             <motion.div
               initial={{ scale: 0.95, opacity: 0, y: 20 }}
@@ -1067,7 +1068,7 @@ export default function Registrations() {
               {/* Header */}
               <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
                 <h3 className="font-mono text-lg font-bold" style={{ color: 'var(--color-primary)' }}>БАЗА КОНТАКТОВ</h3>
-                <button onClick={() => setShowContacts(false)} className="p-1.5 rounded-lg hover:bg-white/10" aria-label="Закрыть">
+                <button onClick={() => { setShowContacts(false); setSelectedContact(null); }} className="p-1.5 rounded-lg hover:bg-white/10" aria-label="Закрыть">
                   <X className="w-4 h-4 text-gray-400" />
                 </button>
               </div>
@@ -1118,7 +1119,8 @@ export default function Registrations() {
                           );
                         })
                         .map((c, i) => (
-                          <tr key={i} className="border-b border-white/5 hover:bg-white/[0.02]">
+                          <tr key={i} className="border-b border-white/5 hover:bg-white/[0.04] cursor-pointer transition-colors"
+                            onClick={() => setSelectedContact(c)}>
                             <td className="px-3 py-2 font-mono text-xs text-gray-500">{i + 1}</td>
                             <td className="px-3 py-2 font-mono text-sm text-gray-200">{c.contactLastName || c.contactName?.split(' ')[0] || '—'}</td>
                             <td className="px-3 py-2 font-mono text-sm text-gray-200">{c.contactFirstName || c.contactName?.split(' ')[1] || '—'}</td>
@@ -1144,6 +1146,155 @@ export default function Registrations() {
             </motion.div>
           </motion.div>
         )}
+
+        {/* Contact detail modal */}
+        {selectedContact && (() => {
+          const c = selectedContact;
+          const displayName = [c.contactLastName, c.contactFirstName, c.contactPatronymic].filter(Boolean).join(' ')
+            || c.contactName || 'Без имени';
+          const cleanPhone = (c.contactPhone || '').replace(/[^\d+]/g, '');
+          const copyText = [displayName, c.contactPhone, c.contactEmail].filter(Boolean).join('\n');
+
+          // МАКС: Web Share API (на телефоне откроется шейлер с МАКС),
+          // иначе копируем текст и открываем веб-версию
+          const shareToMax = async () => {
+            if (navigator.share) {
+              try {
+                await navigator.share({ title: displayName, text: copyText });
+                return;
+              } catch { /* отменено — фолбэк */ }
+            }
+            await navigator.clipboard.writeText(copyText);
+            showToast('Скопировано — вставьте в МАКС');
+            window.open('https://web.max.ru', '_blank', 'noopener');
+          };
+
+          return (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[210] flex items-center justify-center p-4"
+              style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }}
+              onClick={() => setSelectedContact(null)}
+            >
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.95, opacity: 0, y: 20 }}
+                className="w-full max-w-md rounded-2xl overflow-hidden"
+                style={{ background: 'linear-gradient(135deg, rgba(20,20,35,0.98), rgba(10,10,20,0.99))', border: '1px solid rgba(255,255,255,0.08)', backdropFilter: 'blur(24px)' }}
+                onClick={e => e.stopPropagation()}
+              >
+                {/* Header */}
+                <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                  <h3 className="font-mono text-lg font-bold" style={{ color: 'var(--color-primary)' }}>КОНТАКТ</h3>
+                  <button onClick={() => setSelectedContact(null)} className="p-1.5 rounded-lg hover:bg-white/10" aria-label="Закрыть">
+                    <X className="w-4 h-4 text-gray-400" />
+                  </button>
+                </div>
+
+                <div className="p-6 space-y-4">
+                  {/* Avatar + name */}
+                  <div className="flex items-center gap-3">
+                    <div className="w-14 h-14 rounded-full flex items-center justify-center text-2xl font-bold shrink-0"
+                      style={{ background: 'rgba(0,255,136,0.15)', color: 'var(--color-primary)' }}>
+                      {(c.contactLastName || displayName)[0]?.toUpperCase() || '?'}
+                    </div>
+                    <div className="min-w-0">
+                      <h4 className="font-mono text-sm font-bold text-gray-200 truncate">{displayName}</h4>
+                      {c.contactPhone && <p className="font-mono text-xs text-gray-400">{c.contactPhone}</p>}
+                      {c.contactEmail && <p className="font-mono text-xs text-gray-500 truncate">{c.contactEmail}</p>}
+                    </div>
+                  </div>
+
+                  {/* Stats */}
+                  {(c.eventCount != null || c.lastRegistration) && (
+                    <div className="flex gap-2">
+                      {c.eventCount != null && (
+                        <div className="flex-1 rounded-lg px-3 py-2" style={{ background: 'rgba(0,255,136,0.06)', border: '1px solid rgba(0,255,136,0.12)' }}>
+                          <p className="font-mono text-[9px] text-gray-500">МЕРОПРИЯТИЙ</p>
+                          <p className="font-mono text-sm font-bold" style={{ color: 'var(--color-primary)' }}>{c.eventCount}</p>
+                        </div>
+                      )}
+                      {c.lastRegistration && (
+                        <div className="flex-1 rounded-lg px-3 py-2" style={{ background: 'rgba(0,212,255,0.06)', border: '1px solid rgba(0,212,255,0.12)' }}>
+                          <p className="font-mono text-[9px] text-gray-500">ПОСЛЕДНЯЯ РЕГ.</p>
+                          <p className="font-mono text-xs text-gray-300 mt-0.5">{String(c.lastRegistration).slice(0, 10)}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Actions: copy + socials */}
+                  <div className="grid grid-cols-5 gap-2">
+                    <button onClick={() => { navigator.clipboard.writeText(copyText); showToast('Скопировано'); }}
+                      className="flex flex-col items-center gap-1 p-2.5 rounded-xl glass hover:bg-white/10 transition-all">
+                      <Copy className="w-4 h-4 text-gray-400" />
+                      <span className="font-mono text-[9px] text-gray-500">Копия</span>
+                    </button>
+
+                    <a href={`https://t.me/share/url?url=${encodeURIComponent(copyText)}`} target="_blank" rel="noopener noreferrer"
+                      className="flex flex-col items-center gap-1 p-2.5 rounded-xl glass hover:bg-white/10 transition-all no-underline">
+                      <svg viewBox="0 0 24 24" className="w-4 h-4" fill="#0088CC"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.479.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
+                      <span className="font-mono text-[9px] text-gray-500">Telegram</span>
+                    </a>
+
+                    {cleanPhone ? (
+                      <a href={`https://api.whatsapp.com/send?phone=${cleanPhone.replace(/^\+/, '')}`} target="_blank" rel="noopener noreferrer"
+                        className="flex flex-col items-center gap-1 p-2.5 rounded-xl glass hover:bg-white/10 transition-all no-underline">
+                        <svg viewBox="0 0 24 24" className="w-4 h-4" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                        <span className="font-mono text-[9px] text-gray-500">WhatsApp</span>
+                      </a>
+                    ) : (
+                      <div className="flex flex-col items-center gap-1 p-2.5 rounded-xl opacity-30">
+                        <svg viewBox="0 0 24 24" className="w-4 h-4" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                        <span className="font-mono text-[9px] text-gray-500">WhatsApp</span>
+                      </div>
+                    )}
+
+                    <a href={`https://vk.com/share.php?url=${encodeURIComponent(window.location.href)}&title=${encodeURIComponent(displayName)}&comment=${encodeURIComponent(copyText)}`} target="_blank" rel="noopener noreferrer"
+                      className="flex flex-col items-center gap-1 p-2.5 rounded-xl glass hover:bg-white/10 transition-all no-underline">
+                      <svg viewBox="0 0 24 24" className="w-4 h-4" fill="#0077FF"><path d="M12.785 16.241s.288-.032.436-.194c.136-.148.132-.427.132-.427s-.02-1.304.587-1.496c.596-.189 1.362 1.26 2.174 1.817.613.42 1.079.328 1.079.328l2.172-.03s1.136-.07.598-.964c-.044-.073-.314-.66-1.618-1.866-1.364-1.264-1.182-1.06.462-3.246.999-1.33 1.398-2.143 1.273-2.49-.12-.334-.86-.246-.86-.246l-2.446.015s-.182-.025-.316.056c-.131.079-.216.263-.216.263s-.387 1.026-.902 1.906c-1.086 1.85-1.524 1.952-1.702 1.838-.415-.268-.312-1.076-.312-1.65 0-1.793.272-2.54-.529-2.734-.266-.064-.462-.107-1.143-.114-.874-.008-1.613.003-2.032.208-.28.137-.496.442-.363.46.163.022.532.099.728.366.254.346.245 1.124.245 1.124s.146 2.15-.34 2.416c-.333.184-.791-.19-1.776-1.9-.503-.877-.882-1.844-.882-1.844s-.073-.18-.204-.277c-.159-.118-.38-.156-.38-.156l-2.32.015s-.348.01-.476.162c-.114.135-.01.413-.01.413s1.82 4.262 3.882 6.408c1.89 1.968 4.04 1.836 4.04 1.836h.976z"/></svg>
+                      <span className="font-mono text-[9px] text-gray-500">ВКонтакте</span>
+                    </a>
+
+                    <button onClick={shareToMax}
+                      className="flex flex-col items-center gap-1 p-2.5 rounded-xl glass hover:bg-white/10 transition-all no-underline">
+                      <svg viewBox="0 0 100 100" className="w-4 h-4" fill="currentColor"><path fillRule="evenodd" d="M50.76 0c27.53 0 49.12 22.34 49.12 49.89S77.61 99.23 51.02 99.23c-9.43 0-14.01-1.33-21.37-6.54-.5-.36-1.2-.26-1.63.19-5.66 6.04-20.17 10.28-20.83 2.03C7.19 80.53 0 71.18 0 49.61 0 21.3 23.22 0 50.76 0m.77 24.55c-13.07-.68-23.26 8.39-25.51 22.58-1.86 11.75 1.44 26.07 4.26 26.8 1.2.3 4.08-1.9 6.18-3.88.4-.37.99-.44 1.45-.15 3.27 2 6.97 3.5 11.05 3.71 13.42.7 25.3-9.8 26-23.21.71-13.42-10.01-25.14-23.43-25.85" clipRule="evenodd"/></svg>
+                      <span className="font-mono text-[9px] text-gray-500">МАКС</span>
+                    </button>
+                  </div>
+
+                  {/* Call button */}
+                  {cleanPhone && (
+                    <a href={`tel:${cleanPhone}`}
+                      className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-mono text-sm font-bold w-full transition-all"
+                      style={{ background: 'rgba(0,255,136,0.15)', color: 'var(--color-primary)', border: '1px solid rgba(0,255,136,0.3)' }}>
+                      <Phone className="w-4 h-4" /> ПОЗВОНИТЬ
+                    </a>
+                  )}
+
+                  {/* Copy phone / copy email */}
+                  <div className="flex gap-2">
+                    {c.contactPhone && (
+                      <button onClick={() => { navigator.clipboard.writeText(c.contactPhone); showToast('Телефон скопирован'); }}
+                        className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg font-mono text-xs glass hover:bg-white/10 transition-all text-gray-300">
+                        <Copy className="w-3.5 h-3.5" /> ТЕЛЕФОН
+                      </button>
+                    )}
+                    {c.contactEmail && (
+                      <button onClick={() => { navigator.clipboard.writeText(c.contactEmail); showToast('Email скопирован'); }}
+                        className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg font-mono text-xs glass hover:bg-white/10 transition-all text-gray-300">
+                        <Copy className="w-3.5 h-3.5" /> EMAIL
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          );
+        })()}
       </AnimatePresence>
     </div>
   );

@@ -14,23 +14,18 @@ import {
   Globe,
   FileText,
   Timer,
-  CheckCircle2,
   MoreVertical,
   Trash2,
   Copy,
-  AlertTriangle,
-  Shield,
   Send,
 } from 'lucide-react';
-import { ContentPost, SocialPlatform, ContentStatus, ContentApproval } from '../types';
+import { ContentPost, SocialPlatform, ContentStatus } from '../types';
 import { contentApi } from '../services/api';
 import { ConfirmModal, useNexusConfirm, NexusSpinner, showToast } from '../components/ui/NexusModal';
 import ImageUpload from '../components/ui/ImageUpload';
 import RichEditor from '../components/ui/RichEditor';
-import ApprovalPipeline from '../components/content/ApprovalPipeline';
-import ApprovalActions from '../components/content/ApprovalActions';
-import ApprovalStatus from '../components/content/ApprovalStatus';
 import PostComments from '../components/content/PostComments';
+import { useAuth } from '../context/AuthContext';
 import { formatDateKR, formatTimeKR } from '../utils/timezone';
 import FullCalendarView from '../components/content/FullCalendarView';
 import { LayoutGrid, CalendarDays } from 'lucide-react';
@@ -74,13 +69,14 @@ const platformConfig: Record<SocialPlatform, { icon: React.ReactNode; label: str
   },
 };
 
-const statusConfig: Record<ContentStatus, { label: string; color: string; icon: React.ReactNode }> = {
+const statusConfig: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
   черновик: { label: 'Черновик', color: '#6b7280', icon: <FileText className="w-3 h-3" /> },
-  запланирован: { label: 'На согласовании', color: '#eab308', icon: <Timer className="w-3 h-3" /> },
-  на_доработку: { label: 'Доработка', color: '#ff3b30', icon: <AlertTriangle className="w-3 h-3" /> },
-  согласован: { label: 'Согласован', color: '#00d4ff', icon: <CheckCircle2 className="w-3 h-3" /> },
-  утверждён: { label: 'Утверждён', color: '#bf00ff', icon: <Shield className="w-3 h-3" /> },
+  запланирован: { label: 'Запланирован', color: '#00d4ff', icon: <Timer className="w-3 h-3" /> },
   опубликован: { label: 'Опубликован', color: '#22c55e', icon: <Send className="w-3 h-3" /> },
+  // Legacy-статусы (если остались в БД) — показываем как есть
+  на_доработку: { label: 'Доработка', color: '#eab308', icon: <Timer className="w-3 h-3" /> },
+  согласован: { label: 'Согласован', color: '#00d4ff', icon: <Timer className="w-3 h-3" /> },
+  утверждён: { label: 'Утверждён', color: '#bf00ff', icon: <Timer className="w-3 h-3" /> },
 };
 
 const DAYS_OF_WEEK = ['ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ', 'ВС'];
@@ -97,6 +93,8 @@ interface ContextMenu {
 }
 
 export default function ContentPlan() {
+  const { user } = useAuth();
+  const canEdit = !!user && (user.roles?.includes('super_admin') || user.roles?.includes('smm') || user.role === 'super_admin' || user.role === 'smm');
   const [posts, setPosts] = useState<ContentPost[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -108,7 +106,6 @@ export default function ContentPlan() {
   const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null);
   const [postImages, setPostImages] = useState<string[]>([]);
   const [postImageFiles, setPostImageFiles] = useState<File[]>([]);
-  const [approvals, setApprovals] = useState<ContentApproval[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const contextMenuRef = useRef<HTMLDivElement>(null);
   const { confirmState, showConfirm, closeConfirm } = useNexusConfirm();
@@ -233,6 +230,7 @@ export default function ContentPlan() {
   };
 
   const handleEdit = (post: ContentPost) => {
+    if (!canEdit) return;
     setEditingPost(post);
     setFormData({
       title: post.title,
@@ -242,11 +240,6 @@ export default function ContentPlan() {
       scheduledDate: post.scheduledDate || '',
     });
     setPostImages(post.imageUrl ? [post.imageUrl] : (post.images || []));
-    setApprovals([]);
-    // Fetch approvals for this post
-    contentApi.getApprovals(post.id).then(res => {
-      if (res.success && res.data) setApprovals(res.data);
-    }).catch(() => {});
     setShowModal(true);
     setShowDayModal(false);
     setContextMenu(null);
@@ -570,20 +563,22 @@ export default function ContentPlan() {
             ))}
           </div>
 
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => {
-              setEditingPost(null);
-              resetForm();
-              setShowModal(true);
-            }}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl font-mono text-sm transition-all neon-glow-pulse"
-            style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}
-          >
-            <Plus className="w-4 h-4" />
-            НОВЫЙ ПОСТ
-          </motion.button>
+          {canEdit && (
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => {
+                setEditingPost(null);
+                resetForm();
+                setShowModal(true);
+              }}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl font-mono text-sm transition-all neon-glow-pulse"
+              style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}
+            >
+              <Plus className="w-4 h-4" />
+              НОВЫЙ ПОСТ
+            </motion.button>
+          )}
         </div>
       </motion.div>
 
@@ -768,19 +763,23 @@ export default function ContentPlan() {
                           <h4 className="text-sm font-medium text-gray-200 mb-1">{post.title}</h4>
                           <p className="text-xs text-gray-400 line-clamp-2 mb-3">{post.content}</p>
                           <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button
-                              onClick={() => handleEdit(post)}
-                              className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg glass text-gray-400 hover:text-gray-200 text-xs transition-colors"
-                            >
-                              <Edit className="w-3 h-3" />
-                              ИЗМЕНИТЬ
-                            </button>
-                            <button
-                              onClick={() => handleDelete(post.id)}
-                              className="p-1.5 rounded-lg glass text-gray-400 hover:text-red-400 transition-colors"
-                            >
-                              <Trash className="w-3 h-3" />
-                            </button>
+                            {canEdit && (
+                              <>
+                                <button
+                                  onClick={() => handleEdit(post)}
+                                  className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg glass text-gray-400 hover:text-gray-200 text-xs transition-colors"
+                                >
+                                  <Edit className="w-3 h-3" />
+                                  ИЗМЕНИТЬ
+                                </button>
+                                <button
+                                  onClick={() => handleDelete(post.id)}
+                                  className="p-1.5 rounded-lg glass text-gray-400 hover:text-red-400 transition-colors"
+                                >
+                                  <Trash className="w-3 h-3" />
+                                </button>
+                              </>
+                            )}
                           </div>
                         </motion.div>
                       );
@@ -859,19 +858,21 @@ export default function ContentPlan() {
               // {contextMenu.date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}
             </div>
             
-            <button
-              onClick={() => {
-                setSelectedDate(contextMenu.date);
-                resetForm();
-                setEditingPost(null);
-                setShowModal(true);
-                setContextMenu(null);
-              }}
-              className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-300 hover:bg-white/5 transition-colors"
-            >
-              <Plus className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />
-              ДОБАВИТЬ ПОСТ
-            </button>
+            {canEdit && (
+              <button
+                onClick={() => {
+                  setSelectedDate(contextMenu.date);
+                  resetForm();
+                  setEditingPost(null);
+                  setShowModal(true);
+                  setContextMenu(null);
+                }}
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-300 hover:bg-white/5 transition-colors"
+              >
+                <Plus className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />
+                ДОБАВИТЬ ПОСТ
+              </button>
+            )}
 
             {contextMenu.posts.length > 0 && (
               <>
@@ -883,15 +884,19 @@ export default function ContentPlan() {
                   ВСЕ ПОСТЫ ({contextMenu.posts.length})
                 </button>
 
-                <div className="h-px bg-white/5 my-1" />
+                {canEdit && (
+                  <>
+                    <div className="h-px bg-white/5 my-1" />
 
-                <button
-                  onClick={() => handleDeleteAllForDay(contextMenu.date)}
-                  className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-red-400 hover:bg-red-500/10 transition-colors"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  УДАЛИТЬ ВСЕ ({contextMenu.posts.length})
-                </button>
+                    <button
+                      onClick={() => handleDeleteAllForDay(contextMenu.date)}
+                      className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-red-400 hover:bg-red-500/10 transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      УДАЛИТЬ ВСЕ ({contextMenu.posts.length})
+                    </button>
+                  </>
+                )}
               </>
             )}
           </motion.div>
@@ -1005,26 +1010,28 @@ export default function ContentPlan() {
                                     {formatTimeKR(parseLocalDate(post.scheduledDate))}
                                   </p>
                                 )}
-                                <div className="flex items-center gap-2">
-                                  <button
-                                    onClick={() => handleDuplicate(post)}
-                                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs text-gray-400 hover:text-gray-200 hover:bg-white/5 transition-colors"
-                                  >
-                                    <Copy className="w-3 h-3" /> Копия
-                                  </button>
-                                  <button
-                                    onClick={() => handleEdit(post)}
-                                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs text-gray-400 hover:text-gray-200 hover:bg-white/5 transition-colors"
-                                  >
-                                    <Edit className="w-3 h-3" /> Изменить
-                                  </button>
-                                  <button
-                                    onClick={() => handleDelete(post.id)}
-                                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs text-red-400 hover:bg-red-500/10 transition-colors"
-                                  >
-                                    <Trash className="w-3 h-3" /> Удалить
-                                  </button>
-                                </div>
+                                {canEdit && (
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      onClick={() => handleDuplicate(post)}
+                                      className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs text-gray-400 hover:text-gray-200 hover:bg-white/5 transition-colors"
+                                    >
+                                      <Copy className="w-3 h-3" /> Копия
+                                    </button>
+                                    <button
+                                      onClick={() => handleEdit(post)}
+                                      className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs text-gray-400 hover:text-gray-200 hover:bg-white/5 transition-colors"
+                                    >
+                                      <Edit className="w-3 h-3" /> Изменить
+                                    </button>
+                                    <button
+                                      onClick={() => handleDelete(post.id)}
+                                      className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs text-red-400 hover:bg-red-500/10 transition-colors"
+                                    >
+                                      <Trash className="w-3 h-3" /> Удалить
+                                    </button>
+                                  </div>
+                                )}
                               </div>
                             </motion.div>
                           )}
@@ -1037,22 +1044,24 @@ export default function ContentPlan() {
                 <div className="text-center py-12 text-gray-500">
                   <Calendar className="w-16 h-16 mx-auto mb-3 opacity-30" />
                   <p className="font-mono">// НЕТ ПОСТОВ</p>
-                  <button
-                    onClick={() => {
-                      resetForm();
-                      setEditingPost(null);
-                      setShowModal(true);
-                    }}
-                    className="mt-4 px-4 py-2 rounded-xl font-mono text-sm transition-all"
-                    style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}
-                  >
-                    + ДОБАВИТЬ
-                  </button>
+                  {canEdit && (
+                    <button
+                      onClick={() => {
+                        resetForm();
+                        setEditingPost(null);
+                        setShowModal(true);
+                      }}
+                      className="mt-4 px-4 py-2 rounded-xl font-mono text-sm transition-all"
+                      style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}
+                    >
+                      + ДОБАВИТЬ
+                    </button>
+                  )}
                 </div>
               )}
 
               {/* Delete all button */}
-              {selectedDatePosts.length > 1 && (
+              {canEdit && selectedDatePosts.length > 1 && (
                 <div className="mt-4 pt-4 border-t border-white/5">
                   <button
                     onClick={() => handleDeleteAllForDay(selectedDate)}
@@ -1090,13 +1099,6 @@ export default function ContentPlan() {
                 <Sparkles className="w-5 h-5" style={{ color: 'var(--color-primary)' }} />
                 {editingPost ? 'РЕДАКТИРОВАТЬ ПОСТ' : 'НОВЫЙ ПОСТ'}
               </h2>
-
-              {/* Approval Pipeline (only when editing) */}
-              {editingPost && (
-                <div className="mb-4">
-                  <ApprovalPipeline currentStatus={editingPost.status} />
-                </div>
-              )}
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
@@ -1164,17 +1166,12 @@ export default function ContentPlan() {
                   <label className="block text-xs font-mono mb-2" style={{ color: 'var(--color-primary)' }}>
                     // СТАТУС
                   </label>
-                  {editingPost ? (
-                    <div className="flex items-center gap-2 px-4 py-3 rounded-xl" style={{ backgroundColor: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                      <span style={{ color: statusConfig[editingPost.status]?.color }}>{statusConfig[editingPost.status]?.icon}</span>
-                      <span className="font-mono text-sm" style={{ color: statusConfig[editingPost.status]?.color }}>{statusConfig[editingPost.status]?.label}</span>
-                    </div>
-                  ) : (
-                    <select value={formData.status} onChange={(e) => setFormData({ ...formData, status: e.target.value as ContentStatus })}
-                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-gray-200">
-                      <option value="черновик">Черновик</option>
-                    </select>
-                  )}
+                  <select value={formData.status} onChange={(e) => setFormData({ ...formData, status: e.target.value as ContentStatus })}
+                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-gray-200">
+                    <option value="черновик">Черновик</option>
+                    <option value="запланирован">Запланирован</option>
+                    <option value="опубликован">Опубликован</option>
+                  </select>
                 </div>
 
                 <div>
@@ -1216,14 +1213,9 @@ export default function ContentPlan() {
                 </div>
               </form>
 
-              {/* Approval Actions + Status + Comments (only when editing existing post) */}
+              {/* Comments (only when editing existing post) */}
               {editingPost && (
                 <div className="mt-4 pt-4 space-y-4" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-                  <ApprovalActions post={editingPost} approvals={approvals} onUpdate={() => {
-                    contentApi.getApprovals(editingPost.id).then(res => { if (res.success && res.data) setApprovals(res.data); }).catch(() => {});
-                    fetchPosts();
-                  }} />
-                  <ApprovalStatus approvals={approvals} />
                   <PostComments postId={editingPost.id} />
                 </div>
               )}

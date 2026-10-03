@@ -9,10 +9,6 @@ import { createNotification } from './notificationController';
 export const getAllPosts = (req: AuthRequest, res: Response) => {
   try {
     const { platform, status } = req.query;
-    const userId = req.user!.id;
-    const userRole = req.user!.role;
-    const userRoles = req.user!.roles || [userRole];
-    const isManager = userRoles.includes('super_admin') || userRoles.includes('руководитель');
 
     let sql = `
       SELECT cp.*, u.fullName as authorName, u.avatar as authorAvatar
@@ -21,12 +17,6 @@ export const getAllPosts = (req: AuthRequest, res: Response) => {
       WHERE 1=1
     `;
     const params: any[] = [];
-
-    // Visibility: smm/редактор see own drafts + all non-drafts; руководители see all
-    if (!isManager) {
-      sql += " AND (cp.status != 'черновик' OR cp.authorId = ?)";
-      params.push(userId);
-    }
 
     if (platform && platform !== 'all') {
       sql += ' AND cp.platform = ?';
@@ -141,179 +131,19 @@ export const deletePost = (req: AuthRequest, res: Response) => {
   }
 };
 
-// ─── Approval workflow ─────────────────────────────────────────
-
-export const submitForApproval = (req: AuthRequest, res: Response) => {
-  try {
-    const { id } = req.params;
-    const post = get('SELECT * FROM content_posts WHERE id = ?', [id]);
-    if (!post) return res.status(404).json({ success: false, error: 'Пост не найден' });
-    if (post.status !== 'черновик' && post.status !== 'на_доработку') {
-      return res.status(400).json({ success: false, error: 'Можно отправить только черновик или пост на доработке' });
-    }
-
-    // Clean old approvals if resubmitting
-    run('DELETE FROM content_approvals WHERE postId = ?', [id]);
-
-    // Create approval records for all руководители
-    const approvers = query("SELECT id, fullName FROM users WHERE role = 'руководитель' OR roles LIKE '%руководитель%'");
-    for (const approver of approvers) {
-      run('INSERT INTO content_approvals (id, postId, approverId) VALUES (?, ?, ?)', [uuidv4(), id, approver.id]);
-      createNotification({
-        userId: approver.id,
-        type: 'content_status',
-        title: 'Новый пост на согласование',
-        body: `"${post.title}" от ${req.user!.username} ожидает согласования`,
-        link: '/content',
-        relatedId: id,
-        senderId: req.user!.id,
-      });
-    }
-
-    run("UPDATE content_posts SET status = 'запланирован', scheduledAt = datetime('now'), updatedAt = datetime('now') WHERE id = ?", [id]);
-
-    // Notify via socket
-    const io = req.app.get('io');
-    if (io) io.emit('content:status', { postId: id, status: 'запланирован', title: post.title });
-
-    res.json({ success: true, message: 'Пост отправлен на согласование' });
-  } catch (error) {
-    console.error('SubmitForApproval error:', error);
-    res.status(500).json({ success: false, error: 'Ошибка сервера' });
-  }
-};
-
-export const approvePost = (req: AuthRequest, res: Response) => {
-  try {
-    const { id } = req.params;
-    const { comment } = req.body;
-    const userId = req.user!.id;
-
-    const post = get('SELECT * FROM content_posts WHERE id = ?', [id]);
-    if (!post) return res.status(404).json({ success: false, error: 'Пост не найден' });
-    if (post.status !== 'запланирован') return res.status(400).json({ success: false, error: 'Пост не на согласовании' });
-
-    const approval = get('SELECT * FROM content_approvals WHERE postId = ? AND approverId = ?', [id, userId]);
-    if (!approval) return res.status(403).json({ success: false, error: 'Вы не являетесь согласующим для этого поста' });
-
-    run("UPDATE content_approvals SET action = 'approved', comment = ?, actedAt = datetime('now') WHERE id = ?", [comment || '', approval.id]);
-
-    // Notify author
-    createNotification({
-      userId: post.authorId,
-      type: 'content_status',
-      title: 'Пост согласован',
-      body: `"${post.title}" согласован ${req.user!.username}`,
-      link: '/content',
-      relatedId: id,
-      senderId: userId,
-    });
-
-    // Check if all approvers approved
-    const pending = get("SELECT COUNT(*) as count FROM content_approvals WHERE postId = ? AND action = 'pending'", [id]);
-    if (pending && pending.count === 0) {
-      run("UPDATE content_posts SET status = 'согласован', approvedAt = datetime('now'), updatedAt = datetime('now') WHERE id = ?", [id]);
-      createNotification({
-        userId: post.authorId,
-        type: 'content_status',
-        title: 'Пост полностью согласован',
-        body: `"${post.title}" согласован всеми руководителями`,
-        link: '/content',
-        relatedId: id,
-        senderId: userId,
-      });
-    }
-
-    res.json({ success: true, message: 'Пост согласован' });
-  } catch (error) {
-    console.error('ApprovePost error:', error);
-    res.status(500).json({ success: false, error: 'Ошибка сервера' });
-  }
-};
-
-export const requestRevision = (req: AuthRequest, res: Response) => {
-  try {
-    const { id } = req.params;
-    const { comment } = req.body;
-    const userId = req.user!.id;
-
-    if (!comment) return res.status(400).json({ success: false, error: 'Комментарий обязателен при отправке на доработку' });
-
-    const post = get('SELECT * FROM content_posts WHERE id = ?', [id]);
-    if (!post) return res.status(404).json({ success: false, error: 'Пост не найден' });
-    if (post.status !== 'запланирован') return res.status(400).json({ success: false, error: 'Пост не на согласовании' });
-
-    const approval = get('SELECT * FROM content_approvals WHERE postId = ? AND approverId = ?', [id, userId]);
-    if (!approval) return res.status(403).json({ success: false, error: 'Вы не являетесь согласующим' });
-
-    run("UPDATE content_approvals SET action = 'revision', comment = ?, actedAt = datetime('now') WHERE id = ?", [comment, approval.id]);
-    run("UPDATE content_posts SET status = 'на_доработку', rejectionReason = ?, updatedAt = datetime('now') WHERE id = ?", [comment, id]);
-
-    createNotification({
-      userId: post.authorId,
-      type: 'content_status',
-      title: 'Пост отправлен на доработку',
-      body: `"${post.title}" — ${req.user!.username} просит доработать: ${comment.substring(0, 100)}`,
-      link: '/content',
-      relatedId: id,
-      senderId: userId,
-    });
-
-    res.json({ success: true, message: 'Пост отправлен на доработку' });
-  } catch (error) {
-    console.error('RequestRevision error:', error);
-    res.status(500).json({ success: false, error: 'Ошибка сервера' });
-  }
-};
-
-export const finalizePost = (req: AuthRequest, res: Response) => {
-  try {
-    const { id } = req.params;
-    const post = get('SELECT * FROM content_posts WHERE id = ?', [id]);
-    if (!post) return res.status(404).json({ success: false, error: 'Пост не найден' });
-    if (post.status !== 'согласован') return res.status(400).json({ success: false, error: 'Пост должен быть согласован всеми' });
-
-    run("UPDATE content_posts SET status = 'утверждён', finalizedAt = datetime('now'), updatedAt = datetime('now') WHERE id = ?", [id]);
-
-    createNotification({
-      userId: post.authorId,
-      type: 'content_status',
-      title: 'Пост утверждён',
-      body: `"${post.title}" утверждён и готов к публикации`,
-      link: '/content',
-      relatedId: id,
-      senderId: req.user!.id,
-    });
-
-    res.json({ success: true, message: 'Пост утверждён' });
-  } catch (error) {
-    console.error('FinalizePost error:', error);
-    res.status(500).json({ success: false, error: 'Ошибка сервера' });
-  }
-};
+// ─── Publish ───────────────────────────────────────────────────
 
 export const publishPost = (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const post = get('SELECT * FROM content_posts WHERE id = ?', [id]);
     if (!post) return res.status(404).json({ success: false, error: 'Пост не найден' });
-    if (post.status !== 'утверждён') return res.status(400).json({ success: false, error: 'Пост должен быть утверждён' });
+    if (post.status === 'опубликован') return res.status(400).json({ success: false, error: 'Пост уже опубликован' });
 
     run("UPDATE content_posts SET status = 'опубликован', publishedDate = datetime('now'), updatedAt = datetime('now') WHERE id = ?", [id]);
 
     run(`INSERT INTO activities (id, type, description, userId) VALUES (?, ?, ?, ?)`,
       [uuidv4(), 'post_published', `Опубликован пост: ${post.title}`, req.user!.id]);
-
-    // Notify author
-    createNotification({
-      userId: post.authorId,
-      type: 'content_status',
-      title: 'Пост опубликован',
-      body: `"${post.title}" опубликован`,
-      link: '/content',
-      relatedId: id,
-      senderId: req.user!.id,
-    });
 
     // Notify via socket
     const io = req.app.get('io');
@@ -390,19 +220,4 @@ export const deleteComment = (req: AuthRequest, res: Response) => {
   }
 };
 
-// ─── Approvals ─────────────────────────────────────────────────
-
-export const getApprovals = (req: AuthRequest, res: Response) => {
-  try {
-    const { id: postId } = req.params;
-    const approvals = query(`
-      SELECT a.*, u.fullName as approverName, u.avatar as approverAvatar
-      FROM content_approvals a LEFT JOIN users u ON a.approverId = u.id
-      WHERE a.postId = ? ORDER BY a.createdAt ASC
-    `, [postId]);
-    res.json({ success: true, data: approvals });
-  } catch (error) {
-    console.error('GetApprovals error:', error);
-    res.status(500).json({ success: false, error: 'Ошибка сервера' });
-  }
-};
+// ─── Comments ──────────────────────────────────────────────────

@@ -1,5 +1,5 @@
 import { Router, Response } from 'express';
-import { getAllPosts, getPostById, createPost, updatePost, deletePost, submitForApproval, approvePost, requestRevision, finalizePost, publishPost, getComments, addComment, deleteComment, getApprovals } from '../controllers/contentController';
+import { getAllPosts, getPostById, createPost, updatePost, deletePost, publishPost, getComments, addComment, deleteComment } from '../controllers/contentController';
 import { authenticateToken, requireRole, AuthRequest } from '../middleware/auth';
 import { upload } from '../middleware/upload';
 import { run, get } from '../db/database';
@@ -8,15 +8,20 @@ import { generateThumbnail } from '../utils/thumbnail';
 const router = Router();
 router.use(authenticateToken);
 
-// CRUD
+// Read — доступно всем авторизованным
 router.get('/', getAllPosts);
 router.get('/:id', getPostById);
-router.post('/', requireRole('super_admin', 'руководитель', 'редактор', 'smm'), createPost);
-router.put('/:id', requireRole('super_admin', 'руководитель', 'редактор', 'smm'), updatePost);
-router.delete('/:id', requireRole('super_admin', 'руководитель', 'редактор'), deletePost);
+
+// Write — только super_admin и smm
+const canWrite = requireRole('super_admin', 'smm');
+
+router.post('/', canWrite, createPost);
+router.put('/:id', canWrite, updatePost);
+router.delete('/:id', canWrite, deletePost);
+router.post('/:id/publish', canWrite, publishPost);
 
 // Image upload for posts
-router.post('/:id/image', upload.single('file'), async (req: AuthRequest, res: Response) => {
+router.post('/:id/image', canWrite, upload.single('file'), async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const file = req.file;
@@ -35,19 +40,9 @@ router.post('/:id/image', upload.single('file'), async (req: AuthRequest, res: R
   }
 });
 
-// Approval workflow
-router.post('/:id/submit', requireRole('super_admin', 'руководитель', 'редактор', 'smm'), submitForApproval);
-router.post('/:id/approve', requireRole('super_admin', 'руководитель'), approvePost);
-router.post('/:id/request-revision', requireRole('super_admin', 'руководитель'), requestRevision);
-router.post('/:id/finalize', requireRole('super_admin', 'руководитель'), finalizePost);
-router.post('/:id/publish', requireRole('super_admin', 'руководитель', 'редактор', 'smm'), publishPost);
-
 // Comments
 router.get('/:id/comments', getComments);
 router.post('/:id/comments', addComment);
 router.delete('/comments/:id', deleteComment);
-
-// Approvals
-router.get('/:id/approvals', getApprovals);
 
 export default router;

@@ -60,7 +60,7 @@ const navGroups: NavGroup[] = [
     label: 'Информационный отдел',
     roles: ['super_admin', 'руководитель', 'редактор', 'smm', 'документовед'],
     children: [
-      { to: '/content', label: 'Контент-план', roles: ['super_admin', 'руководитель', 'редактор', 'smm'] },
+      { to: '/content', label: 'Контент-план', roles: ['super_admin', 'руководитель', 'редактор', 'smm', 'документовед', 'мол'] },
       { to: '/analytics', label: 'Аналитика', roles: ['super_admin', 'руководитель', 'редактор', 'smm'] },
       { to: '/partners', label: 'Партнёры', roles: ['super_admin', 'руководитель', 'редактор'] },
       { to: '/brandbank', label: 'Банк промо', roles: ['super_admin', 'руководитель', 'редактор', 'smm', 'документовед'] },

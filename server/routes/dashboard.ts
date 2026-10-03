@@ -37,6 +37,7 @@ router.get('/stats', (req: AuthRequest, res: Response) => {
       SELECT a.*, u.fullName as userName, u.avatar as userAvatar
       FROM activities a
       LEFT JOIN users u ON a.userId = u.id
+      WHERE a.type IN ('post_created', 'post_published', 'post_deleted')
       ORDER BY a.createdAt DESC
       LIMIT 10
     `);
@@ -99,14 +100,20 @@ router.get('/analytics/by-platform', (req: AuthRequest, res: Response) => {
   }
 });
 
-// Analytics — posts by status
+// Analytics — posts by status (valid content-plan statuses only)
+const VALID_POST_STATUSES = [
+  'черновик', 'запланирован', 'опубликован',
+];
+
 router.get('/analytics/by-status', (req: AuthRequest, res: Response) => {
   try {
+    const placeholders = VALID_POST_STATUSES.map(() => '?').join(',');
     const rows = query(`
       SELECT status, COUNT(*) as count
       FROM content_posts
+      WHERE status IN (${placeholders})
       GROUP BY status
-    `);
+    `, VALID_POST_STATUSES);
     res.json({ success: true, data: rows });
   } catch (error) {
     console.error('ByStatus error:', error);

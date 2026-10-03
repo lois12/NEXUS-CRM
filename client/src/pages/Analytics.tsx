@@ -22,18 +22,17 @@ const platformLabels: Record<string, string> = {
 };
 
 const statusLabels: Record<string, string> = {
-  'черновик': 'Черновики', 'запланирован': 'Запланированы', 'на_доработку': 'На доработке',
-  'согласован': 'Согласованы', 'утверждён': 'Утверждены', 'опубликован': 'Опубликованы',
+  'черновик': 'Черновики', 'запланирован': 'Запланированы', 'опубликован': 'Опубликованы',
 };
 
 const statusColors: Record<string, string> = {
-  'черновик': '#6b7280', 'запланирован': '#00d4ff', 'на_доработку': '#eab308',
-  'согласован': '#00ff88', 'утверждён': '#bf00ff', 'опубликован': '#22c55e',
+  'черновик': '#6b7280', 'запланирован': '#00d4ff', 'опубликован': '#22c55e',
 };
 
 const activityIcons: Record<string, typeof Send> = {
   user_login: Users, user_created: Users, post_published: Send,
-  material_uploaded: FolderOpen, post_created: FileText,
+  post_created: FileText, post_deleted: FileText,
+  material_uploaded: FolderOpen, post_updated: FileText,
 };
 
 // Custom Recharts tooltip with cyberpunk style
@@ -104,7 +103,7 @@ export default function Analytics() {
   }));
 
   const statusChartData = byStatus.map(s => ({
-    name: statusLabels[s.status] || s.status,
+    name: statusLabels[s.status] || 'Другой статус',
     value: s.count,
     color: statusColors[s.status] || '#6b7280',
   }));

@@ -29,7 +29,7 @@ export interface LoginResponse {
 }
 
 // Content Plan types
-export type ContentStatus = 'черновик' | 'запланирован' | 'на_доработку' | 'согласован' | 'утверждён' | 'опубликован';
+export type ContentStatus = 'черновик' | 'запланирован' | 'опубликован' | 'на_доработку' | 'согласован' | 'утверждён';
 export type SocialPlatform = 'telegram' | 'vk' | 'site' | 'max';
 
 export interface ContentPost {

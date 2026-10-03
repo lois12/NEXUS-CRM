@@ -1,6 +1,6 @@
 import axios, { AxiosInstance, InternalAxiosRequestConfig, AxiosResponse } from 'axios';
 import {
-  ApiResponse, LoginRequest, LoginResponse, User, ContentPost, Material, DashboardStats, ContentComment, ContentApproval, Notification, ChatConversation, ChatMessage, ChatGroupMember, ChatReaction, ChatPinnedMessage, ChatReadReceipt,
+  ApiResponse, LoginRequest, LoginResponse, User, ContentPost, Material, DashboardStats, ContentComment, Notification, ChatConversation, ChatMessage, ChatGroupMember, ChatReaction, ChatPinnedMessage, ChatReadReceipt,
   Partner, Vacation, InventoryItem, EventItem, ProjectItem, KnowledgeArticle,
 } from '../types';
 
@@ -160,19 +160,6 @@ export const contentApi = {
     }).then((res) => res.data);
   },
 
-  // Approval workflow
-  submitForApproval: (id: string): Promise<ApiResponse<void>> =>
-    api.post(`/content/${id}/submit`).then((res) => res.data),
-
-  approve: (id: string, comment?: string): Promise<ApiResponse<void>> =>
-    api.post(`/content/${id}/approve`, { comment }).then((res) => res.data),
-
-  requestRevision: (id: string, comment: string): Promise<ApiResponse<void>> =>
-    api.post(`/content/${id}/request-revision`, { comment }).then((res) => res.data),
-
-  finalize: (id: string): Promise<ApiResponse<void>> =>
-    api.post(`/content/${id}/finalize`).then((res) => res.data),
-
   publish: (id: string): Promise<ApiResponse<void>> =>
     api.post(`/content/${id}/publish`).then((res) => res.data),
 
@@ -185,10 +172,6 @@ export const contentApi = {
 
   deleteComment: (id: string): Promise<ApiResponse<void>> =>
     api.delete(`/content/comments/${id}`).then((res) => res.data),
-
-  // Approvals
-  getApprovals: (postId: string): Promise<ApiResponse<ContentApproval[]>> =>
-    api.get(`/content/${postId}/approvals`).then((res) => res.data),
 };
 
 // Materials API
