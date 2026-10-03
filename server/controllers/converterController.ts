@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import fs from 'fs';
 import path from 'path';
+import { execFile } from 'child_process';
 import { AuthRequest } from '../middleware/auth';
 import {
   ensureLibreOffice, convertWithLibreOffice, prepareJobDir,
@@ -126,6 +127,72 @@ export const pdfToXlsx = async (req: AuthRequest, res: Response) => {
   } catch (error) {
     console.error('pdfToXlsx error:', error);
     return fail(res, 500, 'Ошибка сервера');
+  }
+};
+
+/** POST /api/converter/pdf-to-pptx — PDF pages → PowerPoint slides (LibreOffice Draw → Impress) */
+export const pdfToPptx = async (req: AuthRequest, res: Response) => {
+  try {
+    const file = req.file;
+    if (!file) return fail(res, 400, 'Файл не загружен');
+    if (path.extname(file.originalname).toLowerCase() !== '.pdf') return fail(res, 400, 'Ожидается PDF-файл');
+
+    const lo = await ensureLibreOffice();
+    if (!lo.ok) return fail(res, 503, 'LibreOffice не установлен на сервере');
+
+    const { jobDir, inputPath } = prepareJobDir(file.originalname);
+    moveFile(file.path, inputPath);
+
+    const originalBase = path.basename(file.originalname, '.pdf');
+    try {
+      const result = await convertWithLibreOffice(inputPath, 'pptx:"Impress MS PowerPoint 2007 XML"', originalBase);
+      const job = registerJob(result.outPath, `${originalBase}.pptx`, req.user!.id);
+      res.json({ success: true, data: jobResponse(job) });
+    } catch (e: any) {
+      try { fs.rmSync(jobDir, { recursive: true, force: true }); } catch {}
+      if (e?.message === 'QUEUE_FULL') return fail(res, 429, 'Сервер перегружен, попробуйте позже');
+      if (e?.killed) return fail(res, 500, 'Конвертация не завершилась за 60 сек');
+      console.error('pdfToPptx error:', e);
+      return fail(res, 500, 'Ошибка конвертации в PowerPoint');
+    }
+  } catch (error) {
+    console.error('pdfToPptx error:', error);
+    return fail(res, 500, 'Ошибка сервера');
+  }
+};
+
+/** POST /api/converter/protect-pdf — encrypt PDF with a user password (qpdf, AES-256) */
+export const protectPdf = async (req: AuthRequest, res: Response) => {
+  try {
+    const file = req.file;
+    const password = (req.body?.password || '').trim();
+    if (!file) return fail(res, 400, 'Файл не загружен');
+    if (path.extname(file.originalname).toLowerCase() !== '.pdf') return fail(res, 400, 'Ожидается PDF-файл');
+    if (password.length < 4) return fail(res, 400, 'Пароль должен быть не короче 4 символов');
+
+    const { jobDir, inputPath } = prepareJobDir(file.originalname);
+    moveFile(file.path, inputPath);
+    const originalBase = path.basename(file.originalname, '.pdf');
+    const outPath = path.join(jobDir, `${originalBase}.pdf`);
+
+    await new Promise<void>((resolve, reject) => {
+      // qpdf --encrypt <user-pw> <owner-pw> 256 -- in out
+      execFile('qpdf', [
+        '--encrypt', password, password, '256', '--',
+        inputPath, outPath,
+      ], { timeout: 30_000 }, (err) => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
+
+    const job = registerJob(outPath, `${originalBase}_protected.pdf`, req.user!.id);
+    res.json({ success: true, data: jobResponse(job) });
+  } catch (e: any) {
+    try { fs.rmSync(path.dirname(req.file?.path || ''), { recursive: true, force: true }); } catch {}
+    if (e?.code === 'ENOENT') return fail(res, 503, 'qpdf не установлен на сервере');
+    console.error('protectPdf error:', e);
+    return fail(res, 500, 'Не удалось защитить PDF паролем');
   }
 };
 

@@ -267,6 +267,68 @@ export async function downloadZip(files: { name: string; blob: Blob }[], zipName
   downloadBlob(content, zipName);
 }
 
+// ── PDF: place a drawn/typed signature image on every page ──
+export interface SignOptions {
+  /** data-URL PNG of the signature (from canvas) */
+  signatureDataUrl: string;
+  /** corner position */
+  position?: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left';
+  /** signature width as % of page width (5–40) */
+  widthPercent?: number;
+  /** pages to sign, e.g. "1-3,5"; empty = all */
+  pages?: string;
+}
+
+export async function signPdf(file: File, opts: SignOptions): Promise<Blob> {
+  const { signatureDataUrl, position = 'bottom-right', widthPercent = 25, pages } = opts;
+  const doc = await PDFDocument.load(await file.arrayBuffer());
+  const pngBytes = await fetch(signatureDataUrl).then(r => r.arrayBuffer());
+  const sig = await doc.embedPng(pngBytes);
+
+  const total = doc.getPageCount();
+  const targets = pages ? parseRanges(pages, total).flat() : Array.from({ length: total }, (_, i) => i + 1);
+  const margin = 24;
+
+  for (const n of targets) {
+    const page = doc.getPage(n - 1);
+    const { width, height } = page.getSize();
+    const w = (width * widthPercent) / 100;
+    const h = (w * sig.height) / sig.width;
+    let x = margin;
+    let y = margin;
+    if (position.includes('right')) x = width - w - margin;
+    if (position.includes('top')) y = height - h - margin;
+    page.drawImage(sig, { x, y, width: w, height: h, opacity: 0.9 });
+  }
+  const bytes = await doc.save();
+  return new Blob([bytes as unknown as BlobPart], { type: 'application/pdf' });
+}
+
+// ── PDF: redact — draw permanent black boxes over regions ──
+// regions are given in normalized coords (0..1) per page: { page: 1-based, x, y, w, h }
+export interface RedactRegion {
+  page: number;
+  x: number; y: number; w: number; h: number;
+}
+
+export async function redactPdf(file: File, regions: RedactRegion[]): Promise<Blob> {
+  const doc = await PDFDocument.load(await file.arrayBuffer());
+  for (const r of regions) {
+    const page = doc.getPage(r.page - 1);
+    if (!page) continue;
+    const { width, height } = page.getSize();
+    page.drawRectangle({
+      x: r.x * width,
+      y: (1 - r.y - r.h) * height,
+      width: r.w * width,
+      height: r.h * height,
+      color: rgb(0, 0, 0),
+    });
+  }
+  const bytes = await doc.save();
+  return new Blob([bytes as unknown as BlobPart], { type: 'application/pdf' });
+}
+
 // ── helpers ──
 
 export function formatFileSize(bytes: number): string {
