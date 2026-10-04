@@ -90,8 +90,8 @@ export const getOrCreateConversation = (req: AuthRequest, res: Response) => {
       run('INSERT INTO chat_conversations (id, type, user1Id, user2Id) VALUES (?, ?, ?, ?)', [id, 'private', u1, u2]);
       conv = get('SELECT * FROM chat_conversations WHERE id = ?', [id]);
     } else {
-      // Reopening a previously deleted chat — unhide it for both users
-      run('DELETE FROM chat_hidden WHERE conversationId = ?', [conv.id]);
+      // H6 fix: unhide only for the CALLER — never clear the other user's deliberate hide
+      run('DELETE FROM chat_hidden WHERE conversationId = ? AND userId = ?', [conv.id, userId]);
     }
     res.json({ success: true, data: conv });
   } catch (error) {
@@ -166,6 +166,8 @@ export const addGroupMember = (req: AuthRequest, res: Response) => {
     const existing = get('SELECT * FROM chat_group_members WHERE conversationId = ? AND userId = ?', [id, newMemberId]);
     if (existing) return res.status(400).json({ success: false, error: 'Уже в группе' });
     run('INSERT INTO chat_group_members (id, conversationId, userId) VALUES (?, ?, ?)', [uuidv4(), id, newMemberId]);
+    // H7 fix: a re-added member must see the group immediately (clear old hide tombstone)
+    run('DELETE FROM chat_hidden WHERE conversationId = ? AND userId = ?', [id, newMemberId]);
     res.json({ success: true });
   } catch (error) { console.error('AddGroupMember error:', error); res.status(500).json({ success: false, error: 'Ошибка сервера' }); }
 };
@@ -289,8 +291,12 @@ export const sendMessage = (req: AuthRequest, res: Response) => {
     const preview = type === 'text' ? content.substring(0, 100) : (caption ? caption.substring(0, 100) : `[${type}]`);
     if (!isGeneral) {
       run("UPDATE chat_conversations SET lastMessageAt = datetime('now'), lastMessagePreview = ? WHERE id = ?", [preview, conversationId]);
-      // Unhide chat for other participants (new message brings chat back)
-      run('DELETE FROM chat_hidden WHERE conversationId = ? AND userId != ?', [conversationId, senderId]);
+      // H6 fix: for private chats a new message bumps the chat back (Telegram-like).
+      // For groups NEVER blanket-unhide — a member who deliberately hid (or left) must stay hidden.
+      const convType = get('SELECT type FROM chat_conversations WHERE id = ?', [conversationId]);
+      if (convType?.type === 'private') {
+        run('DELETE FROM chat_hidden WHERE conversationId = ? AND userId != ?', [conversationId, senderId]);
+      }
     }
 
     const sender = get('SELECT fullName FROM users WHERE id = ?', [senderId]);
@@ -499,8 +505,9 @@ export const uploadChatFile = (req: AuthRequest, res: Response) => {
 export const getChatUnreadCount = (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
-    const privateUnread = get(`SELECT COUNT(*) as count FROM chat_messages m JOIN chat_conversations c ON m.conversationId = c.id WHERE (c.user1Id = ? OR c.user2Id = ?) AND c.type = 'private' AND m.senderId != ? AND m.isRead = 0 AND m.deleted = 0`, [userId, userId, userId]);
-    const groupUnread = get(`SELECT COUNT(*) as count FROM chat_messages m JOIN chat_conversations c ON m.conversationId = c.id JOIN chat_group_members gm ON c.id = gm.conversationId AND gm.userId = ? WHERE c.type = 'group' AND m.senderId != ? AND m.isRead = 0 AND m.deleted = 0`, [userId, userId]);
+    // H5 fix: exclude conversations the user has hidden (badge must match the list)
+    const privateUnread = get(`SELECT COUNT(*) as count FROM chat_messages m JOIN chat_conversations c ON m.conversationId = c.id WHERE (c.user1Id = ? OR c.user2Id = ?) AND c.type = 'private' AND m.senderId != ? AND m.isRead = 0 AND m.deleted = 0 AND NOT EXISTS (SELECT 1 FROM chat_hidden h WHERE h.conversationId = c.id AND h.userId = ?)`, [userId, userId, userId, userId]);
+    const groupUnread = get(`SELECT COUNT(*) as count FROM chat_messages m JOIN chat_conversations c ON m.conversationId = c.id JOIN chat_group_members gm ON c.id = gm.conversationId AND gm.userId = ? WHERE c.type = 'group' AND m.senderId != ? AND m.isRead = 0 AND m.deleted = 0 AND NOT EXISTS (SELECT 1 FROM chat_hidden h WHERE h.conversationId = c.id AND h.userId = ?)`, [userId, userId, userId]);
     const generalUnread = get(`SELECT COUNT(*) as count FROM chat_messages WHERE conversationId = ? AND senderId != ? AND isRead = 0 AND deleted = 0`, [GENERAL_CHAT_ID, userId]);
     res.json({ success: true, data: { count: (privateUnread?.count || 0) + (groupUnread?.count || 0) + (generalUnread?.count || 0) } });
   } catch (error) { console.error('GetChatUnreadCount error:', error); res.status(500).json({ success: false, error: 'Ошибка сервера' }); }

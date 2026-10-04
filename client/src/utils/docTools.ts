@@ -127,11 +127,24 @@ export function csvToXlsx(file: File): Promise<Blob> {
 export function xlsxToCsv(file: File): Promise<Blob> {
   return file.arrayBuffer().then(buf => {
     const wb = XLSX.read(buf, { type: 'array' });
-    const sheetName = wb.SheetNames[0];
-    const csv = XLSX.utils.sheet_to_csv(wb.Sheets[sheetName]);
-    // BOM for Excel UTF-8 recognition
-    return new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
+    // M7 fix: export ALL sheets — a ZIP when multi-sheet, plain CSV when single
+    if (wb.SheetNames.length === 1) {
+      const csv = XLSX.utils.sheet_to_csv(wb.Sheets[wb.SheetNames[0]]);
+      return new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
+    }
+    // Multi-sheet → caller receives a zip; we signal via a custom blob type
+    return multiSheetZip(wb).then(blob => blob);
   });
+}
+
+async function multiSheetZip(wb: XLSX.WorkBook): Promise<Blob> {
+  const zip = new JSZip();
+  for (const name of wb.SheetNames) {
+    const csv = XLSX.utils.sheet_to_csv(wb.Sheets[name]);
+    const safe = name.replace(/[\\/:*?"<>|]/g, '_') || 'sheet';
+    zip.file(`${safe}.csv`, '\uFEFF' + csv);
+  }
+  return zip.generateAsync({ type: 'blob' });
 }
 
 // ── helpers ──

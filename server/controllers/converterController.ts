@@ -163,23 +163,34 @@ export const pdfToPptx = async (req: AuthRequest, res: Response) => {
 
 /** POST /api/converter/protect-pdf — encrypt PDF with a user password (qpdf, AES-256) */
 export const protectPdf = async (req: AuthRequest, res: Response) => {
+  let jobDir: string | null = null;
   try {
     const file = req.file;
     const password = (req.body?.password || '').trim();
     if (!file) return fail(res, 400, 'Файл не загружен');
-    if (path.extname(file.originalname).toLowerCase() !== '.pdf') return fail(res, 400, 'Ожидается PDF-файл');
-    if (password.length < 4) return fail(res, 400, 'Пароль должен быть не короче 4 символов');
+    if (path.extname(file.originalname).toLowerCase() !== '.pdf') {
+      // Remove the multer temp file — converter uploads must not linger in /uploads
+      try { fs.unlinkSync(file.path); } catch {}
+      return fail(res, 400, 'Ожидается PDF-файл');
+    }
+    if (password.length < 4) {
+      try { fs.unlinkSync(file.path); } catch {}
+      return fail(res, 400, 'Пароль должен быть не короче 4 символов');
+    }
 
-    const { jobDir, inputPath } = prepareJobDir(file.originalname);
-    moveFile(file.path, inputPath);
+    const prepared = prepareJobDir(file.originalname);
+    jobDir = prepared.jobDir;
+    moveFile(file.path, prepared.inputPath);
     const originalBase = path.basename(file.originalname, '.pdf');
     const outPath = path.join(jobDir, `${originalBase}.pdf`);
 
     await new Promise<void>((resolve, reject) => {
       // qpdf --encrypt <user-pw> <owner-pw> 256 -- in out
+      // Password goes as argv — execFile is safe from shell injection, but
+      // error messages may echo argv, so never log `e` itself below.
       execFile('qpdf', [
         '--encrypt', password, password, '256', '--',
-        inputPath, outPath,
+        prepared.inputPath, outPath,
       ], { timeout: 30_000 }, (err) => {
         if (err) reject(err);
         else resolve();
@@ -189,9 +200,13 @@ export const protectPdf = async (req: AuthRequest, res: Response) => {
     const job = registerJob(outPath, `${originalBase}_protected.pdf`, req.user!.id);
     res.json({ success: true, data: jobResponse(job) });
   } catch (e: any) {
-    try { fs.rmSync(path.dirname(req.file?.path || ''), { recursive: true, force: true }); } catch {}
+    // Cleanup ONLY the job dir — never derive from req.file.path (it points into shared /uploads)
+    if (jobDir) {
+      try { fs.rmSync(jobDir, { recursive: true, force: true }); } catch {}
+    }
     if (e?.code === 'ENOENT') return fail(res, 503, 'qpdf не установлен на сервере');
-    console.error('protectPdf error:', e);
+    // Do not log `e` — execFile error embeds argv including the password
+    console.error('protectPdf error:', e?.code || 'unknown');
     return fail(res, 500, 'Не удалось защитить PDF паролем');
   }
 };
@@ -201,15 +216,16 @@ export const downloadJob = async (req: AuthRequest, res: Response) => {
   try {
     const job = getJob(req.params.jobId);
     if (!job) return fail(res, 404, 'Файл не найден или устарел');
+    // Ownership check — a jobId leaked via history/URL must not expose another user's file
+    if (job.userId !== req.user!.id) return fail(res, 403, 'Нет доступа к этому файлу');
     if (!fs.existsSync(job.filePath)) {
       removeJob(job.jobId);
       return fail(res, 404, 'Файл не найден или устарел');
     }
 
+    // Stream the file but KEEP the job — allow re-download / ZIP until TTL sweep (1h)
     res.download(job.filePath, job.originalName, (err) => {
       if (err) console.error('download error:', err);
-      // Clean up after the download completes (or fails)
-      removeJob(job.jobId);
     });
   } catch (error) {
     console.error('downloadJob error:', error);

@@ -45,39 +45,42 @@ interface ToolDef {
   engine: 'browser' | 'server';
   accept: string;
   multiple: boolean;
+  category: 'Конвертация' | 'PDF-инструменты' | 'Таблицы' | 'Безопасность';
 }
 
 const TOOLS: ToolDef[] = [
-  { id: 'office-to-pdf', label: 'Office → PDF', desc: 'DOCX, XLSX, PPTX в PDF', icon: FileText, engine: 'server', accept: '.docx,.doc,.xlsx,.xls,.pptx,.ppt,.odt,.rtf,.csv,.txt', multiple: true },
-  { id: 'pdf-to-docx', label: 'PDF → Word', desc: 'Текстовый PDF в DOCX', icon: FileText, engine: 'server', accept: '.pdf', multiple: true },
-  { id: 'pdf-to-xlsx', label: 'PDF → Excel', desc: 'Таблицы из PDF в XLSX', icon: FileSpreadsheet, engine: 'server', accept: '.pdf', multiple: true },
-  { id: 'pdf-to-pptx', label: 'PDF → PowerPoint', desc: 'Страницы в слайды', icon: Presentation, engine: 'server', accept: '.pdf', multiple: true },
-  { id: 'sign', label: 'Подписать PDF', desc: 'Подпись на каждой странице', icon: PenLine, engine: 'browser', accept: '.pdf', multiple: true },
-  { id: 'redact', label: 'Замазка (цензура)', desc: 'Чёрные блоки поверх текста', icon: Eraser, engine: 'browser', accept: '.pdf', multiple: false },
-  { id: 'protect', label: 'Защита паролем', desc: 'Шифрование PDF (AES-256)', icon: Shield, engine: 'server', accept: '.pdf', multiple: true },
-  { id: 'merge', label: 'Объединить PDF', desc: 'Несколько PDF в один', icon: Layers, engine: 'browser', accept: '.pdf', multiple: true },
-  { id: 'split', label: 'Разделить PDF', desc: 'Выбор страниц: 1-3,5', icon: Scissors, engine: 'browser', accept: '.pdf', multiple: false },
-  { id: 'watermark', label: 'Водяной знак', desc: 'Текст поверх страниц', icon: Droplets, engine: 'browser', accept: '.pdf', multiple: false },
-  { id: 'jpg-to-pdf', label: 'JPG → PDF', desc: 'Картинки в один PDF', icon: FileImage, engine: 'browser', accept: '.jpg,.jpeg,.png', multiple: true },
-  { id: 'csv-to-xlsx', label: 'CSV → Excel', desc: 'Таблицы онлайн', icon: FileSpreadsheet, engine: 'browser', accept: '.csv', multiple: true },
-  { id: 'xlsx-to-csv', label: 'Excel → CSV', desc: 'Обратная конвертация', icon: FileSpreadsheet, engine: 'browser', accept: '.xlsx,.xls', multiple: true },
-  { id: 'csv-to-pdf', label: 'CSV → PDF', desc: 'Таблица в PDF', icon: FileText, engine: 'server', accept: '.csv', multiple: true },
-  { id: 'xlsx-to-pdf', label: 'Excel → PDF', desc: 'Таблица печатным видом', icon: FileText, engine: 'server', accept: '.xlsx,.xls', multiple: true },
-  { id: 'rotate', label: 'Повернуть PDF', desc: 'Страницы на 90/180/270°', icon: RotateCw, engine: 'browser', accept: '.pdf', multiple: true },
-  { id: 'organize', label: 'Организовать страницы', desc: 'Порядок, удаление, поворот', icon: Layers, engine: 'browser', accept: '.pdf', multiple: false },
-  { id: 'pagenum', label: 'Номера страниц', desc: 'Пронумеровать страницы', icon: Hash, engine: 'browser', accept: '.pdf', multiple: true },
-  { id: 'crop', label: 'Обрезать PDF', desc: 'Убрать поля в %', icon: Crop, engine: 'browser', accept: '.pdf', multiple: true },
-  { id: 'compress', label: 'Сжать PDF', desc: 'Уменьшить размер файла', icon: Archive, engine: 'browser', accept: '.pdf', multiple: true },
+  { id: 'office-to-pdf', label: 'Office → PDF', desc: 'DOCX, XLSX, PPTX в PDF', icon: FileText, engine: 'server', accept: '.docx,.doc,.xlsx,.xls,.pptx,.ppt,.odt,.rtf,.csv,.txt', multiple: true, category: 'Конвертация' },
+  { id: 'pdf-to-docx', label: 'PDF → Word', desc: 'Текстовый PDF в DOCX', icon: FileText, engine: 'server', accept: '.pdf', multiple: true, category: 'Конвертация' },
+  { id: 'pdf-to-xlsx', label: 'PDF → Excel', desc: 'Таблицы из PDF в XLSX', icon: FileSpreadsheet, engine: 'server', accept: '.pdf', multiple: true, category: 'Конвертация' },
+  { id: 'pdf-to-pptx', label: 'PDF → PowerPoint', desc: 'Страницы в слайды', icon: Presentation, engine: 'server', accept: '.pdf', multiple: true, category: 'Конвертация' },
+  { id: 'csv-to-pdf', label: 'CSV → PDF', desc: 'Таблица в PDF', icon: FileText, engine: 'server', accept: '.csv', multiple: true, category: 'Таблицы' },
+  { id: 'xlsx-to-pdf', label: 'Excel → PDF', desc: 'Таблица печатным видом', icon: FileText, engine: 'server', accept: '.xlsx,.xls', multiple: true, category: 'Таблицы' },
+  { id: 'csv-to-xlsx', label: 'CSV → Excel', desc: 'Таблицы онлайн', icon: FileSpreadsheet, engine: 'browser', accept: '.csv', multiple: true, category: 'Таблицы' },
+  { id: 'xlsx-to-csv', label: 'Excel → CSV', desc: 'Обратная конвертация', icon: FileSpreadsheet, engine: 'browser', accept: '.xlsx,.xls', multiple: true, category: 'Таблицы' },
+  { id: 'merge', label: 'Объединить PDF', desc: 'Несколько PDF в один', icon: Layers, engine: 'browser', accept: '.pdf', multiple: true, category: 'PDF-инструменты' },
+  { id: 'split', label: 'Разделить PDF', desc: 'Выбор страниц: 1-3,5', icon: Scissors, engine: 'browser', accept: '.pdf', multiple: false, category: 'PDF-инструменты' },
+  { id: 'watermark', label: 'Водяной знак', desc: 'Текст поверх страниц', icon: Droplets, engine: 'browser', accept: '.pdf', multiple: false, category: 'PDF-инструменты' },
+  { id: 'jpg-to-pdf', label: 'JPG → PDF', desc: 'Картинки в один PDF', icon: FileImage, engine: 'browser', accept: '.jpg,.jpeg,.png', multiple: true, category: 'PDF-инструменты' },
+  { id: 'rotate', label: 'Повернуть PDF', desc: 'Страницы на 90/180/270°', icon: RotateCw, engine: 'browser', accept: '.pdf', multiple: true, category: 'PDF-инструменты' },
+  { id: 'organize', label: 'Организовать страницы', desc: 'Порядок, удаление, поворот', icon: Layers, engine: 'browser', accept: '.pdf', multiple: false, category: 'PDF-инструменты' },
+  { id: 'pagenum', label: 'Номера страниц', desc: 'Пронумеровать страницы', icon: Hash, engine: 'browser', accept: '.pdf', multiple: true, category: 'PDF-инструменты' },
+  { id: 'crop', label: 'Обрезать PDF', desc: 'Убрать поля в %', icon: Crop, engine: 'browser', accept: '.pdf', multiple: true, category: 'PDF-инструменты' },
+  { id: 'compress', label: 'Сжать PDF', desc: 'Уменьшить размер файла', icon: Archive, engine: 'browser', accept: '.pdf', multiple: true, category: 'PDF-инструменты' },
+  { id: 'sign', label: 'Подписать PDF', desc: 'Подпись на каждой странице', icon: PenLine, engine: 'browser', accept: '.pdf', multiple: true, category: 'Безопасность' },
+  { id: 'redact', label: 'Замазка (цензура)', desc: 'Чёрные блоки поверх текста', icon: Eraser, engine: 'browser', accept: '.pdf', multiple: false, category: 'Безопасность' },
+  { id: 'protect', label: 'Защита паролем', desc: 'Шифрование PDF (AES-256)', icon: Shield, engine: 'server', accept: '.pdf', multiple: true, category: 'Безопасность' },
 ];
+
+const TOOL_CATEGORIES = ['Конвертация', 'PDF-инструменты', 'Таблицы', 'Безопасность'] as const;
 
 const MAX_FILES = 5;
 
-// ── Signature drawing pad → PNG data URL ──
+// ── Signature drawing pad → PNG data URL (pointer events = mouse + touch) ──
 function SignaturePad({ onChange }: { onChange: (dataUrl: string | null) => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawing = useRef(false);
 
-  const getPos = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const getPos = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     return { x: e.clientX - rect.left, y: e.clientY - rect.top };
   };
@@ -91,6 +94,10 @@ function SignaturePad({ onChange }: { onChange: (dataUrl: string | null) => void
     onChange(null);
   };
 
+  const snapshot = () => {
+    onChange(canvasRef.current?.toDataURL('image/png') || null);
+  };
+
   return (
     <div>
       <canvas
@@ -98,7 +105,8 @@ function SignaturePad({ onChange }: { onChange: (dataUrl: string | null) => void
         width={480}
         height={140}
         className="w-full max-w-md rounded-lg border border-white/10 bg-black/30 cursor-crosshair touch-none"
-        onMouseDown={e => {
+        onPointerDown={e => {
+          e.preventDefault();
           drawing.current = true;
           const ctx = canvasRef.current?.getContext('2d');
           if (!ctx) return;
@@ -109,18 +117,19 @@ function SignaturePad({ onChange }: { onChange: (dataUrl: string | null) => void
           ctx.lineWidth = 2.5;
           ctx.lineCap = 'round';
           ctx.lineJoin = 'round';
+          (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
         }}
-        onMouseMove={e => {
+        onPointerMove={e => {
           if (!drawing.current) return;
           const ctx = canvasRef.current?.getContext('2d');
           if (!ctx) return;
           const { x, y } = getPos(e);
           ctx.lineTo(x, y);
           ctx.stroke();
-          onChange(canvasRef.current?.toDataURL('image/png') || null);
+          // M6 fix: no snapshot per move — PNG encode is expensive; snapshot on up only
         }}
-        onMouseUp={() => { drawing.current = false; }}
-        onMouseLeave={() => { drawing.current = false; }}
+        onPointerUp={() => { drawing.current = false; snapshot(); }}
+        onPointerLeave={() => { if (drawing.current) { drawing.current = false; snapshot(); } }}
       />
       <button onClick={clear} className="mt-2 px-3 py-1 rounded-lg font-mono text-[10px] glass text-gray-400 hover:text-gray-200">
         ОЧИСТИТЬ
@@ -180,7 +189,7 @@ function HubView({ onOpen }: { onOpen: (id: ToolId) => void }) {
       {showHistory && history.length > 0 && (
         <div className="glass rounded-xl p-4">
           <div className="flex items-center justify-between mb-2">
-            <label className="font-mono text-xs text-gray-500">ПОСЛЕДНИЕ КОНВЕРТАЦИИ</label>
+            <label className="font-mono text-xs text-gray-500">ЖУРНАЛ КОНВЕРТАЦИЙ (файлы хранятся 1 час)</label>
             <button onClick={() => {
               setHistory([]);
               try { localStorage.removeItem('nexus-conv-history'); } catch {}
@@ -193,42 +202,56 @@ function HubView({ onOpen }: { onOpen: (id: ToolId) => void }) {
                 <span className="text-gray-200 flex-1 truncate">{h.name}</span>
                 <span className="text-gray-500">{formatFileSize(h.size)}</span>
                 <span className="text-gray-600 text-[9px]">{h.date}</span>
+                <span className="text-[9px] text-gray-600 italic">журнал</span>
               </div>
             ))}
           </div>
+          <p className="font-mono text-[9px] text-gray-600 mt-2">// это журнал, файлы можно скачать только в момент конвертации</p>
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {TOOLS.map((t, i) => {
-          const needsLo = t.engine === 'server';
-          const disabled = needsLo && loOk === false;
-          return (
-            <motion.button
-              key={t.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.05, duration: 0.3 }}
-              whileHover={{ scale: disabled ? 1 : 1.02, y: disabled ? 0 : -4 }}
-              onClick={() => !disabled && onOpen(t.id)}
-              disabled={disabled}
-              className={`glass-card rounded-2xl p-6 text-left transition-all ${disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
-            >
-              <div className="w-12 h-12 rounded-xl flex items-center justify-center glass-accent mb-4">
-                <t.icon className="w-6 h-6" style={{ color: 'var(--color-primary)' }} />
-              </div>
-              <h3 className="font-mono text-sm font-bold text-gray-200">{t.label}</h3>
-              <p className="font-mono text-xs text-gray-500 mt-1">{t.desc}</p>
-              {needsLo && loOk === false && (
-                <p className="font-mono text-[9px] text-yellow-500 mt-2">LibreOffice не установлен</p>
-              )}
-              {needsLo && loOk === null && (
-                <p className="font-mono text-[9px] text-gray-600 mt-2">проверка сервера...</p>
-              )}
-            </motion.button>
-          );
-        })}
-      </div>
+      {/* M12 fix: tools grouped by category instead of one flat 20-tile grid */}
+      {TOOL_CATEGORIES.map(cat => {
+        const catTools = TOOLS.filter(t => t.category === cat);
+        if (catTools.length === 0) return null;
+        return (
+          <div key={cat} className="space-y-3">
+            <h2 className="font-mono text-xs font-bold tracking-wider" style={{ color: 'var(--color-primary)' }}>
+              // {cat.toUpperCase()}
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {catTools.map((t, i) => {
+                const needsLo = t.engine === 'server';
+                const disabled = needsLo && loOk === false;
+                return (
+                  <motion.button
+                    key={t.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.04, duration: 0.3 }}
+                    whileHover={{ scale: disabled ? 1 : 1.02, y: disabled ? 0 : -4 }}
+                    onClick={() => !disabled && onOpen(t.id)}
+                    disabled={disabled}
+                    className={`glass-card rounded-2xl p-6 text-left transition-all ${disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
+                  >
+                    <div className="w-12 h-12 rounded-xl flex items-center justify-center glass-accent mb-4">
+                      <t.icon className="w-6 h-6" style={{ color: 'var(--color-primary)' }} />
+                    </div>
+                    <h3 className="font-mono text-sm font-bold text-gray-200">{t.label}</h3>
+                    <p className="font-mono text-xs text-gray-500 mt-1">{t.desc}</p>
+                    {needsLo && loOk === false && (
+                      <p className="font-mono text-[9px] text-yellow-500 mt-2">LibreOffice не установлен</p>
+                    )}
+                    {needsLo && loOk === null && (
+                      <p className="font-mono text-[9px] text-gray-600 mt-2">проверка сервера...</p>
+                    )}
+                  </motion.button>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -303,9 +326,24 @@ function ToolPanel({ tool, onBack }: { tool: ToolDef; onBack: () => void }) {
 
   const addFiles = useCallback((files: FileList | File[]) => {
     const arr = Array.from(files);
+    // M5 fix: single-file tools REPLACE the current file instead of accumulating
+    if (!tool.multiple) {
+      const f = arr[0];
+      if (!f) return;
+      setItems([{ id: Math.random().toString(36).slice(2), file: f, status: 'pending' }]);
+      if (tool.id === 'organize') {
+        import('pdf-lib').then(async ({ PDFDocument }) => {
+          try {
+            const doc = await PDFDocument.load(await f.arrayBuffer());
+            setPageList(doc.getPageIndices().map(i => ({ num: i + 1, keep: true, rot: 0 })));
+          } catch { setPageList([]); }
+        });
+      }
+      return;
+    }
     const remaining = MAX_FILES - items.length;
     if (remaining <= 0) { showToast(`Максимум ${MAX_FILES} файлов`, 'error'); return; }
-    const toAdd = arr.slice(0, tool.multiple ? remaining : 1);
+    const toAdd = arr.slice(0, remaining);
     const newItems = toAdd.map(f => ({ id: Math.random().toString(36).slice(2), file: f, status: 'pending' as ItemStatus }));
     setItems(prev => [...prev, ...newItems]);
 
@@ -359,10 +397,16 @@ function ToolPanel({ tool, onBack }: { tool: ToolDef; onBack: () => void }) {
         let name = item.file.name.replace(/\.[^.]+$/, '');
         if (tool.id === 'split') {
           const parts = await splitPdf(item.file, splitRanges);
-          // Multiple outputs: download all sequentially
-          for (const p of parts) downloadBlob(p.blob, p.name);
-          set(item.id, { status: 'done', resultName: `${parts.length} частей` });
-          showToast(`Создано частей: ${parts.length}`, 'success');
+          // M9 fix: multiple outputs go into ONE zip — browsers block sequential downloads
+          if (parts.length === 1) {
+            blob = parts[0].blob;
+            name = parts[0].name;
+            set(item.id, { status: 'done', resultBlob: blob, resultName: name, resultSize: blob.size });
+          } else {
+            await downloadZip(parts, `${item.file.name.replace(/\.pdf$/i, '')}_parts.zip`);
+            set(item.id, { status: 'done', resultName: `${parts.length} частей (ZIP)` });
+            showToast(`Создано частей: ${parts.length}`, 'success');
+          }
           continue;
         } else if (tool.id === 'watermark') {
           blob = await watermarkPdf(item.file, { text: wmText, opacity: wmOpacity / 100, position: wmPosition });
@@ -686,12 +730,13 @@ function ToolPanel({ tool, onBack }: { tool: ToolDef; onBack: () => void }) {
             if (!page) return null;
             return (
               <div
-                className="relative inline-block max-w-full cursor-crosshair select-none"
-                onMouseDown={e => {
+                className="relative inline-block max-w-full cursor-crosshair select-none touch-none"
+                onPointerDown={e => {
                   const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                  (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
                   setRedactDrawing({ x: (e.clientX - rect.left) / rect.width, y: (e.clientY - rect.top) / rect.height, w: 0, h: 0 });
                 }}
-                onMouseMove={e => {
+                onPointerMove={e => {
                   if (!redactDrawing) return;
                   const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
                   const x2 = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
@@ -701,13 +746,13 @@ function ToolPanel({ tool, onBack }: { tool: ToolDef; onBack: () => void }) {
                     w: Math.abs(x2 - redactDrawing.x), h: Math.abs(y2 - redactDrawing.y),
                   });
                 }}
-                onMouseUp={() => {
+                onPointerUp={() => {
                   if (redactDrawing && redactDrawing.w > 0.01 && redactDrawing.h > 0.01) {
                     setRedactRegions(prev => [...prev, { page: redactPage, ...redactDrawing }]);
                   }
                   setRedactDrawing(null);
                 }}
-                onMouseLeave={() => setRedactDrawing(null)}
+                onPointerLeave={() => setRedactDrawing(null)}
               >
                 <img src={page.dataUrl} alt={`Страница ${redactPage}`} draggable={false}
                   className="block max-w-full max-h-[420px] rounded-lg border border-white/10" />

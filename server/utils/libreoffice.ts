@@ -52,6 +52,24 @@ setInterval(() => {
   }
 }, 30 * 60_000).unref?.();
 
+// M8 fix: on boot, wipe orphaned job dirs left by a previous process
+// (the in-memory Map is lost on restart, so nothing else would clean them)
+try {
+  if (fs.existsSync(CONV_ROOT)) {
+    for (const entry of fs.readdirSync(CONV_ROOT)) {
+      const p = path.join(CONV_ROOT, entry);
+      try {
+        const stat = fs.statSync(p);
+        // Anything older than 1h is orphaned; also kill fresh-looking dirs on boot
+        // since no live job survives a process restart anyway.
+        fs.rmSync(p, { recursive: true, force: true });
+        void stat;
+      } catch {}
+    }
+  }
+} catch {}
+
+
 // ── LibreOffice availability ──
 let loInfo: { ok: boolean; version?: string; checked: boolean } = { ok: false, checked: false };
 
@@ -167,7 +185,8 @@ function sanitize(name: string): string {
 export function prepareJobDir(originalName: string): { jobDir: string; inputPath: string } {
   const jobId = uuidv4();
   const jobDir = path.join(CONV_ROOT, jobId);
-  fs.mkdirSync(jobDir, { recursive: true });
+  // M10 fix: 0700 — job files must not be readable by other VPS users
+  fs.mkdirSync(jobDir, { recursive: true, mode: 0o700 });
   const ext = path.extname(originalName).toLowerCase() || '.bin';
   const inputPath = path.join(jobDir, `input${ext}`);
   return { jobDir, inputPath };

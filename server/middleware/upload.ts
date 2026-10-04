@@ -8,13 +8,41 @@ const storage = multer.diskStorage({
     cb(null, UPLOADS_DIR);
   },
   filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname);
     // Fix Russian/UTF-8 filenames: multer stores them as latin1, need to convert back
     const decodedName = Buffer.from(file.originalname, 'latin1').toString('utf8');
+    // H1 (security): extension comes from a SERVER-SIDE allowlist keyed by the
+    // validated MIME — never from client-controlled originalname. Prevents
+    // uploading poc.html/.svg with a spoofed Content-Type (stored XSS via /uploads).
+    const ext = mimeToExt[file.mimetype] || '.bin';
     cb(null, `${uuidv4()}${ext}`);
     (file as any).decodedOriginalname = decodedName;
   },
 });
+
+// Server-side extension map — one safe ext per allowed MIME
+const mimeToExt: Record<string, string> = {
+  'image/jpeg': '.jpg',
+  'image/png': '.png',
+  'image/gif': '.gif',
+  'image/webp': '.webp',
+  'application/pdf': '.pdf',
+  'application/msword': '.doc',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx',
+  'application/vnd.ms-excel': '.xls',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': '.xlsx',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation': '.pptx',
+  'application/vnd.ms-powerpoint': '.ppt',
+  'video/mp4': '.mp4',
+  'video/webm': '.webm',
+  'audio/mpeg': '.mp3',
+  'audio/wav': '.wav',
+  'audio/webm': '.weba',
+  'audio/ogg': '.ogg',
+  'audio/mp4': '.m4a',
+  'text/plain': '.txt',
+  'text/csv': '.csv',
+  'application/json': '.json',
+};
 
 const fileFilter = (req: Express.Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
   // Allow images, documents, videos, and audio

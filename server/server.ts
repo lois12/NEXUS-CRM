@@ -76,7 +76,14 @@ app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, { customCss: 
 app.get('/api/docs.json', (req, res) => res.json(swaggerSpec));
 
 // Static files for uploads (cache 1 day)
-app.use('/uploads', express.static(UPLOADS_DIR, { maxAge: '1d', etag: true }));
+// Security headers: nosniff stops browsers from MIME-sniffing uploaded files
+// into executable content (stored XSS mitigation — combined with server-side
+// extension allowlist in upload.ts)
+app.use('/uploads', (req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Content-Security-Policy', "default-src 'none'; sandbox");
+  next();
+}, express.static(UPLOADS_DIR, { maxAge: '1d', etag: true }));
 
 // Serve frontend in production (cache hashed assets aggressively, no cache for HTML)
 app.use(express.static(CLIENT_DIST, {
