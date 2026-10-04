@@ -9,6 +9,7 @@ import { Server as SocketIOServer } from 'socket.io';
 import { initDatabase, get } from './db/database';
 import { initializeDatabase } from './db/init';
 import { runMigrations } from './db/migrator';
+import { startAutoBackup } from './services/autoBackup';
 import { PROJECT_ROOT, SERVER_DIR, CLIENT_DIST, UPLOADS_DIR, MODELS_DIR } from './paths';
 import authRoutes from './routes/auth';
 import usersRoutes from './routes/users';
@@ -217,6 +218,7 @@ async function start() {
     initDatabase();
     initializeDatabase();
     runMigrations();
+    startAutoBackup(); // daily 09:00 server-local DB backup
 
     const server = http.createServer(app);
 

@@ -6,6 +6,7 @@ import { get, query, run, backupDatabase } from '../db/database';
 import { authenticateToken, requireRole, AuthRequest } from '../middleware/auth';
 import { DB_PATH, UPLOADS_DIR, DB_BACKUP_DIR } from '../paths';
 import { asyncAuthHandler, HttpError } from '../middleware/errorHandler';
+import { getAutoBackupStatus, runDailyBackup } from '../services/autoBackup';
 
 const router = Router();
 
@@ -90,7 +91,16 @@ function listBackupFiles() {
 
 /** GET /api/dashboard/backups — list server-side backups */
 router.get('/backups', requireRole('super_admin'), asyncAuthHandler(async (_req: AuthRequest, res: Response) => {
-  res.json({ success: true, data: { dir: DB_BACKUP_DIR, files: listBackupFiles() } });
+  res.json({
+    success: true,
+    data: { dir: DB_BACKUP_DIR, files: listBackupFiles(), auto: getAutoBackupStatus() },
+  });
+}));
+
+/** POST /api/dashboard/backups/auto/run — force today's auto-backup now (for tests) */
+router.post('/backups/auto/run', requireRole('super_admin'), asyncAuthHandler(async (_req: AuthRequest, res: Response) => {
+  const r = await runDailyBackup();
+  res.json({ success: true, data: { created: r, auto: getAutoBackupStatus(), files: listBackupFiles() } });
 }));
 
 /** POST /api/dashboard/backups — create a new backup on the server */

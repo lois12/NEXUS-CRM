@@ -63,6 +63,7 @@ export default function AdminMonitoring() {
   const [backups, setBackups] = useState<{ name: string; size: number; at: number }[]>([]);
   const [backupDir, setBackupDir] = useState('');
   const [backingUp, setBackingUp] = useState(false);
+  const [autoInfo, setAutoInfo] = useState<{ lastDay: string | null; nextAt: string } | null>(null);
 
   const fetchHealth = async () => {
     try {
@@ -82,6 +83,7 @@ export default function AdminMonitoring() {
         if (b.success && b.data) {
           setBackups(b.data.files || []);
           setBackupDir(b.data.dir || '');
+          if (b.data.auto) setAutoInfo(b.data.auto);
         }
       } catch { /* backup list is optional */ }
     } catch {
@@ -278,16 +280,42 @@ export default function AdminMonitoring() {
             <p className="font-mono text-[10px] mt-1" style={{ color: '#6b7280' }}>
               {backupDir || '…'} · live-копия без остановки сервера
             </p>
+            {autoInfo && (
+              <p className="font-mono text-[10px] mt-0.5" style={{ color: '#3b82f6' }}>
+                АВТО: {autoInfo.nextAt} · последний: {autoInfo.lastDay || 'ещё не было'}
+              </p>
+            )}
           </div>
-          <button
-            onClick={createBackup}
-            disabled={backingUp}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-[11px] font-bold disabled:opacity-50"
-            style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}
-          >
-            <Archive className="w-3.5 h-3.5" />
-            {backingUp ? 'СОЗДАНИЕ…' : 'СОЗДАТЬ БЭКАП'}
-          </button>
+          <div className="flex gap-2 flex-wrap">
+            <button
+              onClick={async () => {
+                try {
+                  const res = await dashboardApi.runAutoBackupNow();
+                  if (res.success && res.data) {
+                    setBackups(res.data.files || []);
+                    if (res.data.auto) setAutoInfo(res.data.auto);
+                    showToast(res.data.created ? `Авто-бэкап ${res.data.created.name}` : 'Сегодня уже есть', 'info');
+                  }
+                } catch {
+                  showToast('Ошибка авто-бэкапа', 'error');
+                }
+              }}
+              className="px-3 py-2 rounded-lg font-mono text-[11px]"
+              style={{ backgroundColor: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: '#9ca3af' }}
+              title="Прогнать сегодняшний авто-бэкап сейчас"
+            >
+              АВТО СЕЙЧАС
+            </button>
+            <button
+              onClick={createBackup}
+              disabled={backingUp}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-[11px] font-bold disabled:opacity-50"
+              style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}
+            >
+              <Archive className="w-3.5 h-3.5" />
+              {backingUp ? 'СОЗДАНИЕ…' : 'СОЗДАТЬ БЭКАП'}
+            </button>
+          </div>
         </div>
         {backups.length === 0 ? (
           <p className="font-mono text-[10px]" style={{ color: '#4a4a60' }}>бэкапов пока нет</p>

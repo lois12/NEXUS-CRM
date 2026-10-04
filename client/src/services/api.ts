@@ -221,11 +221,14 @@ export const dashboardApi = {
   getByStatus: (): Promise<ApiResponse<{ status: string; count: number }[]>> =>
     api.get('/dashboard/analytics/by-status').then((res) => res.data),
 
-  listBackups: (): Promise<ApiResponse<{ dir: string; files: { name: string; size: number; at: number }[] }>> =>
+  listBackups: (): Promise<ApiResponse<{ dir: string; files: { name: string; size: number; at: number }[]; auto?: { lastDay: string | null; nextAt: string } }>> =>
     api.get('/dashboard/backups').then((res) => res.data),
 
   createBackup: (): Promise<ApiResponse<{ name: string; size: number; at: number; dir: string; files: { name: string; size: number; at: number }[] }>> =>
     api.post('/dashboard/backups').then((res) => res.data),
+
+  runAutoBackupNow: (): Promise<ApiResponse<{ created: { name: string; size: number } | null; auto: { lastDay: string | null; nextAt: string }; files: { name: string; size: number; at: number }[] }>> =>
+    api.post('/dashboard/backups/auto/run').then((res) => res.data),
 
   downloadBackupUrl: (name: string) => `/api/dashboard/backups/${encodeURIComponent(name)}`,
 
