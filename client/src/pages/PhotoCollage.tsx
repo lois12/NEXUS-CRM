@@ -170,9 +170,10 @@ function traceShape(ctx: CanvasRenderingContext2D, z: Zone, W: number, H: number
     ctx.lineTo(x, y + h / 2);
     ctx.closePath();
   } else if (z.points?.length) {
+    // points are ZONE-relative (0..1) — map into canvas coords via the bbox
     z.points.forEach((p, i) => {
-      const px = p.x * W;
-      const py = p.y * H;
+      const px = (z.x + p.x * z.w) * W;
+      const py = (z.y + p.y * z.h) * H;
       if (i === 0) ctx.moveTo(px, py);
       else ctx.lineTo(px, py);
     });
@@ -249,12 +250,19 @@ export default function PhotoCollage() {
   const [drawing, setDrawing] = useState(false);
   const [drawPts, setDrawPts] = useState<Pt[]>([]);
   const [isBusy, setIsBusy] = useState(false);
+  const [isFull, setIsFull] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragRef = useRef<{ mode: 'move' | 'resize'; zone: Zone; startX: number; startY: number; orig: Zone } | null>(null);
 
   const fmt = FORMATS[format];
   const sel = zones.find(z => z.id === selId) || null;
+
+  useEffect(() => {
+    const h = () => setIsFull(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', h);
+    return () => document.removeEventListener('fullscreenchange', h);
+  }, []);
 
   const addImage = useCallback(async (files: FileList | File[]) => {
     const arr = Array.from(files).filter(f => f.type.startsWith('image/'));
@@ -282,13 +290,17 @@ export default function PhotoCollage() {
           id: uid(), type, x: 0.2, y: 0.2, w: 0.5, h: 0.5,
           radius: 0, imgRadius: 0, fit: 'cover', imgId: null,
         };
-    // For polygon compute bbox so move/resize math stays uniform
+    // For polygon: normalize points to the bbox (0..1 within the zone) so
+    // CSS clip-path (%) and canvas trace agree — otherwise the shape distorts
     if (type === 'polygon' && z.points?.length) {
       const xs = z.points.map(p => p.x);
       const ys = z.points.map(p => p.y);
       const minX = Math.min(...xs), maxX = Math.max(...xs);
       const minY = Math.min(...ys), maxY = Math.max(...ys);
-      z.x = minX; z.y = minY; z.w = Math.max(maxX - minX, 0.01); z.h = Math.max(maxY - minY, 0.01);
+      const bw = Math.max(maxX - minX, 0.01);
+      const bh = Math.max(maxY - minY, 0.01);
+      z.x = minX; z.y = minY; z.w = bw; z.h = bh;
+      z.points = drawPts.map(p => ({ x: (p.x - minX) / bw, y: (p.y - minY) / bh }));
     }
     setZones(prev => [...prev, z]);
     setSelId(z.id);
@@ -563,10 +575,13 @@ export default function PhotoCollage() {
           <div
             ref={canvasRef}
             onClick={drawing ? onCanvasClick : undefined}
+            id="collage-canvas"
             className="relative mx-auto rounded-xl overflow-hidden select-none"
             style={{
               width: '100%',
-              maxWidth: 560,
+              // fullscreen: fill available height (kills the dead zone at the bottom)
+              maxWidth: isFull ? `min(100%, calc((100vh - 220px) * ${fmt.w / fmt.h}))` : 560,
+              maxHeight: isFull ? 'calc(100vh - 220px)' : undefined,
               aspectRatio: `${fmt.w} / ${fmt.h}`,
               background: bgColor,
               borderRadius: `${outerRadius}%`,
@@ -772,8 +787,8 @@ export default function PhotoCollage() {
                   }}
                   className="px-3 py-1.5 rounded-lg font-mono text-xs glass hover:bg-white/10 flex items-center gap-1"
                   title="Во весь экран">
-                  {document.fullscreenElement ? <Minimize2 className="w-3 h-3" /> : <Maximize2 className="w-3 h-3" />}
-                  {document.fullscreenElement ? 'СВЕРНУТЬ' : 'НА ВЕСЬ ЭКРАН'}
+                  {isFull ? <Minimize2 className="w-3 h-3" /> : <Maximize2 className="w-3 h-3" />}
+                  {isFull ? 'СВЕРНУТЬ' : 'НА ВЕСЬ ЭКРАН'}
                 </button>
               </div>
               <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden"
