@@ -1,4 +1,9 @@
-/** Client-side collage project persistence (IndexedDB). */
+/**
+ * Collage project persistence — SERVER API (SQLite, team-shared).
+ * Thin facade over `collageApi` so lobby/editor stay unchanged.
+ * Images travel as dataUrl strings (cap on server).
+ */
+import { collageApi } from '../services/api';
 
 export interface StoredImage {
   id: string;
@@ -22,56 +27,75 @@ export interface ProjectVersion {
 }
 
 export interface StoredProject extends ProjectMeta {
-  /** JSON of CollagePage[] (history stripped) */
   pagesJson: string;
   images: StoredImage[];
   versions?: ProjectVersion[];
 }
 
-const DB_NAME = 'nexus-collage';
-const STORE = 'projects';
+const MAX_VERSIONS = 20;
 
-function openDb(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, 1);
-    req.onupgradeneeded = () => {
-      const db = req.result;
-      if (!db.objectStoreNames.contains(STORE)) {
-        db.createObjectStore(STORE, { keyPath: 'id' });
-      }
-    };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
+function toMeta(raw: any): ProjectMeta {
+  const t = raw?.updatedAt;
+  const ts = typeof t === 'number' ? t : Date.parse(t || '') || Date.now();
+  return {
+    id: raw.id,
+    name: raw.name || '',
+    description: raw.description || '',
+    updatedAt: ts,
+    pageCount: raw.pageCount || 0,
+  };
 }
 
-function tx<T>(mode: IDBTransactionMode, fn: (store: IDBObjectStore) => IDBRequest<T>): Promise<T> {
-  return openDb().then(db => new Promise<T>((resolve, reject) => {
-    const t = db.transaction(STORE, mode);
-    const req = fn(t.objectStore(STORE));
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  }));
+function toStored(raw: any): StoredProject {
+  return {
+    ...toMeta(raw),
+    pagesJson: raw.pagesJson || '[]',
+    images: Array.isArray(raw.images) ? raw.images : [],
+    versions: Array.isArray(raw.versions) ? raw.versions : [],
+  };
 }
 
 export async function listProjects(): Promise<ProjectMeta[]> {
-  const all = await tx<StoredProject[]>('readonly', s => s.getAll() as IDBRequest<StoredProject[]>);
-  return (all || [])
-    .map(({ id, name, description, updatedAt, pageCount }) => ({ id, name, description: description || '', updatedAt, pageCount }))
-    .sort((a, b) => b.updatedAt - a.updatedAt);
+  const res = await collageApi.list();
+  return (res.data || []).map(toMeta).sort((a, b) => b.updatedAt - a.updatedAt);
 }
 
 export async function getProject(id: string): Promise<StoredProject | null> {
-  const p = await tx<StoredProject | undefined>('readonly', s => s.get(id) as IDBRequest<StoredProject | undefined>);
-  return p || null;
+  try {
+    const res = await collageApi.get(id);
+    return res.data ? toStored(res.data) : null;
+  } catch {
+    return null;
+  }
 }
 
 export async function saveProject(p: StoredProject): Promise<void> {
-  await tx('readwrite', s => s.put(p));
+  await collageApi.save(p.id, {
+    name: p.name,
+    description: p.description,
+    pageCount: p.pageCount,
+    pagesJson: p.pagesJson,
+    images: p.images,
+  });
+}
+
+export async function createProject(input: {
+  name: string;
+  description?: string;
+  pagesJson?: string;
+  images?: StoredImage[];
+}): Promise<StoredProject> {
+  const res = await collageApi.create({
+    name: input.name,
+    description: input.description || '',
+    pagesJson: input.pagesJson,
+    images: input.images || [],
+  });
+  return toStored(res.data);
 }
 
 export async function deleteProject(id: string): Promise<void> {
-  await tx('readwrite', s => s.delete(id));
+  await collageApi.remove(id);
 }
 
 export function newProjectId(): string {
@@ -79,44 +103,15 @@ export function newProjectId(): string {
 }
 
 export async function patchProjectMeta(id: string, patch: { name?: string; description?: string }): Promise<void> {
-  const cur = await getProject(id);
-  if (!cur) return;
-  await saveProject({
-    ...cur,
-    name: patch.name ?? cur.name,
-    description: patch.description ?? cur.description,
-    updatedAt: Date.now(),
-  });
+  await collageApi.patchMeta(id, patch);
 }
 
-const MAX_VERSIONS = 20;
-
 export async function addProjectVersion(id: string, name: string): Promise<void> {
-  const cur = await getProject(id);
-  if (!cur) return;
-  const versions = cur.versions || [];
-  versions.unshift({
-    id: `v_${Date.now().toString(36)}`,
-    name,
-    at: Date.now(),
-    pagesJson: cur.pagesJson,
-    images: cur.images,
-  });
-  await saveProject({
-    ...cur,
-    updatedAt: Date.now(),
-    versions: versions.slice(0, MAX_VERSIONS),
-  });
+  await collageApi.addVersion(id, name);
 }
 
 export async function deleteProjectVersion(id: string, versionId: string): Promise<void> {
-  const cur = await getProject(id);
-  if (!cur?.versions) return;
-  await saveProject({
-    ...cur,
-    versions: cur.versions.filter(v => v.id !== versionId),
-    updatedAt: Date.now(),
-  });
+  await collageApi.removeVersion(id, versionId);
 }
 
 export function formatRuDate(ts: number): string {
@@ -147,3 +142,6 @@ export function dataUrlToImage(dataUrl: string): Promise<HTMLImageElement> {
     img.src = dataUrl;
   });
 }
+
+/** legacy name kept — versions list lives on the project */
+export const MAX_STORED_VERSIONS = MAX_VERSIONS;

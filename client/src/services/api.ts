@@ -222,6 +222,48 @@ export const dashboardApi = {
     api.get('/dashboard/analytics/by-status').then((res) => res.data),
 };
 
+// Collage projects (server-side, team-shared)
+export interface CollageProjectMeta {
+  id: string;
+  name: string;
+  description: string;
+  updatedAt: string | number;
+  pageCount: number;
+  ownerName?: string;
+}
+
+export const collageApi = {
+  list: (): Promise<ApiResponse<CollageProjectMeta[]>> =>
+    api.get('/collage/projects').then((res) => res.data),
+
+  get: (id: string): Promise<ApiResponse<any>> =>
+    api.get(`/collage/projects/${id}`).then((res) => res.data),
+
+  create: (payload: { name: string; description?: string; pagesJson?: string; images?: { id: string; dataUrl: string }[] }): Promise<ApiResponse<any>> =>
+    api.post('/collage/projects', payload).then((res) => res.data),
+
+  save: (id: string, payload: {
+    name?: string;
+    description?: string;
+    pageCount?: number;
+    pagesJson?: string;
+    images?: { id: string; dataUrl: string }[];
+  }): Promise<ApiResponse<any>> =>
+    api.put(`/collage/projects/${id}`, payload).then((res) => res.data),
+
+  patchMeta: (id: string, payload: { name?: string; description?: string }): Promise<ApiResponse<any>> =>
+    api.patch(`/collage/projects/${id}/meta`, payload).then((res) => res.data),
+
+  remove: (id: string): Promise<ApiResponse<any>> =>
+    api.delete(`/collage/projects/${id}`).then((res) => res.data),
+
+  addVersion: (id: string, name: string): Promise<ApiResponse<{ versions: any[] }>> =>
+    api.post(`/collage/projects/${id}/versions`, { name }).then((res) => res.data),
+
+  removeVersion: (id: string, versionId: string): Promise<ApiResponse<{ versions: any[] }>> =>
+    api.delete(`/collage/projects/${id}/versions/${versionId}`).then((res) => res.data),
+};
+
 // Ideas API
 export const ideasApi = {
   getAll: (): Promise<ApiResponse<{ ideas: any[]; links: any[] }>> =>

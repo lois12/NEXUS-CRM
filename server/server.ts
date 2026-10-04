@@ -32,6 +32,7 @@ import searchRoutes from './routes/search';
 import listsRoutes, { publicRouter as publicListsRouter } from './routes/lists';
 import converterRoutes from './routes/converter';
 import linksRoutes from './routes/links';
+import collageRoutes from './routes/collage';
 import { redirectLink } from './controllers/shortLinkController';
 import qrAuthRoutes from './routes/qrAuth';
 import pushRoutes from './routes/push';
@@ -132,6 +133,7 @@ app.use('/api', publicListsRouter);
 app.use('/api/lists', listsRoutes);
 app.use('/api/converter', converterRoutes);
 app.use('/api/links', linksRoutes);
+app.use('/api/collage', collageRoutes);
 
 // Public short-link redirect (no auth — anyone with the link opens it)
 app.get('/s/:code', redirectLink);

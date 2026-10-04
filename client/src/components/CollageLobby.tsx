@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { FolderOpen, Plus, Pencil, Trash2, X, Layers, Copy } from 'lucide-react';
 import {
-  listProjects, getProject, saveProject, deleteProject, newProjectId,
+  listProjects, getProject, saveProject, deleteProject, createProject,
   formatRuDate, type ProjectMeta,
 } from '../utils/collageStore';
 import { showToast, ConfirmModal, useNexusConfirm } from './ui/NexusModal';
@@ -43,32 +43,13 @@ export default function CollageLobby({ onOpen }: Props) {
     const description = draft.description.trim();
     try {
       if (draft.id) {
-        const cur = await getProject(draft.id);
-        if (!cur) { showToast('Проект не найден', 'error'); return; }
-        await saveProject({ ...cur, name, description, updatedAt: Date.now() });
+        await patchMetaSafe(draft.id, name, description);
         showToast('Проект обновлён', 'success');
       } else {
-        const id = newProjectId();
-        await saveProject({
-          id, name, description,
-          updatedAt: Date.now(),
-          pageCount: 1,
-          pagesJson: JSON.stringify([{
-            id: `p_${Date.now().toString(36)}`,
-            name: 'Страница 1',
-            format: 'a4',
-            orient: 'portrait',
-            customW: 1080,
-            customH: 1080,
-            bgColor: '#0a0a0f',
-            outerRadius: 0,
-            zones: [],
-          }]),
-          images: [],
-        });
+        const created = await createProject({ name, description });
         showToast('Проект создан', 'success');
         setDraft(null);
-        onOpen(id);
+        onOpen(created.id);
         return;
       }
       setDraft(null);
@@ -76,6 +57,12 @@ export default function CollageLobby({ onOpen }: Props) {
     } catch {
       showToast('Ошибка сохранения', 'error');
     }
+  };
+
+  const patchMetaSafe = async (id: string, name: string, description: string) => {
+    const cur = await getProject(id);
+    if (!cur) throw new Error('not found');
+    await saveProject({ ...cur, name, description, updatedAt: Date.now() });
   };
 
   const askDelete = (p: ProjectMeta) => {
@@ -149,13 +136,11 @@ export default function CollageLobby({ onOpen }: Props) {
                     try {
                       const cur = await getProject(p.id);
                       if (!cur) return;
-                      const id = newProjectId();
-                      await saveProject({
-                        ...cur,
-                        id,
+                      await createProject({
                         name: `${p.name} (копия)`,
-                        updatedAt: Date.now(),
-                        versions: [],
+                        description: cur.description,
+                        pagesJson: cur.pagesJson,
+                        images: cur.images,
                       });
                       showToast('Проект скопирован', 'success');
                       refresh();
