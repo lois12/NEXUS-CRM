@@ -13,10 +13,19 @@ export interface ProjectMeta {
   pageCount: number;
 }
 
+export interface ProjectVersion {
+  id: string;
+  name: string;
+  at: number;
+  pagesJson: string;
+  images: StoredImage[];
+}
+
 export interface StoredProject extends ProjectMeta {
   /** JSON of CollagePage[] (history stripped) */
   pagesJson: string;
   images: StoredImage[];
+  versions?: ProjectVersion[];
 }
 
 const DB_NAME = 'nexus-collage';
@@ -76,6 +85,36 @@ export async function patchProjectMeta(id: string, patch: { name?: string; descr
     ...cur,
     name: patch.name ?? cur.name,
     description: patch.description ?? cur.description,
+    updatedAt: Date.now(),
+  });
+}
+
+const MAX_VERSIONS = 20;
+
+export async function addProjectVersion(id: string, name: string): Promise<void> {
+  const cur = await getProject(id);
+  if (!cur) return;
+  const versions = cur.versions || [];
+  versions.unshift({
+    id: `v_${Date.now().toString(36)}`,
+    name,
+    at: Date.now(),
+    pagesJson: cur.pagesJson,
+    images: cur.images,
+  });
+  await saveProject({
+    ...cur,
+    updatedAt: Date.now(),
+    versions: versions.slice(0, MAX_VERSIONS),
+  });
+}
+
+export async function deleteProjectVersion(id: string, versionId: string): Promise<void> {
+  const cur = await getProject(id);
+  if (!cur?.versions) return;
+  await saveProject({
+    ...cur,
+    versions: cur.versions.filter(v => v.id !== versionId),
     updatedAt: Date.now(),
   });
 }

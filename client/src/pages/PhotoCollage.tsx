@@ -1,29 +1,54 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import {
   Square, PenTool, Image as ImageIcon, X, Download,
   Trash2, Copy, Layers, Move, Maximize2, Minimize2, Type, Pencil,
-  ArrowLeft,
+  ArrowLeft, Eye, EyeOff, Lock, Unlock, ChevronDown, ChevronRight,
+  Eraser, Lasso, History, Stamp,
 } from 'lucide-react';
-import { PDFDocument, rgb } from 'pdf-lib';
 import JSZip from 'jszip';
 import { showToast } from '../components/ui/NexusModal';
 import CollageLobby from '../components/CollageLobby';
 import {
   getProject, saveProject, patchProjectMeta, formatRuDate,
-  fileToDataUrl, dataUrlToImage,
+  fileToDataUrl, dataUrlToImage, addProjectVersion, deleteProjectVersion,
+  type ProjectVersion,
 } from '../utils/collageStore';
+import { canvasToBlob, exportPdf, exportPptx, downloadBlob, type ImageFormat } from '../utils/collageExport';
 
 // ── Types ─────────────────────────────────────────────────────
 type ShapeType =
-  | 'rect' | 'circle' | 'ellipse' | 'polygon' | 'text'
+  | 'rect' | 'circle' | 'ellipse' | 'polygon' | 'text' | 'mask'
   | 'triangle' | 'star' | 'heart' | 'hexagon' | 'arch' | 'diamond'
   | 'semicircle' | 'cloud' | 'drop' | 'cross' | 'arrowR' | 'arrowU'
-  | 'pentagon' | 'octagon' | 'squircle' | 'spark' | 'blob' | 'bolt' | 'flower' | 'chevron';
+  | 'pentagon' | 'octagon' | 'squircle' | 'spark' | 'blob' | 'bolt' | 'flower' | 'chevron'
+  | 'brushWide' | 'brushDry' | 'splash' | 'ragged';
 type FitMode = 'cover' | 'contain';
 type TextAlign = 'left' | 'center' | 'right';
+type BgTexture = 'none' | 'noise' | 'grid' | 'dots' | 'diag';
 
 interface Pt { x: number; y: number } // normalized 0..1 of canvas
+
+interface ZoneFilters {
+  brightness: number; // 0..200, 100 = norm
+  contrast: number;
+  saturate: number;
+  sepia: number;
+  grayscale: number;
+}
+
+const DEFAULT_FILTERS: ZoneFilters = { brightness: 100, contrast: 100, saturate: 100, sepia: 0, grayscale: 0 };
+
+function cssFilter(f?: ZoneFilters): string {
+  if (!f) return 'none';
+  const parts: string[] = [];
+  if (f.brightness !== 100) parts.push(`brightness(${f.brightness}%)`);
+  if (f.contrast !== 100) parts.push(`contrast(${f.contrast}%)`);
+  if (f.saturate !== 100) parts.push(`saturate(${f.saturate}%)`);
+  if (f.sepia) parts.push(`sepia(${f.sepia}%)`);
+  if (f.grayscale) parts.push(`grayscale(${f.grayscale}%)`);
+  return parts.length ? parts.join(' ') : 'none';
+}
 
 interface Zone {
   id: string;
@@ -32,7 +57,7 @@ interface Zone {
   radius: number;      // 0..50 (% of half min-side) for rect
   imgRadius: number;   // 0..50 — rounding of the IMAGE inside the zone
   fit: FitMode;
-  points?: Pt[];       // for polygon (zone-relative 0..1)
+  points?: Pt[];       // for polygon / mask (zone-relative 0..1)
   imgId?: string | null;
   // per-corner rounding (rect) — falls back to `radius` when unset
   corners?: { tl: number; tr: number; br: number; bl: number };
@@ -42,6 +67,8 @@ interface Zone {
   imgY?: number;
   /** photo opacity 0..1 */
   imgOpacity?: number;
+  /** photo filters */
+  filters?: ZoneFilters;
   // border stroke along the shape
   border?: { width: number; color: string }; // width % of half min-side (0..20)
   // text layer
@@ -53,6 +80,10 @@ interface Zone {
   align?: TextAlign;
   rotation?: number;   // -45..45 deg
   stroke?: { width: number; color: string }; // text outline (width in em, 0..0.3)
+  // layers
+  hidden?: boolean;
+  locked?: boolean;
+  name?: string;
 }
 
 interface ImgItem {
@@ -127,6 +158,7 @@ interface CollagePage {
   bgColor: string;
   /** transparent page bg (PNG alpha; UI shows checkerboard) */
   bgTransparent?: boolean;
+  bgTexture?: BgTexture;
   outerRadius: number;
   zones: Zone[];
   /** per-page undo stack (zone snapshots) */
@@ -154,6 +186,7 @@ function createPage(name: string, from?: CollagePage): CollagePage {
     customH: 1080,
     bgColor: '#0a0a0f',
     bgTransparent: false,
+    bgTexture: 'none',
     outerRadius: 0,
     zones: [],
     history: [[]],
@@ -187,28 +220,12 @@ function resolvePt(p: Pick<CollagePage, 'format' | 'orient' | 'customW' | 'custo
   return { w: sz.w * 72 / 150, h: sz.h * 72 / 150 };
 }
 
-function downloadBlob(blob: Blob, name: string) {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = name;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}
-
-function canvasToPngBlob(canvas: HTMLCanvasElement): Promise<Blob> {
-  return new Promise((resolve, reject) => {
-    canvas.toBlob(b => b ? resolve(b) : reject(new Error('Canvas → PNG failed')), 'image/png');
-  });
-}
-
 /** Render a page (any format/zones) to an offscreen canvas at `scale` */
 function renderPageToCanvas(
-  p: Pick<CollagePage, 'format' | 'orient' | 'customW' | 'customH' | 'bgColor' | 'bgTransparent' | 'outerRadius' | 'zones'>,
+  p: Pick<CollagePage, 'format' | 'orient' | 'customW' | 'customH' | 'bgColor' | 'bgTransparent' | 'bgTexture' | 'outerRadius' | 'zones'>,
   images: ImgItem[],
   scale: number,
+  watermark?: { img: HTMLImageElement; opacity: number; corner: 'tl' | 'tr' | 'bl' | 'br' | 'center'; scale: number },
 ): HTMLCanvasElement {
   const sz = resolveSize(p.format, p.orient, p.customW, p.customH);
   const W = sz.w * scale;
@@ -230,8 +247,12 @@ function renderPageToCanvas(
     ctx.fillStyle = p.bgColor;
     ctx.fillRect(0, 0, W, H);
   }
+  if (p.bgTexture && p.bgTexture !== 'none') {
+    drawTexture(ctx, W, H, p.bgTexture, p.bgColor);
+  }
 
   for (const z of p.zones) {
+    if (z.hidden) continue;
     ctx.save();
     if (z.type === 'text') {
       const px = (z.fontSize || 0.06) * sz.h * scale;
@@ -275,6 +296,10 @@ function renderPageToCanvas(
       ctx.save();
       const op = z.imgOpacity ?? 1;
       if (op < 1) ctx.globalAlpha = op;
+      const fl = z.filters;
+      if (fl) {
+        ctx.filter = cssFilter(fl);
+      }
       if (z.imgRadius > 0) {
         traceImgRound(ctx, z, sz.w * scale, sz.h * scale);
         ctx.clip();
@@ -288,6 +313,7 @@ function renderPageToCanvas(
       ctx.translate((z.imgX || 0) * zw * 0.3, (z.imgY || 0) * zh * 0.3);
       ctx.translate(-(zx + zw / 2), -(zy + zh / 2));
       drawFitted(ctx, imgItem.img, zx, zy, zw, zh, z.fit);
+      ctx.filter = 'none';
       ctx.restore();
     } else {
       ctx.fillStyle = 'rgba(255,255,255,0.06)';
@@ -305,7 +331,76 @@ function renderPageToCanvas(
       ctx.restore();
     }
   }
+
+  // watermark
+  if (watermark) {
+    drawWatermarkOn(ctx, W, H, watermark);
+  }
   return canvas;
+}
+
+/** background textures (subtle, on top of bg color) */
+function drawTexture(ctx: CanvasRenderingContext2D, W: number, H: number, tex: BgTexture, bgColor: string) {
+  ctx.save();
+  if (tex === 'grid') {
+    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+    ctx.lineWidth = 1;
+    const step = Math.max(12, Math.min(W, H) / 24);
+    for (let x = 0; x <= W; x += step) {
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+    }
+    for (let y = 0; y <= H; y += step) {
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+    }
+  } else if (tex === 'dots') {
+    ctx.fillStyle = 'rgba(255,255,255,0.08)';
+    const step = Math.max(10, Math.min(W, H) / 28);
+    for (let y = step / 2; y < H; y += step) {
+      for (let x = step / 2; x < W; x += step) {
+        ctx.beginPath(); ctx.arc(x, y, Math.max(1, step * 0.06), 0, Math.PI * 2); ctx.fill();
+      }
+    }
+  } else if (tex === 'diag') {
+    ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+    ctx.lineWidth = Math.max(1, Math.min(W, H) / 400);
+    const step = Math.max(8, Math.min(W, H) / 30);
+    for (let i = -H; i < W + H; i += step) {
+      ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i + H, H); ctx.stroke();
+    }
+  } else if (tex === 'noise') {
+    // sparse speckles (deterministic-ish)
+    const n = Math.floor((W * H) / 900);
+    for (let i = 0; i < n; i++) {
+      const x = (Math.sin(i * 12.9898) * 43758.5453) % 1;
+      const y = (Math.sin(i * 78.233) * 43758.5453) % 1;
+      const a = 0.04 + ((i * 17) % 10) / 250;
+      ctx.fillStyle = `rgba(255,255,255,${a})`;
+      ctx.fillRect(Math.abs(x) * W, Math.abs(y) * H, 2, 2);
+    }
+  }
+  ctx.restore();
+  void bgColor;
+}
+
+function drawWatermarkOn(
+  ctx: CanvasRenderingContext2D,
+  W: number,
+  H: number,
+  wm: { img: HTMLImageElement; opacity: number; corner: 'tl' | 'tr' | 'bl' | 'br' | 'center'; scale: number },
+) {
+  const minSide = Math.min(W, H);
+  const w = minSide * wm.scale;
+  const h = w * (wm.img.height / wm.img.width || 1);
+  const pad = minSide * 0.03;
+  let x = pad, y = pad;
+  if (wm.corner === 'tr') { x = W - w - pad; y = pad; }
+  else if (wm.corner === 'bl') { x = pad; y = H - h - pad; }
+  else if (wm.corner === 'br') { x = W - w - pad; y = H - h - pad; }
+  else if (wm.corner === 'center') { x = (W - w) / 2; y = (H - h) / 2; }
+  ctx.save();
+  ctx.globalAlpha = wm.opacity;
+  ctx.drawImage(wm.img, x, y, w, h);
+  ctx.restore();
 }
 
 /** 20 beautiful Cyrillic-capable fonts (Google Fonts) */
@@ -553,7 +648,53 @@ function shapePoints(type: ShapeType): Pt[] {
         return { x: 0.5 + r * Math.cos(a), y: 0.5 + r * Math.sin(a) };
       }, 72);
     }
+    case 'brushWide': {
+      // thick horizontal paint stroke
+      return sampleCurve(t => {
+        const a = t * Math.PI * 2;
+        const wobble = 0.08 * Math.sin(a * 3);
+        return {
+          x: 0.08 + 0.84 * ((Math.cos(a) + 1) / 2),
+          y: 0.5 + 0.22 * Math.sin(a) + wobble * Math.sin(a * 2),
+        };
+      }, 48);
+    }
+    case 'brushDry': {
+      // dry-brush: elongated with ragged edge
+      return sampleCurve(t => {
+        const a = t * Math.PI * 2;
+        const rag = 0.04 * Math.sin(a * 11) + 0.03 * Math.sin(a * 17);
+        return {
+          x: 0.5 + (0.42 + rag) * Math.cos(a),
+          y: 0.5 + (0.14 + rag) * Math.sin(a),
+        };
+      }, 64);
+    }
+    case 'splash': {
+      // ink splash � random-ish lobes
+      return sampleCurve(t => {
+        const a = t * Math.PI * 2;
+        const r = 0.22
+          + 0.14 * Math.abs(Math.sin(a * 3.5))
+          + 0.08 * Math.sin(a * 8)
+          + 0.05 * Math.cos(a * 13);
+        return { x: 0.5 + r * Math.cos(a), y: 0.5 + r * Math.sin(a) };
+      }, 80);
+    }
+    case 'ragged': {
+      // torn / ripped edge stamp
+      return sampleCurve(t => {
+        const a = t * Math.PI * 2;
+        const tear = 0.06 * Math.sin(a * 9) + 0.04 * Math.sin(a * 21 + 1);
+        const base = 0.38 + tear;
+        // flatten top/bottom slightly
+        const sx = base * (1 + 0.15 * Math.cos(a));
+        const sy = base * 0.75 * (1 + 0.1 * Math.sin(a * 2));
+        return { x: 0.5 + sx * Math.cos(a), y: 0.5 + sy * Math.sin(a) };
+      }, 72);
+    }
     case 'polygon':
+    case 'mask':
       return []; // uses z.points
     default:
       return [];
@@ -568,7 +709,7 @@ function isPolyShape(t: ShapeType): boolean {
 function clipPathFor(z: Zone): string | undefined {
   if (z.type === 'circle') return 'circle(50% at 50% 50%)';
   if (z.type === 'ellipse') return 'ellipse(50% 50% at 50% 50%)';
-  const pts = z.type === 'polygon' ? z.points : shapePoints(z.type);
+  const pts = z.type === 'polygon' || z.type === 'mask' ? z.points : shapePoints(z.type);
   if (pts?.length) {
     return `polygon(${pts.map(p => `${(p.x * 100).toFixed(2)}% ${(p.y * 100).toFixed(2)}%`).join(', ')})`;
   }
@@ -609,7 +750,7 @@ function traceShape(ctx: CanvasRenderingContext2D, z: Zone, W: number, H: number
     ctx.ellipse(x + w / 2, y + h / 2, w / 2, h / 2, 0, 0, Math.PI * 2);
     ctx.closePath();
   } else {
-    const pts = z.type === 'polygon' ? z.points : shapePoints(z.type);
+    const pts = (z.type === 'polygon' || z.type === 'mask') ? z.points : shapePoints(z.type);
     if (pts?.length) {
       pts.forEach((p, i) => {
         const px = (z.x + p.x * z.w) * W;
@@ -748,6 +889,24 @@ function PageThumb({ page: p, images, height }: { page: CollagePage; images: Img
   );
 }
 
+/** Collapsible inspector section */
+function Acc({ title, children, defaultOpen = false }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="glass rounded-xl overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen(v => !v)}
+        className="w-full px-3 py-2.5 flex items-center gap-2 font-mono text-[11px] text-gray-400 hover:text-gray-200 hover:bg-white/5 transition-colors"
+      >
+        {open ? <ChevronDown className="w-3.5 h-3.5 shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 shrink-0" />}
+        <span className="tracking-wider uppercase">{title}</span>
+      </button>
+      {open && <div className="px-3 pb-3 space-y-3 border-t border-white/5 pt-3">{children}</div>}
+    </div>
+  );
+}
+
 // ── Component ─────────────────────────────────────────────────
 function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () => void }) {
   const [pages, setPages] = useState<CollagePage[]>(() => [createPage('Страница 1')]);
@@ -771,6 +930,13 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
   const [projectMeta, setProjectMeta] = useState<{ name: string; description: string; updatedAt: number } | null>(null);
   const [metaDraft, setMetaDraft] = useState<{ name: string; description: string } | null>(null);
   const [loaded, setLoaded] = useState(false);
+  /** draw | lasso | brush (mask paint) */
+  const [toolMode, setToolMode] = useState<'draw' | 'lasso' | 'brush'>('draw');
+  const [imgFormat, setImgFormat] = useState<ImageFormat>('png');
+  const [imgQuality, setImgQuality] = useState(92);
+  const [versions, setVersions] = useState<ProjectVersion[]>([]);
+  const [wm, setWm] = useState<{ dataUrl: string; opacity: number; corner: 'tl' | 'tr' | 'bl' | 'br' | 'center'; scale: number; img?: HTMLImageElement } | null>(null);
+  const wmInputRef = useRef<HTMLInputElement>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // alignment guides shown while dragging (snap to center/edges)
   const [guides, setGuides] = useState<{ v: number | null; h: number | null }>({ v: null, h: null });
@@ -808,6 +974,7 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
         setActiveIdx(0);
         setImages(imgs);
         setProjectMeta({ name: p.name, description: p.description, updatedAt: p.updatedAt });
+        setVersions(p.versions || []);
       } catch {
         showToast('Ошибка загрузки проекта', 'error');
       } finally {
@@ -877,7 +1044,97 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
   const setCustomH = (v: number) => patchPage(page.id, { customH: v, format: 'custom' });
   const setBgColor = (v: string) => patchPage(page.id, { bgColor: v, bgTransparent: false });
   const setBgTransparent = (v: boolean) => patchPage(page.id, { bgTransparent: v });
+  const setBgTexture = (v: BgTexture) => patchPage(page.id, { bgTexture: v });
   const setOuterRadius = (v: number) => patchPage(page.id, { outerRadius: v });
+
+  // ── align (selected zone to canvas edges/center) ─────────────
+  const alignZone = (id: string, how: 'l' | 'c' | 'r' | 't' | 'm' | 'b') => {
+    const z = zones.find(x => x.id === id);
+    if (!z || z.locked) return;
+    let { x, y } = z;
+    if (how === 'l') x = 0;
+    if (how === 'c') x = (1 - z.w) / 2;
+    if (how === 'r') x = 1 - z.w;
+    if (how === 't') y = 0;
+    if (how === 'm') y = (1 - z.h) / 2;
+    if (how === 'b') y = 1 - z.h;
+    updateZone(id, { x, y });
+  };
+
+  const distributeZones = (axis: 'x' | 'y') => {
+    const list = zones.filter(z => !z.locked && z.type !== 'text');
+    if (list.length < 3) { showToast('Нужно 3+ зоны', 'error'); return; }
+    const sorted = [...list].sort((a, b) => axis === 'x' ? a.x - b.x : a.y - b.y);
+    const first = sorted[0];
+    const last = sorted[sorted.length - 1];
+    const start = axis === 'x' ? first.x : first.y;
+    const end = axis === 'x' ? last.x + last.w : last.y + last.h;
+    const totalSize = sorted.reduce((s, z) => s + (axis === 'x' ? z.w : z.h), 0);
+    const gap = (end - start - totalSize) / (sorted.length - 1);
+    let cur = start;
+    const patches = new Map<string, Partial<Zone>>();
+    for (const z of sorted) {
+      if (axis === 'x') {
+        patches.set(z.id, { x: cur });
+        cur += z.w + gap;
+      } else {
+        patches.set(z.id, { y: cur });
+        cur += z.h + gap;
+      }
+    }
+    setZones(prev => prev.map(z => patches.has(z.id) ? { ...z, ...patches.get(z.id) } : z), true);
+  };
+
+  // ── lasso / brush → mask-polygon zone from freehand stroke ───
+  const strokeToPolygon = (pts: Pt[], width: number): Pt[] => {
+    if (pts.length < 2) return pts;
+    const left: Pt[] = [];
+    const right: Pt[] = [];
+    for (let i = 0; i < pts.length; i++) {
+      const p = pts[i];
+      const prev = pts[Math.max(0, i - 1)];
+      const next = pts[Math.min(pts.length - 1, i + 1)];
+      let dx = next.x - prev.x;
+      let dy = next.y - prev.y;
+      const len = Math.hypot(dx, dy) || 1;
+      dx /= len; dy /= len;
+      const nx = -dy * width / 2;
+      const ny = dx * width / 2;
+      left.push({ x: p.x + nx, y: p.y + ny });
+      right.push({ x: p.x - nx, y: p.y - ny });
+    }
+    return [...left, ...right.reverse()];
+  };
+
+  const addFreehandZone = (rawPts: Pt[], asBrush: boolean) => {
+    if (rawPts.length < 3) { showToast('Слишком короткий штрих', 'error'); return; }
+    // smooth lasso: light chaikin-ish resample
+    let pts = rawPts;
+    if (!asBrush && rawPts.length > 4) {
+      pts = rawPts.filter((_, i) => i % 2 === 0 || i === rawPts.length - 1);
+    }
+    const poly = asBrush ? strokeToPolygon(pts, 0.12) : pts;
+    // normalize to bbox
+    const xs = poly.map(p => p.x);
+    const ys = poly.map(p => p.y);
+    const minX = Math.min(...xs), maxX = Math.max(...xs);
+    const minY = Math.min(...ys), maxY = Math.max(...ys);
+    const bw = Math.max(maxX - minX, 0.01);
+    const bh = Math.max(maxY - minY, 0.01);
+    const z: Zone = {
+      id: uid(),
+      type: 'mask',
+      x: minX, y: minY, w: bw, h: bh,
+      radius: 0, imgRadius: 0, fit: 'cover', imgId: null,
+      points: poly.map(p => ({ x: (p.x - minX) / bw, y: (p.y - minY) / bh })),
+      name: asBrush ? 'Мазок' : 'Лассо',
+    };
+    setZones(prev => [...prev, z], true);
+    setSelId(z.id);
+    setDrawing(false);
+    setDrawPts([]);
+    setToolMode('draw');
+  };
 
   const switchPage = (idx: number) => {
     if (idx === activeIdx) return;
@@ -1058,15 +1315,9 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
     if (selId === id) setSelId(null);
   };
 
-  const duplicateZone = (z: Zone) => {
-    const copy: Zone = { ...z, id: uid(), x: clamp(z.x + 0.02, 0, 1 - z.w), y: clamp(z.y + 0.02, 0, 1 - z.h), points: z.points?.map(p => ({ ...p })) };
-    setZones(prev => [...prev, copy], true);
-    setSelId(copy.id);
-  };
-
   // ── Pointer interaction (move / resize / photo-pan) — works with touch
   const onZonePointerDown = (e: React.PointerEvent, z: Zone, mode: 'move' | 'resize' | 'photo-pan') => {
-    if (drawing) return;
+    if (drawing || z.locked || z.hidden) return;
     e.stopPropagation();
     setSelId(z.id);
     // Shift+drag or photo-adjust mode → pan the photo inside the zone
@@ -1172,13 +1423,40 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
     return () => window.removeEventListener('keydown', h);
   }, [photoEditId]);
 
-  // ── Drawing a freeform polygon on the canvas
+  // ── Drawing a freeform polygon on the canvas (click points)
   const onCanvasClick = (e: React.MouseEvent) => {
-    if (!drawing || !canvasRef.current) return;
+    if (toolMode !== 'draw' || !drawing || !canvasRef.current) return;
     const rect = canvasRef.current.getBoundingClientRect();
     const x = clamp((e.clientX - rect.left) / rect.width, 0, 1);
     const y = clamp((e.clientY - rect.top) / rect.height, 0, 1);
     setDrawPts(prev => [...prev, { x, y }]);
+  };
+
+  // freehand lasso / brush stroke
+  const lassoRef = useRef<Pt[] | null>(null);
+  const onCanvasPointerDown = (e: React.PointerEvent) => {
+    if (toolMode === 'draw' || !canvasRef.current) return;
+    e.preventDefault();
+    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+    const rect = canvasRef.current.getBoundingClientRect();
+    const x = clamp((e.clientX - rect.left) / rect.width, 0, 1);
+    const y = clamp((e.clientY - rect.top) / rect.height, 0, 1);
+    lassoRef.current = [{ x, y }];
+    setDrawPts([{ x, y }]);
+  };
+  const onCanvasPointerMove = (e: React.PointerEvent) => {
+    if (!lassoRef.current || !canvasRef.current) return;
+    const rect = canvasRef.current.getBoundingClientRect();
+    const x = clamp((e.clientX - rect.left) / rect.width, 0, 1);
+    const y = clamp((e.clientY - rect.top) / rect.height, 0, 1);
+    lassoRef.current.push({ x, y });
+    setDrawPts([...lassoRef.current]);
+  };
+  const onCanvasPointerUp = () => {
+    if (!lassoRef.current) return;
+    const pts = lassoRef.current;
+    lassoRef.current = null;
+    addFreehandZone(pts, toolMode === 'brush');
   };
 
   const finishPolygon = () => {
@@ -1187,14 +1465,21 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
   };
 
   // ── Export ───────────────────────────────────────────────────
-  const exportPng = async () => {
-    if (zones.length === 0) { showToast('Добавьте хотя бы одну зону', 'error'); return; }
+  const wmSpec = useMemo(() => {
+    if (!wm?.img) return undefined;
+    return { img: wm.img, opacity: wm.opacity, corner: wm.corner, scale: wm.scale };
+  }, [wm]);
+
+  const exportImage = async () => {
+    const p = page;
+    if (p.zones.filter(z => !z.hidden).length === 0) { showToast('Добавьте хотя бы одну зону', 'error'); return; }
     setIsBusy(true);
     try {
-      const canvas = renderPageToCanvas(page, images, exportScale);
-      const blob = await canvasToPngBlob(canvas);
-      downloadBlob(blob, `collage_${Date.now()}.png`);
-      showToast('Коллаж сохранён', 'success');
+      const canvas = renderPageToCanvas(p, images, exportScale, wmSpec);
+      const blob = await canvasToBlob(canvas, imgFormat, imgQuality / 100);
+      const ext = imgFormat === 'jpeg' ? 'jpg' : imgFormat;
+      downloadBlob(blob, `collage_${Date.now()}.${ext}`);
+      showToast('Изображение сохранено', 'success');
     } catch (e: any) {
       showToast(e?.message || 'Ошибка', 'error');
     } finally {
@@ -1203,16 +1488,17 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
   };
 
   const exportZip = async () => {
-    const withContent = pages.filter(p => p.zones.length > 0);
+    const withContent = pages.filter(p => p.zones.filter(z => !z.hidden).length > 0);
     if (withContent.length === 0) { showToast('Нет страниц с зонами', 'error'); return; }
     setIsBusy(true);
     try {
       const zip = new JSZip();
       for (let i = 0; i < pages.length; i++) {
         const p = pages[i];
-        const canvas = renderPageToCanvas(p, images, exportScale);
-        const blob = await canvasToPngBlob(canvas);
-        zip.file(`page_${String(i + 1).padStart(2, '0')}_${p.name.replace(/[^\wа-яё-]+/gi, '_')}.png`, blob);
+        const canvas = renderPageToCanvas(p, images, exportScale, wmSpec);
+        const blob = await canvasToBlob(canvas, imgFormat, imgQuality / 100);
+        const ext = imgFormat === 'jpeg' ? 'jpg' : imgFormat;
+        zip.file(`page_${String(i + 1).padStart(2, '0')}_${p.name.replace(/[^\wа-яё-]+/gi, '_')}.${ext}`, blob);
       }
       const out = await zip.generateAsync({ type: 'blob' });
       downloadBlob(out, `collage_pages_${Date.now()}.zip`);
@@ -1224,40 +1510,87 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
     }
   };
 
-  const exportPdf = async (scope: 'current' | 'all') => {
+  const buildPageRasters = (list: CollagePage[], useScale: 1 | 2) =>
+    list.map(p => {
+      const canvas = renderPageToCanvas(p, images, useScale, wmSpec);
+      const pt = resolvePt(p);
+      return { canvas, wPt: pt.w, hPt: pt.h, transparent: !!p.bgTransparent };
+    });
+
+  const pickScale = (list: CollagePage[]): 1 | 2 =>
+    list.some(p => {
+      const sz = resolveSize(p.format, p.orient, p.customW, p.customH);
+      return sz.w * 2 * sz.h * 2 > 40_000_000;
+    }) ? 1 : exportScale;
+
+  const exportPdfScope = async (scope: 'current' | 'all') => {
     const list = scope === 'all' ? pages : [page];
-    const withContent = list.filter(p => p.zones.length > 0);
-    if (withContent.length === 0) { showToast('Нет страниц с зонами', 'error'); return; }
+    if (list.every(p => p.zones.filter(z => !z.hidden).length === 0)) { showToast('Нет страниц с зонами', 'error'); return; }
     setIsBusy(true);
     try {
-      const pdf = await PDFDocument.create();
-      // 2x for print quality, but cap huge paper at 1x to avoid canvas limits
-      const useScale: 1 | 2 = list.some(p => {
-        const sz = resolveSize(p.format, p.orient, p.customW, p.customH);
-        return sz.w * 2 * sz.h * 2 > 40_000_000; // ~40MP
-      }) ? 1 : exportScale;
-
-      for (const p of list) {
-        const canvas = renderPageToCanvas(p, images, useScale);
-        const png = await canvasToPngBlob(canvas);
-        const bytes = new Uint8Array(await png.arrayBuffer());
-        const img = await pdf.embedPng(bytes);
-        const pt = resolvePt(p);
-        const pg = pdf.addPage([pt.w, pt.h]);
-        // PDF has no page alpha — composite transparent PNG onto white
-        if (p.bgTransparent) {
-          pg.drawRectangle({ x: 0, y: 0, width: pt.w, height: pt.h, color: rgb(1, 1, 1) });
-        }
-        pg.drawImage(img, { x: 0, y: 0, width: pt.w, height: pt.h });
-      }
-      const out = await pdf.save();
-      downloadBlob(new Blob([out as unknown as BlobPart], { type: 'application/pdf' }),
+      await exportPdf(buildPageRasters(list, pickScale(list)),
         `collage_${scope === 'all' ? 'all_pages' : 'page'}.pdf`);
       showToast(scope === 'all' ? `PDF: ${list.length} стр.` : 'PDF сохранён', 'success');
     } catch (e: any) {
       showToast(e?.message || 'Ошибка PDF', 'error');
     } finally {
       setIsBusy(false);
+    }
+  };
+
+  const exportPptxScope = async (scope: 'current' | 'all') => {
+    const list = scope === 'all' ? pages : [page];
+    if (list.every(p => p.zones.filter(z => !z.hidden).length === 0)) { showToast('Нет страниц с зонами', 'error'); return; }
+    setIsBusy(true);
+    try {
+      await exportPptx(buildPageRasters(list, pickScale(list)),
+        `collage_${scope === 'all' ? 'all_pages' : 'page'}.pptx`);
+      showToast(scope === 'all' ? `PPTX: ${list.length} слайдов` : 'PPTX сохранён', 'success');
+    } catch (e: any) {
+      showToast(e?.message || 'Ошибка PPTX', 'error');
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  const saveVersion = async () => {
+    try {
+      const name = `v${(versions.length + 1)} · ${new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`;
+      await saveProject({
+        id: projectId,
+        name: projectMeta?.name || '',
+        description: projectMeta?.description || '',
+        updatedAt: Date.now(),
+        pageCount: pages.length,
+        pagesJson: JSON.stringify(pages.map(({ history: _h, histIdx: _i, ...rest }) => rest)),
+        images: images.filter(i => i.dataUrl).map(i => ({ id: i.id, dataUrl: i.dataUrl! })),
+      });
+      await addProjectVersion(projectId, name);
+      const cur = await getProject(projectId);
+      setVersions(cur?.versions || []);
+      showToast(`Версия «${name}»`, 'success');
+    } catch {
+      showToast('Не удалось сохранить версию', 'error');
+    }
+  };
+
+  const restoreVersion = async (v: ProjectVersion) => {
+    try {
+      const parsed = JSON.parse(v.pagesJson) as CollagePage[];
+      setPages(parsed.map(pg => ({ ...pg, history: [pg.zones.map(z => ({ ...z }))], histIdx: 0 })));
+      const imgs: ImgItem[] = [];
+      for (const s of v.images) {
+        try {
+          const img = await dataUrlToImage(s.dataUrl);
+          imgs.push({ id: s.id, preview: s.dataUrl, dataUrl: s.dataUrl, img });
+        } catch { /* skip */ }
+      }
+      setImages(imgs);
+      setActiveIdx(0);
+      setSelId(null);
+      showToast(`Откат к «${v.name}»`, 'success');
+    } catch {
+      showToast('Ошибка отката', 'error');
     }
   };
 
@@ -1408,6 +1741,10 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
                   ['arrowR', 'Стрелка →', 'M3 8h12V5l6 6-6 6v-3H3z'],
                   ['arrowU', 'Стрелка ↑', 'M8 21V9H5l7-8 7 8h-3v12z'],
                   ['chevron', 'Шеврон', 'M5 4l8 8-8 8 3 3 11-11L8 1z'],
+                  ['brushWide', 'Широкий мазок', 'M3 12c4-4 8-4 10-2s4 4 8 2v4c-4 2-8 2-10 0s-6-2-8 2z'],
+                  ['brushDry', 'Сухой мазок', 'M3 13c3-3 6-3 9-1s6 3 9 1v2c-3 2-6 2-9 0s-6-2-9 1z'],
+                  ['splash', 'Сплэш', 'M12 6c2 0 3 2 5 2s4-1 4 2-3 3-2 5-2 4-5 3-3-3-5-2-4-1-4-4 3-3 2-5 2-3 5-1z'],
+                  ['ragged', 'Рваный край', 'M4 8l2 1 3-2 2 2 3-1 2 2 3-1 1 3-1 2 2 2-3 1-1 2-3-1-2 2-2-1-3 1-2-2-3 1z'],
                 ] as const).map(([t, label, d]) => (
                   <button key={t} onClick={() => { addShape(t); setShapeMenuOpen(false); }}
                     className="p-2 rounded-lg hover:bg-white/10 flex flex-col items-center justify-center gap-0.5"
@@ -1420,11 +1757,28 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
             </div>
           )}
         </div>
-        <button onClick={() => { setDrawing(v => !v); setDrawPts([]); }}
+        <button onClick={() => { setToolMode(t => t === 'draw' ? 'draw' : 'draw'); setDrawing(v => !v); setDrawPts([]); }}
           className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-xs transition-all"
-          style={drawing ? { background: 'var(--color-primary)', color: '#000' } : { background: 'rgba(255,255,255,0.05)', color: '#888' }}
-          title="Нарисовать произвольную зону">
-          <PenTool className="w-3.5 h-3.5" /> Рисовать {drawing ? `(${drawPts.length} точек)` : ''}
+          style={drawing && toolMode === 'draw' ? { background: 'var(--color-primary)', color: '#000' } : { background: 'rgba(255,255,255,0.05)', color: '#888' }}
+          title="Нарисовать произвольную зону точками">
+          <PenTool className="w-3.5 h-3.5" /> Точки {drawing && toolMode === 'draw' ? `(${drawPts.length})` : ''}
+        </button>
+        <button onClick={() => { setDrawing(false); setDrawPts([]); setToolMode(t => t === 'lasso' ? 'draw' : 'lasso'); }}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-xs transition-all"
+          style={toolMode === 'lasso' ? { background: 'var(--color-primary)', color: '#000' } : { background: 'rgba(255,255,255,0.05)', color: '#888' }}
+          title="Лассо — обвести мышью/пальцем">
+          <Lasso className="w-3.5 h-3.5" /> Лассо
+        </button>
+        <button onClick={() => { setDrawing(false); setDrawPts([]); setToolMode(t => t === 'brush' ? 'draw' : 'brush'); }}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-xs transition-all"
+          style={toolMode === 'brush' ? { background: 'var(--color-primary)', color: '#000' } : { background: 'rgba(255,255,255,0.05)', color: '#888' }}
+          title="Кисть-мазок — свободная маска">
+          <Lasso className="w-3.5 h-3.5" /> Мазок
+        </button>
+        <button onClick={() => { if (selId) removeZone(selId); else showToast('Выберите зону', 'error'); }}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-xs glass hover:bg-white/10"
+          title="Ластик — удалить выбранную маску">
+          <Eraser className="w-3.5 h-3.5" /> Ластик
         </button>
         <button onClick={addTextZone}
           className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-xs glass hover:bg-white/10 transition-all"
@@ -1758,6 +2112,9 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
           <div
             ref={canvasRef}
             onClick={drawing ? onCanvasClick : undefined}
+            onPointerDown={toolMode !== 'draw' ? onCanvasPointerDown : undefined}
+            onPointerMove={toolMode !== 'draw' ? onCanvasPointerMove : onZonePointerMove}
+            onPointerUp={toolMode !== 'draw' ? onCanvasPointerUp : onZonePointerUp}
             id="collage-canvas"
             className="relative mx-auto rounded-xl overflow-hidden select-none"
             style={{
@@ -1769,14 +2126,14 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
               background: bgTransparent ? CHECKER_BG : bgColor,
               backgroundSize: bgTransparent ? '16px 16px' : undefined,
               borderRadius: `${outerRadius}%`,
-              cursor: drawing ? 'crosshair' : 'default',
+              cursor: toolMode === 'draw' ? (drawing ? 'crosshair' : 'default') : 'crosshair',
               border: '1px solid rgba(255,255,255,0.1)',
+              touchAction: toolMode !== 'draw' ? 'none' : undefined,
             }}
-            onPointerMove={onZonePointerMove}
-            onPointerUp={onZonePointerUp}
           >
             {/* zones */}
             {zones.map(z => {
+              if (z.hidden) return null;
               const imgItem = z.imgId ? images.find(i => i.id === z.imgId) : null;
               const selected = z.id === selId;
 
@@ -1886,6 +2243,7 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
                           transform: `scale(${z.imgZoom || 1}) translate(${(z.imgX || 0) * 30}%, ${(z.imgY || 0) * 30}%)`,
                           transition: 'transform 0.15s ease-out',
                           opacity: z.imgOpacity ?? 1,
+                          filter: cssFilter(z.filters),
                           pointerEvents: 'none',
                         }}
                       />
@@ -1903,7 +2261,7 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
                         <ellipse cx="50" cy="50" rx="50" ry="50" fill="none"
                           stroke={z.border.color} strokeWidth={z.border.width * 2} vectorEffect="non-scaling-stroke" />
                       ) : (() => {
-                        const pts = z.type === 'polygon' ? z.points : shapePoints(z.type);
+                        const pts = (z.type === 'polygon' || z.type === 'mask') ? z.points : shapePoints(z.type);
                         const list = pts?.length ? pts : [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 1 }];
                         return (
                           <polygon
@@ -1939,7 +2297,7 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
               <div className="absolute left-0 right-0 h-px pointer-events-none" style={{ top: `${guides.h}%`, background: 'var(--color-primary)', boxShadow: '0 0 6px var(--color-primary)', zIndex: 40 }} />
             )}
             {/* polygon drawing overlay — viewBox 0..100 (SVG points can't use %) */}
-            {drawing && drawPts.length > 0 && (
+            {(drawing || toolMode !== 'draw') && (
               <svg
                 className="absolute inset-0 w-full h-full pointer-events-none"
                 viewBox="0 0 100 100"
@@ -1948,13 +2306,13 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
               >
                 <polyline
                   points={drawPts.map(p => `${p.x * 100},${p.y * 100}`).join(' ')}
-                  fill={drawPts.length >= 3 ? 'rgba(0,255,136,0.12)' : 'none'}
+                  fill={toolMode === 'draw' && drawPts.length >= 3 ? 'rgba(0,255,136,0.12)' : 'none'}
                   stroke="var(--color-primary)"
                   strokeWidth="2"
                   strokeLinejoin="round"
                   vectorEffect="non-scaling-stroke"
                 />
-                {drawPts.length >= 3 && (
+                {toolMode === 'draw' && drawPts.length >= 3 && (
                   <line
                     x1={drawPts[drawPts.length - 1].x * 100} y1={drawPts[drawPts.length - 1].y * 100}
                     x2={drawPts[0].x * 100} y2={drawPts[0].y * 100}
@@ -1964,7 +2322,9 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
                 )}
               </svg>
             )}
-            {drawing && drawPts.map((p, i) => (
+            {(drawing || toolMode !== 'draw') && drawPts.map((p, i) => {
+              if (toolMode !== 'draw' && i % 4 !== 0 && i !== drawPts.length - 1) return null;
+              return (
               <div
                 key={`pt-${i}`}
                 onClick={i === 0 && drawPts.length >= 3 ? (e) => { e.stopPropagation(); finishPolygon(); } : undefined}
@@ -1982,7 +2342,8 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
                 }}
                 title={i === 0 && drawPts.length >= 3 ? 'Нажмите, чтобы закрыть фигуру' : `Точка ${i + 1}`}
               />
-            ))}
+              );
+            })}
           </div>
 
           {drawing && (
@@ -2048,10 +2409,9 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
           </div>
         </div>
 
-        {/* Inspector */}
-        <div className="space-y-4">
-          <div className="glass rounded-xl p-4 space-y-3">
-            <label className="font-mono text-xs text-gray-500 block">КАНВАС</label>
+        {/* Inspector — accordions */}
+        <div className="space-y-2">
+          <Acc title="Канвас" defaultOpen>
             <div>
               <label className="font-mono text-[10px] text-gray-500 mb-1 block">ФОН СТРАНИЦЫ</label>
               <button
@@ -2061,28 +2421,38 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
                 style={bgTransparent
                   ? { background: 'var(--color-primary)', color: '#000' }
                   : { background: 'rgba(255,255,255,0.05)', color: '#888' }}
-                title="PNG с прозрачностью (альфа-канал)"
               >
                 {bgTransparent ? '✓ ПРОЗРАЧНЫЙ ФОН' : 'ПРОЗРАЧНЫЙ ФОН'}
               </button>
               <div className="flex items-center gap-2" style={{ opacity: bgTransparent ? 0.35 : 1 }}>
                 <input type="color" value={bgColor} onChange={e => setBgColor(e.target.value)}
                   disabled={bgTransparent}
-                  className="w-9 h-9 rounded cursor-pointer bg-transparent border border-white/10 disabled:cursor-not-allowed" />
+                  className="w-9 h-9 rounded cursor-pointer bg-transparent border border-white/10" />
                 <input value={bgColor} onChange={e => setBgColor(e.target.value)}
                   disabled={bgTransparent}
-                  className="flex-1 px-2 py-1.5 rounded font-mono text-xs bg-black/30 border border-gray-700 text-gray-200 focus:outline-none disabled:opacity-50" />
+                  className="flex-1 px-2 py-1.5 rounded font-mono text-xs bg-black/30 border border-gray-700 text-gray-200 focus:outline-none" />
               </div>
-              <p className="font-mono text-[9px] text-gray-600 mt-1">
-                прозрачный — PNG с альфой; PDF отрендерит белый лист
-              </p>
             </div>
             <div>
-              <label className="font-mono text-[10px] text-gray-500 mb-1 block">ЗАКРУГЛЕНИЕ КАРТИНКИ: {outerRadius}%</label>
+              <label className="font-mono text-[10px] text-gray-500 mb-1 block">ТЕКСТУРА ФОНА</label>
+              <div className="grid grid-cols-5 gap-1">
+                {([['none', '—'], ['noise', 'Шум'], ['grid', 'Сетка'], ['dots', 'Точки'], ['diag', 'Диаг.']] as const).map(([t, label]) => (
+                  <button key={t} onClick={() => setBgTexture(t)}
+                    className="py-1.5 rounded font-mono text-[9px]"
+                    style={(page.bgTexture || 'none') === t
+                      ? { background: 'var(--color-primary)', color: '#000' }
+                      : { background: 'rgba(255,255,255,0.05)', color: '#888' }}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="font-mono text-[10px] text-gray-500 mb-1 block">ЗАКРУГЛЕНИЕ: {outerRadius}%</label>
               <input type="range" min={0} max={50} value={outerRadius} onChange={e => setOuterRadius(+e.target.value)} className="w-full accent-[var(--color-primary)]" />
             </div>
             <div>
-              <label className="font-mono text-[10px] text-gray-500 mb-1 block">КАЧЕСТВО ЭКСПОРТА</label>
+              <label className="font-mono text-[10px] text-gray-500 mb-1 block">КАЧЕСТВО РАСТРА</label>
               <div className="flex gap-2">
                 {([1, 2] as const).map(s => (
                   <button key={s} onClick={() => setExportScale(s)}
@@ -2090,290 +2460,298 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
                     style={exportScale === s
                       ? { background: 'var(--color-primary)', color: '#000' }
                       : { background: 'rgba(255,255,255,0.05)', color: '#888' }}>
-                    {s === 1 ? `1x (${fmt.w}px)` : `2x (${fmt.w * 2}px)`}
+                    {s === 1 ? `1x (${fmt.w}px)` : `2x`}
                   </button>
                 ))}
               </div>
-              <p className="font-mono text-[9px] text-gray-600 mt-1">2x — детализация для печати</p>
             </div>
-          </div>
+          </Acc>
 
-          {sel ? (
-            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
-              className="glass rounded-xl p-4 space-y-3">
-              <label className="font-mono text-xs text-gray-500 block">ЗОНА — {sel.type.toUpperCase()}</label>
+          <Acc title={`Слои (${zones.length})`} defaultOpen>
+            {zones.length === 0 && (
+              <p className="font-mono text-[10px] text-gray-600">нет зон на этой странице</p>
+            )}
+            <div className="space-y-1 max-h-48 overflow-y-auto">
+              {[...zones].reverse().map(z => (
+                <div key={z.id}
+                  onClick={() => setSelId(z.id)}
+                  className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg cursor-pointer"
+                  style={z.id === selId
+                    ? { background: 'rgba(255,255,255,0.1)', outline: '1px solid var(--color-primary)' }
+                    : { background: 'rgba(255,255,255,0.03)' }}
+                >
+                  <span className="flex-1 min-w-0 truncate font-mono text-[10px] text-gray-300">
+                    {z.name || z.type.toUpperCase()}{z.type === 'text' ? ` «${(z.text || '').slice(0, 12)}»` : ''}
+                  </span>
+                  <button onClick={e => { e.stopPropagation(); updateZone(z.id, { hidden: !z.hidden }); }}
+                    className="p-1 rounded hover:bg-white/10 text-gray-500" title={z.hidden ? 'Показать' : 'Скрыть'}>
+                    {z.hidden ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                  </button>
+                  <button onClick={e => { e.stopPropagation(); updateZone(z.id, { locked: !z.locked }); }}
+                    className="p-1 rounded hover:bg-white/10 text-gray-500" title={z.locked ? 'Разблокировать' : 'Заблокировать'}>
+                    {z.locked ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3" />}
+                  </button>
+                  <button onClick={e => { e.stopPropagation(); removeZone(z.id); }}
+                    className="p-1 rounded hover:bg-red-500/20 text-gray-500 hover:text-red-400" title="Удалить">
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+            {sel && (
+              <input
+                value={sel.name || ''}
+                placeholder="имя слоя"
+                onChange={e => updateZone(sel.id, { name: e.target.value }, false)}
+                onBlur={() => updateZone(sel.id, {})}
+                className="w-full px-2 py-1.5 rounded font-mono text-[10px] bg-black/30 border border-gray-700 text-gray-200 focus:outline-none"
+              />
+            )}
+          </Acc>
 
-              {/* TEXT settings */}
-              {sel.type === 'text' && (
-                <>
-                  <div>
-                    <label className="font-mono text-[10px] text-gray-500 mb-1 block">ТЕКСТ</label>
-                    <textarea value={sel.text || ''} rows={3}
-                      onChange={e => updateZone(sel.id, { text: e.target.value })}
-                      className="w-full px-2 py-2 rounded font-mono text-xs bg-black/30 border border-gray-700 text-gray-200 focus:outline-none resize-none" />
-                  </div>
-                  <div>
-                    <label className="font-mono text-[10px] text-gray-500 mb-1 block">ШРИФТ (кириллица)</label>
-                    <select value={sel.fontFamily || 'Montserrat'}
-                      onChange={e => updateZone(sel.id, { fontFamily: e.target.value })}
-                      className="w-full px-2 py-2 rounded font-mono text-xs bg-black/30 border border-gray-700 text-gray-200 focus:outline-none">
-                      {FONTS.map(f => <option key={f} value={f} style={{ fontFamily: f }}>{f}</option>)}
-                    </select>
-                    <p className="mt-1 px-2 py-1 rounded text-sm" style={{ fontFamily: sel.fontFamily || 'Montserrat', color: sel.fontColor }}>
-                      Пример: Нексус CRM 123
-                    </p>
-                  </div>
-                  <div>
-                    <label className="font-mono text-[10px] text-gray-500 mb-1 block">РАЗМЕР: {Math.round((sel.fontSize || 0.06) * 1000) / 10}%</label>
-                    <input type="range" min={20} max={200} value={Math.round((sel.fontSize || 0.06) * 1000)}
-                      onChange={e => updateZone(sel.id, { fontSize: +e.target.value / 1000 })}
-                      className="w-full accent-[var(--color-primary)]" />
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="font-mono text-[10px] text-gray-500 mb-1 block">ЦВЕТ</label>
-                      <input type="color" value={sel.fontColor || '#ffffff'}
-                        onChange={e => updateZone(sel.id, { fontColor: e.target.value })}
-                        className="w-full h-9 rounded cursor-pointer bg-transparent border border-white/10" />
-                    </div>
-                    <div>
-                      <label className="font-mono text-[10px] text-gray-500 mb-1 block">НАЧЕРТАНИЕ</label>
-                      <select value={sel.fontWeight || 'normal'}
-                        onChange={e => updateZone(sel.id, { fontWeight: e.target.value as 'normal' | 'bold' })}
-                        className="w-full px-2 py-2 rounded font-mono text-xs bg-black/30 border border-gray-700 text-gray-200 focus:outline-none">
-                        <option value="normal">Обычное</option>
-                        <option value="bold">Жирное</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div>
-                    <label className="font-mono text-[10px] text-gray-500 mb-1 block">ВЫРАВНИВАНИЕ</label>
-                    <div className="flex gap-1">
-                      {(['left', 'center', 'right'] as TextAlign[]).map(a => (
-                        <button key={a} onClick={() => updateZone(sel.id, { align: a })}
-                          className="flex-1 py-1.5 rounded font-mono text-[10px] transition-all"
-                          style={(sel.align || 'center') === a
-                            ? { background: 'var(--color-primary)', color: '#000' }
-                            : { background: 'rgba(255,255,255,0.05)', color: '#888' }}>
-                          {a === 'left' ? '←' : a === 'center' ? '↔' : '→'}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <label className="font-mono text-[10px] text-gray-500 mb-1 block">НАКЛОН: {sel.rotation || 0}°</label>
-                    <input type="range" min={-45} max={45} value={sel.rotation || 0}
-                      onChange={e => updateZone(sel.id, { rotation: +e.target.value }, false)}
-                      onPointerUp={() => updateZone(sel.id, {})}
-                      onMouseUp={() => updateZone(sel.id, {})}
-                      className="w-full accent-[var(--color-primary)]" />
-                  </div>
-                  <div>
-                    <label className="font-mono text-[10px] text-gray-500 mb-1 block">ОБВОДКА ТЕКСТА</label>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <span className="font-mono text-[9px] text-gray-500">Толщина {((sel.stroke?.width || 0) * 100).toFixed(0)}%</span>
-                        <input type="range" min={0} max={30} value={Math.round((sel.stroke?.width || 0) * 100)}
-                          onChange={e => updateZone(sel.id, { stroke: { width: +e.target.value / 100, color: sel.stroke?.color || '#000000' } }, false)}
-                          onPointerUp={() => updateZone(sel.id, {})}
-                          onMouseUp={() => updateZone(sel.id, {})}
-                          className="w-full accent-[var(--color-primary)]" />
-                      </div>
-                      <div>
-                        <span className="font-mono text-[9px] text-gray-500">Цвет</span>
-                        <input type="color" value={sel.stroke?.color || '#000000'}
-                          onChange={e => updateZone(sel.id, { stroke: { width: sel.stroke?.width || 0.05, color: e.target.value } })}
-                          className="w-full h-8 rounded cursor-pointer bg-transparent border border-white/10" />
-                      </div>
-                    </div>
-                  </div>
-                </>
-              )}
+          <Acc title="Выравнивание">
+            <div className="grid grid-cols-3 gap-1">
+              <button onClick={() => sel && alignZone(sel.id, 'l')} className="py-2 rounded-lg glass hover:bg-white/10 text-[10px] font-mono" title="По левому краю">◧</button>
+              <button onClick={() => sel && alignZone(sel.id, 'c')} className="py-2 rounded-lg glass hover:bg-white/10 text-[10px] font-mono" title="По центру ↔">▦</button>
+              <button onClick={() => sel && alignZone(sel.id, 'r')} className="py-2 rounded-lg glass hover:bg-white/10 text-[10px] font-mono" title="По правому краю">◨</button>
+              <button onClick={() => sel && alignZone(sel.id, 't')} className="py-2 rounded-lg glass hover:bg-white/10 text-[10px] font-mono" title="По верху">▤</button>
+              <button onClick={() => sel && alignZone(sel.id, 'm')} className="py-2 rounded-lg glass hover:bg-white/10 text-[10px] font-mono" title="По центру ↕">▥</button>
+              <button onClick={() => sel && alignZone(sel.id, 'b')} className="py-2 rounded-lg glass hover:bg-white/10 text-[10px] font-mono" title="По низу">▦</button>
+            </div>
+            <div className="grid grid-cols-2 gap-1">
+              <button onClick={() => distributeZones('x')} className="py-2 rounded-lg glass hover:bg-white/10 font-mono text-[10px]">↔ Равные отступы</button>
+              <button onClick={() => distributeZones('y')} className="py-2 rounded-lg glass hover:bg-white/10 font-mono text-[10px]">↕ Равные отступы</button>
+            </div>
+            <p className="font-mono text-[9px] text-gray-600">выровнить — выбранную зону к краям страницы; отступы — 3+ зоны</p>
+          </Acc>
 
-              {/* IMAGE settings (non-text zones) */}
-              {sel.type !== 'text' && (
-                <>
-                  {sel.type === 'rect' && (
-                    <div>
-                      <label className="font-mono text-[10px] text-gray-500 mb-1 block">СКРУГЛЕНИЕ УГЛОВ ЗОНЫ: {sel.radius}%</label>
-                      <input type="range" min={0} max={50} value={sel.radius}
-                        onChange={e => updateZone(sel.id, { radius: +e.target.value })}
-                        className="w-full accent-[var(--color-primary)]" />
-                    </div>
-                  )}
-                  <div>
-                    <label className="font-mono text-[10px] text-gray-500 mb-1 block">СКРУГЛЕНИЕ КАРТИНКИ: {sel.imgRadius}%</label>
-                    <input type="range" min={0} max={50} value={sel.imgRadius}
-                      onChange={e => updateZone(sel.id, { imgRadius: +e.target.value }, false)}
+          {sel && sel.type !== 'text' && (
+            <Acc title="Фото" defaultOpen>
+              <button
+                onClick={() => setPhotoEditId(v => (sel.imgId && v !== sel.id) ? sel.id : null)}
+                className="w-full py-2 rounded-lg font-mono text-xs transition-all"
+                style={photoEditId === sel.id
+                  ? { background: 'var(--color-primary)', color: '#000' }
+                  : { background: 'rgba(255,255,255,0.05)', color: '#888' }}
+                disabled={!sel.imgId}
+              >
+                {photoEditId === sel.id ? '✓ СДВИГ ФОТО (Esc)' : 'СДВИГАТЬ ФОТО'}
+              </button>
+              <label className="font-mono text-[10px] text-gray-500 block">ЗУМ: {(sel.imgZoom || 1).toFixed(2)}×</label>
+              <input type="range" min={100} max={500} value={Math.round((sel.imgZoom || 1) * 100)}
+                onChange={e => updateZone(sel.id, { imgZoom: +e.target.value / 100 }, false)}
+                onPointerUp={() => updateZone(sel.id, {})} className="w-full accent-[var(--color-primary)]" />
+              <label className="font-mono text-[10px] text-gray-500 block">ПРОЗРАЧНОСТЬ: {Math.round((sel.imgOpacity ?? 1) * 100)}%</label>
+              <input type="range" min={0} max={100} value={Math.round((sel.imgOpacity ?? 1) * 100)}
+                onChange={e => updateZone(sel.id, { imgOpacity: +e.target.value / 100 }, false)}
+                onPointerUp={() => updateZone(sel.id, {})} className="w-full accent-[var(--color-primary)]" />
+
+              <label className="font-mono text-[10px] text-gray-500 block">ФИЛЬТРЫ</label>
+              {([
+                ['brightness', 'Яркость', 0, 200],
+                ['contrast', 'Контраст', 0, 200],
+                ['saturate', 'Насыщенность', 0, 200],
+                ['sepia', 'Сепия', 0, 100],
+                ['grayscale', 'Ч/Б', 0, 100],
+              ] as const).map(([key, label, min, max]) => {
+                const f = sel.filters || DEFAULT_FILTERS;
+                return (
+                  <label key={key} className="font-mono text-[9px] text-gray-500">
+                    {label} {f[key]}%
+                    <input type="range" min={min} max={max} value={f[key]}
+                      onChange={e => updateZone(sel.id, {
+                        filters: { ...f, [key]: +e.target.value },
+                      }, false)}
                       onPointerUp={() => updateZone(sel.id, {})}
-                      onMouseUp={() => updateZone(sel.id, {})}
-                      className="w-full accent-[var(--color-primary)]" />
-                    <p className="font-mono text-[9px] text-gray-600 mt-1">мягкий угол самой фотографии</p>
-                  </div>
-                  {/* per-corner rounding for rect */}
-                  {sel.type === 'rect' && (
-                    <div>
-                      <label className="font-mono text-[10px] text-gray-500 mb-1 block">УГЛЫ ПО ОТДЕЛЬНОСТИ</label>
-                      <div className="grid grid-cols-2 gap-2">
-                        {([['tl', '↖'], ['tr', '↗'], ['bl', '↙'], ['br', '↘']] as const).map(([k, arrow]) => (
-                          <label key={k} className="font-mono text-[9px] text-gray-500">{arrow}
-                            <input type="range" min={0} max={50}
-                              value={sel.corners?.[k] ?? sel.radius}
-                              onChange={e => {
-                                const cur = sel.corners || { tl: sel.radius, tr: sel.radius, br: sel.radius, bl: sel.radius };
-                                updateZone(sel.id, { corners: { ...cur, [k]: +e.target.value } }, false);
-                              }}
-                              onPointerUp={() => updateZone(sel.id, {})}
-                              onMouseUp={() => updateZone(sel.id, {})}
-                              className="w-full accent-[var(--color-primary)]" />
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {/* border stroke along the shape */}
-                  <div>
-                    <label className="font-mono text-[10px] text-gray-500 mb-1 block">РАМКА ЗОНЫ</label>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <span className="font-mono text-[9px] text-gray-500">Толщина {sel.border?.width || 0}%</span>
-                        <input type="range" min={0} max={20} value={sel.border?.width || 0}
-                          onChange={e => updateZone(sel.id, { border: { width: +e.target.value, color: sel.border?.color || '#00ff88' } }, false)}
-                          onPointerUp={() => updateZone(sel.id, {})}
-                          onMouseUp={() => updateZone(sel.id, {})}
-                          className="w-full accent-[var(--color-primary)]" />
-                      </div>
-                      <div>
-                        <span className="font-mono text-[9px] text-gray-500">Цвет</span>
-                        <input type="color" value={sel.border?.color || '#00ff88'}
-                          onChange={e => updateZone(sel.id, { border: { width: sel.border?.width || 3, color: e.target.value } })}
-                          className="w-full h-8 rounded cursor-pointer bg-transparent border border-white/10" />
-                      </div>
-                    </div>
-                  </div>
-                  {/* photo pan/zoom */}
-                  <div>
-                    <label className="font-mono text-[10px] text-gray-500 mb-1 block">ФОТО ВНУТРИ ЗОНЫ</label>
-                    <button
-                      onClick={() => setPhotoEditId(v => (sel.imgId && v !== sel.id) ? sel.id : null)}
-                      className="w-full py-2 rounded-lg font-mono text-xs transition-all mb-2"
-                      style={photoEditId === sel.id
-                        ? { background: 'var(--color-primary)', color: '#000' }
-                        : { background: 'rgba(255,255,255,0.05)', color: '#888' }}
-                      disabled={!sel.imgId}
-                    >
-                      {photoEditId === sel.id ? '✓ СДВИГ ФОТО (Esc — выйти)' : 'СДВИГАТЬ ФОТО ВНУТРИ'}
-                    </button>
-                    <p className="font-mono text-[9px] text-gray-600 mb-2">
-                      drag / Shift+drag — сдвиг · колесо — зум · двойной клик по зоне — режим
-                    </p>
-                    <label className="font-mono text-[10px] text-gray-500 mb-1 block">ЗУМ ФОТО: {(sel.imgZoom || 1).toFixed(2)}×</label>
-                    <div className="flex gap-1 mb-1">
-                      <button onClick={() => zoomPhoto(sel.id, 1 / 1.15)}
-                        className="flex-1 py-1.5 rounded font-mono text-xs glass hover:bg-white/10">− ЗУМ</button>
-                      <button onClick={() => zoomPhoto(sel.id, 1.15)}
-                        className="flex-1 py-1.5 rounded font-mono text-xs glass hover:bg-white/10">+ ЗУМ</button>
-                      <button onClick={() => updateZone(sel.id, { imgZoom: 1, imgX: 0, imgY: 0 })}
-                        className="flex-1 py-1.5 rounded font-mono text-xs glass hover:bg-white/10">СБРОС</button>
-                    </div>
-                    <input type="range" min={100} max={500} value={Math.round((sel.imgZoom || 1) * 100)}
-                      onChange={e => updateZone(sel.id, { imgZoom: +e.target.value / 100 }, false)}
-                      onPointerUp={() => updateZone(sel.id, {})}
-                      onMouseUp={() => updateZone(sel.id, {})}
-                      className="w-full accent-[var(--color-primary)]" />
-                    <div className="grid grid-cols-2 gap-2 mt-1">
-                      <label className="font-mono text-[9px] text-gray-500">↔
-                        <input type="range" min={-100} max={100} value={Math.round((sel.imgX || 0) * 100)}
-                          onChange={e => updateZone(sel.id, { imgX: +e.target.value / 100 }, false)}
-                          onPointerUp={() => updateZone(sel.id, {})}
-                          onMouseUp={() => updateZone(sel.id, {})}
-                          className="w-full accent-[var(--color-primary)]" />
-                      </label>
-                      <label className="font-mono text-[9px] text-gray-500">↕
-                        <input type="range" min={-100} max={100} value={Math.round((sel.imgY || 0) * 100)}
-                          onChange={e => updateZone(sel.id, { imgY: +e.target.value / 100 }, false)}
-                          onPointerUp={() => updateZone(sel.id, {})}
-                          onMouseUp={() => updateZone(sel.id, {})}
-                          className="w-full accent-[var(--color-primary)]" />
-                      </label>
-                    </div>
-                    <label className="font-mono text-[9px] text-gray-500 mt-2 block">
-                      ПРОЗРАЧНОСТЬ ФОТО: {Math.round((sel.imgOpacity ?? 1) * 100)}%
-                    </label>
-                    <input type="range" min={0} max={100} value={Math.round((sel.imgOpacity ?? 1) * 100)}
-                      onChange={e => updateZone(sel.id, { imgOpacity: +e.target.value / 100 }, false)}
-                      onPointerUp={() => updateZone(sel.id, {})}
-                      onMouseUp={() => updateZone(sel.id, {})}
-                      className="w-full accent-[var(--color-primary)]" />
-                  </div>
-                  <div>
-                    <label className="font-mono text-[10px] text-gray-500 mb-1 block">ЗАЛИВКА ФОТО</label>
-                    <select value={sel.fit} onChange={e => updateZone(sel.id, { fit: e.target.value as FitMode })}
-                      className="w-full px-2 py-2 rounded font-mono text-xs bg-black/30 border border-gray-700 text-gray-200 focus:outline-none">
-                      <option value="cover">Заполнить (cover)</option>
-                      <option value="contain">Вместить (contain)</option>
-                    </select>
-                  </div>
-                </>
-              )}
-              <div>
-                <label className="font-mono text-[10px] text-gray-500 mb-1 block">РАЗМЕР</label>
-                <div className="grid grid-cols-2 gap-2">
-                  <label className="font-mono text-[9px] text-gray-500">Ш
-                    <input type="range" min={5} max={100} value={Math.round(sel.w * 100)}
-                      onChange={e => updateZone(sel.id, { w: +e.target.value / 100 })}
                       className="w-full accent-[var(--color-primary)]" />
                   </label>
-                  <label className="font-mono text-[9px] text-gray-500">В
-                    <input type="range" min={5} max={100} value={Math.round(sel.h * 100)}
-                      onChange={e => updateZone(sel.id, { h: +e.target.value / 100 })}
-                      className="w-full accent-[var(--color-primary)]" />
-                  </label>
-                </div>
-              </div>
+                );
+              })}
+              <button onClick={() => updateZone(sel.id, { filters: { ...DEFAULT_FILTERS } })}
+                className="w-full py-1.5 rounded-lg font-mono text-[10px] glass text-gray-400">СБРОС ФИЛЬТРОВ</button>
 
-              {/* Z-INDEX: layer order */}
-              <div>
-                <label className="font-mono text-[10px] text-gray-500 mb-1 block">СЛОЙ (порядок поверх фото)</label>
-                <div className="grid grid-cols-4 gap-1">
-                  <button onClick={() => sendToBack(sel.id)} title="Назад всех"
-                    className="py-1.5 rounded font-mono text-[9px] glass hover:bg-white/10">⇤ НИЗ</button>
-                  <button onClick={() => sendBackward(sel.id)} title="Ниже"
-                    className="py-1.5 rounded font-mono text-[9px] glass hover:bg-white/10">↓ НИЖЕ</button>
-                  <button onClick={() => bringForward(sel.id)} title="Выше"
-                    className="py-1.5 rounded font-mono text-[9px] glass hover:bg-white/10">↑ ВЫШЕ</button>
-                  <button onClick={() => bringToFront(sel.id)} title="Вперёд всех"
-                    className="py-1.5 rounded font-mono text-[9px] glass hover:bg-white/10">⇥ ВЕРХ</button>
-                </div>
-                <p className="font-mono text-[9px] text-gray-600 mt-1">
-                  слой {zones.findIndex(z => z.id === sel.id) + 1} из {zones.length}
-                </p>
-              </div>
-
-              <div className="flex gap-2 pt-1">
-                <button onClick={() => duplicateZone(sel)}
-                  className="flex-1 flex items-center justify-center gap-1 px-2 py-2 rounded-lg font-mono text-xs glass hover:bg-white/10">
-                  <Copy className="w-3 h-3" /> ДУБЛЬ
-                </button>
-                <button onClick={() => removeZone(sel.id)}
-                  className="flex-1 flex items-center justify-center gap-1 px-2 py-2 rounded-lg font-mono text-xs hover:bg-red-500/10 text-red-400">
-                  <Trash2 className="w-3 h-3" /> УДАЛИТЬ
-                </button>
-              </div>
-              {sel.imgId && (
-                <button onClick={() => updateZone(sel.id, { imgId: null })}
-                  className="w-full px-2 py-2 rounded-lg font-mono text-xs glass text-gray-400 hover:text-gray-200">
-                  УБРАТЬ ФОТО
-                </button>
+              {sel.type === 'rect' && (
+                <label className="font-mono text-[10px] text-gray-500 block">СКРУГЛЕНИЕ ЗОНЫ: {sel.radius}%
+                  <input type="range" min={0} max={50} value={sel.radius}
+                    onChange={e => updateZone(sel.id, { radius: +e.target.value })} className="w-full accent-[var(--color-primary)]" />
+                </label>
               )}
-            </motion.div>
-          ) : (
-            <div className="glass rounded-xl p-4">
-              <p className="font-mono text-[10px] text-gray-600">
-                выберите зону кликом — здесь появятся настройки (закругления, размер, фото, слои)
-              </p>
-            </div>
+              <label className="font-mono text-[10px] text-gray-500 block">РАМКА: {sel.border?.width || 0}%
+                <div className="flex gap-2 items-center">
+                  <input type="range" min={0} max={20} value={sel.border?.width || 0}
+                    onChange={e => updateZone(sel.id, { border: { width: +e.target.value, color: sel.border?.color || '#00ff88' } }, false)}
+                    onPointerUp={() => updateZone(sel.id, {})} className="flex-1 accent-[var(--color-primary)]" />
+                  <input type="color" value={sel.border?.color || '#00ff88'}
+                    onChange={e => updateZone(sel.id, { border: { width: sel.border?.width || 3, color: e.target.value } })}
+                    className="w-8 h-8 rounded bg-transparent border border-white/10" />
+                </div>
+              </label>
+              <select value={sel.fit} onChange={e => updateZone(sel.id, { fit: e.target.value as FitMode })}
+                className="w-full px-2 py-2 rounded font-mono text-xs bg-black/30 border border-gray-700 text-gray-200">
+                <option value="cover">Заполнить (cover)</option>
+                <option value="contain">Вместить (contain)</option>
+              </select>
+              <div className="grid grid-cols-2 gap-2">
+                <label className="font-mono text-[9px] text-gray-500">Ш
+                  <input type="range" min={5} max={100} value={Math.round(sel.w * 100)}
+                    onChange={e => updateZone(sel.id, { w: +e.target.value / 100 })} className="w-full accent-[var(--color-primary)]" />
+                </label>
+                <label className="font-mono text-[9px] text-gray-500">В
+                  <input type="range" min={5} max={100} value={Math.round(sel.h * 100)}
+                    onChange={e => updateZone(sel.id, { h: +e.target.value / 100 })} className="w-full accent-[var(--color-primary)]" />
+                </label>
+              </div>
+              <div className="grid grid-cols-4 gap-1">
+                <button onClick={() => sendToBack(sel.id)} className="py-1.5 rounded font-mono text-[9px] glass">⇤</button>
+                <button onClick={() => sendBackward(sel.id)} className="py-1.5 rounded font-mono text-[9px] glass">↓</button>
+                <button onClick={() => bringForward(sel.id)} className="py-1.5 rounded font-mono text-[9px] glass">↑</button>
+                <button onClick={() => bringToFront(sel.id)} className="py-1.5 rounded font-mono text-[9px] glass">⇥</button>
+              </div>
+            </Acc>
           )}
+
+          {sel && sel.type === 'text' && (
+            <Acc title="Текст" defaultOpen>
+              <textarea value={sel.text || ''} rows={3}
+                onChange={e => updateZone(sel.id, { text: e.target.value })}
+                className="w-full px-2 py-2 rounded font-mono text-xs bg-black/30 border border-gray-700 text-gray-200 resize-none" />
+              <select value={sel.fontFamily || 'Montserrat'}
+                onChange={e => updateZone(sel.id, { fontFamily: e.target.value })}
+                className="w-full px-2 py-2 rounded font-mono text-xs bg-black/30 border border-gray-700 text-gray-200">
+                {FONTS.map(f => <option key={f} value={f}>{f}</option>)}
+              </select>
+              <label className="font-mono text-[10px] text-gray-500">РАЗМЕР: {Math.round((sel.fontSize || 0.06) * 1000) / 10}%
+                <input type="range" min={20} max={200} value={Math.round((sel.fontSize || 0.06) * 1000)}
+                  onChange={e => updateZone(sel.id, { fontSize: +e.target.value / 1000 })} className="w-full accent-[var(--color-primary)]" />
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <input type="color" value={sel.fontColor || '#ffffff'}
+                  onChange={e => updateZone(sel.id, { fontColor: e.target.value })}
+                  className="w-full h-9 rounded bg-transparent border border-white/10" />
+                <select value={sel.fontWeight || 'normal'}
+                  onChange={e => updateZone(sel.id, { fontWeight: e.target.value as 'normal' | 'bold' })}
+                  className="px-2 py-2 rounded font-mono text-xs bg-black/30 border border-gray-700 text-gray-200">
+                  <option value="normal">Обычное</option>
+                  <option value="bold">Жирное</option>
+                </select>
+              </div>
+              <div className="grid grid-cols-3 gap-1">
+                {(['left', 'center', 'right'] as TextAlign[]).map(a => (
+                  <button key={a} onClick={() => updateZone(sel.id, { align: a })}
+                    className="py-1.5 rounded font-mono text-[10px]"
+                    style={(sel.align || 'center') === a
+                      ? { background: 'var(--color-primary)', color: '#000' }
+                      : { background: 'rgba(255,255,255,0.05)', color: '#888' }}>
+                    {a === 'left' ? '←' : a === 'center' ? '↔' : '→'}
+                  </button>
+                ))}
+              </div>
+              <label className="font-mono text-[10px] text-gray-500">НАКЛОН: {sel.rotation || 0}°
+                <input type="range" min={-45} max={45} value={sel.rotation || 0}
+                  onChange={e => updateZone(sel.id, { rotation: +e.target.value }, false)}
+                  onPointerUp={() => updateZone(sel.id, {})} className="w-full accent-[var(--color-primary)]" />
+              </label>
+              <label className="font-mono text-[10px] text-gray-500">ОБВОДКА: {((sel.stroke?.width || 0) * 100).toFixed(0)}%
+                <div className="flex gap-2 items-center">
+                  <input type="range" min={0} max={30} value={Math.round((sel.stroke?.width || 0) * 100)}
+                    onChange={e => updateZone(sel.id, { stroke: { width: +e.target.value / 100, color: sel.stroke?.color || '#000' } }, false)}
+                    onPointerUp={() => updateZone(sel.id, {})} className="flex-1 accent-[var(--color-primary)]" />
+                  <input type="color" value={sel.stroke?.color || '#000000'}
+                    onChange={e => updateZone(sel.id, { stroke: { width: sel.stroke?.width || 0.05, color: e.target.value } })}
+                    className="w-8 h-8 rounded bg-transparent border border-white/10" />
+                </div>
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <label className="font-mono text-[9px] text-gray-500">Ш
+                  <input type="range" min={5} max={100} value={Math.round(sel.w * 100)}
+                    onChange={e => updateZone(sel.id, { w: +e.target.value / 100 })} className="w-full accent-[var(--color-primary)]" />
+                </label>
+                <label className="font-mono text-[9px] text-gray-500">В
+                  <input type="range" min={5} max={100} value={Math.round(sel.h * 100)}
+                    onChange={e => updateZone(sel.id, { h: +e.target.value / 100 })} className="w-full accent-[var(--color-primary)]" />
+                </label>
+              </div>
+            </Acc>
+          )}
+
+          <Acc title="Водяной знак">
+            <input ref={wmInputRef} type="file" accept="image/*" className="hidden"
+              onChange={async e => {
+                const f = e.target.files?.[0];
+                e.target.value = '';
+                if (!f) return;
+                const dataUrl = await fileToDataUrl(f);
+                const img = await dataUrlToImage(dataUrl);
+                setWm({ dataUrl, opacity: 0.35, corner: 'br', scale: 0.18, img });
+              }} />
+            {wm ? (
+              <>
+                <div className="flex items-center gap-2">
+                  <img src={wm.dataUrl} alt="" className="w-10 h-10 object-contain rounded bg-black/30" />
+                  <button onClick={() => wmInputRef.current?.click()} className="flex-1 py-2 rounded-lg glass font-mono text-[10px]">ЗАМЕНИТЬ</button>
+                  <button onClick={() => setWm(null)} className="py-2 px-2 rounded-lg glass text-red-400 font-mono text-[10px]">✕</button>
+                </div>
+                <label className="font-mono text-[10px] text-gray-500">ПРОЗРАЧНОСТЬ: {Math.round(wm.opacity * 100)}%
+                  <input type="range" min={5} max={100} value={Math.round(wm.opacity * 100)}
+                    onChange={e => setWm(w => w ? { ...w, opacity: +e.target.value / 100 } : w)}
+                    className="w-full accent-[var(--color-primary)]" />
+                </label>
+                <label className="font-mono text-[10px] text-gray-500">РАЗМЕР: {Math.round(wm.scale * 100)}%
+                  <input type="range" min={5} max={50} value={Math.round(wm.scale * 100)}
+                    onChange={e => setWm(w => w ? { ...w, scale: +e.target.value / 100 } : w)}
+                    className="w-full accent-[var(--color-primary)]" />
+                </label>
+                <div className="grid grid-cols-5 gap-1">
+                  {([['tl', '↖'], ['tr', '↗'], ['center', '◎'], ['bl', '↙'], ['br', '↘']] as const).map(([c, icon]) => (
+                    <button key={c} onClick={() => setWm(w => w ? { ...w, corner: c } : w)}
+                      className="py-2 rounded-lg font-mono text-xs"
+                      style={wm.corner === c
+                        ? { background: 'var(--color-primary)', color: '#000' }
+                        : { background: 'rgba(255,255,255,0.05)', color: '#888' }}>
+                      {icon}
+                    </button>
+                  ))}
+                </div>
+                <p className="font-mono text-[9px] text-gray-600">накладывается на все страницы при экспорте</p>
+              </>
+            ) : (
+              <button onClick={() => wmInputRef.current?.click()}
+                className="w-full py-2.5 rounded-lg font-mono text-xs glass hover:bg-white/10 flex items-center justify-center gap-2">
+                <Stamp className="w-3.5 h-3.5" /> ДОБАВИТЬ ЛОГО / ЗНАК
+              </button>
+            )}
+          </Acc>
+
+          <Acc title={`Версии (${versions.length})`}>
+            <button onClick={saveVersion}
+              className="w-full py-2 rounded-lg font-mono text-xs font-bold flex items-center justify-center gap-2"
+              style={{ background: 'var(--color-primary)', color: '#000' }}>
+              <History className="w-3.5 h-3.5" /> СОХРАНИТЬ ВЕРСИЮ
+            </button>
+            <div className="space-y-1 max-h-40 overflow-y-auto">
+              {versions.map(v => (
+                <div key={v.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg" style={{ background: 'rgba(255,255,255,0.03)' }}>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-mono text-[10px] text-gray-200 truncate">{v.name}</div>
+                    <div className="font-mono text-[8px] text-gray-600">{formatRuDate(v.at)}</div>
+                  </div>
+                  <button onClick={() => restoreVersion(v)}
+                    className="px-2 py-1 rounded font-mono text-[9px] glass hover:bg-white/10">ОТКАТ</button>
+                  <button onClick={async () => {
+                    await deleteProjectVersion(projectId, v.id);
+                    const cur = await getProject(projectId);
+                    setVersions(cur?.versions || []);
+                  }}
+                    className="p-1 rounded hover:bg-red-500/20 text-gray-500 hover:text-red-400">
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+              {versions.length === 0 && (
+                <p className="font-mono text-[10px] text-gray-600">снимков пока нет</p>
+              )}
+            </div>
+          </Acc>
 
           {/* Export menu — z above neighbouring .glass cards */}
           <div className="relative z-50">
@@ -2387,23 +2765,50 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
             {exportMenuOpen && (
               <div className="absolute right-0 bottom-full mb-1 z-[999] p-2 rounded-xl space-y-1 w-full"
                 style={{ background: 'linear-gradient(135deg, rgba(20,20,35,0.98), rgba(10,10,20,0.99))', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}>
+                <div className="font-mono text-[9px] text-gray-500 px-1 pb-1 uppercase tracking-wider">Формат</div>
+                <div className="grid grid-cols-2 gap-1 mb-1">
+                  {([['png', 'PNG'], ['jpeg', 'JPEG'], ['webp', 'WebP']] as const).map(([f, label]) => (
+                    <button key={f}
+                      onClick={() => setImgFormat(f)}
+                      className="px-2 py-1.5 rounded-lg font-mono text-[10px]"
+                      style={imgFormat === f ? { background: 'var(--color-primary)', color: '#000' } : { background: 'rgba(255,255,255,0.05)', color: '#888' }}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                {imgFormat !== 'png' && (
+                  <label className="font-mono text-[9px] text-gray-500 px-1 block mb-1">
+                    Качество {imgQuality}%
+                    <input type="range" min={50} max={100} value={imgQuality}
+                      onChange={e => setImgQuality(+e.target.value)}
+                      className="w-full accent-[var(--color-primary)]" />
+                  </label>
+                )}
                 <div className="font-mono text-[9px] text-gray-500 px-1 pb-1 uppercase tracking-wider">Текущая страница</div>
-                <button onClick={() => { setExportMenuOpen(false); exportPng(); }}
+                <button onClick={() => { setExportMenuOpen(false); exportImage(); }}
                   className="w-full text-left px-2 py-2 rounded-lg hover:bg-white/10 font-mono text-[11px]">
-                  PNG ({fmt.w * exportScale}×{fmt.h * exportScale})
+                  {imgFormat.toUpperCase()} ({fmt.w * exportScale}×{fmt.h * exportScale})
                 </button>
-                <button onClick={() => { setExportMenuOpen(false); exportPdf('current'); }}
+                <button onClick={() => { setExportMenuOpen(false); exportPdfScope('current'); }}
                   className="w-full text-left px-2 py-2 rounded-lg hover:bg-white/10 font-mono text-[11px]">
                   PDF (текущая)
                 </button>
-                <div className="font-mono text-[9px] text-gray-500 px-1 pt-2 pb-1 uppercase tracking-wider">Все страницы ({pages.length})</div>
-                <button onClick={() => { setExportMenuOpen(false); exportPdf('all'); }}
+                <button onClick={() => { setExportMenuOpen(false); exportPptxScope('current'); }}
                   className="w-full text-left px-2 py-2 rounded-lg hover:bg-white/10 font-mono text-[11px]">
-                  PDF (все страницы)
+                  PPTX (текущая)
+                </button>
+                <div className="font-mono text-[9px] text-gray-500 px-1 pt-2 pb-1 uppercase tracking-wider">Все страницы ({pages.length})</div>
+                <button onClick={() => { setExportMenuOpen(false); exportPdfScope('all'); }}
+                  className="w-full text-left px-2 py-2 rounded-lg hover:bg-white/10 font-mono text-[11px]">
+                  PDF (все)
+                </button>
+                <button onClick={() => { setExportMenuOpen(false); exportPptxScope('all'); }}
+                  className="w-full text-left px-2 py-2 rounded-lg hover:bg-white/10 font-mono text-[11px]">
+                  PPTX (все)
                 </button>
                 <button onClick={() => { setExportMenuOpen(false); exportZip(); }}
                   className="w-full text-left px-2 py-2 rounded-lg hover:bg-white/10 font-mono text-[11px]">
-                  PNG ZIP (все страницы)
+                  ZIP картинок (все)
                 </button>
               </div>
             )}
