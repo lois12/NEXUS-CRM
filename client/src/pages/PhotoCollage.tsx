@@ -425,8 +425,26 @@ function resolvePt(p: Pick<CollagePage, 'format' | 'orient' | 'customW' | 'custo
     return p.orient === 'landscape' ? { w: paper.h, h: paper.w } : { w: paper.w, h: paper.h };
   }
   const sz = resolveSize(p.format, p.orient, p.customW, p.customH);
-  // social/custom px @ 150dpi → pt
-  return { w: sz.w * 72 / 150, h: sz.h * 72 / 150 };
+  // same aspect as the raster: treat px @ 200dpi like paper (A4 1654px → 595pt)
+  return { w: sz.w * 72 / 200, h: sz.h * 72 / 200 };
+}
+
+/** browsers silently crop huge canvases — clamp export scale */
+const MAX_CANVAS_DIM = 8192;
+const MAX_CANVAS_AREA = 32_000_000; // ~32MP
+
+function safeExportScale(w: number, h: number, want: number): number {
+  let s = want;
+  while (s > 0.25 && (w * s > MAX_CANVAS_DIM || h * s > MAX_CANVAS_DIM || w * s * h * s > MAX_CANVAS_AREA)) {
+    s = Math.floor(s * 10) / 20; // 2 → 1 → 0.5 …
+  }
+  return Math.max(0.25, s);
+}
+
+function exportPixelSize(p: Pick<CollagePage, 'format' | 'orient' | 'customW' | 'customH'>, wantScale: number) {
+  const sz = resolveSize(p.format, p.orient, p.customW, p.customH);
+  const s = safeExportScale(sz.w, sz.h, wantScale);
+  return { w: sz.w, h: sz.h, scale: s, outW: Math.round(sz.w * s), outH: Math.round(sz.h * s) };
 }
 
 /** Render a page (any format/zones) to an offscreen canvas at `scale` */
@@ -1906,11 +1924,12 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
     if (p.zones.filter(z => !z.hidden).length === 0) { showToast('Добавьте хотя бы одну зону', 'error'); return; }
     setIsBusy(true);
     try {
-      const canvas = renderPageToCanvas(p, images, exportScale, wmSpec);
+      const ex = exportPixelSize(p, exportScale);
+      const canvas = renderPageToCanvas(p, images, ex.scale, wmSpec);
       const blob = await canvasToBlob(canvas, imgFormat, imgQuality / 100);
       const ext = imgFormat === 'jpeg' ? 'jpg' : imgFormat;
       downloadBlob(blob, `collage_${Date.now()}.${ext}`);
-      showToast('Изображение сохранено', 'success');
+      showToast(`${fmtDef.label} · ${ex.outW}×${ex.outH}`, 'success');
     } catch (e: any) {
       showToast(e?.message || 'Ошибка', 'error');
     } finally {
@@ -1926,7 +1945,8 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
       const zip = new JSZip();
       for (let i = 0; i < pages.length; i++) {
         const p = pages[i];
-        const canvas = renderPageToCanvas(p, images, exportScale, wmSpec);
+        const ex = exportPixelSize(p, exportScale);
+        const canvas = renderPageToCanvas(p, images, ex.scale, wmSpec);
         const blob = await canvasToBlob(canvas, imgFormat, imgQuality / 100);
         const ext = imgFormat === 'jpeg' ? 'jpg' : imgFormat;
         zip.file(`page_${String(i + 1).padStart(2, '0')}_${p.name.replace(/[^\wа-яё-]+/gi, '_')}.${ext}`, blob);
@@ -1941,18 +1961,15 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
     }
   };
 
-  const buildPageRasters = (list: CollagePage[], useScale: 1 | 2) =>
+  const buildPageRasters = (list: CollagePage[], wantScale: number) =>
     list.map(p => {
-      const canvas = renderPageToCanvas(p, images, useScale, wmSpec);
+      const ex = exportPixelSize(p, wantScale);
+      const canvas = renderPageToCanvas(p, images, ex.scale, wmSpec);
       const pt = resolvePt(p);
       return { canvas, wPt: pt.w, hPt: pt.h, transparent: !!p.bgTransparent };
     });
 
-  const pickScale = (list: CollagePage[]): 1 | 2 =>
-    list.some(p => {
-      const sz = resolveSize(p.format, p.orient, p.customW, p.customH);
-      return sz.w * 2 * sz.h * 2 > 40_000_000;
-    }) ? 1 : exportScale;
+  const pickScale = (_list?: CollagePage[]): number => exportScale;
 
   const exportPdfScope = async (scope: 'current' | 'all') => {
     const list = scope === 'all' ? pages : [page];
@@ -2664,17 +2681,19 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
             id="collage-canvas"
             className={`relative mx-auto rounded-xl overflow-hidden select-none sticky top-0 z-20 lg:sticky ${spaceDown ? 'cursor-grab active:cursor-grabbing' : ''}`}
             style={{
-              width: '100%',
-              // fullscreen: fill available height (kills the dead zone at the bottom)
-              maxWidth: isFull ? `min(100%, calc((100vh - 220px) * ${fmt.w / fmt.h}))` : 560,
-              maxHeight: isFull ? 'calc(100vh - 220px)' : 'min(70dvh, calc((100dvh - 260px) * ' + (fmt.w / fmt.h) + '))',
+              width: 'auto',
+              height: 'auto',
+              // keep TRUE aspect: width limited by box AND height budget (no crop)
+              maxWidth: isFull
+                ? `min(100%, calc((100vh - 220px) * ${fmt.w / fmt.h}))`
+                : `min(100%, 560px, calc(min(70dvh, 100dvh - 260px) * ${fmt.w / fmt.h}))`,
+              maxHeight: isFull ? 'calc(100vh - 220px)' : 'min(70dvh, calc(100dvh - 260px))',
               aspectRatio: `${fmt.w} / ${fmt.h}`,
               background: bgTransparent ? CHECKER_BG : bgColor,
               backgroundSize: bgTransparent ? '16px 16px' : undefined,
               borderRadius: `${outerRadius}%`,
               cursor: spaceDown ? 'grab' : toolMode === 'draw' ? (drawing ? 'crosshair' : 'default') : 'crosshair',
               border: '1px solid rgba(255,255,255,0.1)',
-              // touch/wheel on canvas must not scroll the page
               touchAction: 'none',
               flexShrink: 0,
               overflow: 'hidden',
@@ -3622,7 +3641,7 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
               disabled={isBusy}
               className="w-full py-3 rounded-xl font-mono text-sm font-bold transition-all disabled:opacity-50 flex items-center justify-center gap-2"
               style={{ background: 'var(--color-primary)', color: '#000' }}>
-              <Download className="w-4 h-4" /> {isBusy ? 'ЭКСПОРТ...' : `ЭКСПОРТ ${fmt.w * exportScale}×${fmt.h * exportScale}`} ▾
+              <Download className="w-4 h-4" /> {isBusy ? 'ЭКСПОРТ...' : `${fmtDef.label} ${fmt.w}×${fmt.h}`} ▾
             </motion.button>
             {exportMenuOpen && (
               <div className="absolute right-0 bottom-full mb-1 z-[999] p-2 rounded-xl space-y-1 w-full"
@@ -3646,10 +3665,12 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
                       className="w-full accent-[var(--color-primary)]" />
                   </label>
                 )}
-                <div className="font-mono text-[9px] text-gray-500 px-1 pb-1 uppercase tracking-wider">Текущая страница</div>
+                <div className="font-mono text-[9px] text-gray-500 px-1 pb-1 uppercase tracking-wider">
+                  Страница: {fmtDef.label} · {fmt.w}×{fmt.h}
+                </div>
                 <button onClick={() => { setExportMenuOpen(false); exportImage(); }}
                   className="w-full text-left px-2 py-2 rounded-lg hover:bg-white/10 font-mono text-[11px]">
-                  {imgFormat.toUpperCase()} ({fmt.w * exportScale}×{fmt.h * exportScale})
+                  {imgFormat.toUpperCase()} · {fmtDef.label} {(() => { const ex = exportPixelSize(page, exportScale); return `${ex.outW}×${ex.outH}`; })()}
                 </button>
                 <button onClick={() => { setExportMenuOpen(false); exportPdfScope('current'); }}
                   className="w-full text-left px-2 py-2 rounded-lg hover:bg-white/10 font-mono text-[11px]">
