@@ -22,6 +22,8 @@ const ROUTE_NAMES: Record<string, string> = {
   'weather': 'Погода',
   'image-converter': 'Конвертер',
   'doc-converter': 'Конвертер документов',
+  'photo-collage': 'Коллаж из фото',
+  'short-links': 'Сокращатель ссылок',
   'ai-chat': 'AI Чат',
   'bg-remover': 'Удаление фона',
   'profile': 'Профиль',

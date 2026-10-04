@@ -85,6 +85,8 @@ const navGroups: NavGroup[] = [
       { to: '/qr', label: 'QR-генератор', roles: ['super_admin', 'руководитель', 'редактор', 'smm'] },
       { to: '/image-converter', label: 'Конвертер изображений', roles: ['super_admin', 'руководитель', 'редактор', 'smm', 'документовед'] },
       { to: '/doc-converter', label: 'Конвертер документов', roles: ['super_admin', 'руководитель', 'редактор', 'smm', 'документовед', 'мол'] },
+      { to: '/photo-collage', label: 'Коллаж из фото', roles: ['super_admin', 'руководитель', 'редактор', 'smm', 'документовед', 'мол'] },
+      { to: '/short-links', label: 'Сокращатель ссылок', roles: ['super_admin', 'руководитель', 'редактор', 'smm', 'документовед', 'мол'] },
       { to: '/bg-remover', label: 'Удаление фона', roles: ['super_admin', 'руководитель', 'редактор', 'smm', 'документовед'] },
       { to: '/random', label: 'Рандомайзер', roles: ['super_admin', 'руководитель', 'редактор', 'smm', 'документовед', 'мол'] },
       { to: '/ping', label: 'IP Ping', roles: ['super_admin', 'руководитель', 'редактор', 'smm', 'документовед', 'мол'] },

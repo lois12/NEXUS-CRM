@@ -31,6 +31,8 @@ import aiChatRoutes from './routes/aiChat';
 import searchRoutes from './routes/search';
 import listsRoutes, { publicRouter as publicListsRouter } from './routes/lists';
 import converterRoutes from './routes/converter';
+import linksRoutes from './routes/links';
+import { redirectLink } from './controllers/shortLinkController';
 import qrAuthRoutes from './routes/qrAuth';
 import pushRoutes from './routes/push';
 import { publicRegRouter, registrationAuthRouter } from './routes/registrations';
@@ -129,6 +131,10 @@ app.use('/api', publicWidgetRouter);
 app.use('/api', publicListsRouter);
 app.use('/api/lists', listsRoutes);
 app.use('/api/converter', converterRoutes);
+app.use('/api/links', linksRoutes);
+
+// Public short-link redirect (no auth — anyone with the link opens it)
+app.get('/s/:code', redirectLink);
 
 // Health check
 app.get('/api/health', (req, res) => {
