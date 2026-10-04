@@ -410,45 +410,60 @@ export default function PhotoCollage() {
                 <div
                   key={z.id}
                   onPointerDown={e => onZonePointerDown(e, z, 'move')}
+                  onDragOver={e => { e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = 'copy'; }}
+                  onDrop={e => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const photoId = e.dataTransfer.getData('text/photo');
+                    if (photoId) updateZone(z.id, { imgId: photoId });
+                  }}
                   style={{
                     position: 'absolute',
                     left: `${z.x * 100}%`, top: `${z.y * 100}%`,
                     width: `${z.w * 100}%`, height: `${z.h * 100}%`,
-                    clipPath: clipPathFor(z),
-                    borderRadius: z.type === 'rect' ? `${z.radius}%` : 0,
-                    outline: selected ? '2px dashed var(--color-primary)' : '1px dashed rgba(255,255,255,0.25)',
-                    outlineOffset: 2,
-                    overflow: 'hidden',
                     cursor: 'move',
                     touchAction: 'none',
-                    background: imgItem ? 'transparent' : 'rgba(255,255,255,0.05)',
+                    outline: selected ? '2px dashed var(--color-primary)' : '1px dashed rgba(255,255,255,0.25)',
+                    outlineOffset: 2,
                   }}
                 >
-                  {imgItem?.img && (
-                    <img
-                      src={imgItem.preview}
-                      alt=""
-                      draggable={false}
-                      style={{
-                        width: '100%', height: '100%',
-                        objectFit: z.fit === 'cover' ? 'cover' : 'contain',
-                        pointerEvents: 'none',
-                      }}
-                    />
-                  )}
-                  {!imgItem && (
-                    <div className="w-full h-full flex items-center justify-center pointer-events-none">
-                      <ImageIcon className="w-6 h-6 text-gray-600 opacity-40" />
-                    </div>
-                  )}
-                  {/* resize handle */}
+                  {/* clipped visual surface — keeps the resize handle OUTSIDE overflow */}
+                  <div
+                    style={{
+                      width: '100%', height: '100%',
+                      clipPath: clipPathFor(z),
+                      borderRadius: z.type === 'rect' ? `${z.radius}%` : 0,
+                      overflow: 'hidden',
+                      background: imgItem ? 'transparent' : 'rgba(255,255,255,0.05)',
+                    }}
+                  >
+                    {imgItem?.img ? (
+                      <img
+                        src={imgItem.preview}
+                        alt=""
+                        draggable={false}
+                        style={{
+                          width: '100%', height: '100%',
+                          objectFit: z.fit === 'cover' ? 'cover' : 'contain',
+                          pointerEvents: 'none',
+                        }}
+                      />
+                    ) : (
+                      <div className="w-full h-full flex flex-col items-center justify-center pointer-events-none gap-1">
+                        <ImageIcon className="w-6 h-6 text-gray-600 opacity-40" />
+                        <span className="font-mono text-[8px] text-gray-600">перетащите фото</span>
+                      </div>
+                    )}
+                  </div>
+                  {/* resize handle — outside the overflow:hidden surface */}
                   {selected && (
                     <div
                       onPointerDown={e => onZonePointerDown(e, z, 'resize')}
                       style={{
-                        position: 'absolute', right: -6, bottom: -6,
+                        position: 'absolute', right: -7, bottom: -7,
                         width: 14, height: 14, borderRadius: 4,
                         background: 'var(--color-primary)', cursor: 'nwse-resize', touchAction: 'none',
+                        zIndex: 5,
                       }}
                     />
                   )}
