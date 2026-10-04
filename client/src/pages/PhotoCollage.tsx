@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   Square, PenTool, Image as ImageIcon, X, Download,
-  Trash2, Copy, Layers, Move, Maximize2, Minimize2, Type,
+  Trash2, Copy, Layers, Move, Maximize2, Minimize2, Type, Pencil,
 } from 'lucide-react';
 import { PDFDocument } from 'pdf-lib';
 import JSZip from 'jszip';
@@ -587,11 +587,13 @@ export default function PhotoCollage() {
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const [editingPageId, setEditingPageId] = useState<string | null>(null);
   const [pageDragIdx, setPageDragIdx] = useState<number | null>(null);
+  /** zone id in "adjust photo inside" mode (drag = pan photo, not move zone) */
+  const [photoEditId, setPhotoEditId] = useState<string | null>(null);
   // alignment guides shown while dragging (snap to center/edges)
   const [guides, setGuides] = useState<{ v: number | null; h: number | null }>({ v: null, h: null });
   const canvasRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const dragRef = useRef<{ mode: 'move' | 'resize'; zone: Zone; startX: number; startY: number; orig: Zone } | null>(null);
+  const dragRef = useRef<{ mode: 'move' | 'resize' | 'photo-pan'; zone: Zone; startX: number; startY: number; orig: Zone } | null>(null);
 
   const page = pages[Math.min(activeIdx, pages.length - 1)] ?? pages[0];
   const {
@@ -814,11 +816,16 @@ export default function PhotoCollage() {
     setSelId(copy.id);
   };
 
-  // ── Pointer interaction (move / resize) — works with touch via pointer events
-  const onZonePointerDown = (e: React.PointerEvent, z: Zone, mode: 'move' | 'resize') => {
+  // ── Pointer interaction (move / resize / photo-pan) — works with touch
+  const onZonePointerDown = (e: React.PointerEvent, z: Zone, mode: 'move' | 'resize' | 'photo-pan') => {
     if (drawing) return;
     e.stopPropagation();
     setSelId(z.id);
+    // Shift+drag or photo-adjust mode → pan the photo inside the zone
+    if (mode === 'move' && z.imgId && (photoEditId === z.id || e.shiftKey)) {
+      mode = 'photo-pan';
+    }
+    if (mode === 'photo-pan' && !z.imgId) return;
     (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
     dragRef.current = { mode, zone: z, startX: e.clientX, startY: e.clientY, orig: { ...z } };
   };
@@ -829,6 +836,14 @@ export default function PhotoCollage() {
     const rect = canvasRef.current.getBoundingClientRect();
     const dx = (e.clientX - d.startX) / rect.width;
     const dy = (e.clientY - d.startY) / rect.height;
+    if (d.mode === 'photo-pan') {
+      // keep image under the finger: CSS `scale(s) translate(t%)` moves by s*t
+      const zoom = d.orig.imgZoom || 1;
+      const imgX = clamp((d.orig.imgX || 0) + dx / (zoom * 0.3 * Math.max(d.orig.w, 0.05)), -1, 1);
+      const imgY = clamp((d.orig.imgY || 0) + dy / (zoom * 0.3 * Math.max(d.orig.h, 0.05)), -1, 1);
+      updateZone(d.zone.id, { imgX, imgY }, false);
+      return;
+    }
     if (d.mode === 'move') {
       let nx = clamp(d.orig.x + dx, -d.orig.w + 0.02, 0.98);
       let ny = clamp(d.orig.y + dy, -d.orig.h + 0.02, 0.98);
@@ -863,6 +878,51 @@ export default function PhotoCollage() {
     dragRef.current = null;
     setGuides({ v: null, h: null });
   };
+
+  /** zoom photo inside a zone (wheel / buttons). factor > 1 = zoom in */
+  const zoomPhoto = (id: string, factor: number, commit = true) => {
+    const z = zones.find(x => x.id === id);
+    if (!z?.imgId) return;
+    const zoom = clamp((z.imgZoom || 1) * factor, 1, 5);
+    updateZone(id, { imgZoom: zoom }, commit);
+  };
+
+  // wheel = zoom photo under cursor (native listener so we can preventDefault)
+  useEffect(() => {
+    const el = canvasRef.current;
+    if (!el) return;
+    let t: ReturnType<typeof setTimeout> | null = null;
+    const onWheel = (e: WheelEvent) => {
+      const node = (e.target as HTMLElement)?.closest('[data-zone-id]') as HTMLElement | null;
+      const zid = node?.dataset.zoneId;
+      if (!zid) return;
+      const z = zones.find(x => x.id === zid);
+      if (!z?.imgId) return;
+      e.preventDefault();
+      const factor = e.deltaY < 0 ? 1.08 : 1 / 1.08;
+      zoomPhoto(zid, factor, false);
+      if (t) clearTimeout(t);
+      t = setTimeout(() => {
+        const zz = zones.find(x => x.id === zid);
+        if (zz) commitHistory(zones);
+      }, 200);
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => {
+      el.removeEventListener('wheel', onWheel);
+      if (t) clearTimeout(t);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [zones, images]);
+
+  // Esc exits photo-adjust mode
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && photoEditId) setPhotoEditId(null);
+    };
+    window.addEventListener('keydown', h);
+    return () => window.removeEventListener('keydown', h);
+  }, [photoEditId]);
 
   // ── Drawing a freeform polygon on the canvas
   const onCanvasClick = (e: React.MouseEvent) => {
@@ -1206,6 +1266,7 @@ export default function PhotoCollage() {
                         <input
                           autoFocus
                           defaultValue={p.name}
+                          onFocus={e => e.target.select()}
                           onClick={e => e.stopPropagation()}
                           onBlur={e => renamePage(p.id, e.target.value)}
                           onKeyDown={e => {
@@ -1219,10 +1280,17 @@ export default function PhotoCollage() {
                           <span
                             className="flex-1 truncate font-mono text-[8px] text-gray-300"
                             onDoubleClick={e => { e.stopPropagation(); setEditingPageId(p.id); }}
-                            title="Двойной клик — переименовать"
+                            title="Двойной клик или карандаш — переименовать"
                           >
                             {p.name}
                           </span>
+                          <button
+                            onClick={e => { e.stopPropagation(); setEditingPageId(p.id); }}
+                            className="shrink-0 p-0.5 rounded hover:bg-white/10 text-gray-500 hover:text-gray-200"
+                            title="Переименовать"
+                          >
+                            <Pencil className="w-2.5 h-2.5" />
+                          </button>
                           {pages.length > 1 && (
                             <button
                               onClick={e => { e.stopPropagation(); removePage(i); }}
@@ -1257,7 +1325,7 @@ export default function PhotoCollage() {
             </div>
           </div>
           <p className="font-mono text-[8px] text-gray-600 mt-1">
-            клик — открыть · двойной клик по имени — переименовать · перетащить — порядок · у каждой страницы свой undo
+            клик — открыть · ✎ — переименовать · перетащить — порядок · у каждой страницы свой undo
           </p>
         </div>
 
@@ -1347,7 +1415,9 @@ export default function PhotoCollage() {
               return (
                 <div
                   key={z.id}
+                  data-zone-id={z.id}
                   onPointerDown={e => onZonePointerDown(e, z, 'move')}
+                  onDoubleClick={() => { if (z.imgId) { setSelId(z.id); setPhotoEditId(v => v === z.id ? null : z.id); } }}
                   onDragOver={e => { e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = 'copy'; }}
                   onDrop={e => {
                     e.preventDefault();
@@ -1359,9 +1429,11 @@ export default function PhotoCollage() {
                     position: 'absolute',
                     left: `${z.x * 100}%`, top: `${z.y * 100}%`,
                     width: `${z.w * 100}%`, height: `${z.h * 100}%`,
-                    cursor: 'move',
+                    cursor: photoEditId === z.id && z.imgId ? 'grab' : 'move',
                     touchAction: 'none',
-                    outline: selected ? '2px dashed var(--color-primary)' : '1px dashed rgba(255,255,255,0.25)',
+                    outline: photoEditId === z.id && z.imgId
+                      ? '2px solid var(--color-primary)'
+                      : selected ? '2px dashed var(--color-primary)' : '1px dashed rgba(255,255,255,0.25)',
                     outlineOffset: 2,
                   }}
                 >
@@ -1491,6 +1563,18 @@ export default function PhotoCollage() {
             <p className="font-mono text-[10px] text-gray-500 text-center">
               кликайте по канвасу чтобы добавить точки → «ГОТОВО» или Enter чтобы закрыть фигуру
             </p>
+          )}
+          {photoEditId && (
+            <div className="glass rounded-lg px-3 py-2 flex items-center justify-between gap-3 flex-wrap">
+              <p className="font-mono text-[10px]" style={{ color: 'var(--color-primary)' }}>
+                РЕЖИМ ФОТО: тяните чтобы сдвинуть · колесо — зум · Esc — выход
+              </p>
+              <div className="flex gap-1">
+                <button onClick={() => zoomPhoto(photoEditId, 1 / 1.15)} className="px-2 py-1 rounded font-mono text-[10px] glass hover:bg-white/10">−</button>
+                <button onClick={() => zoomPhoto(photoEditId, 1.15)} className="px-2 py-1 rounded font-mono text-[10px] glass hover:bg-white/10">+</button>
+                <button onClick={() => setPhotoEditId(null)} className="px-2 py-1 rounded font-mono text-[10px] font-bold" style={{ background: 'var(--color-primary)', color: '#000' }}>ГОТОВО</button>
+              </div>
+            </div>
           )}
 
           {/* Photo tray */}
@@ -1727,8 +1811,30 @@ export default function PhotoCollage() {
                   </div>
                   {/* photo pan/zoom */}
                   <div>
+                    <label className="font-mono text-[10px] text-gray-500 mb-1 block">ФОТО ВНУТРИ ЗОНЫ</label>
+                    <button
+                      onClick={() => setPhotoEditId(v => (sel.imgId && v !== sel.id) ? sel.id : null)}
+                      className="w-full py-2 rounded-lg font-mono text-xs transition-all mb-2"
+                      style={photoEditId === sel.id
+                        ? { background: 'var(--color-primary)', color: '#000' }
+                        : { background: 'rgba(255,255,255,0.05)', color: '#888' }}
+                      disabled={!sel.imgId}
+                    >
+                      {photoEditId === sel.id ? '✓ СДВИГ ФОТО (Esc — выйти)' : 'СДВИГАТЬ ФОТО ВНУТРИ'}
+                    </button>
+                    <p className="font-mono text-[9px] text-gray-600 mb-2">
+                      drag / Shift+drag — сдвиг · колесо — зум · двойной клик по зоне — режим
+                    </p>
                     <label className="font-mono text-[10px] text-gray-500 mb-1 block">ЗУМ ФОТО: {(sel.imgZoom || 1).toFixed(2)}×</label>
-                    <input type="range" min={100} max={300} value={Math.round((sel.imgZoom || 1) * 100)}
+                    <div className="flex gap-1 mb-1">
+                      <button onClick={() => zoomPhoto(sel.id, 1 / 1.15)}
+                        className="flex-1 py-1.5 rounded font-mono text-xs glass hover:bg-white/10">− ЗУМ</button>
+                      <button onClick={() => zoomPhoto(sel.id, 1.15)}
+                        className="flex-1 py-1.5 rounded font-mono text-xs glass hover:bg-white/10">+ ЗУМ</button>
+                      <button onClick={() => updateZone(sel.id, { imgZoom: 1, imgX: 0, imgY: 0 })}
+                        className="flex-1 py-1.5 rounded font-mono text-xs glass hover:bg-white/10">СБРОС</button>
+                    </div>
+                    <input type="range" min={100} max={500} value={Math.round((sel.imgZoom || 1) * 100)}
                       onChange={e => updateZone(sel.id, { imgZoom: +e.target.value / 100 }, false)}
                       onPointerUp={() => updateZone(sel.id, {})}
                       onMouseUp={() => updateZone(sel.id, {})}
