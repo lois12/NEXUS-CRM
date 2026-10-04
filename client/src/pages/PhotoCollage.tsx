@@ -973,8 +973,8 @@ export default function PhotoCollage() {
         <p className="text-gray-400 mt-1 font-mono text-sm">// ФИГУРЫ, РИСОВАНИЕ, СВОБОДНЫЕ РАЗМЕРЫ</p>
       </div>
 
-      {/* Toolbar */}
-      <div className="glass rounded-xl p-3 flex flex-wrap items-center gap-2">
+      {/* Toolbar — z above page strip (.glass creates stacking contexts via backdrop-filter) */}
+      <div className="glass rounded-xl p-3 flex flex-wrap items-center gap-2 relative z-50">
         <span className="font-mono text-[10px] text-gray-500">ЗОНА:</span>
         {/* Undo / Redo arrows */}
         <button onClick={undo} disabled={histIdx <= 0}
@@ -1156,8 +1156,8 @@ export default function PhotoCollage() {
       </div>
 
       <div id="collage-editor" className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-        {/* Page strip — multi-page project */}
-        <div className="lg:col-span-4 glass rounded-xl p-3">
+        {/* Page strip — multi-page project (keep z low so toolbar dropdowns float above) */}
+        <div className="lg:col-span-4 glass rounded-xl p-3 relative z-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-mono text-[10px] text-gray-500 shrink-0">СТРАНИЦЫ:</span>
             <div className="flex gap-2 overflow-x-auto pb-1 flex-1 min-w-0">
@@ -1819,8 +1819,8 @@ export default function PhotoCollage() {
             </div>
           )}
 
-          {/* Export menu */}
-          <div className="relative">
+          {/* Export menu — z above neighbouring .glass cards */}
+          <div className="relative z-50">
             <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
               onClick={() => setExportMenuOpen(v => !v)}
               disabled={isBusy}
