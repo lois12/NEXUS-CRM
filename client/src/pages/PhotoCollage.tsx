@@ -474,7 +474,8 @@ function renderPageToCanvas(
     ctx.fillStyle = p.bgColor;
     ctx.fillRect(0, 0, W, H);
   }
-  if (p.bgTexture && p.bgTexture !== 'none') {
+  // texture only over an opaque page fill
+  if (!p.bgTransparent && p.bgTexture && p.bgTexture !== 'none') {
     drawTexture(ctx, W, H, p.bgTexture, p.bgColor);
   }
 
@@ -636,7 +637,8 @@ function renderPageToCanvas(
         ctx.restore();
       }
     } else {
-      ctx.fillStyle = 'rgba(255,255,255,0.06)';
+      // empty zone placeholder — keep it subtle so transparency shows through
+      ctx.fillStyle = p.bgTransparent ? 'rgba(180,180,180,0.15)' : 'rgba(255,255,255,0.06)';
       ctx.fill();
     }
     ctx.restore();
@@ -1183,9 +1185,11 @@ function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number)
 }
 
 
-/** CSS checkerboard for transparent page preview */
+/** CSS checkerboard — classic light board so transparency is obvious on dark UI */
 const CHECKER_BG =
-  'repeating-conic-gradient(rgba(255,255,255,0.08) 0% 25%, transparent 0% 50%) 0 0 / 16px 16px';
+  'repeating-conic-gradient(#c8c8c8 0% 25%, #ffffff 0% 50%) 0 0 / 16px 16px';
+const CHECKER_BG_SM =
+  'repeating-conic-gradient(#c8c8c8 0% 25%, #ffffff 0% 50%) 0 0 / 8px 8px';
 
 /** Mini page preview for the page navigator / sheet */
 function PageThumb({ page: p, images, height }: { page: CollagePage; images: ImgItem[]; height: number }) {
@@ -1194,8 +1198,8 @@ function PageThumb({ page: p, images, height }: { page: CollagePage; images: Img
   return (
     <div
       style={{
-        background: p.bgTransparent ? CHECKER_BG : p.bgColor,
-        backgroundSize: p.bgTransparent ? '12px 12px' : undefined,
+        background: p.bgTransparent ? CHECKER_BG_SM : p.bgColor,
+        backgroundSize: p.bgTransparent ? '8px 8px' : undefined,
         width: '100%',
         height,
         maxWidth: w,
@@ -1922,14 +1926,24 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
   const exportImage = async () => {
     const p = page;
     if (p.zones.filter(z => !z.hidden).length === 0) { showToast('Добавьте хотя бы одну зону', 'error'); return; }
+    // JPEG has no alpha channel — cannot be transparent
+    const fmtOut: ImageFormat = p.bgTransparent && imgFormat === 'jpeg' ? 'png' : imgFormat;
+    if (p.bgTransparent && imgFormat === 'jpeg') {
+      showToast('JPEG не хранит прозрачность — экспортирую PNG', 'warning');
+    }
     setIsBusy(true);
     try {
       const ex = exportPixelSize(p, exportScale);
       const canvas = renderPageToCanvas(p, images, ex.scale, wmSpec);
-      const blob = await canvasToBlob(canvas, imgFormat, imgQuality / 100);
-      const ext = imgFormat === 'jpeg' ? 'jpg' : imgFormat;
+      const blob = await canvasToBlob(canvas, fmtOut, imgQuality / 100);
+      const ext = fmtOut === 'jpeg' ? 'jpg' : fmtOut;
       downloadBlob(blob, `collage_${Date.now()}.${ext}`);
-      showToast(`${fmtDef.label} · ${ex.outW}×${ex.outH}`, 'success');
+      showToast(
+        p.bgTransparent
+          ? `${fmtDef.label} · ${ex.outW}×${ex.outH} · прозрачный (${fmtOut.toUpperCase()})`
+          : `${fmtDef.label} · ${ex.outW}×${ex.outH}`,
+        'success',
+      );
     } catch (e: any) {
       showToast(e?.message || 'Ошибка', 'error');
     } finally {
@@ -3649,12 +3663,22 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
                   {([['png', 'PNG'], ['jpeg', 'JPEG'], ['webp', 'WebP']] as const).map(([f, label]) => (
                     <button key={f}
                       onClick={() => setImgFormat(f)}
+                      title={f === 'jpeg' && bgTransparent ? 'JPEG не поддерживает прозрачность' : undefined}
                       className="px-2 py-1.5 rounded-lg font-mono text-[10px]"
-                      style={imgFormat === f ? { background: 'var(--color-primary)', color: '#000' } : { background: 'rgba(255,255,255,0.05)', color: '#888' }}>
-                      {label}
+                      style={imgFormat === f
+                        ? { background: 'var(--color-primary)', color: '#000' }
+                        : f === 'jpeg' && bgTransparent
+                          ? { background: 'rgba(255,255,255,0.04)', color: '#555' }
+                          : { background: 'rgba(255,255,255,0.05)', color: '#888' }}>
+                      {label}{f === 'jpeg' && bgTransparent ? ' ✕' : ''}
                     </button>
                   ))}
                 </div>
+                {bgTransparent && (
+                  <p className="font-mono text-[8px] text-gray-500 px-1 mb-1 leading-snug">
+                    прозрачный фон: PNG / WebP (альфа). JPEG — только залитый фон (формат без альфы).
+                  </p>
+                )}
                 {imgFormat !== 'png' && (
                   <label className="font-mono text-[9px] text-gray-500 px-1 block mb-1">
                     Качество {imgQuality}%

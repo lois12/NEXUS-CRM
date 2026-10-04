@@ -36,7 +36,8 @@ function flattenOnWhite(canvas: HTMLCanvasElement): HTMLCanvasElement {
 }
 
 export function canvasToBlob(canvas: HTMLCanvasElement, format: ImageFormat, quality = 0.92): Promise<Blob> {
-  const src = format === 'png' ? canvas : flattenOnWhite(canvas);
+  // PNG and WebP keep alpha — only JPEG has no transparency
+  const src = format === 'jpeg' ? flattenOnWhite(canvas) : canvas;
   const mime = format === 'png' ? 'image/png' : format === 'jpeg' ? 'image/jpeg' : 'image/webp';
   return new Promise((resolve, reject) => {
     src.toBlob(b => b ? resolve(b) : reject(new Error('Canvas → blob failed')), mime, quality);
@@ -44,7 +45,7 @@ export function canvasToBlob(canvas: HTMLCanvasElement, format: ImageFormat, qua
 }
 
 export function canvasToDataUrl(canvas: HTMLCanvasElement, format: ImageFormat, quality = 0.92): string {
-  const src = format === 'png' ? canvas : flattenOnWhite(canvas);
+  const src = format === 'jpeg' ? flattenOnWhite(canvas) : canvas;
   const mime = format === 'png' ? 'image/png' : format === 'jpeg' ? 'image/jpeg' : 'image/webp';
   return src.toDataURL(mime, quality);
 }
