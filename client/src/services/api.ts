@@ -203,10 +203,13 @@ export const dashboardApi = {
   getHealth: (): Promise<ApiResponse<any>> =>
     api.get('/dashboard/health').then((res) => res.data),
 
-  getMaintenance: (): Promise<ApiResponse<{ active: boolean }>> =>
+  getMaintenance: (): Promise<ApiResponse<{ pages: string[] }>> =>
     api.get('/dashboard/maintenance').then((res) => res.data),
 
-  toggleMaintenance: (): Promise<ApiResponse<{ active: boolean }>> =>
+  setMaintenancePages: (pages: string[]): Promise<ApiResponse<{ pages: string[] }>> =>
+    api.post('/dashboard/maintenance', { pages }).then((res) => res.data),
+
+  toggleMaintenance: (): Promise<ApiResponse<{ pages: string[] }>> =>
     api.post('/dashboard/maintenance/toggle').then((res) => res.data),
 
   getPostsByDay: (): Promise<ApiResponse<{ date: string; count: number }[]>> =>

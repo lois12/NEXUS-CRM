@@ -1,30 +1,43 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Wrench, AlertTriangle } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
 import { dashboardApi } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { isPathMaintained } from '../../config/maintPages';
 
+/** Shows maintenance screen on selected pages for everyone except super_admin */
 export default function MaintenanceOverlay() {
-  const { user } = useAuth();
-  const [active, setActive] = useState(false);
+  const { user, hasRole } = useAuth();
+  const location = useLocation();
+  const [pages, setPages] = useState<string[]>([]);
+
+  const isSuper =
+    user?.role === 'super_admin' ||
+    (user?.roles?.length ? user.roles.includes('super_admin') : false) ||
+    hasRole('super_admin');
 
   useEffect(() => {
-    // Super admins don't see the overlay
-    if (user?.role === 'super_admin') return;
-
     const check = async () => {
       try {
         const res = await dashboardApi.getMaintenance();
-        if (res.success && res.data) setActive(res.data.active);
+        if (res.success && res.data) setPages(res.data.pages || []);
       } catch {}
     };
-
     check();
-    const interval = setInterval(check, 60000);
+    const interval = setInterval(check, 30000);
     return () => clearInterval(interval);
-  }, [user]);
+  }, []);
 
-  if (!active || user?.role === 'super_admin') return null;
+  if (isSuper) return null;
+
+  // only inside the app shell (not public /login, /reg, /control)
+  const path = location.pathname;
+  if (path.startsWith('/login') || path.startsWith('/reg/') || path.startsWith('/control') || path.startsWith('/w/')) {
+    return null;
+  }
+
+  if (!isPathMaintained(path, pages)) return null;
 
   return (
     <AnimatePresence>
@@ -34,7 +47,6 @@ export default function MaintenanceOverlay() {
         className="fixed inset-0 z-[9999] flex items-center justify-center"
         style={{ backgroundColor: 'rgba(10, 10, 15, 0.97)', backdropFilter: 'blur(20px)' }}
       >
-        {/* Scanline */}
         <motion.div
           initial={{ top: '-2px' }}
           animate={{ top: '100%' }}
@@ -66,10 +78,10 @@ export default function MaintenanceOverlay() {
           <div className="h-[1px] mx-auto mb-4" style={{ background: 'linear-gradient(90deg, transparent, rgba(234,179,8,0.3), transparent)', maxWidth: 200 }} />
 
           <p className="font-mono text-sm mb-2" style={{ color: '#6b7280' }}>
-            Система находится на техобслуживании.
+            На этой странице ведётся техобслуживание и добавление контента.
           </p>
           <p className="font-mono text-xs" style={{ color: '#4a4a60' }}>
-            Пожалуйста, попробуйте позже.
+            Зайдите позже.
           </p>
 
           <motion.div

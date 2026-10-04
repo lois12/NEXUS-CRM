@@ -3,8 +3,11 @@ import { motion } from 'framer-motion';
 import {
   Server, Cpu, HardDrive, Database, Clock, Activity,
   RefreshCw, MemoryStick, Globe, Zap, Wrench, AlertTriangle,
+  CheckSquare, Square, Save,
 } from 'lucide-react';
 import { dashboardApi } from '../services/api';
+import { MAINT_PAGES } from '../config/maintPages';
+import { showToast } from '../components/ui/NexusModal';
 
 function formatBytes(bytes: number): string {
   if (bytes === 0) return '0 B';
@@ -53,7 +56,10 @@ export default function AdminMonitoring() {
   const [health, setHealth] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [maintenance, setMaintenance] = useState(false);
+  /** selected page paths for maintenance */
+  const [maintSel, setMaintSel] = useState<string[]>([]);
+  const [maintSaved, setMaintSaved] = useState<string[]>([]);
+  const [saving, setSaving] = useState(false);
 
   const fetchHealth = async () => {
     try {
@@ -64,7 +70,10 @@ export default function AdminMonitoring() {
       ]);
       if (healthRes.success) setHealth(healthRes.data);
       else setError('Ошибка загрузки');
-      if (maintRes.success && maintRes.data) setMaintenance(maintRes.data.active);
+      if (maintRes.success && maintRes.data) {
+        setMaintSel(maintRes.data.pages || []);
+        setMaintSaved(maintRes.data.pages || []);
+      }
     } catch {
       setError('Нет доступа или сервер недоступен');
     } finally {
@@ -72,12 +81,31 @@ export default function AdminMonitoring() {
     }
   };
 
-  const toggleMaintenance = async () => {
-    try {
-      const res = await dashboardApi.toggleMaintenance();
-      if (res.success && res.data) setMaintenance(res.data.active);
-    } catch {}
+  const togglePage = (path: string) => {
+    setMaintSel(prev => prev.includes(path) ? prev.filter(p => p !== path) : [...prev, path]);
   };
+
+  const saveMaintenance = async () => {
+    setSaving(true);
+    try {
+      const res = await dashboardApi.setMaintenancePages(maintSel);
+      if (res.success && res.data) {
+        setMaintSel(res.data.pages);
+        setMaintSaved(res.data.pages);
+        showToast(res.data.pages.length ? `ТО: ${res.data.pages.length} стр.` : 'ТО выключено', 'success');
+      } else {
+        showToast('Не удалось сохранить', 'error');
+      }
+    } catch {
+      showToast('Ошибка сохранения', 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const clearAll = () => setMaintSel([]);
+
+  const selectAll = () => setMaintSel(MAINT_PAGES.map(p => p.path));
 
   useEffect(() => {
     fetchHealth();
@@ -131,35 +159,86 @@ export default function AdminMonitoring() {
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} style={{ color: 'var(--color-primary)' }} />
           </button>
-          <button
-            onClick={toggleMaintenance}
-            className="flex items-center gap-2 px-3 py-2 rounded-lg font-mono text-xs font-bold transition-all"
-            style={maintenance
-              ? { backgroundColor: 'rgba(234,179,8,0.15)', color: '#eab308', border: '1px solid rgba(234,179,8,0.3)' }
-              : { backgroundColor: 'rgba(255,255,255,0.05)', color: '#6b7280', border: '1px solid rgba(255,255,255,0.1)' }
-            }
-          >
-            <Wrench className="w-4 h-4" />
-            {maintenance ? 'ОТКЛЮЧИТЬ ТО' : 'ТЕХОБСЛУЖИВАНИЕ'}
-          </button>
         </div>
       </div>
 
-      {/* Maintenance banner */}
-      {maintenance && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex items-center gap-3 px-4 py-3 rounded-xl"
-          style={{ backgroundColor: 'rgba(234,179,8,0.1)', border: '1px solid rgba(234,179,8,0.2)' }}
-        >
-          <AlertTriangle className="w-5 h-5 flex-shrink-0" style={{ color: '#eab308' }} />
+      {/* Per-page maintenance */}
+      <div className="glass rounded-xl p-4 space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <p className="font-mono text-sm font-bold" style={{ color: '#eab308' }}>РЕЖИМ ТЕХОБСЛУЖИВАНИЯ АКТИВЕН</p>
-            <p className="font-mono text-xs" style={{ color: '#6b7280' }}>Все пользователи кроме super_admin видят экран обслуживания</p>
+            <h3 className="font-mono text-xs font-bold tracking-wider flex items-center gap-2" style={{ color: '#eab308' }}>
+              <Wrench className="w-4 h-4" /> ТЕХОБСЛУЖИВАНИЕ ПО СТРАНИЦАМ
+            </h3>
+            <p className="font-mono text-[10px] mt-1" style={{ color: '#6b7280' }}>
+              отмеченные страницы скрываются для всех, кроме super_admin
+            </p>
           </div>
-        </motion.div>
-      )}
+          <div className="flex gap-2 flex-wrap">
+            <button onClick={selectAll} className="px-2 py-1.5 rounded-lg font-mono text-[10px]"
+              style={{ backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#6b7280' }}>
+              ВСЕ
+            </button>
+            <button onClick={clearAll} className="px-2 py-1.5 rounded-lg font-mono text-[10px]"
+              style={{ backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#6b7280' }}>
+              СНЯТЬ ВСЕ
+            </button>
+            <button
+              onClick={saveMaintenance}
+              disabled={saving}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-mono text-[10px] font-bold transition-all disabled:opacity-50"
+              style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}
+            >
+              <Save className="w-3.5 h-3.5" />
+              {saving ? 'СОХРАНЕНИЕ…' : 'СОХРАНИТЬ'}
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1.5 max-h-72 overflow-y-auto pr-1">
+          {MAINT_PAGES.map(({ path, label }) => {
+            const on = maintSel.includes(path);
+            const dirty = maintSel.includes(path) !== maintSaved.includes(path);
+            return (
+              <button
+                key={path}
+                type="button"
+                onClick={() => togglePage(path)}
+                className="flex items-center gap-2 px-2.5 py-2 rounded-lg text-left transition-all"
+                style={{
+                  backgroundColor: on ? 'rgba(234,179,8,0.12)' : 'rgba(255,255,255,0.03)',
+                  border: on
+                    ? '1px solid rgba(234,179,8,0.35)'
+                    : dirty
+                      ? '1px dashed rgba(234,179,8,0.4)'
+                      : '1px solid rgba(255,255,255,0.06)',
+                }}
+              >
+                {on
+                  ? <CheckSquare className="w-4 h-4 flex-shrink-0" style={{ color: '#eab308' }} />
+                  : <Square className="w-4 h-4 flex-shrink-0" style={{ color: '#4a4a60' }} />}
+                <span className="font-mono text-[11px] truncate" style={{ color: on ? '#eab308' : '#9ca3af' }}>
+                  {label}
+                </span>
+                <span className="font-mono text-[8px] ml-auto flex-shrink-0" style={{ color: '#4a4a60' }}>{path}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {maintSaved.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex items-center gap-3 px-3 py-2 rounded-xl"
+            style={{ backgroundColor: 'rgba(234,179,8,0.1)', border: '1px solid rgba(234,179,8,0.2)' }}
+          >
+            <AlertTriangle className="w-4 h-4 flex-shrink-0" style={{ color: '#eab308' }} />
+            <p className="font-mono text-[11px]" style={{ color: '#eab308' }}>
+              Активно ТО: {maintSaved.length} стр. — пользователи видят «зайдите позже»
+            </p>
+          </motion.div>
+        )}
+      </div>
 
       {/* Stats grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

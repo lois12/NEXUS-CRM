@@ -2,25 +2,69 @@ import { Router, Response } from 'express';
 import os from 'os';
 import fs from 'fs';
 import path from 'path';
-import { get, query } from '../db/database';
+import { get, query, run } from '../db/database';
 import { authenticateToken, requireRole, AuthRequest } from '../middleware/auth';
 import { DB_PATH, UPLOADS_DIR } from '../paths';
 
 const router = Router();
 
-// Maintenance mode — public, no auth
-let maintenanceMode = false;
+// Per-page maintenance (paths). Public GET, super_admin write.
+// Persisted in app_settings so it survives restarts.
+const MAINT_KEY = 'maintenancePages';
 
+function readMaintPages(): string[] {
+  const row = get('SELECT value FROM app_settings WHERE key = ?', [MAINT_KEY]);
+  if (!row?.value) return [];
+  try {
+    const parsed = JSON.parse(row.value);
+    return Array.isArray(parsed) ? parsed.filter((x) => typeof x === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeMaintPages(pages: string[]): void {
+  const value = JSON.stringify(pages);
+  run(
+    `INSERT INTO app_settings (key, value, updatedAt) VALUES (?, ?, datetime('now'))
+     ON CONFLICT(key) DO UPDATE SET value = excluded.value, updatedAt = datetime('now')`,
+    [MAINT_KEY, value],
+  );
+}
+
+// Public: which pages are under maintenance
 router.get('/maintenance', (req, res) => {
-  res.json({ success: true, data: { active: maintenanceMode } });
+  res.json({ success: true, data: { pages: readMaintPages() } });
 });
 
 // All other routes require auth
 router.use(authenticateToken);
 
+// Save maintenance pages (replace list)
+router.post('/maintenance', requireRole('super_admin'), (req: AuthRequest, res: Response) => {
+  const body = req.body as { pages?: unknown };
+  const pages = Array.isArray(body?.pages)
+    ? body.pages.filter((x): x is string => typeof x === 'string' && x.startsWith('/'))
+    : null;
+  if (!pages) {
+    return res.status(400).json({ success: false, error: 'Нужен массив pages' });
+  }
+  writeMaintPages([...new Set(pages)]);
+  res.json({ success: true, data: { pages: readMaintPages() } });
+});
+
+// Legacy toggle → flip *all* known UI pages as a kill-switch
 router.post('/maintenance/toggle', requireRole('super_admin'), (req: AuthRequest, res: Response) => {
-  maintenanceMode = !maintenanceMode;
-  res.json({ success: true, data: { active: maintenanceMode } });
+  const ALL = [
+    '/', '/content', '/materials', '/analytics', '/qr', '/images', '/ideas', '/kanban',
+    '/partners', '/vacations', '/inventory', '/events', '/projects', '/knowledge',
+    '/ping', '/random', '/weather', '/image-converter', '/doc-converter', '/photo-collage',
+    '/short-links', '/ai-chat', '/bg-remover', '/aurora', '/brandbank', '/registrations',
+    '/widgets', '/lists', '/profile',
+  ];
+  const cur = readMaintPages();
+  writeMaintPages(cur.length > 0 ? [] : ALL);
+  res.json({ success: true, data: { pages: readMaintPages() } });
 });
 
 const startTime = Date.now();
