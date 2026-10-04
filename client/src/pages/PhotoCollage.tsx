@@ -1392,12 +1392,13 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
     if (!el) return;
     let t: ReturnType<typeof setTimeout> | null = null;
     const onWheel = (e: WheelEvent) => {
+      // never let wheel over the canvas scroll the page
+      e.preventDefault();
       const node = (e.target as HTMLElement)?.closest('[data-zone-id]') as HTMLElement | null;
       const zid = node?.dataset.zoneId;
       if (!zid) return;
       const z = zones.find(x => x.id === zid);
       if (!z?.imgId) return;
-      e.preventDefault();
       const factor = e.deltaY < 0 ? 1.08 : 1 / 1.08;
       zoomPhoto(zid, factor, false);
       if (t) clearTimeout(t);
@@ -1912,7 +1913,11 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
         ))}
       </div>
 
-      <div id="collage-editor" className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+      {/* two columns: canvas stays put (desktop), only the right inspector scrolls */}
+      <div
+        id="collage-editor"
+        className="grid grid-cols-1 lg:grid-cols-4 gap-4 lg:h-[calc(100dvh-210px)] lg:overflow-hidden"
+      >
         {/* Page navigator — compact on mobile, strip on desktop + sheet manager */}
         <div className="lg:col-span-4 glass rounded-xl p-2 sm:p-3 relative z-0">
           {/* always: pager controls */}
@@ -2107,8 +2112,8 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
           </div>
         )}
 
-        {/* Canvas */}
-        <div className="lg:col-span-3 space-y-4">
+        {/* Canvas — sticky on mobile, fixed column on desktop (no page scroll-away) */}
+        <div className="lg:col-span-3 flex flex-col gap-4 min-h-0 lg:overflow-hidden">
           <div
             ref={canvasRef}
             onClick={drawing ? onCanvasClick : undefined}
@@ -2116,19 +2121,20 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
             onPointerMove={toolMode !== 'draw' ? onCanvasPointerMove : onZonePointerMove}
             onPointerUp={toolMode !== 'draw' ? onCanvasPointerUp : onZonePointerUp}
             id="collage-canvas"
-            className="relative mx-auto rounded-xl overflow-hidden select-none"
+            className="relative mx-auto rounded-xl overflow-hidden select-none sticky top-0 z-20 lg:static lg:shrink-0"
             style={{
               width: '100%',
               // fullscreen: fill available height (kills the dead zone at the bottom)
               maxWidth: isFull ? `min(100%, calc((100vh - 220px) * ${fmt.w / fmt.h}))` : 560,
-              maxHeight: isFull ? 'calc(100vh - 220px)' : undefined,
+              maxHeight: isFull ? 'calc(100vh - 220px)' : 'min(70dvh, calc((100dvh - 260px) * ' + (fmt.w / fmt.h) + '))',
               aspectRatio: `${fmt.w} / ${fmt.h}`,
               background: bgTransparent ? CHECKER_BG : bgColor,
               backgroundSize: bgTransparent ? '16px 16px' : undefined,
               borderRadius: `${outerRadius}%`,
               cursor: toolMode === 'draw' ? (drawing ? 'crosshair' : 'default') : 'crosshair',
               border: '1px solid rgba(255,255,255,0.1)',
-              touchAction: toolMode !== 'draw' ? 'none' : undefined,
+              // touch/wheel on canvas must not scroll the page
+              touchAction: 'none',
             }}
           >
             {/* zones */}
@@ -2364,8 +2370,8 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
             </div>
           )}
 
-          {/* Photo tray */}
-          <div className="glass rounded-xl p-3 space-y-2">
+          {/* Photo tray — under canvas, scrolls on mobile only */}
+          <div className="glass rounded-xl p-3 space-y-2 lg:overflow-y-auto lg:min-h-0">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <label className="font-mono text-xs text-gray-500 flex items-center gap-2">
                 <Move className="w-3.5 h-3.5" /> ФОТО ({images.length}) — ПЕРЕТАЩИТЕ НА ЗОНУ ИЛИ КЛИКНИТЕ
@@ -2409,8 +2415,8 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
           </div>
         </div>
 
-        {/* Inspector — accordions */}
-        <div className="space-y-2">
+        {/* Inspector — own scroll, canvas stays visible */}
+        <div className="space-y-2 lg:overflow-y-auto lg:pr-1 lg:min-h-0">
           <Acc title="Канвас" defaultOpen>
             <div>
               <label className="font-mono text-[10px] text-gray-500 mb-1 block">ФОН СТРАНИЦЫ</label>
