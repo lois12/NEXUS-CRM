@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import {
   Square, PenTool, Image as ImageIcon, X, Download,
-  Trash2, Copy, Layers, Move, Maximize2, Minimize2, Type, Pencil,
+  Trash2, Copy, Layers, Maximize2, Minimize2, Type, Pencil,
   ArrowLeft, Eye, EyeOff, Lock, Unlock, ChevronDown, ChevronRight,
   Eraser, Lasso, History, Stamp,
 } from 'lucide-react';
@@ -2596,8 +2596,49 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
           </div>
         )}
 
-        {/* Canvas column — scrolls internally (photo tray at bottom); canvas sticks to top */}
-        <div className="lg:col-span-3 flex flex-col gap-4 min-h-0 lg:overflow-y-auto lg:overscroll-contain">
+        {/* Canvas column — photo tray on TOP (always visible), canvas below */}
+        <div className="lg:col-span-3 flex flex-col gap-2 min-h-0 lg:overflow-y-auto lg:overscroll-contain">
+          {/* Photo tray — compact strip above canvas */}
+          <div className="glass rounded-xl p-2 shrink-0 flex items-center gap-2">
+            <button onClick={() => fileInputRef.current?.click()}
+              className="shrink-0 px-2.5 py-2 rounded-lg font-mono text-[10px] glass hover:bg-white/10 flex items-center gap-1"
+              title="Загрузить фото">
+              <ImageIcon className="w-3.5 h-3.5" /> + ФОТО
+            </button>
+            <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden"
+              onChange={e => { if (e.target.files) addImage(e.target.files); e.target.value = ''; }} />
+            <div className="flex-1 min-w-0 flex gap-1.5 overflow-x-auto">
+              {images.map(im => (
+                <div
+                  key={im.id}
+                  draggable
+                  onDragStart={e => { e.dataTransfer.setData('text/photo', im.id); }}
+                  onClick={() => { if (selId) updateZone(selId, { imgId: im.id }); else showToast('Сначала выберите зону', 'error'); }}
+                  className="relative shrink-0 w-10 h-10 rounded-md overflow-hidden border border-white/10 cursor-grab active:cursor-grabbing hover:border-[var(--color-primary)] transition-colors"
+                  title="Перетащите на зону или клик — в выбранную"
+                >
+                  <img src={im.preview} alt="" className="w-full h-full object-cover pointer-events-none" />
+                </div>
+              ))}
+              {images.length === 0 && (
+                <span className="font-mono text-[9px] text-gray-600 self-center">
+                  {images.length} фото · перетащите на зону или клик по миниатюре
+                </span>
+              )}
+            </div>
+            <span className="shrink-0 font-mono text-[9px] text-gray-500 hidden sm:inline">({images.length})</span>
+            <button
+              onClick={() => {
+                const el = document.getElementById('collage-editor');
+                if (!document.fullscreenElement) el?.requestFullscreen?.();
+                else document.exitFullscreen?.();
+              }}
+              className="shrink-0 p-2 rounded-lg font-mono glass hover:bg-white/10"
+              title="Во весь экран">
+              {isFull ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+            </button>
+          </div>
+
           <div
             ref={canvasRef}
             onClick={drawing || pathDraft !== null ? onCanvasClick : undefined}
@@ -2984,7 +3025,7 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
             </p>
           )}
           {photoEditId && (
-            <div className="glass rounded-lg px-3 py-2 flex items-center justify-between gap-3 flex-wrap">
+            <div className="glass rounded-lg px-3 py-2 flex items-center justify-between gap-3 flex-wrap shrink-0">
               <p className="font-mono text-[10px]" style={{ color: 'var(--color-primary)' }}>
                 РЕЖИМ ФОТО: тяните чтобы сдвинуть · колесо — зум · Esc — выход
               </p>
@@ -2995,50 +3036,6 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
               </div>
             </div>
           )}
-
-          {/* Photo tray — under canvas, scrolls into view in the left column */}
-          <div className="glass rounded-xl p-3 space-y-2 shrink-0">
-            <div className="flex items-center justify-between flex-wrap gap-2">
-              <label className="font-mono text-xs text-gray-500 flex items-center gap-2">
-                <Move className="w-3.5 h-3.5" /> ФОТО ({images.length}) — ПЕРЕТАЩИТЕ НА ЗОНУ ИЛИ КЛИКНИТЕ
-              </label>
-              <div className="flex gap-2">
-                <button onClick={() => fileInputRef.current?.click()}
-                  className="px-3 py-1.5 rounded-lg font-mono text-xs glass hover:bg-white/10 flex items-center gap-1">
-                  <ImageIcon className="w-3 h-3" /> ДОБАВИТЬ
-                </button>
-                <button
-                  onClick={() => {
-                    const el = document.getElementById('collage-editor');
-                    if (!document.fullscreenElement) el?.requestFullscreen?.();
-                    else document.exitFullscreen?.();
-                  }}
-                  className="px-3 py-1.5 rounded-lg font-mono text-xs glass hover:bg-white/10 flex items-center gap-1"
-                  title="Во весь экран">
-                  {isFull ? <Minimize2 className="w-3 h-3" /> : <Maximize2 className="w-3 h-3" />}
-                  {isFull ? 'СВЕРНУТЬ' : 'НА ВЕСЬ ЭКРАН'}
-                </button>
-              </div>
-              <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden"
-                onChange={e => { if (e.target.files) addImage(e.target.files); e.target.value = ''; }} />
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {images.map(im => (
-                <div
-                  key={im.id}
-                  draggable
-                  onDragStart={e => { e.dataTransfer.setData('text/photo', im.id); }}
-                  onClick={() => { if (selId) updateZone(selId, { imgId: im.id }); else showToast('Сначала выберите зону', 'error'); }}
-                  className="relative w-16 h-16 rounded-lg overflow-hidden border border-white/10 cursor-grab active:cursor-grabbing hover:border-[var(--color-primary)] transition-colors"
-                >
-                  <img src={im.preview} alt="" className="w-full h-full object-cover pointer-events-none" />
-                </div>
-              ))}
-              {images.length === 0 && (
-                <p className="font-mono text-[10px] text-gray-600">добавьте фото, затем перетащите на зону</p>
-              )}
-            </div>
-          </div>
         </div>
 
         {/* Inspector — own scroll, canvas stays visible */}
