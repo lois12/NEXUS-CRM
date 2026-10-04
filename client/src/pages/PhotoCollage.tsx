@@ -214,7 +214,35 @@ function drawFitted(
     : Math.min(w / img.width, h / img.height);
   const dw = img.width * scale;
   const dh = img.height * scale;
-  ctx.drawImage(img, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
+
+  // Quality fix: single-step downscale of a 4000px photo to ~500px aliases hard.
+  // Halve progressively through intermediate canvases (mip-mapping by hand),
+  // then do the final draw with high smoothing.
+  let source: CanvasImageSource = img;
+  let sw = img.width;
+  let sh = img.height;
+  if (scale < 0.5 && sw > 256 && sh > 256) {
+    let cur: HTMLCanvasElement | null = null;
+    while (sw * 0.5 > dw && sh * 0.5 > dh) {
+      const next = document.createElement('canvas');
+      next.width = Math.max(1, Math.round(sw / 2));
+      next.height = Math.max(1, Math.round(sh / 2));
+      const nctx = next.getContext('2d');
+      if (!nctx) break;
+      nctx.imageSmoothingEnabled = true;
+      nctx.imageSmoothingQuality = 'high';
+      nctx.drawImage(source, 0, 0, next.width, next.height);
+      source = next;
+      sw = next.width;
+      sh = next.height;
+      cur = next;
+    }
+    void cur;
+  }
+
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(source, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
 }
 
 function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
@@ -251,6 +279,7 @@ export default function PhotoCollage() {
   const [drawPts, setDrawPts] = useState<Pt[]>([]);
   const [isBusy, setIsBusy] = useState(false);
   const [isFull, setIsFull] = useState(false);
+  const [exportScale, setExportScale] = useState<1 | 2>(2);
   const canvasRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragRef = useRef<{ mode: 'move' | 'resize'; zone: Zone; startX: number; startY: number; orig: Zone } | null>(null);
@@ -415,10 +444,12 @@ export default function PhotoCollage() {
     setIsBusy(true);
     try {
       const canvas = document.createElement('canvas');
-      canvas.width = fmt.w;
-      canvas.height = fmt.h;
+      canvas.width = fmt.w * exportScale;
+      canvas.height = fmt.h * exportScale;
       const ctx = canvas.getContext('2d');
       if (!ctx) throw new Error('Canvas недоступен');
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
 
       // background with optional outer radius clip
       const outerR = (outerRadius / 100) * Math.min(fmt.w, fmt.h) / 2;
@@ -830,6 +861,21 @@ export default function PhotoCollage() {
               <label className="font-mono text-[10px] text-gray-500 mb-1 block">ЗАКРУГЛЕНИЕ КАРТИНКИ: {outerRadius}%</label>
               <input type="range" min={0} max={50} value={outerRadius} onChange={e => setOuterRadius(+e.target.value)} className="w-full accent-[var(--color-primary)]" />
             </div>
+            <div>
+              <label className="font-mono text-[10px] text-gray-500 mb-1 block">КАЧЕСТВО ЭКСПОРТА</label>
+              <div className="flex gap-2">
+                {([1, 2] as const).map(s => (
+                  <button key={s} onClick={() => setExportScale(s)}
+                    className="flex-1 py-2 rounded-lg font-mono text-xs transition-all"
+                    style={exportScale === s
+                      ? { background: 'var(--color-primary)', color: '#000' }
+                      : { background: 'rgba(255,255,255,0.05)', color: '#888' }}>
+                    {s === 1 ? `1x (${fmt.w}px)` : `2x (${fmt.w * 2}px)`}
+                  </button>
+                ))}
+              </div>
+              <p className="font-mono text-[9px] text-gray-600 mt-1">2x — детализация для печати</p>
+            </div>
           </div>
 
           {sel ? (
@@ -988,7 +1034,7 @@ export default function PhotoCollage() {
             onClick={exportPng} disabled={isBusy || zones.length === 0}
             className="w-full py-3 rounded-xl font-mono text-sm font-bold transition-all disabled:opacity-50 flex items-center justify-center gap-2"
             style={{ background: 'var(--color-primary)', color: '#000' }}>
-            <Download className="w-4 h-4" /> {isBusy ? 'ЭКСПОРТ...' : `СКАЧАТЬ PNG (${fmt.w}×${fmt.h})`}
+            <Download className="w-4 h-4" /> {isBusy ? 'ЭКСПОРТ...' : `СКАЧАТЬ PNG (${fmt.w * exportScale}×${fmt.h * exportScale})`}
           </motion.button>
 
           {zones.length > 0 && (
