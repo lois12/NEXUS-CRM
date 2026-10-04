@@ -1,6 +1,6 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { X, Grid2x2, Grid3x3, LayoutGrid, Image as ImageIcon } from 'lucide-react';
+import { X, Grid2x2, Grid3x3, LayoutGrid, Image as ImageIcon, Move } from 'lucide-react';
 import { showToast } from '../components/ui/NexusModal';
 
 type LayoutId = 'auto' | 'grid2' | 'grid3' | 'row' | 'col' | 'hero';
@@ -11,7 +11,7 @@ const LAYOUTS: { id: LayoutId; label: string; icon: typeof Grid2x2; desc: string
   { id: 'grid3', label: '3×3', icon: Grid3x3, desc: 'Квадрат 3×3' },
   { id: 'row', label: 'Горизонталь', icon: LayoutGrid, desc: 'В один ряд' },
   { id: 'col', label: 'Вертикаль', icon: LayoutGrid, desc: 'В одну колонку' },
-  { id: 'hero', label: '1+2', icon: LayoutGrid, desc: 'Крупная + две' },
+  { id: 'hero', label: '1+2', icon: LayoutGrid, desc: 'Крупная слева + остальные справа' },
 ];
 
 interface ImgItem {
@@ -21,7 +21,11 @@ interface ImgItem {
   img?: HTMLImageElement;
 }
 
+/** Grid cell in abstract grid units (col/row spans) */
+interface Cell { col: number; row: number; colSpan: number; rowSpan: number }
+
 const MAX_IMAGES = 9;
+const CELL = 400; // export cell size in px
 
 function formatFileSize(bytes: number): string {
   if (bytes === 0) return '0 B';
@@ -31,6 +35,51 @@ function formatFileSize(bytes: number): string {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 }
 
+/** Compute grid geometry for N images and a layout. Shared by preview + export. */
+function computeCells(count: number, layout: LayoutId): { cols: number; rows: number; cells: Cell[] } {
+  if (count <= 0) return { cols: 1, rows: 1, cells: [] };
+  const n = count;
+
+  if (layout === 'row') {
+    return { cols: n, rows: 1, cells: Array.from({ length: n }, (_, i) => ({ col: i, row: 0, colSpan: 1, rowSpan: 1 })) };
+  }
+  if (layout === 'col') {
+    return { cols: 1, rows: n, cells: Array.from({ length: n }, (_, i) => ({ col: 0, row: i, colSpan: 1, rowSpan: 1 })) };
+  }
+  if (layout === 'hero') {
+    // big cell on the left spanning all rows, remaining images stacked in the right column
+    const rows = Math.max(2, n - 1);
+    const cells: Cell[] = [{ col: 0, row: 0, colSpan: 1, rowSpan: rows }];
+    for (let i = 1; i < n; i++) {
+      cells.push({ col: 1, row: i - 1, colSpan: 1, rowSpan: 1 });
+    }
+    return { cols: 2, rows, cells };
+  }
+  if (layout === 'grid2') {
+    const cols = 2;
+    const rows = Math.ceil(n / cols);
+    return {
+      cols, rows,
+      cells: Array.from({ length: n }, (_, i) => ({ col: i % cols, row: Math.floor(i / cols), colSpan: 1, rowSpan: 1 })),
+    };
+  }
+  if (layout === 'grid3') {
+    const cols = 3;
+    const rows = Math.ceil(n / cols);
+    return {
+      cols, rows,
+      cells: Array.from({ length: n }, (_, i) => ({ col: i % cols, row: Math.floor(i / cols), colSpan: 1, rowSpan: 1 })),
+    };
+  }
+  // auto
+  const cols = Math.ceil(Math.sqrt(n));
+  const rows = Math.ceil(n / cols);
+  return {
+    cols, rows,
+    cells: Array.from({ length: n }, (_, i) => ({ col: i % cols, row: Math.floor(i / cols), colSpan: 1, rowSpan: 1 })),
+  };
+}
+
 export default function PhotoCollage() {
   const [images, setImages] = useState<ImgItem[]>([]);
   const [layout, setLayout] = useState<LayoutId>('auto');
@@ -38,7 +87,50 @@ export default function PhotoCollage() {
   const [bgColor, setBgColor] = useState('#0a0a0f');
   const [isBusy, setIsBusy] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  // swap-by-tap (touch devices): first tap selects, second tap swaps
+  const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const { cols, rows, cells } = useMemo(() => computeCells(images.length, layout), [images.length, layout]);
+
+  // Live preview canvas
+  const previewRef = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const canvas = previewRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const scale = 0.5; // preview cell = 200px
+    const cw = CELL * scale;
+    const g = gap * scale;
+    const W = cols * cw + (cols + 1) * g;
+    const H = rows * cw + (rows + 1) * g;
+    canvas.width = W;
+    canvas.height = H;
+
+    ctx.fillStyle = bgColor;
+    ctx.fillRect(0, 0, W, H);
+
+    const drawCover = (img: HTMLImageElement, x: number, y: number, w: number, h: number) => {
+      const s = Math.max(w / img.width, h / img.height);
+      const sw = img.width * s;
+      const sh = img.height * s;
+      ctx.drawImage(img, x + (w - sw) / 2, y + (h - sh) / 2, sw, sh);
+    };
+
+    images.forEach((item, i) => {
+      const im = item.img;
+      const cell = cells[i];
+      if (!im || !cell) return;
+      const x = g + cell.col * (cw + g);
+      const y = g + cell.row * (cw + g);
+      const w = cell.colSpan * cw + (cell.colSpan - 1) * g;
+      const h = cell.rowSpan * cw + (cell.rowSpan - 1) * g;
+      drawCover(im, x, y, w, h);
+    });
+  }, [images, layout, gap, bgColor, cols, rows, cells]);
 
   const addFiles = useCallback(async (files: FileList | File[]) => {
     const arr = Array.from(files).filter(f => f.type.startsWith('image/'));
@@ -66,15 +158,28 @@ export default function PhotoCollage() {
       if (item) URL.revokeObjectURL(item.preview);
       return prev.filter(i => i.id !== id);
     });
+    setSelectedIdx(null);
   };
 
-  const moveItem = (from: number, to: number) => {
+  /** Swap two images in place (order = position in collage) */
+  const swapItems = (a: number, b: number) => {
+    if (a === b) return;
     setImages(prev => {
       const next = [...prev];
-      const [m] = next.splice(from, 1);
-      next.splice(to, 0, m);
+      [next[a], next[b]] = [next[b], next[a]];
       return next;
     });
+  };
+
+  const handleTapCell = (idx: number) => {
+    if (selectedIdx === null) {
+      setSelectedIdx(idx);
+    } else if (selectedIdx === idx) {
+      setSelectedIdx(null);
+    } else {
+      swapItems(selectedIdx, idx);
+      setSelectedIdx(null);
+    }
   };
 
   const buildCollage = async () => {
@@ -84,25 +189,11 @@ export default function PhotoCollage() {
       const loaded = images.filter(i => i.img);
       if (loaded.length < 2) throw new Error('Изображения не загрузились');
 
-      // Determine grid
-      const n = loaded.length;
-      let cols: number;
-      let rows: number;
-      if (layout === 'grid2') { cols = 2; rows = 2; }
-      else if (layout === 'grid3') { cols = 3; rows = 3; }
-      else if (layout === 'row') { cols = n; rows = 1; }
-      else if (layout === 'col') { cols = 1; rows = n; }
-      else if (layout === 'hero') { cols = 2; rows = 2; }
-      else {
-        cols = Math.ceil(Math.sqrt(n));
-        rows = Math.ceil(n / cols);
-      }
-
-      const cellW = 400;
-      const cellH = 400;
+      const g = gap;
+      const geometry = computeCells(loaded.length, layout);
       const canvas = document.createElement('canvas');
-      canvas.width = cols * cellW + (cols + 1) * gap;
-      canvas.height = rows * cellH + (rows + 1) * gap;
+      canvas.width = geometry.cols * CELL + (geometry.cols + 1) * g;
+      canvas.height = geometry.rows * CELL + (geometry.rows + 1) * g;
       const ctx = canvas.getContext('2d');
       if (!ctx) throw new Error('Canvas недоступен');
 
@@ -110,33 +201,22 @@ export default function PhotoCollage() {
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
       const drawCover = (img: HTMLImageElement, x: number, y: number, w: number, h: number) => {
-        const scale = Math.max(w / img.width, h / img.height);
-        const sw = img.width * scale;
-        const sh = img.height * scale;
+        const s = Math.max(w / img.width, h / img.height);
+        const sw = img.width * s;
+        const sh = img.height * s;
         ctx.drawImage(img, x + (w - sw) / 2, y + (h - sh) / 2, sw, sh);
       };
 
-      if (layout === 'hero' && loaded[0]?.img && loaded[1]?.img) {
-        // 1 big left + up to 2 stacked right
-        const bigW = cellW + gap / 2;
-        drawCover(loaded[0].img, gap, gap, bigW, rows * cellH + gap);
-        for (let i = 1; i < Math.min(loaded.length, 3); i++) {
-          const r = i - 1;
-          const im = loaded[i].img;
-          if (im) drawCover(im, bigW + gap * 2, gap + r * (cellH + gap), cellW / 2, cellH);
-        }
-        // leftover images fill remaining cells in the right column if any
-      } else {
-        loaded.forEach((item, i) => {
-          const im = item.img;
-          if (!im) return;
-          const c = i % cols;
-          const r = Math.floor(i / cols);
-          const x = gap + c * (cellW + gap);
-          const y = gap + r * (cellH + gap);
-          drawCover(im, x, y, cellW, cellH);
-        });
-      }
+      loaded.forEach((item, i) => {
+        const im = item.img;
+        const cell = geometry.cells[i];
+        if (!im || !cell) return;
+        const x = g + cell.col * (CELL + g);
+        const y = g + cell.row * (CELL + g);
+        const w = cell.colSpan * CELL + (cell.colSpan - 1) * g;
+        const h = cell.rowSpan * CELL + (cell.rowSpan - 1) * g;
+        drawCover(im, x, y, w, h);
+      });
 
       canvas.toBlob(blob => {
         if (!blob) { showToast('Ошибка сборки', 'error'); setIsBusy(false); return; }
@@ -216,29 +296,91 @@ export default function PhotoCollage() {
           onChange={e => { if (e.target.files) addFiles(e.target.files); e.target.value = ''; }} />
       </div>
 
-      {/* Preview strip with reorder */}
+      {/* ── LIVE PREVIEW with drag & swap ── */}
       {images.length > 0 && (
         <div className="glass rounded-2xl p-4 space-y-3">
-          <label className="font-mono text-xs text-gray-500 block">ИЗОБРАЖЕНИЯ ({images.length}) — ПЕРЕТАСКИВАЙТЕ ДЛЯ ПОРЯДКА</label>
-          <div className="flex flex-wrap gap-2">
-            {images.map((im, i) => (
-              <div key={im.id} draggable
-                onDragStart={e => e.dataTransfer.setData('text/plain', String(i))}
-                onDragOver={e => e.preventDefault()}
-                onDrop={e => {
-                  e.preventDefault();
-                  const from = parseInt(e.dataTransfer.getData('text/plain'), 10);
-                  if (!isNaN(from) && from !== i) moveItem(from, i);
-                }}
-                className="relative w-20 h-20 rounded-lg overflow-hidden border border-white/10 cursor-grab active:cursor-grabbing">
-                <img src={im.preview} alt="" className="w-full h-full object-cover pointer-events-none" />
-                <button onClick={() => removeItem(im.id)}
-                  className="absolute top-0.5 right-0.5 p-0.5 rounded bg-black/60 hover:bg-black/80" aria-label="Удалить">
-                  <X className="w-3 h-3 text-white" />
-                </button>
-                <span className="absolute bottom-0 left-0 right-0 text-center font-mono text-[8px] bg-black/50 text-white">{i + 1}</span>
-              </div>
-            ))}
+          <div className="flex items-center justify-between">
+            <label className="font-mono text-xs text-gray-500 flex items-center gap-2">
+              <Move className="w-3.5 h-3.5" /> ПРЕВЬЮ — ПЕРЕТАСКИВАЙТЕ ИЛИ ТАПАЙТЕ ДЛЯ СМЕНЫ МЕСТ
+            </label>
+            <span className="font-mono text-[10px] text-gray-600">{cols}×{rows}</span>
+          </div>
+
+          {/* Real collage layout — each cell is a droppable target */}
+          <div
+            className="grid w-full max-w-2xl mx-auto rounded-xl overflow-hidden"
+            style={{
+              gridTemplateColumns: `repeat(${cols}, 1fr)`,
+              gridTemplateRows: `repeat(${rows}, 1fr)`,
+              gap: `${Math.max(2, gap / 4)}px`,
+              background: bgColor,
+              aspectRatio: `${cols} / ${rows}`,
+            }}
+          >
+            {cells.map((cell, i) => {
+              const im = images[i];
+              const isSelected = selectedIdx === i;
+              const isDragging = dragIdx === i;
+              return (
+                <div
+                  key={im?.id ?? `empty-${i}`}
+                  draggable={!!im}
+                  onDragStart={e => {
+                    if (!im) return;
+                    e.dataTransfer.setData('text/plain', String(i));
+                    e.dataTransfer.effectAllowed = 'move';
+                    setDragIdx(i);
+                  }}
+                  onDragEnd={() => setDragIdx(null)}
+                  onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
+                  onDrop={e => {
+                    e.preventDefault();
+                    const from = parseInt(e.dataTransfer.getData('text/plain'), 10);
+                    if (!isNaN(from) && from !== i) swapItems(from, i);
+                    setDragIdx(null);
+                  }}
+                  onClick={() => im && handleTapCell(i)}
+                  style={{
+                    gridColumn: `${cell.col + 1} / span ${cell.colSpan}`,
+                    gridRow: `${cell.row + 1} / span ${cell.rowSpan}`,
+                    opacity: isDragging ? 0.4 : 1,
+                    outline: isSelected ? '3px solid var(--color-primary)' : 'none',
+                    outlineOffset: '-3px',
+                    cursor: im ? (isSelected ? 'grabbing' : 'grab') : 'default',
+                    position: 'relative',
+                  }}
+                  className="overflow-hidden transition-all hover:brightness-110"
+                >
+                  {im ? (
+                    <>
+                      <img src={im.preview} alt="" draggable={false} className="w-full h-full object-cover pointer-events-none" />
+                      <span className="absolute bottom-1 left-1 font-mono text-[9px] px-1.5 py-0.5 rounded bg-black/60 text-white pointer-events-none">
+                        {i + 1}
+                      </span>
+                      <button onClick={e => { e.stopPropagation(); removeItem(im.id); }}
+                        className="absolute top-1 right-1 p-0.5 rounded bg-black/60 hover:bg-black/80" aria-label="Удалить">
+                        <X className="w-3 h-3 text-white" />
+                      </button>
+                      {isSelected && (
+                        <span className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                          <span className="font-mono text-[9px] px-2 py-1 rounded bg-black/70 text-white">ТАПНИ ДРУГОЕ</span>
+                        </span>
+                      )}
+                    </>
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-gray-600">
+                      <ImageIcon className="w-5 h-5 opacity-30" />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Export preview canvas (what will be saved) */}
+          <div className="text-center space-y-2">
+            <label className="font-mono text-[10px] text-gray-500 block">ИТОГ (400px/ЯЧЕЙКА)</label>
+            <canvas ref={previewRef} className="max-w-full max-h-64 rounded-lg border border-white/10 inline-block" />
           </div>
 
           <div className="flex gap-2 pt-2">
@@ -246,9 +388,9 @@ export default function PhotoCollage() {
               onClick={buildCollage} disabled={isBusy || images.length < 2}
               className="flex-1 py-2.5 rounded-xl font-mono text-sm font-bold transition-all disabled:opacity-50"
               style={{ background: 'var(--color-primary)', color: '#000' }}>
-              {isBusy ? 'СБОРКА...' : `СОБРАТЬ КОЛЛАЖ (${images.length})`}
+              {isBusy ? 'СБОРКА...' : `СКАЧАТЬ PNG (${images.length})`}
             </motion.button>
-            <button onClick={() => { images.forEach(i => URL.revokeObjectURL(i.preview)); setImages([]); }}
+            <button onClick={() => { images.forEach(i => URL.revokeObjectURL(i.preview)); setImages([]); setSelectedIdx(null); }}
               className="px-4 py-2.5 rounded-xl glass text-gray-400 hover:text-gray-200 font-mono text-sm">
               ОЧИСТИТЬ
             </button>
@@ -258,7 +400,7 @@ export default function PhotoCollage() {
 
       {images.length > 0 && (
         <p className="font-mono text-[10px] text-gray-600">
-          {formatFileSize(images.reduce((s, i) => s + i.file.size, 0))} исходников • вывод PNG 400px/ячейка
+          {formatFileSize(images.reduce((s, i) => s + i.file.size, 0))} исходников • PNG • {cols}×{rows}
         </p>
       )}
     </div>
