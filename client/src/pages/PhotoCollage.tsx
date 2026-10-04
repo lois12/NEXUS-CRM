@@ -15,7 +15,11 @@ import {
 } from '../utils/collageStore';
 
 // ── Types ─────────────────────────────────────────────────────
-type ShapeType = 'rect' | 'circle' | 'ellipse' | 'diamond' | 'polygon' | 'text' | 'triangle' | 'star' | 'heart' | 'hexagon' | 'arch';
+type ShapeType =
+  | 'rect' | 'circle' | 'ellipse' | 'polygon' | 'text'
+  | 'triangle' | 'star' | 'heart' | 'hexagon' | 'arch' | 'diamond'
+  | 'semicircle' | 'cloud' | 'drop' | 'cross' | 'arrowR' | 'arrowU'
+  | 'pentagon' | 'octagon' | 'squircle' | 'spark' | 'blob' | 'bolt' | 'flower' | 'chevron';
 type FitMode = 'cover' | 'contain';
 type TextAlign = 'left' | 'center' | 'right';
 
@@ -377,6 +381,31 @@ const uid = () => Math.random().toString(36).slice(2);
 
 function clamp(v: number, a: number, b: number) { return Math.min(b, Math.max(a, v)); }
 
+/** sample a closed parametric curve t∈[0,1) into polygon points */
+function sampleCurve(fn: (t: number) => Pt, n = 48): Pt[] {
+  const pts: Pt[] = [];
+  for (let i = 0; i < n; i++) pts.push(fn(i / n));
+  return pts;
+}
+
+function regularPoly(n: number, rot = -Math.PI / 2, r = 0.5): Pt[] {
+  const pts: Pt[] = [];
+  for (let i = 0; i < n; i++) {
+    const a = (Math.PI * 2 * i) / n + rot;
+    pts.push({ x: 0.5 + r * Math.cos(a), y: 0.5 + r * Math.sin(a) });
+  }
+  return pts;
+}
+
+function arcPts(cx: number, cy: number, rx: number, ry: number, a0: number, a1: number, n = 16): Pt[] {
+  const pts: Pt[] = [];
+  for (let i = 0; i <= n; i++) {
+    const a = a0 + ((a1 - a0) * i) / n;
+    pts.push({ x: cx + rx * Math.cos(a), y: cy + ry * Math.sin(a) });
+  }
+  return pts;
+}
+
 /** Unit-shape polygon points (0..1 inside the zone bbox) for decorative shapes */
 function shapePoints(type: ShapeType): Pt[] {
   switch (type) {
@@ -384,14 +413,12 @@ function shapePoints(type: ShapeType): Pt[] {
       return [{ x: 0.5, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 1 }];
     case 'diamond':
       return [{ x: 0.5, y: 0 }, { x: 1, y: 0.5 }, { x: 0.5, y: 1 }, { x: 0, y: 0.5 }];
-    case 'hexagon': {
-      const pts: Pt[] = [];
-      for (let i = 0; i < 6; i++) {
-        const a = (Math.PI / 3) * i - Math.PI / 2;
-        pts.push({ x: 0.5 + 0.5 * Math.cos(a), y: 0.5 + 0.5 * Math.sin(a) });
-      }
-      return pts;
-    }
+    case 'hexagon':
+      return regularPoly(6, -Math.PI / 2);
+    case 'pentagon':
+      return regularPoly(5, -Math.PI / 2);
+    case 'octagon':
+      return regularPoly(8, -Math.PI / 8);
     case 'star': {
       const pts: Pt[] = [];
       for (let i = 0; i < 10; i++) {
@@ -421,6 +448,102 @@ function shapePoints(type: ShapeType): Pt[] {
       pts.push({ x: 1, y: 1 });
       return pts;
     }
+    case 'semicircle': {
+      // flat bottom, dome top
+      const pts: Pt[] = [];
+      for (let i = 0; i <= 32; i++) {
+        const t = (i / 32) * Math.PI;
+        pts.push({ x: 0.5 + 0.5 * Math.cos(t), y: 1 - Math.sin(t) });
+      }
+      return pts;
+    }
+    case 'cloud': {
+      // cartoon cloud: flat-ish bottom + three lobes
+      return [
+        { x: 0.1, y: 0.82 },
+        { x: 0.9, y: 0.82 },
+        ...arcPts(0.72, 0.58, 0.2, 0.26, 0, -Math.PI, 12),
+        ...arcPts(0.5, 0.42, 0.26, 0.3, 0, -Math.PI, 14),
+        ...arcPts(0.28, 0.58, 0.2, 0.26, 0, -Math.PI, 12),
+      ];
+    }
+    case 'drop': {
+      // teardrop: tip at top, round bulb at bottom
+      return [
+        { x: 0.5, y: 0.02 },
+        { x: 0.62, y: 0.18 },
+        { x: 0.78, y: 0.4 },
+        ...arcPts(0.5, 0.62, 0.32, 0.36, 0.2, Math.PI - 0.2, 18),
+        { x: 0.22, y: 0.4 },
+        { x: 0.38, y: 0.18 },
+      ];
+    }
+    case 'cross':
+      return [
+        { x: 0.35, y: 0 }, { x: 0.65, y: 0 }, { x: 0.65, y: 0.35 },
+        { x: 1, y: 0.35 }, { x: 1, y: 0.65 }, { x: 0.65, y: 0.65 },
+        { x: 0.65, y: 1 }, { x: 0.35, y: 1 }, { x: 0.35, y: 0.65 },
+        { x: 0, y: 0.65 }, { x: 0, y: 0.35 }, { x: 0.35, y: 0.35 },
+      ];
+    case 'arrowR':
+      return [
+        { x: 0, y: 0.32 }, { x: 0.58, y: 0.32 }, { x: 0.58, y: 0.08 },
+        { x: 1, y: 0.5 }, { x: 0.58, y: 0.92 }, { x: 0.58, y: 0.68 }, { x: 0, y: 0.68 },
+      ];
+    case 'arrowU':
+      return [
+        { x: 0.32, y: 1 }, { x: 0.32, y: 0.42 }, { x: 0.08, y: 0.42 },
+        { x: 0.5, y: 0 }, { x: 0.92, y: 0.42 }, { x: 0.68, y: 0.42 }, { x: 0.68, y: 1 },
+      ];
+    case 'chevron':
+      return [
+        { x: 0.05, y: 0.12 }, { x: 0.5, y: 0.5 }, { x: 0.05, y: 0.88 },
+        { x: 0.32, y: 0.88 }, { x: 0.78, y: 0.5 }, { x: 0.32, y: 0.12 },
+      ];
+    case 'squircle': {
+      // superellipse |x|^4 + |y|^4 = 1 (iOS-style continuous corner)
+      return sampleCurve(t => {
+        const a = t * Math.PI * 2;
+        const c = Math.cos(a), s = Math.sin(a);
+        const e = 0.5; // 2/n with n=4
+        return {
+          x: 0.5 + 0.5 * Math.sign(c) * Math.pow(Math.abs(c), e),
+          y: 0.5 + 0.5 * Math.sign(s) * Math.pow(Math.abs(s), e),
+        };
+      }, 64);
+    }
+    case 'spark': {
+      // 4-point sparkle with concave sides
+      return sampleCurve(t => {
+        const a = t * Math.PI * 2 - Math.PI / 2;
+        // sharp at axes, pinched between
+        const lobe = Math.pow(Math.abs(Math.cos(2 * a)), 0.35);
+        const r = 0.08 + 0.42 * lobe;
+        return { x: 0.5 + r * Math.cos(a), y: 0.5 + r * Math.sin(a) };
+      }, 64);
+    }
+    case 'blob': {
+      // organic pebble
+      return sampleCurve(t => {
+        const a = t * Math.PI * 2;
+        const r = 0.4 + 0.08 * Math.sin(3 * a) + 0.05 * Math.cos(5 * a) + 0.03 * Math.sin(7 * a);
+        return { x: 0.5 + r * Math.cos(a), y: 0.5 + r * Math.sin(a) };
+      }, 56);
+    }
+    case 'bolt':
+      // lightning
+      return [
+        { x: 0.58, y: 0 }, { x: 0.22, y: 0.52 }, { x: 0.44, y: 0.52 },
+        { x: 0.32, y: 1 }, { x: 0.82, y: 0.42 }, { x: 0.56, y: 0.42 }, { x: 0.78, y: 0 },
+      ];
+    case 'flower': {
+      // 6-petal rosette
+      return sampleCurve(t => {
+        const a = t * Math.PI * 2;
+        const r = 0.22 + 0.28 * Math.abs(Math.cos(3 * a));
+        return { x: 0.5 + r * Math.cos(a), y: 0.5 + r * Math.sin(a) };
+      }, 72);
+    }
     case 'polygon':
       return []; // uses z.points
     default:
@@ -429,7 +552,7 @@ function shapePoints(type: ShapeType): Pt[] {
 }
 
 function isPolyShape(t: ShapeType): boolean {
-  return t === 'polygon' || t === 'triangle' || t === 'star' || t === 'heart' || t === 'hexagon' || t === 'arch' || t === 'diamond';
+  return t !== 'rect' && t !== 'circle' && t !== 'ellipse' && t !== 'text';
 }
 
 /** CSS clip-path for non-rect shapes (preview) */
@@ -1201,25 +1324,43 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
             <Square className="w-3.5 h-3.5" /> ▾
           </button>
           {shapeMenuOpen && (
-            <div className="absolute left-0 top-full mt-1 z-[999] p-2 rounded-xl grid grid-cols-3 gap-1"
-              style={{ background: 'linear-gradient(135deg, rgba(20,20,35,0.98), rgba(10,10,20,0.99))', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 8px 32px rgba(0,0,0,0.5)', width: 190 }}>
-              {([
-                ['rect', 'M4 4h16v16H4z'],
-                ['circle', 'M12 4a8 8 0 1 0 0 16 8 8 0 0 0 0-16z'],
-                ['ellipse', 'M12 5c4.4 0 8 2.7 8 6s-3.6 6-8 6-8-2.7-8-6 3.6-6 8-6z'],
-                ['diamond', 'M12 3l9 9-9 9-9-9z'],
-                ['triangle', 'M12 4l9 16H3z'],
-                ['star', 'M12 3l2.2 6.2 6.8.2-5.3 4.3 1.9 6.5-5.6-3.8-5.6 3.8 1.9-6.5L3 9.4l6.8-.2z'],
-                ['heart', 'M12 20s-8-4.7-8-10a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 10c0 5.3-8 10-8 10z'],
-                ['hexagon', 'M12 3l8 4.5v9L12 21l-8-4.5v-9z'],
-                ['arch', 'M4 20v-8a8 8 0 0 1 16 0v8z'],
-              ] as const).map(([t, d]) => (
-                <button key={t} onClick={() => { addShape(t); setShapeMenuOpen(false); }}
-                  className="p-2.5 rounded-lg hover:bg-white/10 flex items-center justify-center"
-                  title={t}>
-                  <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="var(--color-primary)" strokeWidth="1.8"><path d={d} /></svg>
-                </button>
-              ))}
+            <div className="absolute left-0 top-full mt-1 z-[999] p-2 rounded-xl"
+              style={{ background: 'linear-gradient(135deg, rgba(20,20,35,0.98), rgba(10,10,20,0.99))', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 8px 32px rgba(0,0,0,0.5)', width: 280, maxHeight: 360, overflowY: 'auto' }}>
+              <div className="font-mono text-[9px] text-gray-500 px-1 pb-1 uppercase tracking-wider">Фигуры</div>
+              <div className="grid grid-cols-4 gap-1">
+                {([
+                  ['rect', 'Прямоугольник', 'M4 4h16v16H4z'],
+                  ['circle', 'Круг', 'M12 4a8 8 0 1 0 0 16 8 8 0 0 0 0-16z'],
+                  ['ellipse', 'Эллипс', 'M12 5c4.4 0 8 2.7 8 6s-3.6 6-8 6-8-2.7-8-6 3.6-6 8-6z'],
+                  ['squircle', 'Скруглённый квадрат', 'M7 4h10c1.7 0 3 1.3 3 3v10c0 1.7-1.3 3-3 3H7c-1.7 0-3-1.3-3-3V7c0-1.7 1.3-3 3-3z'],
+                  ['diamond', 'Ромб', 'M12 3l9 9-9 9-9-9z'],
+                  ['triangle', 'Треугольник', 'M12 4l9 16H3z'],
+                  ['pentagon', 'Пятиугольник', 'M12 3l9 6.5-3.4 10.5H6.4L3 9.5z'],
+                  ['hexagon', 'Шестиугольник', 'M12 3l8 4.5v9L12 21l-8-4.5v-9z'],
+                  ['octagon', 'Восьмиугольник', 'M8 3h8l5 5v8l-5 5H8l-5-5V8z'],
+                  ['semicircle', 'Полукруг', 'M3 17a9 9 0 0 1 18 0z'],
+                  ['arch', 'Арка', 'M4 20v-8a8 8 0 0 1 16 0v8z'],
+                  ['star', 'Звезда', 'M12 3l2.2 6.2 6.8.2-5.3 4.3 1.9 6.5-5.6-3.8-5.6 3.8 1.9-6.5L3 9.4l6.8-.2z'],
+                  ['spark', 'Искра', 'M12 2l2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2z'],
+                  ['heart', 'Сердце', 'M12 20s-8-4.7-8-10a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 10c0 5.3-8 10-8 10z'],
+                  ['flower', 'Цветок', 'M12 8a4 4 0 0 1 4 4 4 4 0 0 1-4 4 4 4 0 0 1-4-4 4 4 0 0 1 4-4zm0-6a3 3 0 0 1 2 5.2A3 3 0 0 1 18 9a3 3 0 0 1-1 5.8A3 3 0 0 1 12 20a3 3 0 0 1-5-5.2A3 3 0 0 1 6 9a3 3 0 0 1 4-3z'],
+                  ['cloud', 'Облако', 'M6 18h11a4 4 0 0 0 .5-8 6 6 0 0 0-11.2 2A3.5 3.5 0 0 0 6 18z'],
+                  ['drop', 'Капля', 'M12 3s6 7 6 11a6 6 0 1 1-12 0c0-4 6-11 6-11z'],
+                  ['blob', 'Пятно', 'M12 3c4 0 8 2.5 8 7.5S17 21 10 21 3 16 4 10 8 3 12 3z'],
+                  ['cross', 'Крест', 'M9 3h6v6h6v6h-6v6H9v-6H3V9h6z'],
+                  ['bolt', 'Молния', 'M13 2L5 14h6l-2 8 10-14h-6z'],
+                  ['arrowR', 'Стрелка →', 'M3 8h12V5l6 6-6 6v-3H3z'],
+                  ['arrowU', 'Стрелка ↑', 'M8 21V9H5l7-8 7 8h-3v12z'],
+                  ['chevron', 'Шеврон', 'M5 4l8 8-8 8 3 3 11-11L8 1z'],
+                ] as const).map(([t, label, d]) => (
+                  <button key={t} onClick={() => { addShape(t); setShapeMenuOpen(false); }}
+                    className="p-2 rounded-lg hover:bg-white/10 flex flex-col items-center justify-center gap-0.5"
+                    title={label}>
+                    <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="var(--color-primary)" strokeWidth="1.6" strokeLinejoin="round"><path d={d} /></svg>
+                    <span className="font-mono text-[7px] text-gray-500 leading-tight text-center">{label}</span>
+                  </button>
+                ))}
+              </div>
             </div>
           )}
         </div>
