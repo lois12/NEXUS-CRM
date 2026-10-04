@@ -3,10 +3,16 @@ import { motion } from 'framer-motion';
 import {
   Square, PenTool, Image as ImageIcon, X, Download,
   Trash2, Copy, Layers, Move, Maximize2, Minimize2, Type, Pencil,
+  ArrowLeft,
 } from 'lucide-react';
 import { PDFDocument } from 'pdf-lib';
 import JSZip from 'jszip';
 import { showToast } from '../components/ui/NexusModal';
+import CollageLobby from '../components/CollageLobby';
+import {
+  getProject, saveProject, patchProjectMeta, formatRuDate,
+  fileToDataUrl, dataUrlToImage,
+} from '../utils/collageStore';
 
 // ── Types ─────────────────────────────────────────────────────
 type ShapeType = 'rect' | 'circle' | 'ellipse' | 'diamond' | 'polygon' | 'text' | 'triangle' | 'star' | 'heart' | 'hexagon' | 'arch';
@@ -45,8 +51,8 @@ interface Zone {
 
 interface ImgItem {
   id: string;
-  file: File;
   preview: string;
+  dataUrl?: string; // for project persistence
   img?: HTMLImageElement;
 }
 
@@ -571,7 +577,7 @@ function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number)
 
 
 // ── Component ─────────────────────────────────────────────────
-export default function PhotoCollage() {
+function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () => void }) {
   const [pages, setPages] = useState<CollagePage[]>(() => [createPage('Страница 1')]);
   const [activeIdx, setActiveIdx] = useState(0);
   const [formatMenuOpen, setFormatMenuOpen] = useState(false);
@@ -589,11 +595,78 @@ export default function PhotoCollage() {
   const [pageDragIdx, setPageDragIdx] = useState<number | null>(null);
   /** zone id in "adjust photo inside" mode (drag = pan photo, not move zone) */
   const [photoEditId, setPhotoEditId] = useState<string | null>(null);
+  const [projectMeta, setProjectMeta] = useState<{ name: string; description: string; updatedAt: number } | null>(null);
+  const [metaDraft, setMetaDraft] = useState<{ name: string; description: string } | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // alignment guides shown while dragging (snap to center/edges)
   const [guides, setGuides] = useState<{ v: number | null; h: number | null }>({ v: null, h: null });
   const canvasRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragRef = useRef<{ mode: 'move' | 'resize' | 'photo-pan'; zone: Zone; startX: number; startY: number; orig: Zone } | null>(null);
+
+  // load project from IndexedDB
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const p = await getProject(projectId);
+        if (cancelled) return;
+        if (!p) {
+          showToast('Проект не найден', 'error');
+          onExit();
+          return;
+        }
+        const parsed = JSON.parse(p.pagesJson) as CollagePage[];
+        const restored = parsed.map(pg => ({
+          ...pg,
+          history: [pg.zones.map(z => ({ ...z }))],
+          histIdx: 0,
+        }));
+        const imgs: ImgItem[] = [];
+        for (const s of p.images) {
+          try {
+            const img = await dataUrlToImage(s.dataUrl);
+            imgs.push({ id: s.id, preview: s.dataUrl, dataUrl: s.dataUrl, img });
+          } catch { /* skip broken */ }
+        }
+        if (cancelled) return;
+        setPages(restored.length ? restored : [createPage('Страница 1')]);
+        setActiveIdx(0);
+        setImages(imgs);
+        setProjectMeta({ name: p.name, description: p.description, updatedAt: p.updatedAt });
+      } catch {
+        showToast('Ошибка загрузки проекта', 'error');
+      } finally {
+        if (!cancelled) setLoaded(true);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [projectId, onExit]);
+
+  // debounced autosave
+  useEffect(() => {
+    if (!loaded || !projectMeta) return;
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(async () => {
+      try {
+        await saveProject({
+          id: projectId,
+          name: projectMeta.name,
+          description: projectMeta.description,
+          updatedAt: Date.now(),
+          pageCount: pages.length,
+          pagesJson: JSON.stringify(pages.map(({ history: _h, histIdx: _i, ...rest }) => rest)),
+          images: images.filter(i => i.dataUrl).map(i => ({ id: i.id, dataUrl: i.dataUrl! })),
+        });
+        setProjectMeta(m => m ? { ...m, updatedAt: Date.now() } : m);
+      } catch {
+        /* silent — next change retries */
+      }
+    }, 600);
+    return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pages, images, loaded, projectId]);
 
   const page = pages[Math.min(activeIdx, pages.length - 1)] ?? pages[0];
   const {
@@ -719,10 +792,10 @@ export default function PhotoCollage() {
     const arr = Array.from(files).filter(f => f.type.startsWith('image/'));
     const newItems: ImgItem[] = [];
     for (const f of arr) {
-      const preview = URL.createObjectURL(f);
+      const dataUrl = await fileToDataUrl(f);
       const img = new Image();
-      await new Promise<void>(res => { img.onload = () => res(); img.onerror = () => res(); img.src = preview; });
-      newItems.push({ id: uid(), file: f, preview, img });
+      await new Promise<void>(res => { img.onload = () => res(); img.onerror = () => res(); img.src = dataUrl; });
+      newItems.push({ id: uid(), preview: dataUrl, dataUrl, img });
     }
     setImages(prev => [...prev, ...newItems]);
   }, []);
@@ -1026,12 +1099,85 @@ export default function PhotoCollage() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl md:text-3xl font-bold font-mono neon-text flex items-center gap-3" style={{ color: 'var(--color-primary)' }}>
-          <Layers className="w-7 h-7" /> КОЛЛАЖ — РЕДАКТОР ЗОН
-        </h1>
-        <p className="text-gray-400 mt-1 font-mono text-sm">// ФИГУРЫ, РИСОВАНИЕ, СВОБОДНЫЕ РАЗМЕРЫ</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={onExit}
+              className="px-2.5 py-1.5 rounded-lg font-mono text-xs glass hover:bg-white/10 flex items-center gap-1"
+              title="К списку проектов"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" /> ПРОЕКТЫ
+            </button>
+            <h1 className="text-2xl md:text-3xl font-bold font-mono neon-text flex items-center gap-3 min-w-0" style={{ color: 'var(--color-primary)' }}>
+              <Layers className="w-7 h-7 shrink-0" />
+              <span className="truncate">{projectMeta?.name || 'КОЛЛАЖ'}</span>
+            </h1>
+            <button
+              onClick={() => setMetaDraft({
+                name: projectMeta?.name || '',
+                description: projectMeta?.description || '',
+              })}
+              className="p-1.5 rounded-lg hover:bg-white/10 text-gray-500 hover:text-gray-200"
+              title="Имя / описание проекта"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+            </button>
+          </div>
+          {projectMeta?.description && (
+            <p className="text-gray-400 mt-1 font-mono text-xs">{projectMeta.description}</p>
+          )}
+          <p className="text-gray-500 mt-0.5 font-mono text-[10px]">
+            {projectMeta ? `изм. ${formatRuDate(projectMeta.updatedAt)}` : ''} · ФИГУРЫ, ФОТО, СТРАНИЦЫ, PDF/ZIP
+          </p>
+        </div>
       </div>
+
+      {/* project meta editor */}
+      {metaDraft && projectMeta && (
+        <div className="glass rounded-xl p-4 space-y-3">
+          <label className="font-mono text-xs text-gray-500 block">ПРОЕКТ</label>
+          <div>
+            <label className="font-mono text-[10px] text-gray-500 mb-1 block">ИМЯ</label>
+            <input
+              value={metaDraft.name}
+              onChange={e => setMetaDraft(d => d ? { ...d, name: e.target.value } : d)}
+              className="w-full px-2 py-2 rounded font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none"
+            />
+          </div>
+          <div>
+            <label className="font-mono text-[10px] text-gray-500 mb-1 block">ОПИСАНИЕ</label>
+            <textarea
+              value={metaDraft.description}
+              onChange={e => setMetaDraft(d => d ? { ...d, description: e.target.value } : d)}
+              rows={3}
+              className="w-full px-2 py-2 rounded font-mono text-xs bg-black/30 border border-gray-700 text-gray-200 focus:outline-none resize-none"
+            />
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => setMetaDraft(null)}
+              className="flex-1 py-2 rounded-lg font-mono text-xs glass text-gray-400">ОТМЕНА</button>
+            <button
+              onClick={async () => {
+                const name = metaDraft.name.trim() || projectMeta.name;
+                const description = metaDraft.description.trim();
+                try {
+                  await patchProjectMeta(projectId, { name, description });
+                  setProjectMeta({ name, description, updatedAt: Date.now() });
+                  setMetaDraft(null);
+                  showToast('Сохранено', 'success');
+                } catch {
+                  showToast('Ошибка', 'error');
+                }
+              }}
+              className="flex-1 py-2 rounded-lg font-mono text-xs font-bold"
+              style={{ background: 'var(--color-primary)', color: '#000' }}
+            >
+              СОХРАНИТЬ
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Toolbar — z above page strip (.glass creates stacking contexts via backdrop-filter) */}
       <div className="glass rounded-xl p-3 flex flex-wrap items-center gap-2 relative z-50">
@@ -1975,5 +2121,21 @@ export default function PhotoCollage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// ── Page (lobby ↔ editor) ─────────────────────────────────────
+export default function PhotoCollage() {
+  const [projectId, setProjectId] = useState<string | null>(null);
+
+  if (!projectId) {
+    return <CollageLobby onOpen={id => setProjectId(id)} />;
+  }
+  return (
+    <CollageEditor
+      key={projectId}
+      projectId={projectId}
+      onExit={() => setProjectId(null)}
+    />
   );
 }
