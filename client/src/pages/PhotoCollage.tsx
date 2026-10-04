@@ -5,7 +5,7 @@ import {
   Trash2, Copy, Layers, Move, Maximize2, Minimize2, Type, Pencil,
   ArrowLeft,
 } from 'lucide-react';
-import { PDFDocument } from 'pdf-lib';
+import { PDFDocument, rgb } from 'pdf-lib';
 import JSZip from 'jszip';
 import { showToast } from '../components/ui/NexusModal';
 import CollageLobby from '../components/CollageLobby';
@@ -37,9 +37,11 @@ interface Zone {
   // per-corner rounding (rect) — falls back to `radius` when unset
   corners?: { tl: number; tr: number; br: number; bl: number };
   // photo pan/zoom inside the zone
-  imgZoom?: number;    // 1..3
+  imgZoom?: number;    // 1..5
   imgX?: number;       // -1..1 offset (fraction of zone size)
   imgY?: number;
+  /** photo opacity 0..1 */
+  imgOpacity?: number;
   // border stroke along the shape
   border?: { width: number; color: string }; // width % of half min-side (0..20)
   // text layer
@@ -123,6 +125,8 @@ interface CollagePage {
   customW: number;
   customH: number;
   bgColor: string;
+  /** transparent page bg (PNG alpha; UI shows checkerboard) */
+  bgTransparent?: boolean;
   outerRadius: number;
   zones: Zone[];
   /** per-page undo stack (zone snapshots) */
@@ -149,6 +153,7 @@ function createPage(name: string, from?: CollagePage): CollagePage {
     customW: 1080,
     customH: 1080,
     bgColor: '#0a0a0f',
+    bgTransparent: false,
     outerRadius: 0,
     zones: [],
     history: [[]],
@@ -201,7 +206,7 @@ function canvasToPngBlob(canvas: HTMLCanvasElement): Promise<Blob> {
 
 /** Render a page (any format/zones) to an offscreen canvas at `scale` */
 function renderPageToCanvas(
-  p: Pick<CollagePage, 'format' | 'orient' | 'customW' | 'customH' | 'bgColor' | 'outerRadius' | 'zones'>,
+  p: Pick<CollagePage, 'format' | 'orient' | 'customW' | 'customH' | 'bgColor' | 'bgTransparent' | 'outerRadius' | 'zones'>,
   images: ImgItem[],
   scale: number,
 ): HTMLCanvasElement {
@@ -216,13 +221,15 @@ function renderPageToCanvas(
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
 
-  // background with optional outer radius clip
+  // background with optional outer radius clip (skip fill when transparent → PNG alpha)
   if (p.outerRadius > 0) {
     traceShape(ctx, { id: '', type: 'rect', x: 0, y: 0, w: 1, h: 1, radius: p.outerRadius, imgRadius: 0, fit: 'cover' }, W, H);
     ctx.clip();
   }
-  ctx.fillStyle = p.bgColor;
-  ctx.fillRect(0, 0, W, H);
+  if (!p.bgTransparent) {
+    ctx.fillStyle = p.bgColor;
+    ctx.fillRect(0, 0, W, H);
+  }
 
   for (const z of p.zones) {
     ctx.save();
@@ -266,6 +273,8 @@ function renderPageToCanvas(
     const imgItem = z.imgId ? images.find(i => i.id === z.imgId) : null;
     if (imgItem?.img) {
       ctx.save();
+      const op = z.imgOpacity ?? 1;
+      if (op < 1) ctx.globalAlpha = op;
       if (z.imgRadius > 0) {
         traceImgRound(ctx, z, sz.w * scale, sz.h * scale);
         ctx.clip();
@@ -699,6 +708,10 @@ function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number)
 }
 
 
+/** CSS checkerboard for transparent page preview */
+const CHECKER_BG =
+  'repeating-conic-gradient(rgba(255,255,255,0.08) 0% 25%, transparent 0% 50%) 0 0 / 16px 16px';
+
 /** Mini page preview for the page navigator / sheet */
 function PageThumb({ page: p, images, height }: { page: CollagePage; images: ImgItem[]; height: number }) {
   const sz = resolveSize(p.format, p.orient, p.customW, p.customH);
@@ -706,7 +719,8 @@ function PageThumb({ page: p, images, height }: { page: CollagePage; images: Img
   return (
     <div
       style={{
-        background: p.bgColor,
+        background: p.bgTransparent ? CHECKER_BG : p.bgColor,
+        backgroundSize: p.bgTransparent ? '12px 12px' : undefined,
         width: '100%',
         height,
         maxWidth: w,
@@ -726,6 +740,7 @@ function PageThumb({ page: p, images, height }: { page: CollagePage; images: Img
             background: imgItem ? `url(${imgItem.preview}) center/cover no-repeat` : (z.type === 'text' ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.12)'),
             borderRadius: z.type === 'circle' || z.type === 'ellipse' ? '50%' : 1,
             clipPath: z.type === 'text' ? undefined : clipPathFor(z),
+            opacity: imgItem ? (z.imgOpacity ?? 1) : 1,
           }} />
         );
       })}
@@ -828,7 +843,7 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
 
   const page = pages[Math.min(activeIdx, pages.length - 1)] ?? pages[0];
   const {
-    format, orient, customW, customH, bgColor, outerRadius,
+    format, orient, customW, customH, bgColor, bgTransparent, outerRadius,
     zones, history, histIdx,
   } = page;
 
@@ -860,7 +875,8 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
   const setOrient = (o: Orientation) => patchPage(page.id, { orient: o });
   const setCustomW = (v: number) => patchPage(page.id, { customW: v, format: 'custom' });
   const setCustomH = (v: number) => patchPage(page.id, { customH: v, format: 'custom' });
-  const setBgColor = (v: string) => patchPage(page.id, { bgColor: v });
+  const setBgColor = (v: string) => patchPage(page.id, { bgColor: v, bgTransparent: false });
+  const setBgTransparent = (v: boolean) => patchPage(page.id, { bgTransparent: v });
   const setOuterRadius = (v: number) => patchPage(page.id, { outerRadius: v });
 
   const switchPage = (idx: number) => {
@@ -882,6 +898,7 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
           customW: page.customW,
           customH: page.customH,
           bgColor: page.bgColor,
+          bgTransparent: page.bgTransparent,
           outerRadius: page.outerRadius,
         };
     setPages(prev => [...prev, np]);
@@ -1227,6 +1244,10 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
         const img = await pdf.embedPng(bytes);
         const pt = resolvePt(p);
         const pg = pdf.addPage([pt.w, pt.h]);
+        // PDF has no page alpha — composite transparent PNG onto white
+        if (p.bgTransparent) {
+          pg.drawRectangle({ x: 0, y: 0, width: pt.w, height: pt.h, color: rgb(1, 1, 1) });
+        }
         pg.drawImage(img, { x: 0, y: 0, width: pt.w, height: pt.h });
       }
       const out = await pdf.save();
@@ -1745,7 +1766,8 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
               maxWidth: isFull ? `min(100%, calc((100vh - 220px) * ${fmt.w / fmt.h}))` : 560,
               maxHeight: isFull ? 'calc(100vh - 220px)' : undefined,
               aspectRatio: `${fmt.w} / ${fmt.h}`,
-              background: bgColor,
+              background: bgTransparent ? CHECKER_BG : bgColor,
+              backgroundSize: bgTransparent ? '16px 16px' : undefined,
               borderRadius: `${outerRadius}%`,
               cursor: drawing ? 'crosshair' : 'default',
               border: '1px solid rgba(255,255,255,0.1)',
@@ -1863,6 +1885,7 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
                           // pan/zoom inside the zone
                           transform: `scale(${z.imgZoom || 1}) translate(${(z.imgX || 0) * 30}%, ${(z.imgY || 0) * 30}%)`,
                           transition: 'transform 0.15s ease-out',
+                          opacity: z.imgOpacity ?? 1,
                           pointerEvents: 'none',
                         }}
                       />
@@ -2030,13 +2053,29 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
           <div className="glass rounded-xl p-4 space-y-3">
             <label className="font-mono text-xs text-gray-500 block">КАНВАС</label>
             <div>
-              <label className="font-mono text-[10px] text-gray-500 mb-1 block">ФОН</label>
-              <div className="flex items-center gap-2">
+              <label className="font-mono text-[10px] text-gray-500 mb-1 block">ФОН СТРАНИЦЫ</label>
+              <button
+                type="button"
+                onClick={() => setBgTransparent(!bgTransparent)}
+                className="w-full py-2 rounded-lg font-mono text-xs transition-all mb-2"
+                style={bgTransparent
+                  ? { background: 'var(--color-primary)', color: '#000' }
+                  : { background: 'rgba(255,255,255,0.05)', color: '#888' }}
+                title="PNG с прозрачностью (альфа-канал)"
+              >
+                {bgTransparent ? '✓ ПРОЗРАЧНЫЙ ФОН' : 'ПРОЗРАЧНЫЙ ФОН'}
+              </button>
+              <div className="flex items-center gap-2" style={{ opacity: bgTransparent ? 0.35 : 1 }}>
                 <input type="color" value={bgColor} onChange={e => setBgColor(e.target.value)}
-                  className="w-9 h-9 rounded cursor-pointer bg-transparent border border-white/10" />
+                  disabled={bgTransparent}
+                  className="w-9 h-9 rounded cursor-pointer bg-transparent border border-white/10 disabled:cursor-not-allowed" />
                 <input value={bgColor} onChange={e => setBgColor(e.target.value)}
-                  className="flex-1 px-2 py-1.5 rounded font-mono text-xs bg-black/30 border border-gray-700 text-gray-200 focus:outline-none" />
+                  disabled={bgTransparent}
+                  className="flex-1 px-2 py-1.5 rounded font-mono text-xs bg-black/30 border border-gray-700 text-gray-200 focus:outline-none disabled:opacity-50" />
               </div>
+              <p className="font-mono text-[9px] text-gray-600 mt-1">
+                прозрачный — PNG с альфой; PDF отрендерит белый лист
+              </p>
             </div>
             <div>
               <label className="font-mono text-[10px] text-gray-500 mb-1 block">ЗАКРУГЛЕНИЕ КАРТИНКИ: {outerRadius}%</label>
@@ -2258,6 +2297,14 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
                           className="w-full accent-[var(--color-primary)]" />
                       </label>
                     </div>
+                    <label className="font-mono text-[9px] text-gray-500 mt-2 block">
+                      ПРОЗРАЧНОСТЬ ФОТО: {Math.round((sel.imgOpacity ?? 1) * 100)}%
+                    </label>
+                    <input type="range" min={0} max={100} value={Math.round((sel.imgOpacity ?? 1) * 100)}
+                      onChange={e => updateZone(sel.id, { imgOpacity: +e.target.value / 100 }, false)}
+                      onPointerUp={() => updateZone(sel.id, {})}
+                      onMouseUp={() => updateZone(sel.id, {})}
+                      className="w-full accent-[var(--color-primary)]" />
                   </div>
                   <div>
                     <label className="font-mono text-[10px] text-gray-500 mb-1 block">ЗАЛИВКА ФОТО</label>
