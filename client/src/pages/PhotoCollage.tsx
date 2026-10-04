@@ -1381,6 +1381,11 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
     return () => el.removeEventListener('wheel', onWheel);
   }, []);
 
+  const fitView = () => { setViewZoom(1); setViewPan({ x: 0, y: 0 }); };
+  const zoomAtCenter = (factor: number) => {
+    setViewZoom(z => clamp(z * factor, 0.5, 4));
+  };
+
   const page = pages[Math.min(activeIdx, pages.length - 1)] ?? pages[0];
   const {
     format, orient, customW, customH, bgColor, bgTransparent, outerRadius,
@@ -1785,26 +1790,39 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
     updateZone(id, { imgZoom: zoom }, commit);
   };
 
-  // wheel = zoom photo under cursor (native listener so we can preventDefault)
+  // wheel: zoom WORKSPACE toward cursor; Shift+wheel / photo-mode = zoom photo in zone
   useEffect(() => {
     const el = canvasRef.current;
     if (!el) return;
     let t: ReturnType<typeof setTimeout> | null = null;
     const onWheel = (e: WheelEvent) => {
-      // never let wheel over the canvas scroll the page
       e.preventDefault();
+      const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
+
+      // photo zoom: Shift+wheel, or wheel while in photo-adjust mode over that zone
       const node = (e.target as HTMLElement)?.closest('[data-zone-id]') as HTMLElement | null;
       const zid = node?.dataset.zoneId;
-      if (!zid) return;
-      const z = zones.find(x => x.id === zid);
-      if (!z?.imgId) return;
-      const factor = e.deltaY < 0 ? 1.08 : 1 / 1.08;
-      zoomPhoto(zid, factor, false);
-      if (t) clearTimeout(t);
-      t = setTimeout(() => {
-        const zz = zones.find(x => x.id === zid);
-        if (zz) commitHistory(zones);
-      }, 200);
+      const z = zid ? zones.find(x => x.id === zid) : null;
+      const wantPhoto = (e.shiftKey || !!photoEditId) && z?.imgId && (e.shiftKey || photoEditId === z.id);
+      if (wantPhoto && zid) {
+        zoomPhoto(zid, factor, false);
+        if (t) clearTimeout(t);
+        t = setTimeout(() => commitHistory(zones), 200);
+        return;
+      }
+
+      // workspace zoom toward cursor
+      const rect = el.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      // content point under cursor in untransformed coords
+      const contentX = (e.clientX - cx - viewPan.x) / viewZoom;
+      const contentY = (e.clientY - cy - viewPan.y) / viewZoom;
+      const nz = clamp(viewZoom * factor, 0.5, 4);
+      const npx = e.clientX - cx - contentX * nz;
+      const npy = e.clientY - cy - contentY * nz;
+      setViewZoom(nz);
+      setViewPan({ x: npx, y: npy });
     };
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => {
@@ -1812,7 +1830,7 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
       if (t) clearTimeout(t);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [zones, images]);
+  }, [zones, images, photoEditId, viewZoom, viewPan]);
 
   // Esc exits photo-adjust mode
   useEffect(() => {
@@ -2246,13 +2264,11 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
         <div className="w-px h-6 bg-white/10 mx-1" />
         {/* view zoom / grid */}
         <span className="font-mono text-[10px] text-gray-500">ВИД:</span>
-        {([['50', () => setViewZoom(0.5)], ['100', () => setViewZoom(1)], ['200', () => setViewZoom(2)], ['400', () => setViewZoom(4)]] as const).map(([label, fn]) => (
-          <button key={label} onClick={fn}
-            className="px-2 py-1.5 rounded-lg font-mono text-[10px] glass hover:bg-white/10"
-            title={`${label}% · Alt+колесо — зум · Space+drag — пан`}>
-            {label}%
-          </button>
-        ))}
+        <button onClick={() => zoomAtCenter(1 / 1.25)} className="px-2 py-1.5 rounded-lg font-mono text-[10px] glass hover:bg-white/10" title="Отдалить">−</button>
+        <span className="font-mono text-[10px] text-gray-400 w-10 text-center">{Math.round(viewZoom * 100)}%</span>
+        <button onClick={() => zoomAtCenter(1.25)} className="px-2 py-1.5 rounded-lg font-mono text-[10px] glass hover:bg-white/10" title="Приблизить">+</button>
+        <button onClick={fitView} className="px-2 py-1.5 rounded-lg font-mono text-[10px] glass hover:bg-white/10" title="Вписать (100%)">Вписать</button>
+        <span className="font-mono text-[9px] text-gray-600 hidden xl:inline">колесо — зум · Space+drag — пан · Shift+колесо — зум фото</span>
         <button onClick={() => setShowGrid(v => !v)}
           className="px-2 py-1.5 rounded-lg font-mono text-[10px] transition-all"
           style={showGrid ? { background: 'var(--color-primary)', color: '#000' } : { background: 'rgba(255,255,255,0.05)', color: '#888' }}
@@ -2664,6 +2680,25 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
               overflow: 'hidden',
             }}
           >
+            {/* floating workspace zoom controls */}
+            <div
+              className="absolute left-2 top-2 z-[60] flex items-center gap-0.5 rounded-lg px-1 py-0.5 pointer-events-auto"
+              style={{ background: 'rgba(10,10,20,0.85)', border: '1px solid rgba(255,255,255,0.12)' }}
+            >
+              <button onClick={e => { e.stopPropagation(); zoomAtCenter(1 / 1.2); }}
+                onPointerDown={e => e.stopPropagation()}
+                className="w-7 h-7 rounded font-mono text-sm text-gray-300 hover:bg-white/10">−</button>
+              <button onClick={e => { e.stopPropagation(); fitView(); }}
+                onPointerDown={e => e.stopPropagation()}
+                className="px-1.5 h-7 rounded font-mono text-[10px] text-gray-300 hover:bg-white/10 min-w-[42px]"
+                title="Сбросить зум / пан">
+                {Math.round(viewZoom * 100)}%
+              </button>
+              <button onClick={e => { e.stopPropagation(); zoomAtCenter(1.2); }}
+                onPointerDown={e => e.stopPropagation()}
+                className="w-7 h-7 rounded font-mono text-sm text-gray-300 hover:bg-white/10">+</button>
+            </div>
+
             {/* zoom/pan layer */}
             <div
               style={{
