@@ -15,10 +15,11 @@ import {
   type ProjectVersion,
 } from '../utils/collageStore';
 import { canvasToBlob, exportPdf, exportPptx, downloadBlob, type ImageFormat } from '../utils/collageExport';
+import { CLIPART } from '../utils/collageArt';
 
 // ── Types ─────────────────────────────────────────────────────
 type ShapeType =
-  | 'rect' | 'circle' | 'ellipse' | 'polygon' | 'text' | 'mask'
+  | 'rect' | 'circle' | 'ellipse' | 'polygon' | 'text' | 'mask' | 'art'
   | 'triangle' | 'star' | 'heart' | 'hexagon' | 'arch' | 'diamond'
   | 'semicircle' | 'cloud' | 'drop' | 'cross' | 'arrowR' | 'arrowU'
   | 'pentagon' | 'octagon' | 'squircle' | 'spark' | 'blob' | 'bolt' | 'flower' | 'chevron'
@@ -169,6 +170,72 @@ function drawCurvedLine(
   ctx.textBaseline = 'top';
 }
 
+/** Draw text along a freeform polyline path (zone-relative 0..1 → W/H) */
+function drawPathLine(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  z: Zone,
+  px: number,
+  tracking: number,
+  fill: string | CanvasGradient,
+  strokeCfg: { width: number; color: string } | undefined,
+  W: number,
+  H: number,
+) {
+  const path = z.textPath!;
+  const pts = path.map(p => ({ x: (z.x + p.x * z.w) * W, y: (z.y + p.y * z.h) * H }));
+  // cumulative length
+  const segs: number[] = [];
+  let total = 0;
+  for (let i = 1; i < pts.length; i++) {
+    const d = Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
+    segs.push(d);
+    total += d;
+  }
+  if (total <= 0) return;
+  const chars = [...text];
+  const widths = chars.map(ch => ctx.measureText(ch).width + tracking);
+  const need = widths.reduce((a, b) => a + b, 0);
+  const s = total / Math.max(need, 1);
+  let travel = 0;
+  const prevAlign = ctx.textAlign;
+  const prevBase = ctx.textBaseline;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  for (let i = 0; i < chars.length; i++) {
+    const cw = widths[i];
+    const midT = (travel + cw / 2) * s;
+    // find point + angle at midT
+    let acc = 0;
+    let px0 = pts[0].x, py0 = pts[0].y, ang = 0;
+    for (let j = 1; j < pts.length; j++) {
+      if (acc + segs[j - 1] >= midT || j === pts.length - 1) {
+        const t = segs[j - 1] > 0 ? (midT - acc) / segs[j - 1] : 0;
+        px0 = pts[j - 1].x + (pts[j].x - pts[j - 1].x) * t;
+        py0 = pts[j - 1].y + (pts[j].y - pts[j - 1].y) * t;
+        ang = Math.atan2(pts[j].y - pts[j - 1].y, pts[j].x - pts[j - 1].x);
+        break;
+      }
+      acc += segs[j - 1];
+    }
+    ctx.save();
+    ctx.translate(px0, py0);
+    ctx.rotate(ang);
+    if (strokeCfg && strokeCfg.width > 0) {
+      ctx.lineJoin = 'round';
+      ctx.lineWidth = strokeCfg.width * px * 2;
+      ctx.strokeStyle = strokeCfg.color;
+      ctx.strokeText(chars[i], 0, 0);
+    }
+    ctx.fillStyle = fill;
+    ctx.fillText(chars[i], 0, 0);
+    ctx.restore();
+    travel += cw;
+  }
+  ctx.textAlign = prevAlign;
+  ctx.textBaseline = prevBase;
+}
+
 interface Zone {
   id: string;
   type: ShapeType;
@@ -213,6 +280,15 @@ interface Zone {
   curve?: number;
   /** pill/badge background behind text */
   textBg?: { color: string; padX: number; padY: number; radius: number };
+  /** freeform path for text (zone-relative 0..1); overrides curve */
+  textPath?: Pt[];
+  /** clip this zone's photo to another zone's shape */
+  clipZoneId?: string | null;
+  /** portrait-style blur outside center (0 = off, 1..40 = px-ish) */
+  portraitBlur?: number;
+  /** art clipart */
+  artKey?: string;
+  fillColor?: string;
   // layers
   hidden?: boolean;
   locked?: boolean;
@@ -443,6 +519,10 @@ function renderPageToCanvas(
 
       const strokeCfg = z.stroke;
       const drawLine = (line: string, x: number, y: number) => {
+        if (z.textPath && z.textPath.length >= 2) {
+          drawPathLine(ctx, line, z, px, tracking, fill, strokeCfg, sz.w * scale, sz.h * scale);
+          return;
+        }
         if (!z.curve) {
           if (strokeCfg && strokeCfg.width > 0) {
             ctx.lineJoin = 'round';
@@ -474,7 +554,25 @@ function renderPageToCanvas(
       continue;
     }
     // Shape zone: clip to shape, then to image-round rect, then draw
-    traceShape(ctx, z, sz.w * scale, sz.h * scale);
+    if (z.type === 'art') {
+      const item = CLIPART.find(a => a.key === z.artKey);
+      if (item) {
+        const ax = z.x * sz.w * scale;
+        const ay = z.y * sz.h * scale;
+        const aw = z.w * sz.w * scale;
+        const ah = z.h * sz.h * scale;
+        const p2 = new Path2D(item.path);
+        ctx.save();
+        ctx.translate(ax, ay);
+        ctx.scale(aw / 24, ah / 24);
+        ctx.fillStyle = z.fillColor || 'var(--color-primary)';
+        ctx.fill(p2);
+        ctx.restore();
+      }
+      ctx.restore();
+      continue;
+    }
+    traceShape(ctx, z, sz.w * scale, sz.h * scale, p.zones);
     ctx.clip();
     const imgItem = z.imgId ? images.find(i => i.id === z.imgId) : null;
     if (imgItem?.img) {
@@ -500,6 +598,25 @@ function renderPageToCanvas(
       drawFitted(ctx, imgItem.img, zx, zy, zw, zh, z.fit);
       ctx.filter = 'none';
       ctx.restore();
+      // portrait blur: soft vignette sharp center
+      if (z.portraitBlur && z.portraitBlur > 0) {
+        ctx.save();
+        // blurred layer under, sharp already drawn — add blur ring via destination-over + blur copy clipped out center
+        // simpler: redraw blurred on top with alpha outside center using radial mask approximation
+        const blurPx = z.portraitBlur * scale * 0.5;
+        ctx.filter = `blur(${blurPx}px)`;
+        ctx.globalAlpha = 0.85;
+        // erase center so sharp shows through: draw blurred only in a thick frame
+        ctx.save();
+        const pad = 0.22;
+        ctx.beginPath();
+        ctx.rect(zx, zy, zw, zh);
+        ctx.ellipse(zx + zw / 2, zy + zh / 2, zw * (0.5 - pad / 2), zh * (0.5 - pad / 2), 0, 0, Math.PI * 2);
+        ctx.clip('evenodd');
+        drawFitted(ctx, imgItem.img, zx, zy, zw, zh, z.fit);
+        ctx.restore();
+        ctx.restore();
+      }
     } else {
       ctx.fillStyle = 'rgba(255,255,255,0.06)';
       ctx.fill();
@@ -509,7 +626,7 @@ function renderPageToCanvas(
     // border stroke along the shape (outside the clip)
     if (z.border && z.border.width > 0) {
       ctx.save();
-      traceShape(ctx, z, sz.w * scale, sz.h * scale);
+      traceShape(ctx, z, sz.w * scale, sz.h * scale, p.zones);
       ctx.strokeStyle = z.border.color;
       ctx.lineWidth = (z.border.width / 100) * Math.min(sz.w, sz.h) * scale / 2;
       ctx.stroke();
@@ -887,11 +1004,16 @@ function shapePoints(type: ShapeType): Pt[] {
 }
 
 function isPolyShape(t: ShapeType): boolean {
-  return t !== 'rect' && t !== 'circle' && t !== 'ellipse' && t !== 'text';
+  return t !== 'rect' && t !== 'circle' && t !== 'ellipse' && t !== 'text' && t !== 'art';
 }
 
 /** CSS clip-path for non-rect shapes (preview) */
-function clipPathFor(z: Zone): string | undefined {
+function clipPathFor(z: Zone, zones?: Zone[]): string | undefined {
+  // nested clip: use another zone's shape
+  if (z.clipZoneId && zones) {
+    const src = zones.find(x => x.id === z.clipZoneId);
+    if (src) return clipPathFor(src, zones);
+  }
   if (z.type === 'circle') return 'circle(50% at 50% 50%)';
   if (z.type === 'ellipse') return 'ellipse(50% 50% at 50% 50%)';
   const pts = z.type === 'polygon' || z.type === 'mask' ? z.points : shapePoints(z.type);
@@ -909,7 +1031,16 @@ function borderRadii(z: Zone): string {
 }
 
 /** Trace shape onto a canvas ctx as a clip path (normalized coords × W/H) */
-function traceShape(ctx: CanvasRenderingContext2D, z: Zone, W: number, H: number) {
+function traceShape(ctx: CanvasRenderingContext2D, z: Zone, W: number, H: number, zones?: Zone[]) {
+  if (z.clipZoneId && zones) {
+    const src = zones.find(x => x.id === z.clipZoneId);
+    if (src) {
+      // nested clip uses src shape but z's bbox? keep src geometry in its own bbox mapped to z's box
+      const mapped: Zone = { ...src, x: z.x, y: z.y, w: z.w, h: z.h };
+      traceShape(ctx, mapped, W, H, zones);
+      return;
+    }
+  }
   const x = z.x * W;
   const y = z.y * H;
   const w = z.w * W;
@@ -1524,6 +1655,12 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
   const onZonePointerDown = (e: React.PointerEvent, z: Zone, mode: 'move' | 'resize' | 'photo-pan') => {
     if (drawing || z.locked || z.hidden) return;
     e.stopPropagation();
+    // never start a drag unless the pointer is inside the canvas artboard
+    const cv = canvasRef.current;
+    if (cv) {
+      const r = cv.getBoundingClientRect();
+      if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) return;
+    }
     setSelId(z.id);
     // Shift+drag or photo-adjust mode → pan the photo inside the zone
     if (mode === 'move' && z.imgId && (photoEditId === z.id || e.shiftKey)) {
@@ -2123,7 +2260,7 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
         ))}
       </div>
 
-      {/* two columns: canvas stays put (desktop), only the right inspector scrolls */}
+      {/* two columns: canvas stays put (desktop), inspector has its own scroll */}
       <div
         id="collage-editor"
         className="grid grid-cols-1 lg:grid-cols-4 gap-4 lg:h-[calc(100dvh-210px)] lg:overflow-hidden"
@@ -2322,8 +2459,8 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
           </div>
         )}
 
-        {/* Canvas — sticky on mobile, fixed column on desktop (no page scroll-away) */}
-        <div className="lg:col-span-3 flex flex-col gap-4 min-h-0 lg:overflow-hidden">
+        {/* Canvas column — scrolls internally (photo tray at bottom); canvas sticks to top */}
+        <div className="lg:col-span-3 flex flex-col gap-4 min-h-0 lg:overflow-y-auto lg:overscroll-contain">
           <div
             ref={canvasRef}
             onClick={drawing ? onCanvasClick : undefined}
@@ -2331,7 +2468,7 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
             onPointerMove={toolMode !== 'draw' ? onCanvasPointerMove : onZonePointerMove}
             onPointerUp={toolMode !== 'draw' ? onCanvasPointerUp : onZonePointerUp}
             id="collage-canvas"
-            className="relative mx-auto rounded-xl overflow-hidden select-none sticky top-0 z-20 lg:static lg:shrink-0"
+            className="relative mx-auto rounded-xl overflow-hidden select-none sticky top-0 z-20 lg:sticky"
             style={{
               width: '100%',
               // fullscreen: fill available height (kills the dead zone at the bottom)
@@ -2345,6 +2482,7 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
               border: '1px solid rgba(255,255,255,0.1)',
               // touch/wheel on canvas must not scroll the page
               touchAction: 'none',
+              flexShrink: 0,
             }}
           >
             {/* zones */}
@@ -2450,35 +2588,38 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
                 <div
                   key={z.id}
                   data-zone-id={z.id}
-                  onPointerDown={e => onZonePointerDown(e, z, 'move')}
-                  onDoubleClick={() => { if (z.imgId) { setSelId(z.id); setPhotoEditId(v => v === z.id ? null : z.id); } }}
                   onDragOver={e => { e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = 'copy'; }}
                   onDrop={e => {
                     e.preventDefault();
                     e.stopPropagation();
                     const photoId = e.dataTransfer.getData('text/photo');
-                    if (photoId) updateZone(z.id, { imgId: photoId });
+                    if (photoId && !z.locked) updateZone(z.id, { imgId: photoId });
                   }}
                   style={{
                     position: 'absolute',
                     left: `${z.x * 100}%`, top: `${z.y * 100}%`,
                     width: `${z.w * 100}%`, height: `${z.h * 100}%`,
-                    cursor: photoEditId === z.id && z.imgId ? 'grab' : 'move',
-                    touchAction: 'none',
-                    outline: photoEditId === z.id && z.imgId
-                      ? '2px solid var(--color-primary)'
-                      : selected ? '2px dashed var(--color-primary)' : '1px dashed rgba(255,255,255,0.25)',
-                    outlineOffset: 2,
+                    // parent is a hit-test shell only — actual grab target is the clipped surface
+                    pointerEvents: 'none',
                   }}
                 >
-                  {/* clipped visual surface — keeps the resize handle OUTSIDE overflow */}
+                  {/* clipped visual surface = ONLY interactive region (shape-bounded) */}
                   <div
+                    onPointerDown={e => onZonePointerDown(e, z, 'move')}
+                    onDoubleClick={() => { if (z.imgId) { setSelId(z.id); setPhotoEditId(v => v === z.id ? null : z.id); } }}
                     style={{
                       width: '100%', height: '100%',
-                      clipPath: clipPathFor(z),
+                      clipPath: clipPathFor(z, zones),
                       borderRadius: isPolyShape(z.type) ? 0 : borderRadii(z),
                       overflow: 'hidden',
                       background: imgItem ? 'transparent' : 'rgba(255,255,255,0.05)',
+                      cursor: photoEditId === z.id && z.imgId ? 'grab' : (z.locked ? 'not-allowed' : 'move'),
+                      touchAction: 'none',
+                      outline: photoEditId === z.id && z.imgId
+                        ? '2px solid var(--color-primary)'
+                        : selected ? '2px dashed var(--color-primary)' : '1px dashed rgba(255,255,255,0.25)',
+                      outlineOffset: 2,
+                      pointerEvents: 'auto',
                     }}
                   >
                     {imgItem?.img ? (
@@ -2506,6 +2647,20 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
                       </div>
                     )}
                   </div>
+                  {/* art clipart (no photo) */}
+                  {z.type === 'art' && (() => {
+                    const item = CLIPART.find(a => a.key === z.artKey);
+                    if (!item) return null;
+                    return (
+                      <svg
+                        viewBox="0 0 24 24"
+                        className="absolute inset-0 w-full h-full pointer-events-none"
+                        style={{ zIndex: 3 }}
+                      >
+                        <path d={item.path} fill={z.fillColor || 'var(--color-primary)'} />
+                      </svg>
+                    );
+                  })()}
                   {/* border stroke along the shape */}
                   {z.border && z.border.width > 0 && (
                     <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none" style={{ zIndex: 4 }}>
@@ -2525,8 +2680,8 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
                       })()}
                     </svg>
                   )}
-                  {/* resize handle — outside the overflow:hidden surface */}
-                  {selected && (
+                  {/* resize handle — outside the clipped surface, still inside shell */}
+                  {selected && !z.locked && (
                     <div
                       onPointerDown={e => onZonePointerDown(e, z, 'resize')}
                       style={{
@@ -2534,6 +2689,7 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
                         width: 14, height: 14, borderRadius: 4,
                         background: 'var(--color-primary)', cursor: 'nwse-resize', touchAction: 'none',
                         zIndex: 5,
+                        pointerEvents: 'auto',
                       }}
                     />
                   )}
@@ -2616,8 +2772,8 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
             </div>
           )}
 
-          {/* Photo tray — under canvas, scrolls on mobile only */}
-          <div className="glass rounded-xl p-3 space-y-2 lg:overflow-y-auto lg:min-h-0">
+          {/* Photo tray — under canvas, scrolls into view in the left column */}
+          <div className="glass rounded-xl p-3 space-y-2 shrink-0">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <label className="font-mono text-xs text-gray-500 flex items-center gap-2">
                 <Move className="w-3.5 h-3.5" /> ФОТО ({images.length}) — ПЕРЕТАЩИТЕ НА ЗОНУ ИЛИ КЛИКНИТЕ
@@ -2662,7 +2818,7 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
         </div>
 
         {/* Inspector — own scroll, canvas stays visible */}
-        <div className="space-y-2 lg:overflow-y-auto lg:pr-1 lg:min-h-0">
+        <div className="space-y-2 lg:overflow-y-auto lg:pr-1 lg:min-h-0 lg:overscroll-contain">
           <Acc title="Канвас" defaultOpen>
             <div>
               <label className="font-mono text-[10px] text-gray-500 mb-1 block">ФОН СТРАНИЦЫ</label>
