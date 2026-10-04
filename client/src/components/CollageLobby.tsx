@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { FolderOpen, Plus, Pencil, Trash2, X, Layers } from 'lucide-react';
+import { FolderOpen, Plus, Pencil, Trash2, X, Layers, Copy } from 'lucide-react';
 import {
   listProjects, getProject, saveProject, deleteProject, newProjectId,
   formatRuDate, type ProjectMeta,
@@ -143,6 +143,30 @@ export default function CollageLobby({ onOpen }: Props) {
                   title="Изменить имя / описание"
                 >
                   <Pencil className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={async () => {
+                    try {
+                      const cur = await getProject(p.id);
+                      if (!cur) return;
+                      const id = newProjectId();
+                      await saveProject({
+                        ...cur,
+                        id,
+                        name: `${p.name} (копия)`,
+                        updatedAt: Date.now(),
+                        versions: [],
+                      });
+                      showToast('Проект скопирован', 'success');
+                      refresh();
+                    } catch {
+                      showToast('Ошибка копирования', 'error');
+                    }
+                  }}
+                  className="p-1.5 rounded-lg hover:bg-white/10 text-gray-500 hover:text-gray-200"
+                  title="Дублировать проект"
+                >
+                  <Copy className="w-3.5 h-3.5" />
                 </button>
                 <button
                   onClick={() => askDelete(p)}

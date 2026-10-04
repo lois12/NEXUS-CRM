@@ -1253,6 +1253,16 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
   const [versions, setVersions] = useState<ProjectVersion[]>([]);
   const [wm, setWm] = useState<{ dataUrl: string; opacity: number; corner: 'tl' | 'tr' | 'bl' | 'br' | 'center'; scale: number; img?: HTMLImageElement } | null>(null);
   const wmInputRef = useRef<HTMLInputElement>(null);
+  /** 1 = saved just now */
+  const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
+  const [viewZoom, setViewZoom] = useState(1);
+  const [viewPan, setViewPan] = useState({ x: 0, y: 0 });
+  const [spaceDown, setSpaceDown] = useState(false);
+  const [showGrid, setShowGrid] = useState(false);
+  const [showThirds, setShowThirds] = useState(false);
+  const [gridStep, setGridStep] = useState(5); // percent of canvas
+  const [comparePct, setComparePct] = useState<number | null>(null); // 0..100 split
+  const [pathDraft, setPathDraft] = useState<Pt[] | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // alignment guides shown while dragging (snap to center/edges)
   const [guides, setGuides] = useState<{ v: number | null; h: number | null }>({ v: null, h: null });
@@ -1316,6 +1326,7 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
           images: images.filter(i => i.dataUrl).map(i => ({ id: i.id, dataUrl: i.dataUrl! })),
         });
         setProjectMeta(m => m ? { ...m, updatedAt: Date.now() } : m);
+        setLastSavedAt(Date.now());
       } catch {
         /* silent — next change retries */
       }
@@ -1323,6 +1334,52 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pages, images, loaded, projectId]);
+
+  // Ctrl+S force save + Space pan + tick relative save label
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        if (saveTimer.current) clearTimeout(saveTimer.current);
+        saveProject({
+          id: projectId,
+          name: projectMeta?.name || '',
+          description: projectMeta?.description || '',
+          updatedAt: Date.now(),
+          pageCount: pages.length,
+          pagesJson: JSON.stringify(pages.map(({ history: _h, histIdx: _i, ...rest }) => rest)),
+          images: images.filter(i => i.dataUrl).map(i => ({ id: i.id, dataUrl: i.dataUrl! })),
+        }).then(() => setLastSavedAt(Date.now())).catch(() => {});
+        showToast('Сохранено', 'success');
+      }
+      if (e.code === 'Space' && !(e.target as HTMLElement)?.closest('input,textarea,select,button')) {
+        e.preventDefault();
+        setSpaceDown(true);
+      }
+      if (e.key === 'Escape') setComparePct(null);
+    };
+    const onKeyUp = (e: KeyboardEvent) => { if (e.code === 'Space') setSpaceDown(false); };
+    window.addEventListener('keydown', onKey);
+    window.addEventListener('keyup', onKeyUp);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('keyup', onKeyUp);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId, projectMeta, pages, images]);
+
+  // zoom via wheel+Alt (plain wheel = photo zoom)
+  useEffect(() => {
+    const el = canvasRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      if (!e.altKey) return;
+      e.preventDefault();
+      setViewZoom(z => clamp(z * (e.deltaY < 0 ? 1.1 : 1 / 1.1), 0.5, 4));
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, []);
 
   const page = pages[Math.min(activeIdx, pages.length - 1)] ?? pages[0];
   const {
@@ -1768,7 +1825,20 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
 
   // ── Drawing a freeform polygon on the canvas (click points)
   const onCanvasClick = (e: React.MouseEvent) => {
-    if (toolMode !== 'draw' || !drawing || !canvasRef.current) return;
+    if (!canvasRef.current) return;
+    // text-path drafting on selected text zone
+    if (pathDraft !== null && sel?.type === 'text') {
+      const rect = canvasRef.current.getBoundingClientRect();
+      const cx = clamp((e.clientX - rect.left) / rect.width, 0, 1);
+      const cy = clamp((e.clientY - rect.top) / rect.height, 0, 1);
+      const rel: Pt = {
+        x: clamp((cx - sel.x) / Math.max(sel.w, 0.01), 0, 1),
+        y: clamp((cy - sel.y) / Math.max(sel.h, 0.01), 0, 1),
+      };
+      setPathDraft(prev => [...(prev || []), rel]);
+      return;
+    }
+    if (toolMode !== 'draw' || !drawing) return;
     const rect = canvasRef.current.getBoundingClientRect();
     const x = clamp((e.clientX - rect.left) / rect.width, 0, 1);
     const y = clamp((e.clientY - rect.top) / rect.height, 0, 1);
@@ -1911,10 +1981,23 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
       await addProjectVersion(projectId, name);
       const cur = await getProject(projectId);
       setVersions(cur?.versions || []);
+      setLastSavedAt(Date.now());
       showToast(`Версия «${name}»`, 'success');
     } catch {
       showToast('Не удалось сохранить версию', 'error');
     }
+  };
+
+  const addArtZone = (key: string) => {
+    const z: Zone = {
+      id: uid(), type: 'art',
+      x: 0.3, y: 0.3, w: 0.35, h: 0.35,
+      radius: 0, imgRadius: 0, fit: 'cover', imgId: null,
+      artKey: key, fillColor: '#00ff88',
+      name: CLIPART.find(a => a.key === key)?.label || 'Арт',
+    };
+    setZones(prev => [...prev, z], true);
+    setSelId(z.id);
   };
 
   const restoreVersion = async (v: ProjectVersion) => {
@@ -1983,7 +2066,9 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
             <p className="text-gray-400 mt-1 font-mono text-xs">{projectMeta.description}</p>
           )}
           <p className="text-gray-500 mt-0.5 font-mono text-[10px]">
-            {projectMeta ? `изм. ${formatRuDate(projectMeta.updatedAt)}` : ''} · ФИГУРЫ, ФОТО, СТРАНИЦЫ, PDF/ZIP
+            {projectMeta ? `изм. ${formatRuDate(projectMeta.updatedAt)}` : ''}
+            {lastSavedAt ? ` · сохранено ${Math.max(0, Math.round((Date.now() - lastSavedAt) / 1000))}с` : ''}
+            {' '}· ФИГУРЫ, ФОТО, СТРАНИЦЫ, PDF/ZIP
           </p>
         </div>
       </div>
@@ -2133,6 +2218,58 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
           title="Бейдж «дата · место»">
           <Type className="w-3.5 h-3.5" /> Бейдж
         </button>
+        <div className="relative">
+          <button
+            onClick={() => {
+              const el = document.getElementById('clipart-menu');
+              if (el) el.classList.toggle('hidden');
+            }}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-xs glass hover:bg-white/10 transition-all"
+            title="Векторный клипарт">
+            <Stamp className="w-3.5 h-3.5" /> Клипарт
+          </button>
+          <div id="clipart-menu" className="hidden absolute left-0 top-full mt-1 z-[999] p-2 rounded-xl"
+            style={{ background: 'linear-gradient(135deg, rgba(20,20,35,0.98), rgba(10,10,20,0.99))', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 8px 32px rgba(0,0,0,0.5)', width: 280, maxHeight: 320, overflowY: 'auto' }}>
+            <div className="font-mono text-[9px] text-gray-500 px-1 pb-1 uppercase tracking-wider">Клипарт</div>
+            <div className="grid grid-cols-4 gap-1">
+              {CLIPART.map(a => (
+                <button key={a.key} onClick={() => { addArtZone(a.key); document.getElementById('clipart-menu')?.classList.add('hidden'); }}
+                  className="p-2 rounded-lg hover:bg-white/10 flex flex-col items-center gap-0.5"
+                  title={a.label}>
+                  <svg viewBox="0 0 24 24" className="w-5 h-5"><path d={a.path} fill="var(--color-primary)" /></svg>
+                  <span className="font-mono text-[7px] text-gray-500 leading-tight text-center">{a.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="w-px h-6 bg-white/10 mx-1" />
+        {/* view zoom / grid */}
+        <span className="font-mono text-[10px] text-gray-500">ВИД:</span>
+        {([['50', () => setViewZoom(0.5)], ['100', () => setViewZoom(1)], ['200', () => setViewZoom(2)], ['400', () => setViewZoom(4)]] as const).map(([label, fn]) => (
+          <button key={label} onClick={fn}
+            className="px-2 py-1.5 rounded-lg font-mono text-[10px] glass hover:bg-white/10"
+            title={`${label}% · Alt+колесо — зум · Space+drag — пан`}>
+            {label}%
+          </button>
+        ))}
+        <button onClick={() => setShowGrid(v => !v)}
+          className="px-2 py-1.5 rounded-lg font-mono text-[10px] transition-all"
+          style={showGrid ? { background: 'var(--color-primary)', color: '#000' } : { background: 'rgba(255,255,255,0.05)', color: '#888' }}
+          title="Сетка">
+          Сетка
+        </button>
+        <button onClick={() => setShowThirds(v => !v)}
+          className="px-2 py-1.5 rounded-lg font-mono text-[10px] transition-all"
+          style={showThirds ? { background: 'var(--color-primary)', color: '#000' } : { background: 'rgba(255,255,255,0.05)', color: '#888' }}
+          title="Трети / направляющие">
+          Трети
+        </button>
+        {showGrid && (
+          <input type="range" min={2} max={20} value={gridStep}
+            onChange={e => setGridStep(+e.target.value)}
+            className="w-20 accent-[var(--color-primary)]" title={`Шаг сетки ${gridStep}%`} />
+        )}
         {drawing && (
           <>
             <button onClick={finishPolygon} disabled={drawPts.length < 3}
@@ -2463,12 +2600,12 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
         <div className="lg:col-span-3 flex flex-col gap-4 min-h-0 lg:overflow-y-auto lg:overscroll-contain">
           <div
             ref={canvasRef}
-            onClick={drawing ? onCanvasClick : undefined}
+            onClick={drawing || pathDraft !== null ? onCanvasClick : undefined}
             onPointerDown={toolMode !== 'draw' ? onCanvasPointerDown : undefined}
             onPointerMove={toolMode !== 'draw' ? onCanvasPointerMove : onZonePointerMove}
             onPointerUp={toolMode !== 'draw' ? onCanvasPointerUp : onZonePointerUp}
             id="collage-canvas"
-            className="relative mx-auto rounded-xl overflow-hidden select-none sticky top-0 z-20 lg:sticky"
+            className={`relative mx-auto rounded-xl overflow-hidden select-none sticky top-0 z-20 lg:sticky ${spaceDown ? 'cursor-grab active:cursor-grabbing' : ''}`}
             style={{
               width: '100%',
               // fullscreen: fill available height (kills the dead zone at the bottom)
@@ -2478,13 +2615,34 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
               background: bgTransparent ? CHECKER_BG : bgColor,
               backgroundSize: bgTransparent ? '16px 16px' : undefined,
               borderRadius: `${outerRadius}%`,
-              cursor: toolMode === 'draw' ? (drawing ? 'crosshair' : 'default') : 'crosshair',
+              cursor: spaceDown ? 'grab' : toolMode === 'draw' ? (drawing ? 'crosshair' : 'default') : 'crosshair',
               border: '1px solid rgba(255,255,255,0.1)',
               // touch/wheel on canvas must not scroll the page
               touchAction: 'none',
               flexShrink: 0,
+              overflow: 'hidden',
             }}
           >
+            {/* zoom/pan layer */}
+            <div
+              style={{
+                position: 'absolute', inset: 0,
+                transform: `translate(${viewPan.x}px, ${viewPan.y}px) scale(${viewZoom})`,
+                transformOrigin: 'center center',
+              }}
+              onPointerDown={spaceDown ? (e => {
+                e.preventDefault();
+                const sx = e.clientX - viewPan.x;
+                const sy = e.clientY - viewPan.y;
+                const move = (ev: PointerEvent) => setViewPan({ x: ev.clientX - sx, y: ev.clientY - sy });
+                const up = () => {
+                  window.removeEventListener('pointermove', move);
+                  window.removeEventListener('pointerup', up);
+                };
+                window.addEventListener('pointermove', move);
+                window.addEventListener('pointerup', up);
+              }) : undefined}
+            >
             {/* zones */}
             {zones.map(z => {
               if (z.hidden) return null;
@@ -2623,6 +2781,7 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
                     }}
                   >
                     {imgItem?.img ? (
+                      <>
                       <img
                         src={imgItem.preview}
                         alt=""
@@ -2640,6 +2799,34 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
                           pointerEvents: 'none',
                         }}
                       />
+                      {/* before/after split: left = original, right = filtered (filter already on base) */}
+                      {comparePct !== null && z.id === selId && (
+                        <img
+                          src={imgItem.preview}
+                          alt=""
+                          draggable={false}
+                          style={{
+                            position: 'absolute', inset: 0,
+                            width: '100%', height: '100%',
+                            objectFit: z.fit === 'cover' ? 'cover' : 'contain',
+                            borderRadius: z.imgRadius > 0 ? `${z.imgRadius}%` : 0,
+                            transform: `scale(${z.imgZoom || 1}) translate(${(z.imgX || 0) * 30}%, ${(z.imgY || 0) * 30}%)`,
+                            opacity: z.imgOpacity ?? 1,
+                            filter: 'none',
+                            clipPath: `inset(0 ${100 - comparePct}% 0 0)`,
+                            pointerEvents: 'none',
+                          }}
+                        />
+                      )}
+                      {comparePct !== null && z.id === selId && (
+                        <div style={{
+                          position: 'absolute', top: 0, bottom: 0,
+                          left: `${comparePct}%`, width: 2,
+                          background: 'var(--color-primary)',
+                          pointerEvents: 'none', zIndex: 6,
+                        }} />
+                      )}
+                      </>
                     ) : (
                       <div className="w-full h-full flex flex-col items-center justify-center pointer-events-none gap-1">
                         <ImageIcon className="w-6 h-6 text-gray-600 opacity-40" />
@@ -2697,6 +2884,42 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
               );
             })}
 
+            {/* grid + thirds guides */}
+            {(showGrid || showThirds) && (
+              <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 45 }}>
+                {showGrid && (
+                  <>
+                    {Array.from({ length: Math.max(1, Math.floor(100 / gridStep) - 1) }, (_, i) => {
+                      const pct = (i + 1) * gridStep;
+                      return (
+                        <div key={`gv${pct}`} className="absolute top-0 bottom-0 w-px"
+                          style={{ left: `${pct}%`, background: 'rgba(255,255,255,0.12)' }} />
+                      );
+                    })}
+                    {Array.from({ length: Math.max(1, Math.floor(100 / gridStep) - 1) }, (_, i) => {
+                      const pct = (i + 1) * gridStep;
+                      return (
+                        <div key={`gh${pct}`} className="absolute left-0 right-0 h-px"
+                          style={{ top: `${pct}%`, background: 'rgba(255,255,255,0.12)' }} />
+                      );
+                    })}
+                  </>
+                )}
+                {showThirds && (
+                  <>
+                    {[33.33, 66.67].map(pct => (
+                      <div key={`t${pct}`} className="absolute top-0 bottom-0 w-px"
+                        style={{ left: `${pct}%`, background: 'rgba(0,255,136,0.35)' }} />
+                    ))}
+                    {[33.33, 66.67].map(pct => (
+                      <div key={`tt${pct}`} className="absolute left-0 right-0 h-px"
+                        style={{ top: `${pct}%`, background: 'rgba(0,255,136,0.35)' }} />
+                    ))}
+                  </>
+                )}
+              </div>
+            )}
+
             {/* alignment guides (while dragging) */}
             {guides.v !== null && (
               <div className="absolute top-0 bottom-0 w-px pointer-events-none" style={{ left: `${guides.v}%`, background: 'var(--color-primary)', boxShadow: '0 0 6px var(--color-primary)', zIndex: 40 }} />
@@ -2752,6 +2975,7 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
               />
               );
             })}
+            </div>{/* /zoom-pan layer */}
           </div>
 
           {drawing && (
@@ -2953,6 +3177,35 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
               <input type="range" min={0} max={100} value={Math.round((sel.imgOpacity ?? 1) * 100)}
                 onChange={e => updateZone(sel.id, { imgOpacity: +e.target.value / 100 }, false)}
                 onPointerUp={() => updateZone(sel.id, {})} className="w-full accent-[var(--color-primary)]" />
+              <label className="font-mono text-[10px] text-gray-500 block">РАЗМЫТИЕ ФОНА: {sel.portraitBlur || 0}</label>
+              <input type="range" min={0} max={40} value={sel.portraitBlur || 0}
+                onChange={e => updateZone(sel.id, { portraitBlur: +e.target.value }, false)}
+                onPointerUp={() => updateZone(sel.id, {})} className="w-full accent-[var(--color-primary)]" />
+              <label className="font-mono text-[10px] text-gray-500 block">ОБТРАВКА ПО ФОРМЕ</label>
+              <select
+                value={sel.clipZoneId || ''}
+                onChange={e => updateZone(sel.id, { clipZoneId: e.target.value || null })}
+                className="w-full px-2 py-2 rounded font-mono text-xs bg-black/30 border border-gray-700 text-gray-200"
+              >
+                <option value="">— своя форма —</option>
+                {zones.filter(z => z.id !== sel.id && z.type !== 'text').map(z => (
+                  <option key={z.id} value={z.id}>{z.name || z.type}</option>
+                ))}
+              </select>
+              <button
+                onClick={() => setComparePct(v => (v === null ? 50 : null))}
+                className="w-full py-1.5 rounded-lg font-mono text-[10px] mt-1"
+                style={comparePct !== null
+                  ? { background: 'var(--color-primary)', color: '#000' }
+                  : { background: 'rgba(255,255,255,0.05)', color: '#888' }}
+              >
+                {comparePct !== null ? `✓ СПЛИТ ${comparePct}%` : 'СРАВНЕНИЕ ДО/ПОСЛЕ'}
+              </button>
+              {comparePct !== null && (
+                <input type="range" min={0} max={100} value={comparePct}
+                  onChange={e => setComparePct(+e.target.value)}
+                  className="w-full accent-[var(--color-primary)]" />
+              )}
 
               <label className="font-mono text-[10px] text-gray-500 block">ФИЛЬТРЫ</label>
               {([
@@ -3067,6 +3320,35 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
                   onChange={e => updateZone(sel.id, { curve: +e.target.value }, false)}
                   onPointerUp={() => updateZone(sel.id, {})} className="w-full accent-[var(--color-primary)]" />
               </label>
+              <button
+                onClick={() => {
+                  if (sel.textPath) {
+                    updateZone(sel.id, { textPath: undefined as any });
+                    setPathDraft(null);
+                  } else {
+                    setPathDraft([]);
+                    showToast('Кликайте по канвасу — контур (3+ точки, затем кнопка ниже)', 'info');
+                  }
+                }}
+                className="w-full py-1.5 rounded-lg font-mono text-[10px]"
+                style={sel.textPath || pathDraft !== null
+                  ? { background: 'var(--color-primary)', color: '#000' }
+                  : { background: 'rgba(255,255,255,0.05)', color: '#888' }}
+              >
+                {sel.textPath ? '✓ ПО ПУТИ (сбросить)' : pathDraft !== null ? `ПУТЬ… (${pathDraft.length})` : 'ТЕКСТ ПО ПУТИ'}
+              </button>
+              {pathDraft !== null && pathDraft.length >= 2 && (
+                <button
+                  onClick={() => {
+                    updateZone(sel.id, { textPath: pathDraft.map(p => ({ ...p })) });
+                    setPathDraft(null);
+                  }}
+                  className="w-full py-1.5 rounded-lg font-mono text-[10px] font-bold"
+                  style={{ background: 'var(--color-primary)', color: '#000' }}
+                >
+                  ГОТОВО — ПРИМЕНИТЬ ПУТЬ
+                </button>
+              )}
               <div>
                 <label className="font-mono text-[10px] text-gray-500 mb-1 block">ГРАДИЕНТ ТЕКСТА</label>
                 <div className="flex items-center gap-1">
