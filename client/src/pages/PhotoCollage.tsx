@@ -50,6 +50,125 @@ function cssFilter(f?: ZoneFilters): string {
   return parts.length ? parts.join(' ') : 'none';
 }
 
+function cssTextShadow(z: Zone): string | undefined {
+  if (z.textShadow) {
+    const s = z.textShadow;
+    return `${s.x}px ${s.y}px ${s.blur}px ${s.color}`;
+  }
+  if (z.stroke && z.stroke.width > 0) return 'none';
+  return '0 1px 4px rgba(0,0,0,0.35)';
+}
+
+/** apply kapital / spacing / gradient to a canvas text fill */
+function textFillStyle(ctx: CanvasRenderingContext2D, z: Zone, x: number, y: number, w: number, h: number): string | CanvasGradient {
+  if (z.textGradient) {
+    const a = ((z.textGradient.angle || 90) * Math.PI) / 180;
+    const cx = x + w / 2;
+    const cy = y + h / 2;
+    const r = Math.max(w, h) / 2;
+    const g = ctx.createLinearGradient(cx - Math.cos(a) * r, cy - Math.sin(a) * r, cx + Math.cos(a) * r, cy + Math.sin(a) * r);
+    g.addColorStop(0, z.textGradient.from);
+    g.addColorStop(1, z.textGradient.to);
+    return g;
+  }
+  return z.fontColor || '#ffffff';
+}
+
+function applySmallCaps(text: string, on: boolean | undefined): string {
+  if (!on) return text;
+  // CSS/Canvas small-caps: lowercase → small capitals. Approximate with uppercase
+  // but keep original capitals larger via font style — canvas has no mixed size,
+  // so we use unicode-style: lowercase mapped to upper (visual kapital).
+  return text.replace(/[a-zа-яё]/g, ch => ch.toUpperCase());
+}
+
+function measureTracked(ctx: CanvasRenderingContext2D, text: string, tracking: number): number {
+  if (!tracking) return ctx.measureText(text).width;
+  let w = 0;
+  for (const ch of text) w += ctx.measureText(ch).width + tracking;
+  return Math.max(0, w - tracking);
+}
+
+function fillTracked(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, tracking: number, align: TextAlign) {
+  if (!tracking) { ctx.fillText(text, x, y); return; }
+  const total = measureTracked(ctx, text, tracking);
+  let cx = x;
+  if (align === 'center') cx = x - total / 2;
+  if (align === 'right') cx = x - total;
+  const prev = ctx.textAlign;
+  ctx.textAlign = 'left';
+  for (const ch of text) {
+    ctx.fillText(ch, cx, y);
+    cx += ctx.measureText(ch).width + tracking;
+  }
+  ctx.textAlign = prev;
+}
+
+function strokeTracked(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, tracking: number, align: TextAlign) {
+  if (!tracking) { ctx.strokeText(text, x, y); return; }
+  const total = measureTracked(ctx, text, tracking);
+  let cx = x;
+  if (align === 'center') cx = x - total / 2;
+  if (align === 'right') cx = x - total;
+  const prev = ctx.textAlign;
+  ctx.textAlign = 'left';
+  for (const ch of text) {
+    ctx.strokeText(ch, cx, y);
+    cx += ctx.measureText(ch).width + tracking;
+  }
+  ctx.textAlign = prev;
+}
+
+/** Draw one line along an arc. curveDeg>0 = smile, <0 = frown */
+function drawCurvedLine(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  px: number,
+  tracking: number,
+  curveDeg: number,
+  fill: string | CanvasGradient,
+  strokeCfg?: { width: number; color: string },
+) {
+  const chars = [...text];
+  if (!chars.length) return;
+  const widths = chars.map(ch => ctx.measureText(ch).width + tracking);
+  const totalW = widths.reduce((a, b) => a + b, 0) - (widths.length ? tracking : 0);
+  const sweep = (curveDeg * Math.PI) / 180;
+  // radius so that arc length ≈ totalW
+  const R = Math.max(px, totalW / Math.max(Math.abs(sweep), 0.01));
+  const dir = curveDeg >= 0 ? 1 : -1;
+  // start angle so the string is centered
+  let a = -sweep / 2;
+  const prevAlign = ctx.textAlign;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  for (let i = 0; i < chars.length; i++) {
+    const cw = widths[i];
+    const mid = a + (cw / R) / 2;
+    const px0 = x + Math.sin(mid) * R * dir;
+    // smile: center of arc below text → y = y + R - cos*R
+    const py0 = dir > 0 ? y + px / 2 + R - Math.cos(mid) * R : y + px / 2 - R + Math.cos(mid) * R;
+    ctx.save();
+    ctx.translate(px0, py0);
+    ctx.rotate(dir > 0 ? mid : mid + Math.PI);
+    ctx.textAlign = 'center';
+    if (strokeCfg && strokeCfg.width > 0) {
+      ctx.lineJoin = 'round';
+      ctx.lineWidth = strokeCfg.width * px * 2;
+      ctx.strokeStyle = strokeCfg.color;
+      ctx.strokeText(chars[i], 0, 0);
+    }
+    ctx.fillStyle = fill;
+    ctx.fillText(chars[i], 0, 0);
+    ctx.restore();
+    a += cw / R;
+  }
+  ctx.textAlign = prevAlign;
+  ctx.textBaseline = 'top';
+}
+
 interface Zone {
   id: string;
   type: ShapeType;
@@ -80,6 +199,20 @@ interface Zone {
   align?: TextAlign;
   rotation?: number;   // -45..45 deg
   stroke?: { width: number; color: string }; // text outline (width in em, 0..0.3)
+  /** extra letter spacing in em, e.g. 0.12 */
+  letterSpacing?: number;
+  /** line height multiplier, e.g. 1.3 */
+  lineHeight?: number;
+  /** small caps (kapital) */
+  smallCaps?: boolean;
+  /** drop shadow under text */
+  textShadow?: { x: number; y: number; blur: number; color: string };
+  /** gradient fill (overrides fontColor) */
+  textGradient?: { from: string; to: string; angle: number };
+  /** arc bend in degrees, 0 = straight, + = smile, − = frown */
+  curve?: number;
+  /** pill/badge background behind text */
+  textBg?: { color: string; padX: number; padY: number; radius: number };
   // layers
   hidden?: boolean;
   locked?: boolean;
@@ -257,14 +390,20 @@ function renderPageToCanvas(
     if (z.type === 'text') {
       const px = (z.fontSize || 0.06) * sz.h * scale;
       const family = z.fontFamily || 'Montserrat';
-      ctx.font = `${z.fontWeight === 'bold' ? '700' : '400'} ${px}px "${family}", sans-serif`;
+      const weight = z.fontWeight === 'bold' ? '700' : '400';
+      ctx.font = z.smallCaps
+        ? `${weight} small-caps ${px}px "${family}", sans-serif`
+        : `${weight} ${px}px "${family}", sans-serif`;
       ctx.textBaseline = 'top';
       const maxW = z.w * sz.w * scale;
-      const lines = wrapText(ctx, z.text || '', maxW);
+      const rawLines = wrapText(ctx, applySmallCaps(z.text || '', z.smallCaps), maxW);
+      const lines = rawLines;
       const align = z.align || 'left';
       ctx.textAlign = align === 'center' ? 'center' : align === 'right' ? 'right' : 'left';
       const baseX = z.x * sz.w * scale + (align === 'center' ? maxW / 2 : align === 'right' ? maxW : 0);
       const baseY = z.y * sz.h * scale;
+      const lh = (z.lineHeight || 1.15) * px;
+      const tracking = (z.letterSpacing || 0) * px;
 
       const cx = z.x * sz.w * scale + (z.w * sz.w * scale) / 2;
       const cy = z.y * sz.h * scale + (z.h * sz.h * scale) / 2;
@@ -272,19 +411,65 @@ function renderPageToCanvas(
       ctx.rotate(((z.rotation || 0) * Math.PI) / 180);
       ctx.translate(-cx, -cy);
 
+      // pill / badge background
+      if (z.textBg) {
+        const padX = z.textBg.padX * px;
+        const padY = z.textBg.padY * px;
+        const widest = Math.max(...lines.map(l => measureTracked(ctx, l, tracking)), 0);
+        const totalH = lines.length * lh;
+        let bx = baseX - padX;
+        if (align === 'center') bx = baseX - widest / 2 - padX;
+        if (align === 'right') bx = baseX - widest - padX;
+        const by = baseY - padY;
+        ctx.fillStyle = z.textBg.color;
+        const r = z.textBg.radius * px;
+        const bw = widest + padX * 2;
+        const bh = totalH + padY * 2;
+        ctx.beginPath();
+        if (r > 0 && typeof (ctx as any).roundRect === 'function') (ctx as any).roundRect(bx, by, bw, bh, r);
+        else ctx.rect(bx, by, bw, bh);
+        ctx.fill();
+      }
+
+      const fill = textFillStyle(ctx, z, z.x * sz.w * scale, z.y * sz.h * scale, z.w * sz.w * scale, z.h * sz.h * scale);
+
+      if (z.textShadow) {
+        ctx.save();
+        ctx.shadowOffsetX = z.textShadow.x * scale;
+        ctx.shadowOffsetY = z.textShadow.y * scale;
+        ctx.shadowBlur = z.textShadow.blur * scale;
+        ctx.shadowColor = z.textShadow.color;
+      }
+
       const strokeCfg = z.stroke;
-      if (strokeCfg && strokeCfg.width > 0) {
+      const drawLine = (line: string, x: number, y: number) => {
+        if (!z.curve) {
+          if (strokeCfg && strokeCfg.width > 0) {
+            ctx.lineJoin = 'round';
+            ctx.lineWidth = strokeCfg.width * px * 2;
+            ctx.strokeStyle = strokeCfg.color;
+            strokeTracked(ctx, line, x, y, tracking, align);
+          }
+          ctx.fillStyle = fill;
+          fillTracked(ctx, line, x, y, tracking, align);
+          return;
+        }
+        drawCurvedLine(ctx, line, x, y, px, tracking, z.curve, fill, strokeCfg);
+      };
+
+      if (strokeCfg && strokeCfg.width > 0 && !z.curve) {
         lines.forEach((line, li) => {
           ctx.lineJoin = 'round';
           ctx.lineWidth = strokeCfg.width * px * 2;
           ctx.strokeStyle = strokeCfg.color;
-          ctx.strokeText(line, baseX, baseY + li * px * 1.15);
+          strokeTracked(ctx, line, baseX, baseY + li * lh, tracking, align);
         });
       }
       lines.forEach((line, li) => {
-        ctx.fillStyle = z.fontColor || '#ffffff';
-        ctx.fillText(line, baseX, baseY + li * px * 1.15);
+        drawLine(line, baseX, baseY + li * lh);
       });
+
+      if (z.textShadow) ctx.restore();
       ctx.restore();
       continue;
     }
@@ -1276,6 +1461,26 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
     setSelId(z.id);
   };
 
+  /** ready «дата · место» badge like on posters */
+  const addBadgeZone = () => {
+    const d = new Date();
+    const date = d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' }).toUpperCase();
+    const z: Zone = {
+      id: uid(), type: 'text',
+      x: 0.18, y: 0.72, w: 0.64, h: 0.1,
+      radius: 0, imgRadius: 0, fit: 'cover', imgId: null,
+      text: `${date} · 19:00 · ПЛОЩАДКА`,
+      fontFamily: 'Montserrat', fontSize: 0.035,
+      fontColor: '#ffffff', fontWeight: 'bold', align: 'center',
+      letterSpacing: 0.14,
+      smallCaps: true,
+      textBg: { color: 'rgba(0,0,0,0.72)', padX: 0.7, padY: 0.35, radius: 0.5 },
+      name: 'Бейдж',
+    };
+    setZones(prev => [...prev, z], true);
+    setSelId(z.id);
+  };
+
   // z-index = array order (last drawn on top). Reorder helpers:
   const bringForward = (id: string) => {
     setZones(prev => {
@@ -1786,6 +1991,11 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
           title="Добавить текст">
           <Type className="w-3.5 h-3.5" /> Текст
         </button>
+        <button onClick={addBadgeZone}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-xs glass hover:bg-white/10 transition-all"
+          title="Бейдж «дата · место»">
+          <Type className="w-3.5 h-3.5" /> Бейдж
+        </button>
         {drawing && (
           <>
             <button onClick={finishPolygon} disabled={drawPts.length < 3}
@@ -2145,6 +2355,34 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
 
               // TEXT zone — rendered as styled div
               if (z.type === 'text') {
+                const useCurve = !!z.curve && Math.abs(z.curve) >= 2;
+                const shadow = cssTextShadow(z);
+                const bodyStyle: React.CSSProperties = {
+                  fontFamily: `"${z.fontFamily || 'Montserrat'}", sans-serif`,
+                  fontSize: `${(z.fontSize || 0.06) * 100}cqh`,
+                  color: z.textGradient ? 'transparent' : (z.fontColor || '#ffffff'),
+                  fontWeight: z.fontWeight === 'bold' ? 700 : 400,
+                  lineHeight: z.lineHeight || 1.15,
+                  letterSpacing: z.letterSpacing ? `${z.letterSpacing}em` : undefined,
+                  fontVariant: z.smallCaps ? 'small-caps' : undefined,
+                  textAlign: z.align || 'left',
+                  width: '100%',
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-word',
+                  margin: 0,
+                  transform: useCurve ? undefined : `rotate(${z.rotation || 0}deg)`,
+                  WebkitTextStroke: z.stroke && z.stroke.width > 0
+                    ? `${z.stroke.width * (z.fontSize || 0.06) * 200}px ${z.stroke.color}`
+                    : undefined,
+                  paintOrder: 'stroke fill',
+                  textShadow: shadow,
+                  backgroundImage: z.textGradient
+                    ? `linear-gradient(${z.textGradient.angle}deg, ${z.textGradient.from}, ${z.textGradient.to})`
+                    : undefined,
+                  WebkitBackgroundClip: z.textGradient ? 'text' : undefined,
+                  backgroundClip: z.textGradient ? 'text' as const : undefined,
+                  pointerEvents: 'none',
+                };
                 return (
                   <div
                     key={z.id}
@@ -2160,31 +2398,39 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
                       display: 'flex',
                       alignItems: 'flex-start',
                       justifyContent: z.align === 'center' ? 'center' : z.align === 'right' ? 'flex-end' : 'flex-start',
+                      transform: useCurve ? `rotate(${z.rotation || 0}deg)` : undefined,
                     }}
                   >
-                    <p
-                      style={{
-                        fontFamily: `"${z.fontFamily || 'Montserrat'}", sans-serif`,
-                        fontSize: `${(z.fontSize || 0.06) * 100}cqh`,
-                        color: z.fontColor || '#ffffff',
-                        fontWeight: z.fontWeight === 'bold' ? 700 : 400,
-                        lineHeight: 1.15,
-                        textAlign: z.align || 'left',
-                        width: '100%',
-                        whiteSpace: 'pre-wrap',
-                        wordBreak: 'break-word',
-                        margin: 0,
-                        transform: `rotate(${z.rotation || 0}deg)`,
-                        WebkitTextStroke: z.stroke && z.stroke.width > 0
-                          ? `${z.stroke.width * (z.fontSize || 0.06) * 200}px ${z.stroke.color}`
-                          : undefined,
-                        paintOrder: 'stroke fill',
-                        textShadow: z.stroke && z.stroke.width > 0 ? 'none' : '0 1px 4px rgba(0,0,0,0.35)',
+                    {z.textBg && (
+                      <div style={{
+                        position: 'absolute',
+                        left: `${-z.textBg.padX * 20}%`, right: `${-z.textBg.padX * 20}%`,
+                        top: `${-z.textBg.padY * 20}%`, bottom: `${-z.textBg.padY * 20}%`,
+                        background: z.textBg.color,
+                        borderRadius: `${z.textBg.radius * 20}px`,
                         pointerEvents: 'none',
-                      }}
-                    >
-                      {z.text || 'Ваш текст'}
-                    </p>
+                      }} />
+                    )}
+                    {useCurve ? (
+                      <p style={bodyStyle} aria-hidden>
+                        {[...(z.text || 'Ваш текст')].map((ch, i, arr) => {
+                          const t = (i + 0.5) / arr.length - 0.5;
+                          const ang = t * (z.curve || 0);
+                          return (
+                            <span key={i} style={{
+                              display: 'inline-block',
+                              transform: `rotate(${ang}deg)`,
+                              transformOrigin: '50% 120%',
+                              whiteSpace: 'pre',
+                            }}>{ch}</span>
+                          );
+                        })}
+                      </p>
+                    ) : (
+                      <p style={bodyStyle}>
+                        {applySmallCaps(z.text || 'Ваш текст', z.smallCaps)}
+                      </p>
+                    )}
                     {selected && (
                       <div
                         onPointerDown={e => onZonePointerDown(e, z, 'resize')}
@@ -2640,6 +2886,146 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
                   <option value="normal">Обычное</option>
                   <option value="bold">Жирное</option>
                 </select>
+              </div>
+              <label className="font-mono text-[10px] text-gray-500">МЕЖБУКВЕННЫЙ: {((sel.letterSpacing || 0) * 100).toFixed(0)}%
+                <input type="range" min={-20} max={80} value={Math.round((sel.letterSpacing || 0) * 100)}
+                  onChange={e => updateZone(sel.id, { letterSpacing: +e.target.value / 100 }, false)}
+                  onPointerUp={() => updateZone(sel.id, {})} className="w-full accent-[var(--color-primary)]" />
+              </label>
+              <label className="font-mono text-[10px] text-gray-500">МЕЖСТРОЧНЫЙ: {(sel.lineHeight || 1.15).toFixed(2)}
+                <input type="range" min={80} max={220} value={Math.round((sel.lineHeight || 1.15) * 100)}
+                  onChange={e => updateZone(sel.id, { lineHeight: +e.target.value / 100 }, false)}
+                  onPointerUp={() => updateZone(sel.id, {})} className="w-full accent-[var(--color-primary)]" />
+              </label>
+              <button
+                onClick={() => updateZone(sel.id, { smallCaps: !sel.smallCaps })}
+                className="w-full py-2 rounded-lg font-mono text-xs transition-all"
+                style={sel.smallCaps
+                  ? { background: 'var(--color-primary)', color: '#000' }
+                  : { background: 'rgba(255,255,255,0.05)', color: '#888' }}
+              >
+                {sel.smallCaps ? '✓ КАПИТЕЛЬ' : 'КАПИТЕЛЬ (SMALL CAPS)'}
+              </button>
+              <label className="font-mono text-[10px] text-gray-500">ДУГА ТЕКСТА: {sel.curve || 0}°
+                <input type="range" min={-120} max={120} value={sel.curve || 0}
+                  onChange={e => updateZone(sel.id, { curve: +e.target.value }, false)}
+                  onPointerUp={() => updateZone(sel.id, {})} className="w-full accent-[var(--color-primary)]" />
+              </label>
+              <div>
+                <label className="font-mono text-[10px] text-gray-500 mb-1 block">ГРАДИЕНТ ТЕКСТА</label>
+                <div className="flex items-center gap-1">
+                  <input type="color" value={sel.textGradient?.from || sel.fontColor || '#ff0088'}
+                    onChange={e => updateZone(sel.id, {
+                      textGradient: {
+                        from: e.target.value,
+                        to: sel.textGradient?.to || '#00ffee',
+                        angle: sel.textGradient?.angle ?? 90,
+                      },
+                    })} className="w-8 h-8 rounded bg-transparent border border-white/10" />
+                  <input type="color" value={sel.textGradient?.to || '#00ffee'}
+                    onChange={e => updateZone(sel.id, {
+                      textGradient: {
+                        from: sel.textGradient?.from || '#ff0088',
+                        to: e.target.value,
+                        angle: sel.textGradient?.angle ?? 90,
+                      },
+                    })} className="w-8 h-8 rounded bg-transparent border border-white/10" />
+                  <input type="range" min={0} max={360} value={sel.textGradient?.angle ?? 90}
+                    onChange={e => updateZone(sel.id, {
+                      textGradient: {
+                        from: sel.textGradient?.from || '#ff0088',
+                        to: sel.textGradient?.to || '#00ffee',
+                        angle: +e.target.value,
+                      },
+                    }, false)}
+                    onPointerUp={() => updateZone(sel.id, {})}
+                    className="flex-1 accent-[var(--color-primary)]" />
+                  <button onClick={() => updateZone(sel.id, { textGradient: undefined as any })}
+                    className="px-2 py-1.5 rounded font-mono text-[10px] glass text-gray-400">✕</button>
+                </div>
+              </div>
+              <div>
+                <label className="font-mono text-[10px] text-gray-500 mb-1 block">ТЕНЬ ТЕКСТА</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <label className="font-mono text-[9px] text-gray-500">Сдвиг {sel.textShadow?.x || 0}/{sel.textShadow?.y || 0}
+                    <input type="range" min={-20} max={20} value={sel.textShadow?.x ?? 2}
+                      onChange={e => updateZone(sel.id, {
+                        textShadow: {
+                          x: +e.target.value,
+                          y: sel.textShadow?.y ?? 3,
+                          blur: sel.textShadow?.blur ?? 4,
+                          color: sel.textShadow?.color || 'rgba(0,0,0,0.55)',
+                        },
+                      }, false)}
+                      onPointerUp={() => updateZone(sel.id, {})} className="w-full accent-[var(--color-primary)]" />
+                    <input type="range" min={-20} max={20} value={sel.textShadow?.y ?? 3}
+                      onChange={e => updateZone(sel.id, {
+                        textShadow: {
+                          x: sel.textShadow?.x ?? 2,
+                          y: +e.target.value,
+                          blur: sel.textShadow?.blur ?? 4,
+                          color: sel.textShadow?.color || 'rgba(0,0,0,0.55)',
+                        },
+                      }, false)}
+                      onPointerUp={() => updateZone(sel.id, {})} className="w-full accent-[var(--color-primary)]" />
+                  </label>
+                  <label className="font-mono text-[9px] text-gray-500">Размытие {sel.textShadow?.blur ?? 4}
+                    <input type="range" min={0} max={30} value={sel.textShadow?.blur ?? 4}
+                      onChange={e => updateZone(sel.id, {
+                        textShadow: {
+                          x: sel.textShadow?.x ?? 2,
+                          y: sel.textShadow?.y ?? 3,
+                          blur: +e.target.value,
+                          color: sel.textShadow?.color || 'rgba(0,0,0,0.55)',
+                        },
+                      }, false)}
+                      onPointerUp={() => updateZone(sel.id, {})} className="w-full accent-[var(--color-primary)]" />
+                  </label>
+                </div>
+                <div className="flex gap-1 mt-1">
+                  <input type="color" value="#000000"
+                    onChange={e => {
+                      const hex = e.target.value;
+                      updateZone(sel.id, {
+                        textShadow: {
+                          x: sel.textShadow?.x ?? 2,
+                          y: sel.textShadow?.y ?? 3,
+                          blur: sel.textShadow?.blur ?? 4,
+                          color: hex + 'aa',
+                        },
+                      });
+                    }}
+                    className="w-8 h-8 rounded bg-transparent border border-white/10" />
+                  <button onClick={() => updateZone(sel.id, {
+                    textShadow: { x: 2, y: 3, blur: 4, color: 'rgba(0,0,0,0.55)' },
+                  })}
+                    className="flex-1 py-1.5 rounded font-mono text-[10px] glass">ВКЛ ТЕНЬ</button>
+                  <button onClick={() => updateZone(sel.id, { textShadow: undefined as any })}
+                    className="flex-1 py-1.5 rounded font-mono text-[10px] glass text-gray-400">БЕЗ ТЕНИ</button>
+                </div>
+              </div>
+              <div>
+                <label className="font-mono text-[10px] text-gray-500 mb-1 block">ПЛАШКА / БЕЙДЖ</label>
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => updateZone(sel.id, sel.textBg
+                      ? { textBg: undefined as any }
+                      : { textBg: { color: 'rgba(0,0,0,0.72)', padX: 0.7, padY: 0.35, radius: 0.5 } })}
+                    className="flex-1 py-1.5 rounded font-mono text-[10px]"
+                    style={sel.textBg
+                      ? { background: 'var(--color-primary)', color: '#000' }
+                      : { background: 'rgba(255,255,255,0.05)', color: '#888' }}
+                  >
+                    {sel.textBg ? '✓ ПЛАШКА' : 'ПЛАШКА'}
+                  </button>
+                  {sel.textBg && (
+                    <input type="color" value={sel.textBg.color.slice(0, 7)}
+                      onChange={e => updateZone(sel.id, {
+                        textBg: { ...sel.textBg!, color: e.target.value + 'b8' },
+                      })}
+                      className="w-9 rounded bg-transparent border border-white/10" />
+                  )}
+                </div>
               </div>
               <div className="grid grid-cols-3 gap-1">
                 {(['left', 'center', 'right'] as TextAlign[]).map(a => (
