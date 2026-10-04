@@ -699,6 +699,40 @@ function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number)
 }
 
 
+/** Mini page preview for the page navigator / sheet */
+function PageThumb({ page: p, images, height }: { page: CollagePage; images: ImgItem[]; height: number }) {
+  const sz = resolveSize(p.format, p.orient, p.customW, p.customH);
+  const w = Math.max(40, Math.round(height * sz.w / sz.h));
+  return (
+    <div
+      style={{
+        background: p.bgColor,
+        width: '100%',
+        height,
+        maxWidth: w,
+        margin: '0 auto',
+        borderRadius: Math.min(8, (p.outerRadius / 100) * 8),
+        position: 'relative',
+        overflow: 'hidden',
+      }}
+    >
+      {p.zones.map(z => {
+        const imgItem = z.imgId ? images.find(im => im.id === z.imgId) : null;
+        return (
+          <div key={z.id} style={{
+            position: 'absolute',
+            left: `${z.x * 100}%`, top: `${z.y * 100}%`,
+            width: `${Math.min(z.w, 1) * 100}%`, height: `${Math.min(z.h, 1) * 100}%`,
+            background: imgItem ? `url(${imgItem.preview}) center/cover no-repeat` : (z.type === 'text' ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.12)'),
+            borderRadius: z.type === 'circle' || z.type === 'ellipse' ? '50%' : 1,
+            clipPath: z.type === 'text' ? undefined : clipPathFor(z),
+          }} />
+        );
+      })}
+    </div>
+  );
+}
+
 // ── Component ─────────────────────────────────────────────────
 function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () => void }) {
   const [pages, setPages] = useState<CollagePage[]>(() => [createPage('Страница 1')]);
@@ -716,6 +750,7 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const [editingPageId, setEditingPageId] = useState<string | null>(null);
   const [pageDragIdx, setPageDragIdx] = useState<number | null>(null);
+  const [pagesSheetOpen, setPagesSheetOpen] = useState(false);
   /** zone id in "adjust photo inside" mode (drag = pan photo, not move zone) */
   const [photoEditId, setPhotoEditId] = useState<string | null>(null);
   const [projectMeta, setProjectMeta] = useState<{ name: string; description: string; updatedAt: number } | null>(null);
@@ -1503,118 +1538,199 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
       </div>
 
       <div id="collage-editor" className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-        {/* Page strip — multi-page project (keep z low so toolbar dropdowns float above) */}
-        <div className="lg:col-span-4 glass rounded-xl p-3 relative z-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-mono text-[10px] text-gray-500 shrink-0">СТРАНИЦЫ:</span>
-            <div className="flex gap-2 overflow-x-auto pb-1 flex-1 min-w-0">
-              {pages.map((p, i) => {
-                const sz = resolveSize(p.format, p.orient, p.customW, p.customH);
-                const active = i === activeIdx;
-                return (
-                  <div
-                    key={p.id}
-                    draggable={editingPageId !== p.id}
-                    onDragStart={() => setPageDragIdx(i)}
-                    onDragOver={e => { e.preventDefault(); }}
-                    onDrop={() => {
-                      if (pageDragIdx !== null) movePage(pageDragIdx, i);
-                      setPageDragIdx(null);
-                    }}
-                    onDragEnd={() => setPageDragIdx(null)}
-                    onClick={() => { if (editingPageId !== p.id) switchPage(i); }}
-                    className="relative shrink-0 rounded-lg overflow-hidden cursor-pointer border transition-all"
-                    style={{
-                      width: 72,
-                      border: active ? '2px solid var(--color-primary)' : '1px solid rgba(255,255,255,0.12)',
-                      opacity: pageDragIdx === i ? 0.4 : 1,
-                    }}
-                    title={`${p.name} — ${sz.w}×${sz.h}`}
-                  >
-                    {/* mini preview */}
-                    <div style={{ background: p.bgColor, width: '100%', height: 52, borderRadius: (p.outerRadius / 100) * 8, position: 'relative', overflow: 'hidden' }}>
-                      {p.zones.map(z => {
-                        const imgItem = z.imgId ? images.find(im => im.id === z.imgId) : null;
-                        return (
-                          <div key={z.id} style={{
-                            position: 'absolute',
-                            left: `${z.x * 100}%`, top: `${z.y * 100}%`,
-                            width: `${Math.min(z.w, 1) * 100}%`, height: `${Math.min(z.h, 1) * 100}%`,
-                            background: imgItem ? `url(${imgItem.preview}) center/cover no-repeat` : (z.type === 'text' ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.12)'),
-                            borderRadius: z.type === 'circle' || z.type === 'ellipse' ? '50%' : 1,
-                            clipPath: z.type === 'text' ? undefined : clipPathFor(z),
-                          }} />
-                        );
-                      })}
-                    </div>
-                    {/* name / actions */}
-                    <div className="px-1 py-0.5 flex items-center gap-0.5" style={{ background: active ? 'rgba(var(--color-primary-rgb, 0,255,136),0.15)' : 'rgba(255,255,255,0.04)' }}>
-                      {editingPageId === p.id ? (
-                        <input
-                          autoFocus
-                          defaultValue={p.name}
-                          onFocus={e => e.target.select()}
-                          onClick={e => e.stopPropagation()}
-                          onBlur={e => renamePage(p.id, e.target.value)}
-                          onKeyDown={e => {
-                            if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-                            if (e.key === 'Escape') setEditingPageId(null);
-                          }}
-                          className="w-full bg-black/40 border border-white/15 rounded px-1 py-0.5 font-mono text-[8px] text-white outline-none"
-                        />
-                      ) : (
-                        <>
-                          <span
-                            className="flex-1 truncate font-mono text-[8px] text-gray-300"
-                            onDoubleClick={e => { e.stopPropagation(); setEditingPageId(p.id); }}
-                            title="Двойной клик или карандаш — переименовать"
-                          >
-                            {p.name}
-                          </span>
+        {/* Page navigator — compact on mobile, strip on desktop + sheet manager */}
+        <div className="lg:col-span-4 glass rounded-xl p-2 sm:p-3 relative z-0">
+          {/* always: pager controls */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => switchPage(Math.max(0, activeIdx - 1))}
+              disabled={activeIdx <= 0}
+              className="shrink-0 w-10 h-10 rounded-xl font-mono text-sm glass hover:bg-white/10 disabled:opacity-30 flex items-center justify-center"
+              title="Предыдущая"
+            >
+              ‹
+            </button>
+            <button
+              onClick={() => setPagesSheetOpen(true)}
+              className="flex-1 min-w-0 h-10 px-3 rounded-xl glass hover:bg-white/10 flex items-center gap-2 text-left"
+              title="Все страницы"
+            >
+              <span className="shrink-0 font-mono text-[11px] font-bold px-1.5 py-0.5 rounded"
+                style={{ background: 'var(--color-primary)', color: '#000' }}>
+                {activeIdx + 1}/{pages.length}
+              </span>
+              <span className="flex-1 min-w-0 truncate font-mono text-xs text-gray-200">{page.name}</span>
+              <span className="shrink-0 font-mono text-[9px] text-gray-500 hidden sm:inline">{fmt.w}×{fmt.h}</span>
+              <svg viewBox="0 0 24 24" className="w-4 h-4 shrink-0 text-gray-500" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+            <button
+              onClick={() => switchPage(Math.min(pages.length - 1, activeIdx + 1))}
+              disabled={activeIdx >= pages.length - 1}
+              className="shrink-0 w-10 h-10 rounded-xl font-mono text-sm glass hover:bg-white/10 disabled:opacity-30 flex items-center justify-center"
+              title="Следующая"
+            >
+              ›
+            </button>
+            <button
+              onClick={() => addPage(false)}
+              className="shrink-0 h-10 px-3 rounded-xl font-mono text-xs glass hover:bg-white/10"
+              title="Новая страница"
+            >
+              +
+            </button>
+          </div>
+
+          {/* desktop only: horizontal thumbnail strip */}
+          <div className="hidden lg:flex gap-2 overflow-x-auto pb-1 mt-2">
+            {pages.map((p, i) => {
+              const active = i === activeIdx;
+              return (
+                <div
+                  key={p.id}
+                  draggable={editingPageId !== p.id}
+                  onDragStart={() => setPageDragIdx(i)}
+                  onDragOver={e => e.preventDefault()}
+                  onDrop={() => {
+                    if (pageDragIdx !== null) movePage(pageDragIdx, i);
+                    setPageDragIdx(null);
+                  }}
+                  onDragEnd={() => setPageDragIdx(null)}
+                  onClick={() => { if (editingPageId !== p.id) switchPage(i); }}
+                  className="relative shrink-0 rounded-lg overflow-hidden cursor-pointer border transition-all"
+                  style={{
+                    width: 64,
+                    border: active ? '2px solid var(--color-primary)' : '1px solid rgba(255,255,255,0.12)',
+                    opacity: pageDragIdx === i ? 0.4 : 1,
+                  }}
+                  title={`${p.name}`}
+                >
+                  <PageThumb page={p} images={images} height={44} />
+                  <div className="px-1 py-0.5 truncate font-mono text-[8px]"
+                    style={{ background: active ? 'rgba(0,255,136,0.12)' : 'rgba(255,255,255,0.04)', color: active ? 'var(--color-primary)' : '#888' }}>
+                    {i + 1}. {p.name}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <p className="hidden lg:block font-mono text-[8px] text-gray-600 mt-1">
+            клик — открыть · перетащить — порядок · «☰» — все страницы и правки
+          </p>
+        </div>
+
+        {/* Pages sheet — big cards for mobile (and desktop manage) */}
+        {pagesSheetOpen && (
+          <div className="fixed inset-0 z-[2000] flex items-end sm:items-center justify-center"
+            style={{ background: 'rgba(0,0,0,0.65)' }}
+            onClick={() => setPagesSheetOpen(false)}>
+            <motion.div
+              initial={{ y: 40, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              onClick={e => e.stopPropagation()}
+              className="w-full sm:max-w-lg max-h-[85vh] rounded-t-2xl sm:rounded-2xl p-4 flex flex-col gap-3"
+              style={{
+                background: 'linear-gradient(135deg, rgba(20,20,35,0.98), rgba(10,10,20,0.99))',
+                border: '1px solid rgba(255,255,255,0.1)',
+                boxShadow: '0 -8px 32px rgba(0,0,0,0.5)',
+              }}
+            >
+              <div className="flex items-center justify-between shrink-0">
+                <h3 className="font-mono text-sm font-bold" style={{ color: 'var(--color-primary)' }}>
+                  СТРАНИЦЫ · {pages.length}
+                </h3>
+                <div className="flex gap-1.5">
+                  <button onClick={() => addPage(false)}
+                    className="px-2.5 py-1.5 rounded-lg font-mono text-[10px] glass hover:bg-white/10">+ НОВАЯ</button>
+                  <button onClick={() => addPage(true)}
+                    className="px-2.5 py-1.5 rounded-lg font-mono text-[10px] glass hover:bg-white/10">
+                    <Copy className="w-3 h-3 inline mr-1" />ДУБЛЬ
+                  </button>
+                  <button onClick={() => setPagesSheetOpen(false)}
+                    className="p-1.5 rounded-lg hover:bg-white/10 text-gray-500">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="overflow-y-auto flex-1 grid grid-cols-2 gap-3 pr-1">
+                {pages.map((p, i) => {
+                  const active = i === activeIdx;
+                  return (
+                    <div
+                      key={p.id}
+                      className="rounded-xl overflow-hidden border cursor-pointer"
+                      style={{
+                        border: active ? '2px solid var(--color-primary)' : '1px solid rgba(255,255,255,0.12)',
+                        background: 'rgba(255,255,255,0.03)',
+                      }}
+                      onClick={() => { switchPage(i); setPagesSheetOpen(false); }}
+                    >
+                      <PageThumb page={p} images={images} height={110} />
+                      <div className="p-2 space-y-1.5">
+                        {editingPageId === p.id ? (
+                          <input
+                            autoFocus
+                            defaultValue={p.name}
+                            onFocus={e => e.target.select()}
+                            onClick={e => e.stopPropagation()}
+                            onBlur={e => { renamePage(p.id, e.target.value); e.stopPropagation(); }}
+                            onKeyDown={e => {
+                              e.stopPropagation();
+                              if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                              if (e.key === 'Escape') setEditingPageId(null);
+                            }}
+                            className="w-full bg-black/40 border border-white/15 rounded px-2 py-1.5 font-mono text-xs text-white outline-none"
+                          />
+                        ) : (
+                          <div className="flex items-center gap-1">
+                            <span className="flex-1 min-w-0 truncate font-mono text-xs text-gray-200">
+                              <span style={{ color: 'var(--color-primary)' }}>{i + 1}.</span> {p.name}
+                            </span>
+                            <button
+                              onClick={e => { e.stopPropagation(); setEditingPageId(p.id); }}
+                              className="shrink-0 p-2 rounded-lg hover:bg-white/10 text-gray-500 hover:text-gray-200"
+                              title="Переименовать"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        )}
+                        <div className="flex items-center gap-1">
                           <button
-                            onClick={e => { e.stopPropagation(); setEditingPageId(p.id); }}
-                            className="shrink-0 p-0.5 rounded hover:bg-white/10 text-gray-500 hover:text-gray-200"
-                            title="Переименовать"
-                          >
-                            <Pencil className="w-2.5 h-2.5" />
-                          </button>
+                            onClick={e => { e.stopPropagation(); if (i > 0) movePage(i, i - 1); }}
+                            disabled={i === 0}
+                            className="flex-1 py-2 rounded-lg font-mono text-[11px] glass hover:bg-white/10 disabled:opacity-30"
+                            title="Левее"
+                          >←</button>
+                          <button
+                            onClick={e => { e.stopPropagation(); if (i < pages.length - 1) movePage(i, i + 1); }}
+                            disabled={i === pages.length - 1}
+                            className="flex-1 py-2 rounded-lg font-mono text-[11px] glass hover:bg-white/10 disabled:opacity-30"
+                            title="Правее"
+                          >→</button>
                           {pages.length > 1 && (
                             <button
                               onClick={e => { e.stopPropagation(); removePage(i); }}
-                              className="shrink-0 p-0.5 rounded hover:bg-red-500/20 text-gray-500 hover:text-red-400"
-                              title="Удалить страницу"
+                              className="shrink-0 w-10 py-2 rounded-lg font-mono text-[11px] hover:bg-red-500/15 text-red-400"
+                              title="Удалить"
                             >
-                              <X className="w-2.5 h-2.5" />
+                              <Trash2 className="w-3.5 h-3.5 mx-auto" />
                             </button>
                           )}
-                        </>
-                      )}
+                        </div>
+                      </div>
                     </div>
-                    {active && (
-                      <span className="absolute top-0.5 left-0.5 font-mono text-[7px] px-1 rounded"
-                        style={{ background: 'var(--color-primary)', color: '#000' }}>{i + 1}</span>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-            <div className="flex gap-1.5 shrink-0">
-              <button onClick={() => addPage(false)}
-                className="px-2.5 py-2 rounded-lg font-mono text-[10px] glass hover:bg-white/10"
-                title="Добавить пустую страницу (формат текущей)">
-                + СТРАНИЦА
-              </button>
-              <button onClick={() => addPage(true)}
-                className="px-2.5 py-2 rounded-lg font-mono text-[10px] glass hover:bg-white/10"
-                title="Дублировать текущую страницу с зонами">
-                <Copy className="w-3 h-3 inline mr-1" />ДУБЛЬ
-              </button>
-            </div>
+                  );
+                })}
+              </div>
+              <p className="font-mono text-[9px] text-gray-600 shrink-0">
+                карточка — открыть · ✎ — имя · ← → — порядок · у каждой страницы свой undo
+              </p>
+            </motion.div>
           </div>
-          <p className="font-mono text-[8px] text-gray-600 mt-1">
-            клик — открыть · ✎ — переименовать · перетащить — порядок · у каждой страницы свой undo
-          </p>
-        </div>
+        )}
 
         {/* Canvas */}
         <div className="lg:col-span-3 space-y-4">
