@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import {
   Server, Cpu, HardDrive, Database, Clock, Activity,
   RefreshCw, MemoryStick, Globe, Zap, Wrench, AlertTriangle,
-  CheckSquare, Square, Save,
+  CheckSquare, Square, Save, Download, Archive,
 } from 'lucide-react';
 import { dashboardApi } from '../services/api';
 import { MAINT_PAGES } from '../config/maintPages';
@@ -60,6 +60,9 @@ export default function AdminMonitoring() {
   const [maintSel, setMaintSel] = useState<string[]>([]);
   const [maintSaved, setMaintSaved] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+  const [backups, setBackups] = useState<{ name: string; size: number; at: number }[]>([]);
+  const [backupDir, setBackupDir] = useState('');
+  const [backingUp, setBackingUp] = useState(false);
 
   const fetchHealth = async () => {
     try {
@@ -74,10 +77,35 @@ export default function AdminMonitoring() {
         setMaintSel(maintRes.data.pages || []);
         setMaintSaved(maintRes.data.pages || []);
       }
+      try {
+        const b = await dashboardApi.listBackups();
+        if (b.success && b.data) {
+          setBackups(b.data.files || []);
+          setBackupDir(b.data.dir || '');
+        }
+      } catch { /* backup list is optional */ }
     } catch {
       setError('Нет доступа или сервер недоступен');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const createBackup = async () => {
+    setBackingUp(true);
+    try {
+      const res = await dashboardApi.createBackup();
+      if (res.success && res.data) {
+        setBackups(res.data.files || []);
+        setBackupDir(res.data.dir || backupDir);
+        showToast(`Бэкап ${res.data.name} · ${formatBytes(res.data.size)}`, 'success');
+      } else {
+        showToast('Не удалось создать бэкап', 'error');
+      }
+    } catch {
+      showToast('Ошибка бэкапа', 'error');
+    } finally {
+      setBackingUp(false);
     }
   };
 
@@ -237,6 +265,69 @@ export default function AdminMonitoring() {
               Активно ТО: {maintSaved.length} стр. — пользователи видят «зайдите позже»
             </p>
           </motion.div>
+        )}
+      </div>
+
+      {/* DB backup */}
+      <div className="glass rounded-xl p-4 space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h3 className="font-mono text-xs font-bold tracking-wider flex items-center gap-2" style={{ color: '#3b82f6' }}>
+              <Archive className="w-4 h-4" /> БЭКАП БД НА СЕРВЕРЕ
+            </h3>
+            <p className="font-mono text-[10px] mt-1" style={{ color: '#6b7280' }}>
+              {backupDir || '…'} · live-копия без остановки сервера
+            </p>
+          </div>
+          <button
+            onClick={createBackup}
+            disabled={backingUp}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-[11px] font-bold disabled:opacity-50"
+            style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}
+          >
+            <Archive className="w-3.5 h-3.5" />
+            {backingUp ? 'СОЗДАНИЕ…' : 'СОЗДАТЬ БЭКАП'}
+          </button>
+        </div>
+        {backups.length === 0 ? (
+          <p className="font-mono text-[10px]" style={{ color: '#4a4a60' }}>бэкапов пока нет</p>
+        ) : (
+          <div className="space-y-1 max-h-56 overflow-y-auto pr-1">
+            {backups.map((b) => (
+              <div key={b.name} className="flex items-center gap-2 px-2.5 py-2 rounded-lg"
+                style={{ backgroundColor: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                <Database className="w-3.5 h-3.5 flex-shrink-0" style={{ color: '#3b82f6' }} />
+                <div className="flex-1 min-w-0">
+                  <div className="font-mono text-[11px] truncate" style={{ color: '#e8e8ec' }}>{b.name}</div>
+                  <div className="font-mono text-[9px]" style={{ color: '#6b7280' }}>
+                    {formatBytes(b.size)} · {new Date(b.at).toLocaleString('ru-RU')}
+                  </div>
+                </div>
+                <button
+                  onClick={async () => {
+                    try {
+                      const blob = await dashboardApi.downloadBackup(b.name);
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = b.name;
+                      document.body.appendChild(a);
+                      a.click();
+                      a.remove();
+                      URL.revokeObjectURL(url);
+                    } catch {
+                      showToast('Ошибка скачивания', 'error');
+                    }
+                  }}
+                  className="flex items-center gap-1 px-2 py-1 rounded-lg font-mono text-[10px] flex-shrink-0"
+                  style={{ backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#9ca3af' }}
+                  title="Скачать файл бэкапа"
+                >
+                  <Download className="w-3 h-3" />
+                </button>
+              </div>
+            ))}
+          </div>
         )}
       </div>
 

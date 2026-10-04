@@ -220,6 +220,20 @@ export const dashboardApi = {
 
   getByStatus: (): Promise<ApiResponse<{ status: string; count: number }[]>> =>
     api.get('/dashboard/analytics/by-status').then((res) => res.data),
+
+  listBackups: (): Promise<ApiResponse<{ dir: string; files: { name: string; size: number; at: number }[] }>> =>
+    api.get('/dashboard/backups').then((res) => res.data),
+
+  createBackup: (): Promise<ApiResponse<{ name: string; size: number; at: number; dir: string; files: { name: string; size: number; at: number }[] }>> =>
+    api.post('/dashboard/backups').then((res) => res.data),
+
+  downloadBackupUrl: (name: string) => `/api/dashboard/backups/${encodeURIComponent(name)}`,
+
+  /** authed download (plain <a href> misses the Bearer token) */
+  downloadBackup: async (name: string) => {
+    const res = await api.get(`/dashboard/backups/${encodeURIComponent(name)}`, { responseType: 'blob' });
+    return res.data as Blob;
+  },
 };
 
 // Collage projects (server-side, team-shared)

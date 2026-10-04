@@ -69,6 +69,15 @@ export function getDb(): Database.Database {
   return db;
 }
 
+/**
+ * Safe online backup (WAL-aware) via better-sqlite3 `db.backup()`.
+ * Never mutates the live DB — read-only copy to `destPath`.
+ */
+export async function backupDatabase(destPath: string): Promise<void> {
+  if (!db) throw new Error('DB not initialized');
+  await db.backup(destPath);
+}
+
 // Graceful shutdown — WAL checkpoint + close
 export function saveDatabase(): void {
   if (db) {
@@ -82,4 +91,4 @@ process.on('SIGINT', () => { saveDatabase(); process.exit(0); });
 process.on('SIGTERM', () => { saveDatabase(); process.exit(0); });
 process.on('exit', () => { try { saveDatabase(); } catch {} });
 
-export default { initDatabase, saveDatabase, query, run, get, transaction, getDb };
+export default { initDatabase, saveDatabase, query, run, get, transaction, getDb, backupDatabase };

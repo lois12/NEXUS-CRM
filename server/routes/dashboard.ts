@@ -2,9 +2,10 @@ import { Router, Response } from 'express';
 import os from 'os';
 import fs from 'fs';
 import path from 'path';
-import { get, query, run } from '../db/database';
+import { get, query, run, backupDatabase } from '../db/database';
 import { authenticateToken, requireRole, AuthRequest } from '../middleware/auth';
-import { DB_PATH, UPLOADS_DIR } from '../paths';
+import { DB_PATH, UPLOADS_DIR, DB_BACKUP_DIR } from '../paths';
+import { asyncAuthHandler, HttpError } from '../middleware/errorHandler';
 
 const router = Router();
 
@@ -65,6 +66,63 @@ router.post('/maintenance/toggle', requireRole('super_admin'), (req: AuthRequest
   const cur = readMaintPages();
   writeMaintPages(cur.length > 0 ? [] : ALL);
   res.json({ success: true, data: { pages: readMaintPages() } });
+});
+
+// ── Manual DB backup (stored on the server) ──────────────────
+function ensureBackupDir(): string {
+  if (!fs.existsSync(DB_BACKUP_DIR)) {
+    fs.mkdirSync(DB_BACKUP_DIR, { recursive: true });
+  }
+  return DB_BACKUP_DIR;
+}
+
+function listBackupFiles() {
+  const dir = ensureBackupDir();
+  return fs.readdirSync(dir)
+    .filter((f) => f.endsWith('.db') && !f.endsWith('-wal') && !f.endsWith('-shm'))
+    .map((f) => {
+      const st = fs.statSync(path.join(dir, f));
+      return { name: f, size: st.size, at: st.mtimeMs };
+    })
+    .sort((a, b) => b.at - a.at)
+    .slice(0, 30);
+}
+
+/** GET /api/dashboard/backups — list server-side backups */
+router.get('/backups', requireRole('super_admin'), asyncAuthHandler(async (_req: AuthRequest, res: Response) => {
+  res.json({ success: true, data: { dir: DB_BACKUP_DIR, files: listBackupFiles() } });
+}));
+
+/** POST /api/dashboard/backups — create a new backup on the server */
+router.post('/backups', requireRole('super_admin'), asyncAuthHandler(async (_req: AuthRequest, res: Response) => {
+  const dir = ensureBackupDir();
+  const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  const name = `nexus_manual_${ts}.db`;
+  const dest = path.join(dir, name);
+  await backupDatabase(dest);
+  const st = fs.statSync(dest);
+  // sanity: SQLite header
+  const fd = fs.openSync(dest, 'r');
+  const head = Buffer.alloc(16);
+  fs.readSync(fd, head, 0, 16, 0);
+  fs.closeSync(fd);
+  if (!head.toString('utf8').startsWith('SQLite format')) {
+    fs.unlinkSync(dest);
+    throw new HttpError(500, 'Бэкап повреждён (нет SQLite-заголовка)');
+  }
+  res.json({
+    success: true,
+    data: { name, size: st.size, at: st.mtimeMs, dir, files: listBackupFiles() },
+  });
+}));
+
+/** GET /api/dashboard/backups/:name — download */
+router.get('/backups/:name', requireRole('super_admin'), (req: AuthRequest, res: Response) => {
+  const name = path.basename(req.params.name); // no traversal
+  if (!/^[\w.-]+\.db$/.test(name)) throw new HttpError(400, 'Некорректное имя файла');
+  const file = path.join(DB_BACKUP_DIR, name);
+  if (!fs.existsSync(file)) throw new HttpError(404, 'Бэкап не найден');
+  res.download(file, name);
 });
 
 const startTime = Date.now();

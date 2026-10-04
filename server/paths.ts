@@ -19,6 +19,11 @@ if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
 // Common paths
 export const DB_PATH = path.join(DATA_DIR, 'nexus.db');
+/** Manual DB backups (admin panel + update.sh). On VPS: /var/nexus_db_backups */
+export const DB_BACKUP_DIR = process.env.DB_BACKUP_DIR
+  || (process.platform === 'linux' && fs.existsSync('/var/nexus_db_backups')
+    ? '/var/nexus_db_backups'
+    : path.join(PROJECT_ROOT, 'db_backups'));
 export const UPLOADS_DIR = process.env.UPLOADS_DIR
   ? process.env.UPLOADS_DIR
   : path.join(PROJECT_ROOT, 'uploads');
