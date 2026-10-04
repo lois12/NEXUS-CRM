@@ -4,6 +4,8 @@ import {
   Square, PenTool, Image as ImageIcon, X, Download,
   Trash2, Copy, Layers, Move, Maximize2, Minimize2, Type,
 } from 'lucide-react';
+import { PDFDocument } from 'pdf-lib';
+import JSZip from 'jszip';
 import { showToast } from '../components/ui/NexusModal';
 
 // ── Types ─────────────────────────────────────────────────────
@@ -48,13 +50,244 @@ interface ImgItem {
   img?: HTMLImageElement;
 }
 
-type CanvasFormat = 'square' | 'landscape' | 'portrait';
+type FormatId =
+  | 'a1' | 'a2' | 'a3' | 'a4' | 'a5'
+  | 'square' | 'album32' | 'book23' | 'igPost' | 'igStories' | 'vkCover' | 'youtube'
+  | 'custom';
+type Orientation = 'portrait' | 'landscape';
 
-const FORMATS: Record<CanvasFormat, { w: number; h: number; label: string }> = {
-  square: { w: 1080, h: 1080, label: '1:1 Квадрат' },
-  landscape: { w: 1200, h: 800, label: '3:2 Альбом' },
-  portrait: { w: 800, h: 1200, label: '2:3 Книга' },
+interface FormatDef {
+  w: number;
+  h: number;
+  label: string;
+  group: 'paper' | 'social' | 'custom';
+  /** W/H swap allowed via orientation dropdown */
+  flippable?: boolean;
+  /** locked orientation (when not flippable and not square) */
+  locked?: Orientation;
+}
+
+/** px sizes @ 150dpi for paper; social sizes are native */
+const FORMATS: Record<FormatId, FormatDef> = {
+  a1:      { w: 4967, h: 7022, label: 'A1',           group: 'paper',  flippable: true },
+  a2:      { w: 3508, h: 4967, label: 'A2',           group: 'paper',  flippable: true },
+  a3:      { w: 2480, h: 3508, label: 'A3',           group: 'paper',  flippable: true },
+  a4:      { w: 1654, h: 2339, label: 'A4',           group: 'paper',  flippable: true },
+  a5:      { w: 1169, h: 1654, label: 'A5',           group: 'paper',  flippable: true },
+  square:  { w: 2048, h: 2048, label: 'Квадрат 1:1',  group: 'social' },
+  album32: { w: 2048, h: 1365, label: 'Альбом 3:2',   group: 'social', locked: 'landscape' },
+  book23:  { w: 1365, h: 2048, label: 'Книга 2:3',    group: 'social', locked: 'portrait' },
+  igPost:  { w: 1080, h: 1080, label: 'IG пост',      group: 'social' },
+  igStories: { w: 1080, h: 1920, label: 'IG Stories', group: 'social', locked: 'portrait' },
+  vkCover: { w: 1200, h: 630,  label: 'VK обложка',   group: 'social', flippable: true },
+  youtube: { w: 1280, h: 720,  label: 'YouTube',      group: 'social', flippable: true },
+  custom:  { w: 1080, h: 1080, label: 'Кастом',      group: 'custom', flippable: true },
 };
+
+const FORMAT_GROUPS: { key: FormatDef['group']; title: string; ids: FormatId[] }[] = [
+  { key: 'paper',  title: 'Бумага (A1–A5)', ids: ['a1', 'a2', 'a3', 'a4', 'a5'] },
+  { key: 'social', title: 'Соцсети',        ids: ['square', 'album32', 'book23', 'igPost', 'igStories', 'vkCover', 'youtube'] },
+  { key: 'custom', title: 'Кастом WxH',     ids: ['custom'] },
+];
+
+/** effective canvas size — applies orientation flip */
+function resolveSize(id: FormatId, o: Orientation, customW: number, customH: number) {
+  if (id === 'custom') {
+    const w = Math.max(16, Math.min(8000, Math.round(customW) || 1080));
+    const h = Math.max(16, Math.min(8000, Math.round(customH) || 1080));
+    return o === 'landscape' ? { w: Math.max(w, h), h: Math.min(w, h) } : { w: Math.min(w, h), h: Math.max(w, h) };
+  }
+  const d = FORMATS[id];
+  if (d.flippable) {
+    return o === 'landscape' ? { w: d.h, h: d.w } : { w: d.w, h: d.h };
+  }
+  return { w: d.w, h: d.h };
+}
+
+// ── Pages (multi-page project) ────────────────────────────────
+interface CollagePage {
+  id: string;
+  name: string;
+  format: FormatId;
+  orient: Orientation;
+  customW: number;
+  customH: number;
+  bgColor: string;
+  outerRadius: number;
+  zones: Zone[];
+  /** per-page undo stack (zone snapshots) */
+  history: Zone[][];
+  histIdx: number;
+}
+
+function createPage(name: string, from?: CollagePage): CollagePage {
+  if (from) {
+    return {
+      ...from,
+      id: uid(),
+      name,
+      zones: from.zones.map(z => ({ ...z, id: uid(), points: z.points?.map(p => ({ ...p })), corners: z.corners ? { ...z.corners } : undefined, border: z.border ? { ...z.border } : undefined, stroke: z.stroke ? { ...z.stroke } : undefined })),
+      history: [[]],
+      histIdx: 0,
+    };
+  }
+  return {
+    id: uid(),
+    name,
+    format: 'a4',
+    orient: 'portrait',
+    customW: 1080,
+    customH: 1080,
+    bgColor: '#0a0a0f',
+    outerRadius: 0,
+    zones: [],
+    history: [[]],
+    histIdx: 0,
+  };
+}
+
+/** snapshot zones into the page undo stack */
+function withHistory(p: CollagePage, zones: Zone[]): CollagePage {
+  const history = [...p.history.slice(0, p.histIdx + 1), zones.map(z => ({ ...z }))];
+  return { ...p, zones, history, histIdx: history.length - 1 };
+}
+
+/** ISO paper size in PDF points (portrait base) */
+const PAPER_PT: Partial<Record<FormatId, { w: number; h: number }>> = {
+  a1: { w: 1684, h: 2384 },
+  a2: { w: 1191, h: 1684 },
+  a3: { w: 842, h: 1191 },
+  a4: { w: 595, h: 842 },
+  a5: { w: 420, h: 595 },
+};
+
+/** page size in PDF points (orientation-aware) */
+function resolvePt(p: Pick<CollagePage, 'format' | 'orient' | 'customW' | 'customH'>) {
+  const paper = PAPER_PT[p.format];
+  if (paper) {
+    return p.orient === 'landscape' ? { w: paper.h, h: paper.w } : { w: paper.w, h: paper.h };
+  }
+  const sz = resolveSize(p.format, p.orient, p.customW, p.customH);
+  // social/custom px @ 150dpi → pt
+  return { w: sz.w * 72 / 150, h: sz.h * 72 / 150 };
+}
+
+function downloadBlob(blob: Blob, name: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function canvasToPngBlob(canvas: HTMLCanvasElement): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(b => b ? resolve(b) : reject(new Error('Canvas → PNG failed')), 'image/png');
+  });
+}
+
+/** Render a page (any format/zones) to an offscreen canvas at `scale` */
+function renderPageToCanvas(
+  p: Pick<CollagePage, 'format' | 'orient' | 'customW' | 'customH' | 'bgColor' | 'outerRadius' | 'zones'>,
+  images: ImgItem[],
+  scale: number,
+): HTMLCanvasElement {
+  const sz = resolveSize(p.format, p.orient, p.customW, p.customH);
+  const W = sz.w * scale;
+  const H = sz.h * scale;
+  const canvas = document.createElement('canvas');
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Canvas недоступен');
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+
+  // background with optional outer radius clip
+  if (p.outerRadius > 0) {
+    traceShape(ctx, { id: '', type: 'rect', x: 0, y: 0, w: 1, h: 1, radius: p.outerRadius, imgRadius: 0, fit: 'cover' }, W, H);
+    ctx.clip();
+  }
+  ctx.fillStyle = p.bgColor;
+  ctx.fillRect(0, 0, W, H);
+
+  for (const z of p.zones) {
+    ctx.save();
+    if (z.type === 'text') {
+      const px = (z.fontSize || 0.06) * sz.h * scale;
+      const family = z.fontFamily || 'Montserrat';
+      ctx.font = `${z.fontWeight === 'bold' ? '700' : '400'} ${px}px "${family}", sans-serif`;
+      ctx.textBaseline = 'top';
+      const maxW = z.w * sz.w * scale;
+      const lines = wrapText(ctx, z.text || '', maxW);
+      const align = z.align || 'left';
+      ctx.textAlign = align === 'center' ? 'center' : align === 'right' ? 'right' : 'left';
+      const baseX = z.x * sz.w * scale + (align === 'center' ? maxW / 2 : align === 'right' ? maxW : 0);
+      const baseY = z.y * sz.h * scale;
+
+      const cx = z.x * sz.w * scale + (z.w * sz.w * scale) / 2;
+      const cy = z.y * sz.h * scale + (z.h * sz.h * scale) / 2;
+      ctx.translate(cx, cy);
+      ctx.rotate(((z.rotation || 0) * Math.PI) / 180);
+      ctx.translate(-cx, -cy);
+
+      const strokeCfg = z.stroke;
+      if (strokeCfg && strokeCfg.width > 0) {
+        lines.forEach((line, li) => {
+          ctx.lineJoin = 'round';
+          ctx.lineWidth = strokeCfg.width * px * 2;
+          ctx.strokeStyle = strokeCfg.color;
+          ctx.strokeText(line, baseX, baseY + li * px * 1.15);
+        });
+      }
+      lines.forEach((line, li) => {
+        ctx.fillStyle = z.fontColor || '#ffffff';
+        ctx.fillText(line, baseX, baseY + li * px * 1.15);
+      });
+      ctx.restore();
+      continue;
+    }
+    // Shape zone: clip to shape, then to image-round rect, then draw
+    traceShape(ctx, z, sz.w * scale, sz.h * scale);
+    ctx.clip();
+    const imgItem = z.imgId ? images.find(i => i.id === z.imgId) : null;
+    if (imgItem?.img) {
+      ctx.save();
+      if (z.imgRadius > 0) {
+        traceImgRound(ctx, z, sz.w * scale, sz.h * scale);
+        ctx.clip();
+      }
+      const zx = z.x * sz.w * scale;
+      const zy = z.y * sz.h * scale;
+      const zw = z.w * sz.w * scale;
+      const zh = z.h * sz.h * scale;
+      ctx.translate(zx + zw / 2, zy + zh / 2);
+      ctx.scale(z.imgZoom || 1, z.imgZoom || 1);
+      ctx.translate((z.imgX || 0) * zw * 0.3, (z.imgY || 0) * zh * 0.3);
+      ctx.translate(-(zx + zw / 2), -(zy + zh / 2));
+      drawFitted(ctx, imgItem.img, zx, zy, zw, zh, z.fit);
+      ctx.restore();
+    } else {
+      ctx.fillStyle = 'rgba(255,255,255,0.06)';
+      ctx.fill();
+    }
+    ctx.restore();
+
+    // border stroke along the shape (outside the clip)
+    if (z.border && z.border.width > 0) {
+      ctx.save();
+      traceShape(ctx, z, sz.w * scale, sz.h * scale);
+      ctx.strokeStyle = z.border.color;
+      ctx.lineWidth = (z.border.width / 100) * Math.min(sz.w, sz.h) * scale / 2;
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+  return canvas;
+}
 
 /** 20 beautiful Cyrillic-capable fonts (Google Fonts) */
 const FONTS = [
@@ -339,10 +572,10 @@ function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number)
 
 // ── Component ─────────────────────────────────────────────────
 export default function PhotoCollage() {
-  const [format, setFormat] = useState<CanvasFormat>('square');
-  const [bgColor, setBgColor] = useState('#0a0a0f');
-  const [outerRadius, setOuterRadius] = useState(0);
-  const [zones, setZones] = useState<Zone[]>([]);
+  const [pages, setPages] = useState<CollagePage[]>(() => [createPage('Страница 1')]);
+  const [activeIdx, setActiveIdx] = useState(0);
+  const [formatMenuOpen, setFormatMenuOpen] = useState(false);
+  const [orientMenuOpen, setOrientMenuOpen] = useState(false);
   const [selId, setSelId] = useState<string | null>(null);
   const [images, setImages] = useState<ImgItem[]>([]);
   const [drawing, setDrawing] = useState(false);
@@ -350,37 +583,128 @@ export default function PhotoCollage() {
   const [isBusy, setIsBusy] = useState(false);
   const [isFull, setIsFull] = useState(false);
   const [exportScale, setExportScale] = useState<1 | 2>(2);
-  // Undo/Redo history
-  const [history, setHistory] = useState<Zone[][]>([]);
-  const [histIdx, setHistIdx] = useState(-1);
   const [shapeMenuOpen, setShapeMenuOpen] = useState(false);
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const [editingPageId, setEditingPageId] = useState<string | null>(null);
+  const [pageDragIdx, setPageDragIdx] = useState<number | null>(null);
   // alignment guides shown while dragging (snap to center/edges)
   const [guides, setGuides] = useState<{ v: number | null; h: number | null }>({ v: null, h: null });
   const canvasRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragRef = useRef<{ mode: 'move' | 'resize'; zone: Zone; startX: number; startY: number; orig: Zone } | null>(null);
 
-  const fmt = FORMATS[format];
+  const page = pages[Math.min(activeIdx, pages.length - 1)] ?? pages[0];
+  const {
+    format, orient, customW, customH, bgColor, outerRadius,
+    zones, history, histIdx,
+  } = page;
+
+  const fmt = resolveSize(format, orient, customW, customH);
+  const fmtDef = FORMATS[format];
+  const canFlip = !!fmtDef.flippable;
   const sel = zones.find(z => z.id === selId) || null;
+
+  // ── page-aware updaters ─────────────────────────────────────
+  const patchPage = (id: string, patch: Partial<CollagePage>) => {
+    setPages(prev => prev.map(p => p.id === id ? { ...p, ...patch } : p));
+  };
+
+  /** replace zones on the active page; commit=true pushes undo snapshot */
+  const setZones = (updater: Zone[] | ((prev: Zone[]) => Zone[]), commit = false) => {
+    setPages(prev => prev.map((p, i) => {
+      if (i !== activeIdx) return p;
+      const next = typeof updater === 'function' ? updater(p.zones) : updater;
+      return commit ? withHistory(p, next) : { ...p, zones: next };
+    }));
+  };
 
   // snapshot zones into history (call after every committed change)
   const commitHistory = (next: Zone[]) => {
-    setHistory(prev => [...prev.slice(0, histIdx + 1), next.map(z => ({ ...z }))]);
-    setHistIdx(prev => prev + 1);
+    setPages(prev => prev.map((p, i) => i === activeIdx ? withHistory(p, next) : p));
+  };
+
+  const setFormat = (f: FormatId) => patchPage(page.id, { format: f });
+  const setOrient = (o: Orientation) => patchPage(page.id, { orient: o });
+  const setCustomW = (v: number) => patchPage(page.id, { customW: v, format: 'custom' });
+  const setCustomH = (v: number) => patchPage(page.id, { customH: v, format: 'custom' });
+  const setBgColor = (v: string) => patchPage(page.id, { bgColor: v });
+  const setOuterRadius = (v: number) => patchPage(page.id, { outerRadius: v });
+
+  const switchPage = (idx: number) => {
+    if (idx === activeIdx) return;
+    setActiveIdx(idx);
+    setSelId(null);
+    setDrawing(false);
+    setDrawPts([]);
+  };
+
+  const addPage = (duplicate = false) => {
+    const name = `Страница ${pages.length + 1}`;
+    const np = duplicate
+      ? createPage(name, page)
+      : {
+          ...createPage(name),
+          format: page.format,
+          orient: page.orient,
+          customW: page.customW,
+          customH: page.customH,
+          bgColor: page.bgColor,
+          outerRadius: page.outerRadius,
+        };
+    setPages(prev => [...prev, np]);
+    setActiveIdx(pages.length);
+    setSelId(null);
+    setDrawing(false);
+    setDrawPts([]);
+  };
+
+  const removePage = (idx: number) => {
+    if (pages.length <= 1) { showToast('Нельзя удалить последнюю страницу', 'error'); return; }
+    setPages(prev => prev.filter((_, i) => i !== idx));
+    setActiveIdx(i => {
+      if (idx > i) return i;
+      if (idx < i) return i - 1;
+      return Math.min(i, pages.length - 2);
+    });
+    setSelId(null);
+  };
+
+  const renamePage = (id: string, name: string) => {
+    patchPage(id, { name: name.trim() || 'Страница' });
+    setEditingPageId(null);
+  };
+
+  const movePage = (from: number, to: number) => {
+    if (from === to) return;
+    setPages(prev => {
+      const next = [...prev];
+      const [item] = next.splice(from, 1);
+      next.splice(to, 0, item);
+      return next;
+    });
+    setActiveIdx(cur => {
+      if (cur === from) return to;
+      if (from < cur && to >= cur) return cur - 1;
+      if (from > cur && to <= cur) return cur + 1;
+      return cur;
+    });
   };
 
   const undo = () => {
     if (histIdx <= 0) return;
     const snap = history[histIdx - 1];
-    setHistIdx(histIdx - 1);
-    setZones(snap.map(z => ({ ...z })));
+    setPages(prev => prev.map((p, i) => i === activeIdx
+      ? { ...p, zones: snap.map(z => ({ ...z })), histIdx: histIdx - 1 }
+      : p));
     if (selId && !snap.some(z => z.id === selId)) setSelId(null);
   };
   const redo = () => {
     if (histIdx >= history.length - 1) return;
     const snap = history[histIdx + 1];
-    setHistIdx(histIdx + 1);
-    setZones(snap.map(z => ({ ...z })));
+    setPages(prev => prev.map((p, i) => i === activeIdx
+      ? { ...p, zones: snap.map(z => ({ ...z })), histIdx: histIdx + 1 }
+      : p));
+    if (selId && !snap.some(z => z.id === selId)) setSelId(null);
   };
 
   useEffect(() => {
@@ -402,11 +726,7 @@ export default function PhotoCollage() {
   }, []);
 
   const updateZone = (id: string, patch: Partial<Zone>, commit = true) => {
-    setZones(prev => {
-      const next = prev.map(z => z.id === id ? { ...z, ...patch } : z);
-      if (commit) commitHistory(next);
-      return next;
-    });
+    setZones(prev => prev.map(z => z.id === id ? { ...z, ...patch } : z), commit);
   };
 
   const addShape = (type: ShapeType) => {
@@ -431,11 +751,7 @@ export default function PhotoCollage() {
       z.x = minX; z.y = minY; z.w = bw; z.h = bh;
       z.points = drawPts.map(p => ({ x: (p.x - minX) / bw, y: (p.y - minY) / bh }));
     }
-    setZones(prev => {
-      const next = [...prev, z];
-      commitHistory(next);
-      return next;
-    });
+    setZones(prev => [...prev, z], true);
     setSelId(z.id);
     setDrawing(false);
     setDrawPts([]);
@@ -449,11 +765,7 @@ export default function PhotoCollage() {
       text: 'Ваш текст', fontFamily: 'Montserrat', fontSize: 0.06,
       fontColor: '#ffffff', fontWeight: 'bold', align: 'center',
     };
-    setZones(prev => {
-      const next = [...prev, z];
-      commitHistory(next);
-      return next;
-    });
+    setZones(prev => [...prev, z], true);
     setSelId(z.id);
   };
 
@@ -465,7 +777,7 @@ export default function PhotoCollage() {
       const next = [...prev];
       [next[i], next[i + 1]] = [next[i + 1], next[i]];
       return next;
-    });
+    }, true);
   };
   const sendBackward = (id: string) => {
     setZones(prev => {
@@ -474,39 +786,31 @@ export default function PhotoCollage() {
       const next = [...prev];
       [next[i], next[i - 1]] = [next[i - 1], next[i]];
       return next;
-    });
+    }, true);
   };
   const bringToFront = (id: string) => {
     setZones(prev => {
       const z = prev.find(x => x.id === id);
       if (!z) return prev;
       return [...prev.filter(x => x.id !== id), z];
-    });
+    }, true);
   };
   const sendToBack = (id: string) => {
     setZones(prev => {
       const z = prev.find(x => x.id === id);
       if (!z) return prev;
       return [z, ...prev.filter(x => x.id !== id)];
-    });
+    }, true);
   };
 
   const removeZone = (id: string) => {
-    setZones(prev => {
-      const next = prev.filter(z => z.id !== id);
-      commitHistory(next);
-      return next;
-    });
+    setZones(prev => prev.filter(z => z.id !== id), true);
     if (selId === id) setSelId(null);
   };
 
   const duplicateZone = (z: Zone) => {
     const copy: Zone = { ...z, id: uid(), x: clamp(z.x + 0.02, 0, 1 - z.w), y: clamp(z.y + 0.02, 0, 1 - z.h), points: z.points?.map(p => ({ ...p })) };
-    setZones(prev => {
-      const next = [...prev, copy];
-      commitHistory(next);
-      return next;
-    });
+    setZones(prev => [...prev, copy], true);
     setSelId(copy.id);
   };
 
@@ -579,126 +883,68 @@ export default function PhotoCollage() {
     if (zones.length === 0) { showToast('Добавьте хотя бы одну зону', 'error'); return; }
     setIsBusy(true);
     try {
-      const canvas = document.createElement('canvas');
-      canvas.width = fmt.w * exportScale;
-      canvas.height = fmt.h * exportScale;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) throw new Error('Canvas недоступен');
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = 'high';
-
-      // background with optional outer radius clip
-      const outerR = (outerRadius / 100) * Math.min(fmt.w, fmt.h) / 2;
-      if (outerR > 0) {
-        traceShape(ctx, { id: '', type: 'rect', x: 0, y: 0, w: 1, h: 1, radius: outerRadius, imgRadius: 0, fit: 'cover' }, fmt.w, fmt.h);
-        ctx.clip();
-      }
-      ctx.fillStyle = bgColor;
-      ctx.fillRect(0, 0, fmt.w, fmt.h);
-
-      for (const z of zones) {
-        ctx.save();
-        if (z.type === 'text') {
-          // Text layer — optional rotation + outline
-          const px = (z.fontSize || 0.06) * fmt.h * exportScale;
-          const family = z.fontFamily || 'Montserrat';
-          ctx.font = `${z.fontWeight === 'bold' ? '700' : '400'} ${px}px "${family}", sans-serif`;
-          ctx.textBaseline = 'top';
-          const maxW = z.w * fmt.w * exportScale;
-          const lines = wrapText(ctx, z.text || '', maxW);
-          const align = z.align || 'left';
-          ctx.textAlign = align === 'center' ? 'center' : align === 'right' ? 'right' : 'left';
-          const baseX = z.x * fmt.w * exportScale + (align === 'center' ? maxW / 2 : align === 'right' ? maxW : 0);
-          const baseY = z.y * fmt.h * exportScale;
-
-          const cx = z.x * fmt.w * exportScale + (z.w * fmt.w * exportScale) / 2;
-          const cy = z.y * fmt.h * exportScale + (z.h * fmt.h * exportScale) / 2;
-          ctx.translate(cx, cy);
-          ctx.rotate(((z.rotation || 0) * Math.PI) / 180);
-          ctx.translate(-cx, -cy);
-
-          const drawAt = (mode: 'fill' | 'stroke') => {
-            lines.forEach((line, li) => {
-              const lx = baseX;
-              const ly = baseY + li * px * 1.15;
-              const strokeCfg = z.stroke;
-              if (mode === 'stroke' && strokeCfg && strokeCfg.width > 0) {
-                ctx.lineJoin = 'round';
-                ctx.lineWidth = strokeCfg.width * px * 2;
-                ctx.strokeStyle = strokeCfg.color;
-                ctx.strokeText(line, lx, ly);
-              }
-              ctx.fillStyle = z.fontColor || '#ffffff';
-              ctx.fillText(line, lx, ly);
-            });
-          };
-          const strokeCfg = z.stroke;
-          if (strokeCfg && strokeCfg.width > 0) {
-            // stroke first, then fill on top
-            lines.forEach((line, li) => {
-              ctx.lineJoin = 'round';
-              ctx.lineWidth = strokeCfg.width * px * 2;
-              ctx.strokeStyle = strokeCfg.color;
-              ctx.strokeText(line, baseX, baseY + li * px * 1.15);
-            });
-          }
-          drawAt('fill');
-          ctx.restore();
-          continue;
-        }
-        // Shape zone: clip to shape, then to image-round rect, then draw
-        traceShape(ctx, z, fmt.w * exportScale, fmt.h * exportScale);
-        ctx.clip();
-        const imgItem = z.imgId ? images.find(i => i.id === z.imgId) : null;
-        if (imgItem?.img) {
-          ctx.save();
-          if (z.imgRadius > 0) {
-            traceImgRound(ctx, z, fmt.w * exportScale, fmt.h * exportScale);
-            ctx.clip();
-          }
-          // pan/zoom of the photo inside the zone (matches CSS transform in preview)
-          const zx = z.x * fmt.w * exportScale;
-          const zy = z.y * fmt.h * exportScale;
-          const zw = z.w * fmt.w * exportScale;
-          const zh = z.h * fmt.h * exportScale;
-          ctx.translate(zx + zw / 2, zy + zh / 2);
-          ctx.scale(z.imgZoom || 1, z.imgZoom || 1);
-          ctx.translate((z.imgX || 0) * zw * 0.3, (z.imgY || 0) * zh * 0.3);
-          ctx.translate(-(zx + zw / 2), -(zy + zh / 2));
-          drawFitted(ctx, imgItem.img, zx, zy, zw, zh, z.fit);
-          ctx.restore();
-        } else {
-          ctx.fillStyle = 'rgba(255,255,255,0.06)';
-          ctx.fill();
-        }
-        ctx.restore();
-
-        // border stroke along the shape (outside the clip)
-        if (z.border && z.border.width > 0) {
-          ctx.save();
-          traceShape(ctx, z, fmt.w * exportScale, fmt.h * exportScale);
-          ctx.strokeStyle = z.border.color;
-          ctx.lineWidth = (z.border.width / 100) * Math.min(fmt.w, fmt.h) * exportScale / 2;
-          ctx.stroke();
-          ctx.restore();
-        }
-      }
-
-      canvas.toBlob(blob => {
-        if (!blob) { showToast('Ошибка экспорта', 'error'); setIsBusy(false); return; }
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `collage_${Date.now()}.png`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        showToast('Коллаж сохранён', 'success');
-        setIsBusy(false);
-      }, 'image/png');
+      const canvas = renderPageToCanvas(page, images, exportScale);
+      const blob = await canvasToPngBlob(canvas);
+      downloadBlob(blob, `collage_${Date.now()}.png`);
+      showToast('Коллаж сохранён', 'success');
     } catch (e: any) {
       showToast(e?.message || 'Ошибка', 'error');
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  const exportZip = async () => {
+    const withContent = pages.filter(p => p.zones.length > 0);
+    if (withContent.length === 0) { showToast('Нет страниц с зонами', 'error'); return; }
+    setIsBusy(true);
+    try {
+      const zip = new JSZip();
+      for (let i = 0; i < pages.length; i++) {
+        const p = pages[i];
+        const canvas = renderPageToCanvas(p, images, exportScale);
+        const blob = await canvasToPngBlob(canvas);
+        zip.file(`page_${String(i + 1).padStart(2, '0')}_${p.name.replace(/[^\wа-яё-]+/gi, '_')}.png`, blob);
+      }
+      const out = await zip.generateAsync({ type: 'blob' });
+      downloadBlob(out, `collage_pages_${Date.now()}.zip`);
+      showToast(`ZIP: ${pages.length} стр.`, 'success');
+    } catch (e: any) {
+      showToast(e?.message || 'Ошибка ZIP', 'error');
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  const exportPdf = async (scope: 'current' | 'all') => {
+    const list = scope === 'all' ? pages : [page];
+    const withContent = list.filter(p => p.zones.length > 0);
+    if (withContent.length === 0) { showToast('Нет страниц с зонами', 'error'); return; }
+    setIsBusy(true);
+    try {
+      const pdf = await PDFDocument.create();
+      // 2x for print quality, but cap huge paper at 1x to avoid canvas limits
+      const useScale: 1 | 2 = list.some(p => {
+        const sz = resolveSize(p.format, p.orient, p.customW, p.customH);
+        return sz.w * 2 * sz.h * 2 > 40_000_000; // ~40MP
+      }) ? 1 : exportScale;
+
+      for (const p of list) {
+        const canvas = renderPageToCanvas(p, images, useScale);
+        const png = await canvasToPngBlob(canvas);
+        const bytes = new Uint8Array(await png.arrayBuffer());
+        const img = await pdf.embedPng(bytes);
+        const pt = resolvePt(p);
+        const pg = pdf.addPage([pt.w, pt.h]);
+        pg.drawImage(img, { x: 0, y: 0, width: pt.w, height: pt.h });
+      }
+      const out = await pdf.save();
+      downloadBlob(new Blob([out as unknown as BlobPart], { type: 'application/pdf' }),
+        `collage_${scope === 'all' ? 'all_pages' : 'page'}.pdf`);
+      showToast(scope === 'all' ? `PDF: ${list.length} стр.` : 'PDF сохранён', 'success');
+    } catch (e: any) {
+      showToast(e?.message || 'Ошибка PDF', 'error');
+    } finally {
       setIsBusy(false);
     }
   };
@@ -795,24 +1041,226 @@ export default function PhotoCollage() {
         <div className="w-px h-6 bg-white/10 mx-1" />
 
         <span className="font-mono text-[10px] text-gray-500">ФОРМАТ:</span>
-        {(Object.keys(FORMATS) as CanvasFormat[]).map(f => (
-          <button key={f} onClick={() => setFormat(f)}
-            className="px-3 py-2 rounded-lg font-mono text-xs transition-all"
-            style={format === f ? { background: 'var(--color-primary)', color: '#000' } : { background: 'rgba(255,255,255,0.05)', color: '#888' }}>
-            {FORMATS[f].label}
+        <div className="relative">
+          <button onClick={() => { setFormatMenuOpen(v => !v); setOrientMenuOpen(false); }}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-xs glass hover:bg-white/10 transition-all"
+            title="Формат холста">
+            {fmtDef.label} {fmt.w}×{fmt.h} ▾
           </button>
-        ))}
+          {formatMenuOpen && (
+            <div className="absolute left-0 top-full mt-1 z-[999] p-2 rounded-xl space-y-2"
+              style={{ background: 'linear-gradient(135deg, rgba(20,20,35,0.98), rgba(10,10,20,0.99))', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 8px 32px rgba(0,0,0,0.5)', width: 280 }}>
+              {FORMAT_GROUPS.map(g => (
+                <div key={g.key}>
+                  <div className="font-mono text-[9px] text-gray-500 px-1 pb-1 uppercase tracking-wider">{g.title}</div>
+                  {g.key === 'custom' ? (
+                    <div className="p-2 rounded-lg space-y-2" style={{ background: 'rgba(255,255,255,0.04)' }}>
+                      <div className="flex items-center gap-2">
+                        <label className="font-mono text-[9px] text-gray-500 w-6">W</label>
+                        <input type="number" min={16} max={8000} value={customW}
+                          onChange={e => setCustomW(+e.target.value || 0)}
+                          className="flex-1 bg-white/5 border border-white/10 rounded px-2 py-1 font-mono text-xs text-white outline-none focus:border-[var(--color-primary)]" />
+                        <label className="font-mono text-[9px] text-gray-500 w-6">H</label>
+                        <input type="number" min={16} max={8000} value={customH}
+                          onChange={e => setCustomH(+e.target.value || 0)}
+                          className="flex-1 bg-white/5 border border-white/10 rounded px-2 py-1 font-mono text-xs text-white outline-none focus:border-[var(--color-primary)]" />
+                      </div>
+                      <button onClick={() => { setFormat('custom'); setFormatMenuOpen(false); }}
+                        className="w-full py-1.5 rounded-lg font-mono text-[10px] font-bold"
+                        style={{ background: 'var(--color-primary)', color: '#000' }}>ПРИМЕНИТЬ</button>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-1">
+                      {g.ids.map(id => {
+                        const d = FORMATS[id];
+                        const sz = resolveSize(id, d.flippable ? orient : (d.locked || 'portrait'), customW, customH);
+                        const active = format === id;
+                        return (
+                          <button key={id}
+                            onClick={() => {
+                              setFormat(id);
+                              if (d.locked) setOrient(d.locked);
+                              setFormatMenuOpen(false);
+                            }}
+                            className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/10 text-left"
+                            style={active ? { background: 'var(--color-primary)', color: '#000' } : {}}>
+                            {/* ratio thumb */}
+                            <span className="shrink-0 rounded-[2px] border"
+                              style={{
+                                width: 18, height: 18,
+                                borderColor: active ? '#000' : 'var(--color-primary)',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              }}>
+                              <span style={{
+                                background: active ? '#000' : 'var(--color-primary)',
+                                width: Math.max(4, 16 * Math.min(1, sz.w / sz.h)),
+                                height: Math.max(4, 16 * Math.min(1, sz.h / sz.w)),
+                                borderRadius: 1,
+                              }} />
+                            </span>
+                            <span className="min-w-0">
+                              <span className="block font-mono text-[11px] truncate">{d.label}</span>
+                              <span className="block font-mono text-[8px] opacity-60">{sz.w}×{sz.h}</span>
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Orientation — separate dropdown (like shapes/masks) */}
+        <div className="relative">
+          <button onClick={() => { setOrientMenuOpen(v => !v); setFormatMenuOpen(false); }}
+            disabled={!canFlip}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-xs glass hover:bg-white/10 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+            title={canFlip ? 'Ориентация' : 'Формат фиксирован'}>
+            <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.8">
+              {orient === 'landscape'
+                ? <rect x="3" y="6" width="18" height="12" rx="1.5" />
+                : <rect x="7" y="3" width="10" height="18" rx="1.5" />}
+            </svg>
+            {orient === 'landscape' ? 'Гориз.' : 'Верт.'} ▾
+          </button>
+          {orientMenuOpen && canFlip && (
+            <div className="absolute left-0 top-full mt-1 z-[999] p-2 rounded-xl space-y-1"
+              style={{ background: 'linear-gradient(135deg, rgba(20,20,35,0.98), rgba(10,10,20,0.99))', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 8px 32px rgba(0,0,0,0.5)', width: 170 }}>
+              <div className="font-mono text-[9px] text-gray-500 px-1 pb-1 uppercase tracking-wider">Ориентация</div>
+              {([
+                ['portrait', 'Вертикальная', <rect key="p" x="7" y="3" width="10" height="18" rx="1.5" />],
+                ['landscape', 'Горизонтальная', <rect key="l" x="3" y="6" width="18" height="12" rx="1.5" />],
+              ] as const).map(([o, label, icon]) => (
+                <button key={o}
+                  onClick={() => { setOrient(o); setOrientMenuOpen(false); }}
+                  className="w-full flex items-center gap-2 px-2 py-2 rounded-lg hover:bg-white/10 text-left font-mono text-[11px]"
+                  style={orient === o ? { background: 'var(--color-primary)', color: '#000' } : {}}>
+                  <svg viewBox="0 0 24 24" className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.8">{icon}</svg>
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
 
         <div className="w-px h-6 bg-white/10 mx-1" />
 
         <span className="font-mono text-[10px] text-gray-500">ШАБЛОН:</span>
         {PRESETS.map(p => (
-          <button key={p.id} onClick={() => { setZones(p.build()); setSelId(null); }}
+          <button key={p.id} onClick={() => { setZones(p.build(), true); setSelId(null); }}
             className="px-3 py-2 rounded-lg font-mono text-xs glass hover:bg-white/10">{p.label}</button>
         ))}
       </div>
 
       <div id="collage-editor" className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+        {/* Page strip — multi-page project */}
+        <div className="lg:col-span-4 glass rounded-xl p-3">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-mono text-[10px] text-gray-500 shrink-0">СТРАНИЦЫ:</span>
+            <div className="flex gap-2 overflow-x-auto pb-1 flex-1 min-w-0">
+              {pages.map((p, i) => {
+                const sz = resolveSize(p.format, p.orient, p.customW, p.customH);
+                const active = i === activeIdx;
+                return (
+                  <div
+                    key={p.id}
+                    draggable={editingPageId !== p.id}
+                    onDragStart={() => setPageDragIdx(i)}
+                    onDragOver={e => { e.preventDefault(); }}
+                    onDrop={() => {
+                      if (pageDragIdx !== null) movePage(pageDragIdx, i);
+                      setPageDragIdx(null);
+                    }}
+                    onDragEnd={() => setPageDragIdx(null)}
+                    onClick={() => { if (editingPageId !== p.id) switchPage(i); }}
+                    className="relative shrink-0 rounded-lg overflow-hidden cursor-pointer border transition-all"
+                    style={{
+                      width: 72,
+                      border: active ? '2px solid var(--color-primary)' : '1px solid rgba(255,255,255,0.12)',
+                      opacity: pageDragIdx === i ? 0.4 : 1,
+                    }}
+                    title={`${p.name} — ${sz.w}×${sz.h}`}
+                  >
+                    {/* mini preview */}
+                    <div style={{ background: p.bgColor, width: '100%', height: 52, borderRadius: (p.outerRadius / 100) * 8, position: 'relative', overflow: 'hidden' }}>
+                      {p.zones.map(z => {
+                        const imgItem = z.imgId ? images.find(im => im.id === z.imgId) : null;
+                        return (
+                          <div key={z.id} style={{
+                            position: 'absolute',
+                            left: `${z.x * 100}%`, top: `${z.y * 100}%`,
+                            width: `${Math.min(z.w, 1) * 100}%`, height: `${Math.min(z.h, 1) * 100}%`,
+                            background: imgItem ? `url(${imgItem.preview}) center/cover no-repeat` : (z.type === 'text' ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.12)'),
+                            borderRadius: z.type === 'circle' || z.type === 'ellipse' ? '50%' : 1,
+                            clipPath: z.type === 'text' ? undefined : clipPathFor(z),
+                          }} />
+                        );
+                      })}
+                    </div>
+                    {/* name / actions */}
+                    <div className="px-1 py-0.5 flex items-center gap-0.5" style={{ background: active ? 'rgba(var(--color-primary-rgb, 0,255,136),0.15)' : 'rgba(255,255,255,0.04)' }}>
+                      {editingPageId === p.id ? (
+                        <input
+                          autoFocus
+                          defaultValue={p.name}
+                          onClick={e => e.stopPropagation()}
+                          onBlur={e => renamePage(p.id, e.target.value)}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                            if (e.key === 'Escape') setEditingPageId(null);
+                          }}
+                          className="w-full bg-black/40 border border-white/15 rounded px-1 py-0.5 font-mono text-[8px] text-white outline-none"
+                        />
+                      ) : (
+                        <>
+                          <span
+                            className="flex-1 truncate font-mono text-[8px] text-gray-300"
+                            onDoubleClick={e => { e.stopPropagation(); setEditingPageId(p.id); }}
+                            title="Двойной клик — переименовать"
+                          >
+                            {p.name}
+                          </span>
+                          {pages.length > 1 && (
+                            <button
+                              onClick={e => { e.stopPropagation(); removePage(i); }}
+                              className="shrink-0 p-0.5 rounded hover:bg-red-500/20 text-gray-500 hover:text-red-400"
+                              title="Удалить страницу"
+                            >
+                              <X className="w-2.5 h-2.5" />
+                            </button>
+                          )}
+                        </>
+                      )}
+                    </div>
+                    {active && (
+                      <span className="absolute top-0.5 left-0.5 font-mono text-[7px] px-1 rounded"
+                        style={{ background: 'var(--color-primary)', color: '#000' }}>{i + 1}</span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            <div className="flex gap-1.5 shrink-0">
+              <button onClick={() => addPage(false)}
+                className="px-2.5 py-2 rounded-lg font-mono text-[10px] glass hover:bg-white/10"
+                title="Добавить пустую страницу (формат текущей)">
+                + СТРАНИЦА
+              </button>
+              <button onClick={() => addPage(true)}
+                className="px-2.5 py-2 rounded-lg font-mono text-[10px] glass hover:bg-white/10"
+                title="Дублировать текущую страницу с зонами">
+                <Copy className="w-3 h-3 inline mr-1" />ДУБЛЬ
+              </button>
+            </div>
+          </div>
+          <p className="font-mono text-[8px] text-gray-600 mt-1">
+            клик — открыть · двойной клик по имени — переименовать · перетащить — порядок · у каждой страницы свой undo
+          </p>
+        </div>
+
         {/* Canvas */}
         <div className="lg:col-span-3 space-y-4">
           <div
@@ -1371,15 +1819,42 @@ export default function PhotoCollage() {
             </div>
           )}
 
-          <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-            onClick={exportPng} disabled={isBusy || zones.length === 0}
-            className="w-full py-3 rounded-xl font-mono text-sm font-bold transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-            style={{ background: 'var(--color-primary)', color: '#000' }}>
-            <Download className="w-4 h-4" /> {isBusy ? 'ЭКСПОРТ...' : `СКАЧАТЬ PNG (${fmt.w * exportScale}×${fmt.h * exportScale})`}
-          </motion.button>
+          {/* Export menu */}
+          <div className="relative">
+            <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+              onClick={() => setExportMenuOpen(v => !v)}
+              disabled={isBusy}
+              className="w-full py-3 rounded-xl font-mono text-sm font-bold transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              style={{ background: 'var(--color-primary)', color: '#000' }}>
+              <Download className="w-4 h-4" /> {isBusy ? 'ЭКСПОРТ...' : `ЭКСПОРТ ${fmt.w * exportScale}×${fmt.h * exportScale}`} ▾
+            </motion.button>
+            {exportMenuOpen && (
+              <div className="absolute right-0 bottom-full mb-1 z-[999] p-2 rounded-xl space-y-1 w-full"
+                style={{ background: 'linear-gradient(135deg, rgba(20,20,35,0.98), rgba(10,10,20,0.99))', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}>
+                <div className="font-mono text-[9px] text-gray-500 px-1 pb-1 uppercase tracking-wider">Текущая страница</div>
+                <button onClick={() => { setExportMenuOpen(false); exportPng(); }}
+                  className="w-full text-left px-2 py-2 rounded-lg hover:bg-white/10 font-mono text-[11px]">
+                  PNG ({fmt.w * exportScale}×{fmt.h * exportScale})
+                </button>
+                <button onClick={() => { setExportMenuOpen(false); exportPdf('current'); }}
+                  className="w-full text-left px-2 py-2 rounded-lg hover:bg-white/10 font-mono text-[11px]">
+                  PDF (текущая)
+                </button>
+                <div className="font-mono text-[9px] text-gray-500 px-1 pt-2 pb-1 uppercase tracking-wider">Все страницы ({pages.length})</div>
+                <button onClick={() => { setExportMenuOpen(false); exportPdf('all'); }}
+                  className="w-full text-left px-2 py-2 rounded-lg hover:bg-white/10 font-mono text-[11px]">
+                  PDF (все страницы)
+                </button>
+                <button onClick={() => { setExportMenuOpen(false); exportZip(); }}
+                  className="w-full text-left px-2 py-2 rounded-lg hover:bg-white/10 font-mono text-[11px]">
+                  PNG ZIP (все страницы)
+                </button>
+              </div>
+            )}
+          </div>
 
           {zones.length > 0 && (
-            <button onClick={() => { setZones([]); setSelId(null); }}
+            <button onClick={() => { setZones([], true); setSelId(null); }}
               className="w-full py-2 rounded-xl glass text-gray-400 hover:text-gray-200 font-mono text-xs flex items-center justify-center gap-2">
               <X className="w-3.5 h-3.5" /> ОЧИСТИТЬ ВСЕ ЗОНЫ
             </button>
