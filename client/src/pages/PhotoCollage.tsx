@@ -1,13 +1,13 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
-  Square, Circle, Diamond, PenTool, Image as ImageIcon, X, Download,
+  Square, PenTool, Image as ImageIcon, X, Download,
   Trash2, Copy, Layers, Move, Maximize2, Minimize2, Type,
 } from 'lucide-react';
 import { showToast } from '../components/ui/NexusModal';
 
 // ── Types ─────────────────────────────────────────────────────
-type ShapeType = 'rect' | 'circle' | 'ellipse' | 'diamond' | 'polygon' | 'text';
+type ShapeType = 'rect' | 'circle' | 'ellipse' | 'diamond' | 'polygon' | 'text' | 'triangle' | 'star' | 'heart' | 'hexagon' | 'arch';
 type FitMode = 'cover' | 'contain';
 type TextAlign = 'left' | 'center' | 'right';
 
@@ -20,8 +20,16 @@ interface Zone {
   radius: number;      // 0..50 (% of half min-side) for rect
   imgRadius: number;   // 0..50 — rounding of the IMAGE inside the zone
   fit: FitMode;
-  points?: Pt[];       // for polygon (normalized)
+  points?: Pt[];       // for polygon (zone-relative 0..1)
   imgId?: string | null;
+  // per-corner rounding (rect) — falls back to `radius` when unset
+  corners?: { tl: number; tr: number; br: number; bl: number };
+  // photo pan/zoom inside the zone
+  imgZoom?: number;    // 1..3
+  imgX?: number;       // -1..1 offset (fraction of zone size)
+  imgY?: number;
+  // border stroke along the shape
+  border?: { width: number; color: string }; // width % of half min-side (0..20)
   // text layer
   text?: string;
   fontFamily?: string;
@@ -29,6 +37,8 @@ interface Zone {
   fontColor?: string;
   fontWeight?: 'normal' | 'bold';
   align?: TextAlign;
+  rotation?: number;   // -45..45 deg
+  stroke?: { width: number; color: string }; // text outline (width in em, 0..0.3)
 }
 
 interface ImgItem {
@@ -128,15 +138,77 @@ const uid = () => Math.random().toString(36).slice(2);
 
 function clamp(v: number, a: number, b: number) { return Math.min(b, Math.max(a, v)); }
 
+/** Unit-shape polygon points (0..1 inside the zone bbox) for decorative shapes */
+function shapePoints(type: ShapeType): Pt[] {
+  switch (type) {
+    case 'triangle':
+      return [{ x: 0.5, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 1 }];
+    case 'diamond':
+      return [{ x: 0.5, y: 0 }, { x: 1, y: 0.5 }, { x: 0.5, y: 1 }, { x: 0, y: 0.5 }];
+    case 'hexagon': {
+      const pts: Pt[] = [];
+      for (let i = 0; i < 6; i++) {
+        const a = (Math.PI / 3) * i - Math.PI / 2;
+        pts.push({ x: 0.5 + 0.5 * Math.cos(a), y: 0.5 + 0.5 * Math.sin(a) });
+      }
+      return pts;
+    }
+    case 'star': {
+      const pts: Pt[] = [];
+      for (let i = 0; i < 10; i++) {
+        const r = i % 2 === 0 ? 0.5 : 0.22;
+        const a = (Math.PI / 5) * i - Math.PI / 2;
+        pts.push({ x: 0.5 + r * Math.cos(a), y: 0.5 + r * Math.sin(a) });
+      }
+      return pts;
+    }
+    case 'heart': {
+      const pts: Pt[] = [];
+      for (let i = 0; i <= 24; i++) {
+        const t = (i / 24) * Math.PI * 2;
+        const hx = 16 * Math.pow(Math.sin(t), 3);
+        const hy = -(13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t));
+        pts.push({ x: 0.5 + hx / 36, y: 0.5 + hy / 34 });
+      }
+      return pts;
+    }
+    case 'arch': {
+      // rounded-top "window" shape
+      const pts: Pt[] = [{ x: 0, y: 1 }, { x: 0, y: 0.5 }];
+      for (let i = 0; i <= 16; i++) {
+        const a = Math.PI + (Math.PI * i) / 16; // π → 2π (top arc)
+        pts.push({ x: 0.5 + 0.5 * Math.cos(a), y: 0.5 + 0.5 * Math.sin(a) });
+      }
+      pts.push({ x: 1, y: 1 });
+      return pts;
+    }
+    case 'polygon':
+      return []; // uses z.points
+    default:
+      return [];
+  }
+}
+
+function isPolyShape(t: ShapeType): boolean {
+  return t === 'polygon' || t === 'triangle' || t === 'star' || t === 'heart' || t === 'hexagon' || t === 'arch' || t === 'diamond';
+}
+
 /** CSS clip-path for non-rect shapes (preview) */
 function clipPathFor(z: Zone): string | undefined {
   if (z.type === 'circle') return 'circle(50% at 50% 50%)';
   if (z.type === 'ellipse') return 'ellipse(50% 50% at 50% 50%)';
-  if (z.type === 'diamond') return 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)';
-  if (z.type === 'polygon' && z.points?.length) {
-    return `polygon(${z.points.map(p => `${(p.x * 100).toFixed(2)}% ${(p.y * 100).toFixed(2)}%`).join(', ')})`;
+  const pts = z.type === 'polygon' ? z.points : shapePoints(z.type);
+  if (pts?.length) {
+    return `polygon(${pts.map(p => `${(p.x * 100).toFixed(2)}% ${(p.y * 100).toFixed(2)}%`).join(', ')})`;
   }
   return undefined;
+}
+
+function borderRadii(z: Zone): string {
+  if (z.type !== 'rect') return '0';
+  const c = z.corners;
+  if (!c) return `${z.radius}%`;
+  return `${c.tl}% ${c.tr}% ${c.br}% ${c.bl}%`;
 }
 
 /** Trace shape onto a canvas ctx as a clip path (normalized coords × W/H) */
@@ -147,37 +219,35 @@ function traceShape(ctx: CanvasRenderingContext2D, z: Zone, W: number, H: number
   const h = z.h * H;
   ctx.beginPath();
   if (z.type === 'rect') {
-    const r = (z.radius / 100) * Math.min(w, h) / 2;
-    if (r > 0 && typeof (ctx as any).roundRect === 'function') {
-      (ctx as any).roundRect(x, y, w, h, r);
-    } else if (r > 0) {
-      ctx.moveTo(x + r, y);
-      ctx.arcTo(x + w, y, x + w, y + h, r);
-      ctx.arcTo(x + w, y + h, x, y + h, r);
-      ctx.arcTo(x, y + h, x, y, r);
-      ctx.arcTo(x, y, x + w, y, r);
-      ctx.closePath();
-    } else {
-      ctx.rect(x, y, w, h);
-    }
+    // per-corner radius via arcTo chain
+    const c = z.corners || { tl: z.radius, tr: z.radius, br: z.radius, bl: z.radius };
+    const half = Math.min(w, h) / 2 / 100;
+    const rTL = c.tl * half, rTR = c.tr * half, rBR = c.br * half, rBL = c.bl * half;
+    if ((rTL + rTR) > w) { /* clamp handled by arcTo naturally */ }
+    ctx.moveTo(x + rTL, y);
+    ctx.lineTo(x + w - rTR, y);
+    if (rTR > 0) ctx.arcTo(x + w, y, x + w, y + rTR, rTR); else ctx.lineTo(x + w, y);
+    ctx.lineTo(x + w, y + h - rBR);
+    if (rBR > 0) ctx.arcTo(x + w, y + h, x + w - rBR, y + h, rBR); else ctx.lineTo(x + w, y + h);
+    ctx.lineTo(x + rBL, y + h);
+    if (rBL > 0) ctx.arcTo(x, y + h, x, y + h - rBL, rBL); else ctx.lineTo(x, y + h);
+    ctx.lineTo(x, y + rTL);
+    if (rTL > 0) ctx.arcTo(x, y, x + rTL, y, rTL); else ctx.lineTo(x, y);
+    ctx.closePath();
   } else if (z.type === 'circle' || z.type === 'ellipse') {
     ctx.ellipse(x + w / 2, y + h / 2, w / 2, h / 2, 0, 0, Math.PI * 2);
     ctx.closePath();
-  } else if (z.type === 'diamond') {
-    ctx.moveTo(x + w / 2, y);
-    ctx.lineTo(x + w, y + h / 2);
-    ctx.lineTo(x + w / 2, y + h);
-    ctx.lineTo(x, y + h / 2);
-    ctx.closePath();
-  } else if (z.points?.length) {
-    // points are ZONE-relative (0..1) — map into canvas coords via the bbox
-    z.points.forEach((p, i) => {
-      const px = (z.x + p.x * z.w) * W;
-      const py = (z.y + p.y * z.h) * H;
-      if (i === 0) ctx.moveTo(px, py);
-      else ctx.lineTo(px, py);
-    });
-    ctx.closePath();
+  } else {
+    const pts = z.type === 'polygon' ? z.points : shapePoints(z.type);
+    if (pts?.length) {
+      pts.forEach((p, i) => {
+        const px = (z.x + p.x * z.w) * W;
+        const py = (z.y + p.y * z.h) * H;
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      });
+      ctx.closePath();
+    }
   }
 }
 
@@ -280,12 +350,38 @@ export default function PhotoCollage() {
   const [isBusy, setIsBusy] = useState(false);
   const [isFull, setIsFull] = useState(false);
   const [exportScale, setExportScale] = useState<1 | 2>(2);
+  // Undo/Redo history
+  const [history, setHistory] = useState<Zone[][]>([]);
+  const [histIdx, setHistIdx] = useState(-1);
+  const [shapeMenuOpen, setShapeMenuOpen] = useState(false);
+  // alignment guides shown while dragging (snap to center/edges)
+  const [guides, setGuides] = useState<{ v: number | null; h: number | null }>({ v: null, h: null });
   const canvasRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragRef = useRef<{ mode: 'move' | 'resize'; zone: Zone; startX: number; startY: number; orig: Zone } | null>(null);
 
   const fmt = FORMATS[format];
   const sel = zones.find(z => z.id === selId) || null;
+
+  // snapshot zones into history (call after every committed change)
+  const commitHistory = (next: Zone[]) => {
+    setHistory(prev => [...prev.slice(0, histIdx + 1), next.map(z => ({ ...z }))]);
+    setHistIdx(prev => prev + 1);
+  };
+
+  const undo = () => {
+    if (histIdx <= 0) return;
+    const snap = history[histIdx - 1];
+    setHistIdx(histIdx - 1);
+    setZones(snap.map(z => ({ ...z })));
+    if (selId && !snap.some(z => z.id === selId)) setSelId(null);
+  };
+  const redo = () => {
+    if (histIdx >= history.length - 1) return;
+    const snap = history[histIdx + 1];
+    setHistIdx(histIdx + 1);
+    setZones(snap.map(z => ({ ...z })));
+  };
 
   useEffect(() => {
     const h = () => setIsFull(!!document.fullscreenElement);
@@ -305,8 +401,12 @@ export default function PhotoCollage() {
     setImages(prev => [...prev, ...newItems]);
   }, []);
 
-  const updateZone = (id: string, patch: Partial<Zone>) => {
-    setZones(prev => prev.map(z => z.id === id ? { ...z, ...patch } : z));
+  const updateZone = (id: string, patch: Partial<Zone>, commit = true) => {
+    setZones(prev => {
+      const next = prev.map(z => z.id === id ? { ...z, ...patch } : z);
+      if (commit) commitHistory(next);
+      return next;
+    });
   };
 
   const addShape = (type: ShapeType) => {
@@ -331,7 +431,11 @@ export default function PhotoCollage() {
       z.x = minX; z.y = minY; z.w = bw; z.h = bh;
       z.points = drawPts.map(p => ({ x: (p.x - minX) / bw, y: (p.y - minY) / bh }));
     }
-    setZones(prev => [...prev, z]);
+    setZones(prev => {
+      const next = [...prev, z];
+      commitHistory(next);
+      return next;
+    });
     setSelId(z.id);
     setDrawing(false);
     setDrawPts([]);
@@ -345,7 +449,11 @@ export default function PhotoCollage() {
       text: 'Ваш текст', fontFamily: 'Montserrat', fontSize: 0.06,
       fontColor: '#ffffff', fontWeight: 'bold', align: 'center',
     };
-    setZones(prev => [...prev, z]);
+    setZones(prev => {
+      const next = [...prev, z];
+      commitHistory(next);
+      return next;
+    });
     setSelId(z.id);
   };
 
@@ -384,13 +492,21 @@ export default function PhotoCollage() {
   };
 
   const removeZone = (id: string) => {
-    setZones(prev => prev.filter(z => z.id !== id));
+    setZones(prev => {
+      const next = prev.filter(z => z.id !== id);
+      commitHistory(next);
+      return next;
+    });
     if (selId === id) setSelId(null);
   };
 
   const duplicateZone = (z: Zone) => {
     const copy: Zone = { ...z, id: uid(), x: clamp(z.x + 0.02, 0, 1 - z.w), y: clamp(z.y + 0.02, 0, 1 - z.h), points: z.points?.map(p => ({ ...p })) };
-    setZones(prev => [...prev, copy]);
+    setZones(prev => {
+      const next = [...prev, copy];
+      commitHistory(next);
+      return next;
+    });
     setSelId(copy.id);
   };
 
@@ -410,19 +526,39 @@ export default function PhotoCollage() {
     const dx = (e.clientX - d.startX) / rect.width;
     const dy = (e.clientY - d.startY) / rect.height;
     if (d.mode === 'move') {
-      updateZone(d.zone.id, {
-        x: clamp(d.orig.x + dx, -d.orig.w + 0.02, 0.98),
-        y: clamp(d.orig.y + dy, -d.orig.h + 0.02, 0.98),
-      });
+      let nx = clamp(d.orig.x + dx, -d.orig.w + 0.02, 0.98);
+      let ny = clamp(d.orig.y + dy, -d.orig.h + 0.02, 0.98);
+      // snap to center / edges — show alignment guides
+      const SNAP = 0.015;
+      const cx = nx + d.orig.w / 2;
+      const cy = ny + d.orig.h / 2;
+      let gv: number | null = null;
+      let gh: number | null = null;
+      if (Math.abs(cx - 0.5) < SNAP) { nx = 0.5 - d.orig.w / 2; gv = 50; }
+      else if (Math.abs(nx) < SNAP) { nx = 0; gv = 0; }
+      else if (Math.abs(nx + d.orig.w - 1) < SNAP) { nx = 1 - d.orig.w; gv = 100; }
+      if (Math.abs(cy - 0.5) < SNAP) { ny = 0.5 - d.orig.h / 2; gh = 50; }
+      else if (Math.abs(ny) < SNAP) { ny = 0; gh = 0; }
+      else if (Math.abs(ny + d.orig.h - 1) < SNAP) { ny = 1 - d.orig.h; gh = 100; }
+      setGuides({ v: gv, h: gh });
+      updateZone(d.zone.id, { x: nx, y: ny }, false);
     } else {
       updateZone(d.zone.id, {
         w: clamp(d.orig.w + dx, 0.05, 1.5),
         h: clamp(d.orig.h + dy, 0.05, 1.5),
-      });
+      }, false);
     }
   };
 
-  const onZonePointerUp = () => { dragRef.current = null; };
+  const onZonePointerUp = () => {
+    // commit one undo step for the whole drag
+    if (dragRef.current) {
+      const z = zones.find(x => x.id === dragRef.current!.zone.id);
+      if (z) commitHistory(zones);
+    }
+    dragRef.current = null;
+    setGuides({ v: null, h: null });
+  };
 
   // ── Drawing a freeform polygon on the canvas
   const onCanvasClick = (e: React.MouseEvent) => {
@@ -463,44 +599,89 @@ export default function PhotoCollage() {
       for (const z of zones) {
         ctx.save();
         if (z.type === 'text') {
-          // Text layer — no clipping
-          const px = (z.fontSize || 0.06) * fmt.h;
+          // Text layer — optional rotation + outline
+          const px = (z.fontSize || 0.06) * fmt.h * exportScale;
           const family = z.fontFamily || 'Montserrat';
           ctx.font = `${z.fontWeight === 'bold' ? '700' : '400'} ${px}px "${family}", sans-serif`;
-          ctx.fillStyle = z.fontColor || '#ffffff';
           ctx.textBaseline = 'top';
-          const maxW = z.w * fmt.w;
+          const maxW = z.w * fmt.w * exportScale;
           const lines = wrapText(ctx, z.text || '', maxW);
           const align = z.align || 'left';
           ctx.textAlign = align === 'center' ? 'center' : align === 'right' ? 'right' : 'left';
-          const tx = z.x * fmt.w + (align === 'center' ? maxW / 2 : align === 'right' ? maxW : 0);
-          lines.forEach((line, li) => {
-            ctx.fillText(line, tx, z.y * fmt.h + li * px * 1.15);
-          });
+          const baseX = z.x * fmt.w * exportScale + (align === 'center' ? maxW / 2 : align === 'right' ? maxW : 0);
+          const baseY = z.y * fmt.h * exportScale;
+
+          const cx = z.x * fmt.w * exportScale + (z.w * fmt.w * exportScale) / 2;
+          const cy = z.y * fmt.h * exportScale + (z.h * fmt.h * exportScale) / 2;
+          ctx.translate(cx, cy);
+          ctx.rotate(((z.rotation || 0) * Math.PI) / 180);
+          ctx.translate(-cx, -cy);
+
+          const drawAt = (mode: 'fill' | 'stroke') => {
+            lines.forEach((line, li) => {
+              const lx = baseX;
+              const ly = baseY + li * px * 1.15;
+              const strokeCfg = z.stroke;
+              if (mode === 'stroke' && strokeCfg && strokeCfg.width > 0) {
+                ctx.lineJoin = 'round';
+                ctx.lineWidth = strokeCfg.width * px * 2;
+                ctx.strokeStyle = strokeCfg.color;
+                ctx.strokeText(line, lx, ly);
+              }
+              ctx.fillStyle = z.fontColor || '#ffffff';
+              ctx.fillText(line, lx, ly);
+            });
+          };
+          const strokeCfg = z.stroke;
+          if (strokeCfg && strokeCfg.width > 0) {
+            // stroke first, then fill on top
+            lines.forEach((line, li) => {
+              ctx.lineJoin = 'round';
+              ctx.lineWidth = strokeCfg.width * px * 2;
+              ctx.strokeStyle = strokeCfg.color;
+              ctx.strokeText(line, baseX, baseY + li * px * 1.15);
+            });
+          }
+          drawAt('fill');
           ctx.restore();
           continue;
         }
         // Shape zone: clip to shape, then to image-round rect, then draw
-        traceShape(ctx, z, fmt.w, fmt.h);
+        traceShape(ctx, z, fmt.w * exportScale, fmt.h * exportScale);
         ctx.clip();
         const imgItem = z.imgId ? images.find(i => i.id === z.imgId) : null;
         if (imgItem?.img) {
+          ctx.save();
           if (z.imgRadius > 0) {
-            // nested clip: image rounded independently of zone shape
-            ctx.save();
-            traceImgRound(ctx, z, fmt.w, fmt.h);
+            traceImgRound(ctx, z, fmt.w * exportScale, fmt.h * exportScale);
             ctx.clip();
-            drawFitted(ctx, imgItem.img, z.x * fmt.w, z.y * fmt.h, z.w * fmt.w, z.h * fmt.h, z.fit);
-            ctx.restore();
-          } else {
-            drawFitted(ctx, imgItem.img, z.x * fmt.w, z.y * fmt.h, z.w * fmt.w, z.h * fmt.h, z.fit);
           }
+          // pan/zoom of the photo inside the zone (matches CSS transform in preview)
+          const zx = z.x * fmt.w * exportScale;
+          const zy = z.y * fmt.h * exportScale;
+          const zw = z.w * fmt.w * exportScale;
+          const zh = z.h * fmt.h * exportScale;
+          ctx.translate(zx + zw / 2, zy + zh / 2);
+          ctx.scale(z.imgZoom || 1, z.imgZoom || 1);
+          ctx.translate((z.imgX || 0) * zw * 0.3, (z.imgY || 0) * zh * 0.3);
+          ctx.translate(-(zx + zw / 2), -(zy + zh / 2));
+          drawFitted(ctx, imgItem.img, zx, zy, zw, zh, z.fit);
+          ctx.restore();
         } else {
-          // empty zone: subtle placeholder
           ctx.fillStyle = 'rgba(255,255,255,0.06)';
           ctx.fill();
         }
         ctx.restore();
+
+        // border stroke along the shape (outside the clip)
+        if (z.border && z.border.width > 0) {
+          ctx.save();
+          traceShape(ctx, z, fmt.w * exportScale, fmt.h * exportScale);
+          ctx.strokeStyle = z.border.color;
+          ctx.lineWidth = (z.border.width / 100) * Math.min(fmt.w, fmt.h) * exportScale / 2;
+          ctx.stroke();
+          ctx.restore();
+        }
       }
 
       canvas.toBlob(blob => {
@@ -549,16 +730,47 @@ export default function PhotoCollage() {
       {/* Toolbar */}
       <div className="glass rounded-xl p-3 flex flex-wrap items-center gap-2">
         <span className="font-mono text-[10px] text-gray-500">ЗОНА:</span>
-        {([
-          ['rect', Square, 'Прямоугольник'], ['circle', Circle, 'Круг'],
-          ['ellipse', Circle, 'Эллипс'], ['diamond', Diamond, 'Ромб'],
-        ] as const).map(([t, Icon, lbl]) => (
-          <button key={t} onClick={() => addShape(t)}
+        {/* Undo / Redo arrows */}
+        <button onClick={undo} disabled={histIdx <= 0}
+          className="px-2.5 py-2 rounded-lg font-mono text-xs glass hover:bg-white/10 disabled:opacity-30"
+          title="Отменить (назад)">
+          <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 10h13a4 4 0 0 1 0 8h-3" /><path d="M7 6l-4 4 4 4" /></svg>
+        </button>
+        <button onClick={redo} disabled={histIdx >= history.length - 1}
+          className="px-2.5 py-2 rounded-lg font-mono text-xs glass hover:bg-white/10 disabled:opacity-30"
+          title="Вернуть (вперёд)">
+          <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10H8a4 4 0 0 0 0 8h3" /><path d="M17 6l4 4-4 4" /></svg>
+        </button>
+
+        <div className="relative">
+          <button onClick={() => setShapeMenuOpen(v => !v)}
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-xs glass hover:bg-white/10 transition-all"
-            title={lbl}>
-            <Icon className="w-3.5 h-3.5" /> {lbl}
+            title="Добавить фигуру">
+            <Square className="w-3.5 h-3.5" /> ▾
           </button>
-        ))}
+          {shapeMenuOpen && (
+            <div className="absolute left-0 top-full mt-1 z-[999] p-2 rounded-xl grid grid-cols-3 gap-1"
+              style={{ background: 'linear-gradient(135deg, rgba(20,20,35,0.98), rgba(10,10,20,0.99))', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 8px 32px rgba(0,0,0,0.5)', width: 190 }}>
+              {([
+                ['rect', 'M4 4h16v16H4z'],
+                ['circle', 'M12 4a8 8 0 1 0 0 16 8 8 0 0 0 0-16z'],
+                ['ellipse', 'M12 5c4.4 0 8 2.7 8 6s-3.6 6-8 6-8-2.7-8-6 3.6-6 8-6z'],
+                ['diamond', 'M12 3l9 9-9 9-9-9z'],
+                ['triangle', 'M12 4l9 16H3z'],
+                ['star', 'M12 3l2.2 6.2 6.8.2-5.3 4.3 1.9 6.5-5.6-3.8-5.6 3.8 1.9-6.5L3 9.4l6.8-.2z'],
+                ['heart', 'M12 20s-8-4.7-8-10a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 10c0 5.3-8 10-8 10z'],
+                ['hexagon', 'M12 3l8 4.5v9L12 21l-8-4.5v-9z'],
+                ['arch', 'M4 20v-8a8 8 0 0 1 16 0v8z'],
+              ] as const).map(([t, d]) => (
+                <button key={t} onClick={() => { addShape(t); setShapeMenuOpen(false); }}
+                  className="p-2.5 rounded-lg hover:bg-white/10 flex items-center justify-center"
+                  title={t}>
+                  <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="var(--color-primary)" strokeWidth="1.8"><path d={d} /></svg>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
         <button onClick={() => { setDrawing(v => !v); setDrawPts([]); }}
           className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-xs transition-all"
           style={drawing ? { background: 'var(--color-primary)', color: '#000' } : { background: 'rgba(255,255,255,0.05)', color: '#888' }}
@@ -658,7 +870,12 @@ export default function PhotoCollage() {
                         whiteSpace: 'pre-wrap',
                         wordBreak: 'break-word',
                         margin: 0,
-                        textShadow: '0 1px 4px rgba(0,0,0,0.35)',
+                        transform: `rotate(${z.rotation || 0}deg)`,
+                        WebkitTextStroke: z.stroke && z.stroke.width > 0
+                          ? `${z.stroke.width * (z.fontSize || 0.06) * 200}px ${z.stroke.color}`
+                          : undefined,
+                        paintOrder: 'stroke fill',
+                        textShadow: z.stroke && z.stroke.width > 0 ? 'none' : '0 1px 4px rgba(0,0,0,0.35)',
                         pointerEvents: 'none',
                       }}
                     >
@@ -705,7 +922,7 @@ export default function PhotoCollage() {
                     style={{
                       width: '100%', height: '100%',
                       clipPath: clipPathFor(z),
-                      borderRadius: z.type === 'rect' ? `${z.radius}%` : 0,
+                      borderRadius: isPolyShape(z.type) ? 0 : borderRadii(z),
                       overflow: 'hidden',
                       background: imgItem ? 'transparent' : 'rgba(255,255,255,0.05)',
                     }}
@@ -720,6 +937,9 @@ export default function PhotoCollage() {
                           objectFit: z.fit === 'cover' ? 'cover' : 'contain',
                           // image corner rounding — independent of zone shape
                           borderRadius: z.imgRadius > 0 ? `${z.imgRadius}%` : 0,
+                          // pan/zoom inside the zone
+                          transform: `scale(${z.imgZoom || 1}) translate(${(z.imgX || 0) * 30}%, ${(z.imgY || 0) * 30}%)`,
+                          transition: 'transform 0.15s ease-out',
                           pointerEvents: 'none',
                         }}
                       />
@@ -730,6 +950,25 @@ export default function PhotoCollage() {
                       </div>
                     )}
                   </div>
+                  {/* border stroke along the shape */}
+                  {z.border && z.border.width > 0 && (
+                    <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none" style={{ zIndex: 4 }}>
+                      {z.type === 'circle' || z.type === 'ellipse' ? (
+                        <ellipse cx="50" cy="50" rx="50" ry="50" fill="none"
+                          stroke={z.border.color} strokeWidth={z.border.width * 2} vectorEffect="non-scaling-stroke" />
+                      ) : (() => {
+                        const pts = z.type === 'polygon' ? z.points : shapePoints(z.type);
+                        const list = pts?.length ? pts : [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 1 }];
+                        return (
+                          <polygon
+                            points={list.map(p => `${p.x * 100},${p.y * 100}`).join(' ')}
+                            fill="none" stroke={z.border.color} strokeWidth={z.border.width * 2}
+                            vectorEffect="non-scaling-stroke" strokeLinejoin="round"
+                          />
+                        );
+                      })()}
+                    </svg>
+                  )}
                   {/* resize handle — outside the overflow:hidden surface */}
                   {selected && (
                     <div
@@ -746,6 +985,13 @@ export default function PhotoCollage() {
               );
             })}
 
+            {/* alignment guides (while dragging) */}
+            {guides.v !== null && (
+              <div className="absolute top-0 bottom-0 w-px pointer-events-none" style={{ left: `${guides.v}%`, background: 'var(--color-primary)', boxShadow: '0 0 6px var(--color-primary)', zIndex: 40 }} />
+            )}
+            {guides.h !== null && (
+              <div className="absolute left-0 right-0 h-px pointer-events-none" style={{ top: `${guides.h}%`, background: 'var(--color-primary)', boxShadow: '0 0 6px var(--color-primary)', zIndex: 40 }} />
+            )}
             {/* polygon drawing overlay — viewBox 0..100 (SVG points can't use %) */}
             {drawing && drawPts.length > 0 && (
               <svg
@@ -940,6 +1186,33 @@ export default function PhotoCollage() {
                       ))}
                     </div>
                   </div>
+                  <div>
+                    <label className="font-mono text-[10px] text-gray-500 mb-1 block">НАКЛОН: {sel.rotation || 0}°</label>
+                    <input type="range" min={-45} max={45} value={sel.rotation || 0}
+                      onChange={e => updateZone(sel.id, { rotation: +e.target.value }, false)}
+                      onPointerUp={() => updateZone(sel.id, {})}
+                      onMouseUp={() => updateZone(sel.id, {})}
+                      className="w-full accent-[var(--color-primary)]" />
+                  </div>
+                  <div>
+                    <label className="font-mono text-[10px] text-gray-500 mb-1 block">ОБВОДКА ТЕКСТА</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <span className="font-mono text-[9px] text-gray-500">Толщина {((sel.stroke?.width || 0) * 100).toFixed(0)}%</span>
+                        <input type="range" min={0} max={30} value={Math.round((sel.stroke?.width || 0) * 100)}
+                          onChange={e => updateZone(sel.id, { stroke: { width: +e.target.value / 100, color: sel.stroke?.color || '#000000' } }, false)}
+                          onPointerUp={() => updateZone(sel.id, {})}
+                          onMouseUp={() => updateZone(sel.id, {})}
+                          className="w-full accent-[var(--color-primary)]" />
+                      </div>
+                      <div>
+                        <span className="font-mono text-[9px] text-gray-500">Цвет</span>
+                        <input type="color" value={sel.stroke?.color || '#000000'}
+                          onChange={e => updateZone(sel.id, { stroke: { width: sel.stroke?.width || 0.05, color: e.target.value } })}
+                          className="w-full h-8 rounded cursor-pointer bg-transparent border border-white/10" />
+                      </div>
+                    </div>
+                  </div>
                 </>
               )}
 
@@ -957,9 +1230,77 @@ export default function PhotoCollage() {
                   <div>
                     <label className="font-mono text-[10px] text-gray-500 mb-1 block">СКРУГЛЕНИЕ КАРТИНКИ: {sel.imgRadius}%</label>
                     <input type="range" min={0} max={50} value={sel.imgRadius}
-                      onChange={e => updateZone(sel.id, { imgRadius: +e.target.value })}
+                      onChange={e => updateZone(sel.id, { imgRadius: +e.target.value }, false)}
+                      onPointerUp={() => updateZone(sel.id, {})}
+                      onMouseUp={() => updateZone(sel.id, {})}
                       className="w-full accent-[var(--color-primary)]" />
                     <p className="font-mono text-[9px] text-gray-600 mt-1">мягкий угол самой фотографии</p>
+                  </div>
+                  {/* per-corner rounding for rect */}
+                  {sel.type === 'rect' && (
+                    <div>
+                      <label className="font-mono text-[10px] text-gray-500 mb-1 block">УГЛЫ ПО ОТДЕЛЬНОСТИ</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {([['tl', '↖'], ['tr', '↗'], ['bl', '↙'], ['br', '↘']] as const).map(([k, arrow]) => (
+                          <label key={k} className="font-mono text-[9px] text-gray-500">{arrow}
+                            <input type="range" min={0} max={50}
+                              value={sel.corners?.[k] ?? sel.radius}
+                              onChange={e => {
+                                const cur = sel.corners || { tl: sel.radius, tr: sel.radius, br: sel.radius, bl: sel.radius };
+                                updateZone(sel.id, { corners: { ...cur, [k]: +e.target.value } }, false);
+                              }}
+                              onPointerUp={() => updateZone(sel.id, {})}
+                              onMouseUp={() => updateZone(sel.id, {})}
+                              className="w-full accent-[var(--color-primary)]" />
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {/* border stroke along the shape */}
+                  <div>
+                    <label className="font-mono text-[10px] text-gray-500 mb-1 block">РАМКА ЗОНЫ</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <span className="font-mono text-[9px] text-gray-500">Толщина {sel.border?.width || 0}%</span>
+                        <input type="range" min={0} max={20} value={sel.border?.width || 0}
+                          onChange={e => updateZone(sel.id, { border: { width: +e.target.value, color: sel.border?.color || '#00ff88' } }, false)}
+                          onPointerUp={() => updateZone(sel.id, {})}
+                          onMouseUp={() => updateZone(sel.id, {})}
+                          className="w-full accent-[var(--color-primary)]" />
+                      </div>
+                      <div>
+                        <span className="font-mono text-[9px] text-gray-500">Цвет</span>
+                        <input type="color" value={sel.border?.color || '#00ff88'}
+                          onChange={e => updateZone(sel.id, { border: { width: sel.border?.width || 3, color: e.target.value } })}
+                          className="w-full h-8 rounded cursor-pointer bg-transparent border border-white/10" />
+                      </div>
+                    </div>
+                  </div>
+                  {/* photo pan/zoom */}
+                  <div>
+                    <label className="font-mono text-[10px] text-gray-500 mb-1 block">ЗУМ ФОТО: {(sel.imgZoom || 1).toFixed(2)}×</label>
+                    <input type="range" min={100} max={300} value={Math.round((sel.imgZoom || 1) * 100)}
+                      onChange={e => updateZone(sel.id, { imgZoom: +e.target.value / 100 }, false)}
+                      onPointerUp={() => updateZone(sel.id, {})}
+                      onMouseUp={() => updateZone(sel.id, {})}
+                      className="w-full accent-[var(--color-primary)]" />
+                    <div className="grid grid-cols-2 gap-2 mt-1">
+                      <label className="font-mono text-[9px] text-gray-500">↔
+                        <input type="range" min={-100} max={100} value={Math.round((sel.imgX || 0) * 100)}
+                          onChange={e => updateZone(sel.id, { imgX: +e.target.value / 100 }, false)}
+                          onPointerUp={() => updateZone(sel.id, {})}
+                          onMouseUp={() => updateZone(sel.id, {})}
+                          className="w-full accent-[var(--color-primary)]" />
+                      </label>
+                      <label className="font-mono text-[9px] text-gray-500">↕
+                        <input type="range" min={-100} max={100} value={Math.round((sel.imgY || 0) * 100)}
+                          onChange={e => updateZone(sel.id, { imgY: +e.target.value / 100 }, false)}
+                          onPointerUp={() => updateZone(sel.id, {})}
+                          onMouseUp={() => updateZone(sel.id, {})}
+                          className="w-full accent-[var(--color-primary)]" />
+                      </label>
+                    </div>
                   </div>
                   <div>
                     <label className="font-mono text-[10px] text-gray-500 mb-1 block">ЗАЛИВКА ФОТО</label>
