@@ -2681,13 +2681,11 @@ function CollageEditor({ projectId, onExit }: { projectId: string; onExit: () =>
             id="collage-canvas"
             className={`relative mx-auto rounded-xl overflow-hidden select-none sticky top-0 z-20 lg:sticky ${spaceDown ? 'cursor-grab active:cursor-grabbing' : ''}`}
             style={{
-              width: 'auto',
-              height: 'auto',
-              // keep TRUE aspect: width limited by box AND height budget (no crop)
-              maxWidth: isFull
+              // definite width (auto + aspect-ratio alone collapses — all kids are absolute)
+              width: isFull
                 ? `min(100%, calc((100vh - 220px) * ${fmt.w / fmt.h}))`
                 : `min(100%, 560px, calc(min(70dvh, 100dvh - 260px) * ${fmt.w / fmt.h}))`,
-              maxHeight: isFull ? 'calc(100vh - 220px)' : 'min(70dvh, calc(100dvh - 260px))',
+              height: 'auto',
               aspectRatio: `${fmt.w} / ${fmt.h}`,
               background: bgTransparent ? CHECKER_BG : bgColor,
               backgroundSize: bgTransparent ? '16px 16px' : undefined,
