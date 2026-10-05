@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { RefreshCw, Users } from 'lucide-react';
 import SurveyDailyChart from '../components/surveys/SurveyDailyChart';
-import SurveyChartView from '../components/surveys/SurveyChartView';
+import SurveyChartView, { type ChartView } from '../components/surveys/SurveyChartView';
 import SurveyExportGlitch from '../components/surveys/SurveyExportGlitch';
 import { AnimatedNumber } from '../components/surveys/useCountUp';
 import { publicSurveyApi } from '../services/surveyApi';
@@ -48,6 +48,7 @@ export default function PublicSurveyStats() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [updatedAt, setUpdatedAt] = useState<number>(Date.now());
+  const [chartView, setChartView] = useState<ChartView>('pie3d');
 
   useEffect(() => {
     let cancelled = false;
@@ -140,6 +141,26 @@ export default function PublicSurveyStats() {
           {data.updatedAt ? ` · данные ${fmtRu(data.updatedAt)}` : ''}
         </div>
 
+        {/* global chart view — applies to all questions */}
+        <div className="glass rounded-xl px-3 py-2.5 flex items-center gap-3 flex-wrap">
+          <span className="font-mono text-[10px] text-gray-500 uppercase tracking-wider">ВИД</span>
+          {([
+            ['pie3d', 'Круговая 3D'],
+            ['bars', 'Гистограмма'],
+          ] as const).map(([v, label]) => (
+            <button
+              key={v}
+              onClick={() => setChartView(v)}
+              className="px-3 py-1.5 rounded-lg font-mono text-[11px] transition-colors"
+              style={chartView === v
+                ? { background: 'var(--color-primary)', color: '#000' }
+                : { background: 'rgba(255,255,255,0.05)', color: '#888' }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
         <SurveyDailyChart byDay={data.byDay || []} />
 
         {data.stats.map((q, qi) => (
@@ -156,11 +177,16 @@ export default function PublicSurveyStats() {
                   <p className="font-mono text-[10px] text-gray-600">нет ответов</p>
                 </div>
               ) : (
-                <SurveyChartView title={q.title} data={q.distribution} />
+                <SurveyChartView
+                  title={q.title}
+                  data={q.distribution}
+                  view={chartView}
+                  onViewChange={setChartView}
+                />
               )
             ) : (
               <div className="glass rounded-2xl p-4 space-y-3">
-                <h3 className="font-mono text-sm font-semibold text-gray-200 leading-snug">{q.title}</h3>
+                <h3 className="font-mono text-sm font-semibold text-gray-200 leading-snug" style={{ wordBreak: 'break-word' }}>{q.title}</h3>
                 <div className="space-y-1.5">
                   {q.openAnswers.length === 0 && (
                     <p className="font-mono text-[10px] text-gray-600">нет ответов</p>
@@ -169,7 +195,12 @@ export default function PublicSurveyStats() {
                     <div
                       key={i}
                       className="px-3 py-2 rounded-lg font-mono text-[11px] text-gray-300 leading-relaxed"
-                      style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}
+                      style={{
+                        background: 'rgba(255,255,255,0.03)',
+                        border: '1px solid rgba(255,255,255,0.05)',
+                        wordBreak: 'break-word',
+                        whiteSpace: 'pre-wrap',
+                      }}
                     >
                       {a}
                     </div>
