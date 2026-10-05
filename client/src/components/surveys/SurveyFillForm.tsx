@@ -26,6 +26,40 @@ export default function SurveyFillForm({ survey, slug }: Props) {
   const isAnon = !!survey.isAnonymous;
   const thanksText = survey.thanksText || DEFAULT_THANKS;
   const thanksUrl = survey.thanksRedirectUrl || DEFAULT_THANKS_URL;
+  const questions = survey.questions || [];
+  const draftKey = `survey_draft_${slug}`;
+
+  // restore draft
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(draftKey);
+      if (!raw) return;
+      const d = JSON.parse(raw);
+      if (d?.answers) setAnswers(d.answers);
+      if (d?.contactName) setContactName(d.contactName);
+      if (d?.contactPhone) setContactPhone(d.contactPhone);
+      if (d?.contactEmail) setContactEmail(d.contactEmail);
+      if (d?.consent) setConsent(!!d.consent);
+    } catch { /* ignore */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftKey]);
+
+  // save draft
+  useEffect(() => {
+    if (done) {
+      localStorage.removeItem(draftKey);
+      return;
+    }
+    try {
+      localStorage.setItem(draftKey, JSON.stringify({
+        answers, contactName, contactPhone, contactEmail, consent,
+      }));
+    } catch { /* quota */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [answers, contactName, contactPhone, contactEmail, consent, done, draftKey]);
+
+  const answeredCount = questions.filter((q) => (answers[q.id || ''] || '').trim()).length;
+  const progress = questions.length ? Math.round((answeredCount / questions.length) * 100) : 0;
 
   // after submit: 5s then redirect
   useEffect(() => {
@@ -152,7 +186,22 @@ export default function SurveyFillForm({ survey, slug }: Props) {
         </div>
       )}
 
-      {(survey.questions || []).map((q, qi) => {
+      {questions.length > 0 && (
+        <div className="glass rounded-xl px-4 py-3 space-y-1.5">
+          <div className="flex justify-between font-mono text-[10px] text-gray-500">
+            <span>ПРОГРЕСС</span>
+            <span>{answeredCount} из {questions.length} · {progress}%</span>
+          </div>
+          <div className="h-2 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
+            <div
+              className="h-full rounded-full transition-[width] duration-300"
+              style={{ width: `${progress}%`, background: 'var(--color-primary)' }}
+            />
+          </div>
+        </div>
+      )}
+
+      {questions.map((q, qi) => {
         const qid = q.id || `q${qi}`;
         return (
           <div key={qid} className="glass rounded-xl p-4 space-y-2">

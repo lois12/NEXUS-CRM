@@ -396,11 +396,27 @@ export const getSurveyStats = (req: AuthRequest, res: Response) => {
     res.json({
       success: true,
       data: {
-        survey: { ...survey, isAnonymous: !!survey.isAnonymous, isPublic: !!survey.isPublic },
+        survey: { ...publicShape(survey), questions: withQuestions(id) },
         responseCount: responses.length,
         lastResponseAt: toIsoUtc(responses[0]?.createdAt),
         stats,
         responses: responses.map((r: any) => ({ ...r, answers: JSON.parse(r.answers || '{}') })),
+        byDay: (() => {
+          const dayMap = new Map<string, number>();
+          for (const r of responses) {
+            const day = String(r.createdAt || '').slice(0, 10);
+            if (!day) continue;
+            dayMap.set(day, (dayMap.get(day) || 0) + 1);
+          }
+          const arr: { date: string; count: number }[] = [];
+          for (let i = 29; i >= 0; i--) {
+            const d = new Date();
+            d.setUTCDate(d.getUTCDate() - i);
+            const key = d.toISOString().slice(0, 10);
+            arr.push({ date: key, count: dayMap.get(key) || 0 });
+          }
+          return arr;
+        })(),
       },
     });
   } catch (error) {

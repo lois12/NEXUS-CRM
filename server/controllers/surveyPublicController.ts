@@ -73,6 +73,21 @@ export const getPublicSurveyStats = (req: AuthRequest, res: Response) => {
       return { id: q.id, type: 'open', title: q.title, total: openAnswers.length, distribution: [], openAnswers };
     });
 
+    // votes per day (last 30 days)
+    const byDay: { date: string; count: number }[] = [];
+    const dayMap = new Map<string, number>();
+    for (const r of responses) {
+      const day = String(r.createdAt || '').slice(0, 10);
+      if (!day) continue;
+      dayMap.set(day, (dayMap.get(day) || 0) + 1);
+    }
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date();
+      d.setUTCDate(d.getUTCDate() - i);
+      const key = d.toISOString().slice(0, 10);
+      byDay.push({ date: key, count: dayMap.get(key) || 0 });
+    }
+
     res.json({
       success: true,
       data: {
@@ -81,6 +96,7 @@ export const getPublicSurveyStats = (req: AuthRequest, res: Response) => {
         responseCount: responses.length,
         updatedAt: survey.updatedAt,
         stats,
+        byDay,
       },
     });
   } catch (error) {

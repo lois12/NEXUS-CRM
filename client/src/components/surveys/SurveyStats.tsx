@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { ArrowLeft, Users, Clock } from 'lucide-react';
 import SurveyCharts, { type ChoiceStat } from './SurveyCharts';
 import SurveyExportBar from './SurveyExportBar';
+import SurveyDailyChart from './SurveyDailyChart';
 import { surveyApi, type Survey, type SurveyQuestion } from '../../services/surveyApi';
 import { showToast } from '../ui/NexusModal';
 
@@ -22,6 +23,7 @@ export default function SurveyStats({ surveyId, onBack }: Props) {
   const [stats, setStats] = useState<StatQ[]>([]);
   const [responseCount, setResponseCount] = useState(0);
   const [lastAt, setLastAt] = useState<string | null>(null);
+  const [byDay, setByDay] = useState<{ date: string; count: number }[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -35,6 +37,7 @@ export default function SurveyStats({ surveyId, onBack }: Props) {
           setStats(res.data.stats || []);
           setResponseCount(res.data.responseCount || 0);
           setLastAt(res.data.lastResponseAt || null);
+          setByDay(res.data.byDay || []);
         }
       } catch {
         showToast('Ошибка загрузки статистики', 'error');
@@ -77,6 +80,8 @@ export default function SurveyStats({ surveyId, onBack }: Props) {
           </div>
         </div>
       </div>
+
+      <SurveyDailyChart byDay={byDay} />
 
       {loading ? (
         <p className="font-mono text-xs text-gray-500">загрузка…</p>
