@@ -147,8 +147,17 @@ export default function Lists() {
   // ── Delete List ──
   const handleDelete = (list: List) => {
     showConfirm('УДАЛИТЬ?', `"${list.name}" будет удалён безвозвратно.`, async () => {
-      try { await listsApi.delete(list.id); showToast('Удалено', 'success'); fetchData(); }
-      catch { showToast('Ошибка', 'error'); }
+      try {
+        const res = await listsApi.delete(list.id);
+        if (res?.success === false) {
+          showToast(res.error || 'Ошибка', 'error');
+          return;
+        }
+        showToast('Удалено', 'success');
+        fetchData();
+      } catch (e: any) {
+        showToast(e?.response?.data?.error || e?.message || 'Ошибка', 'error');
+      }
     }, 'danger');
   };
 

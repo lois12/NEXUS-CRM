@@ -1,6 +1,6 @@
 import { Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
-import { query, get, run } from '../db/database';
+import { query, get, run, transaction } from '../db/database';
 import { updateById } from '../db/sqlBuilder';
 import { AuthRequest } from '../middleware/auth';
 
@@ -80,11 +80,16 @@ export const deleteList = (req: AuthRequest, res: Response) => {
     const list = get('SELECT id FROM lists WHERE id = ?', [id]);
     if (!list) return res.status(404).json({ success: false, error: 'Список не найден' });
 
-    run('DELETE FROM lists WHERE id = ?', [id]);
+    // Explicit cascade — old VPS schemas may lack ON DELETE CASCADE on child tables
+    transaction(() => {
+      run('DELETE FROM list_fields WHERE listId = ?', [id]);
+      run('DELETE FROM list_entries WHERE listId = ?', [id]);
+      run('DELETE FROM lists WHERE id = ?', [id]);
+    });
     res.json({ success: true, message: 'Удалено' });
-  } catch (error) {
+  } catch (error: any) {
     console.error('DeleteList error:', error);
-    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+    res.status(500).json({ success: false, error: error?.message || 'Ошибка удаления списка' });
   }
 };
 
