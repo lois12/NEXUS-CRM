@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ArrowLeft, Users, Clock } from 'lucide-react';
-import SurveyCharts, { type ChoiceStat } from './SurveyCharts';
+import SurveyChartView, { type ChartView, type ChoiceStat } from './SurveyChartView';
 import SurveyExportBar from './SurveyExportBar';
 import SurveyDailyChart from './SurveyDailyChart';
 import { surveyApi, type Survey, type SurveyQuestion } from '../../services/surveyApi';
@@ -25,6 +25,7 @@ export default function SurveyStats({ surveyId, onBack }: Props) {
   const [lastAt, setLastAt] = useState<string | null>(null);
   const [byDay, setByDay] = useState<{ date: string; count: number }[]>([]);
   const [loading, setLoading] = useState(true);
+  const [chartView, setChartView] = useState<ChartView>('bars');
 
   useEffect(() => {
     let cancelled = false;
@@ -83,19 +84,71 @@ export default function SurveyStats({ surveyId, onBack }: Props) {
 
       <SurveyDailyChart byDay={byDay} />
 
+      {/* global chart view */}
+      <div className="glass rounded-xl px-3 py-2.5 flex items-center gap-3 flex-wrap">
+        <span className="font-mono text-[10px] text-gray-500 uppercase tracking-wider">ВИД</span>
+        {([
+          ['bars', 'Гистограмма'],
+          ['pie3d', 'Круговая 3D'],
+        ] as const).map(([v, label]) => (
+          <button
+            key={v}
+            onClick={() => setChartView(v)}
+            className="px-3 py-1.5 rounded-lg font-mono text-[11px] transition-all duration-200 hover:scale-105"
+            style={chartView === v
+              ? { background: 'var(--color-primary)', color: '#000', boxShadow: '0 0 16px rgba(0,255,136,0.35)' }
+              : { background: 'rgba(255,255,255,0.05)', color: '#888' }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
       {loading ? (
         <p className="font-mono text-xs text-gray-500">загрузка…</p>
       ) : (
         <div className="space-y-3">
           {stats.map((q) => (
-            <SurveyCharts
-              key={q.id || q.title}
-              title={q.title}
-              type={q.type}
-              total={q.total}
-              distribution={q.distribution}
-              openAnswers={q.openAnswers}
-            />
+            <div key={q.id || q.title}>
+              {q.type === 'choice' ? (
+                q.total === 0 ? (
+                  <div className="glass rounded-2xl p-4">
+                    <h3 className="font-mono text-sm font-semibold text-gray-200 mb-2 leading-snug" style={{ wordBreak: 'break-word' }}>{q.title}</h3>
+                    <p className="font-mono text-[10px] text-gray-600">нет ответов</p>
+                  </div>
+                ) : (
+                  <SurveyChartView
+                    title={q.title}
+                    data={q.distribution}
+                    view={chartView}
+                    onViewChange={setChartView}
+                  />
+                )
+              ) : (
+                <div className="glass rounded-2xl p-4 space-y-3">
+                  <h3 className="font-mono text-sm font-semibold text-gray-200 leading-snug" style={{ wordBreak: 'break-word' }}>{q.title}</h3>
+                  <div className="space-y-1.5">
+                    {q.openAnswers.length === 0 && (
+                      <p className="font-mono text-[10px] text-gray-600">нет ответов</p>
+                    )}
+                    {q.openAnswers.map((a, i) => (
+                      <div
+                        key={i}
+                        className="px-3 py-2 rounded-lg font-mono text-[11px] text-gray-300 leading-relaxed"
+                        style={{
+                          background: 'rgba(255,255,255,0.03)',
+                          border: '1px solid rgba(255,255,255,0.05)',
+                          wordBreak: 'break-word',
+                          whiteSpace: 'pre-wrap',
+                        }}
+                      >
+                        {a}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           ))}
           {stats.length === 0 && (
             <p className="font-mono text-[10px] text-gray-600 text-center py-6">в опросе пока нет вопросов</p>
