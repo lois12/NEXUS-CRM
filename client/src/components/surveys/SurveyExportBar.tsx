@@ -1,9 +1,10 @@
-import { Download, FileText, Globe } from 'lucide-react';
+import { Download, FileText, Link2, BarChart3 } from 'lucide-react';
 import { surveyApi } from '../../services/surveyApi';
 import { showToast } from '../ui/NexusModal';
 
 interface Props {
   surveyId: string;
+  publicSlug?: string | null;
 }
 
 async function fetchAuthed(url: string): Promise<string> {
@@ -15,8 +16,10 @@ async function fetchAuthed(url: string): Promise<string> {
   return res.text();
 }
 
-/** CSV + PDF + HTML */
-export default function SurveyExportBar({ surveyId }: Props) {
+/** CSV + PDF + live HTML stats page */
+export default function SurveyExportBar({ surveyId, publicSlug }: Props) {
+  const statsUrl = publicSlug ? `${window.location.origin}/opros/${publicSlug}/stats` : null;
+
   const downloadCsv = async () => {
     try {
       const blob = await surveyApi.downloadCsv(surveyId);
@@ -48,26 +51,41 @@ export default function SurveyExportBar({ surveyId }: Props) {
     }
   };
 
-  const downloadHtml = async () => {
+  const openLiveStats = () => {
+    if (statsUrl) window.open(statsUrl, '_blank');
+    else showToast('Сначала опубликуйте опрос', 'info');
+  };
+
+  const copyStatsLink = async () => {
+    if (!statsUrl) {
+      showToast('Сначала опубликуйте опрос', 'info');
+      return;
+    }
     try {
-      const html = await fetchAuthed(surveyApi.exportHtmlUrl(surveyId));
-      const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `survey_${surveyId}.html`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-      showToast('HTML сохранён', 'success');
+      await navigator.clipboard.writeText(statsUrl);
+      showToast('Ссылка на статистику скопирована', 'success');
     } catch {
-      showToast('Ошибка HTML', 'error');
+      showToast(statsUrl, 'info');
     }
   };
 
   return (
     <div className="flex gap-2 flex-wrap">
+      <button
+        onClick={openLiveStats}
+        className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-[11px] font-bold"
+        style={{ background: 'var(--color-primary)', color: '#000' }}
+        title="Живая страница статистики"
+      >
+        <BarChart3 className="w-3.5 h-3.5" /> HTML СТАТИСТИКА
+      </button>
+      <button
+        onClick={copyStatsLink}
+        disabled={!statsUrl}
+        className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-[11px] glass hover:bg-white/10 disabled:opacity-40"
+      >
+        <Link2 className="w-3.5 h-3.5" /> ССЫЛКА
+      </button>
       <button
         onClick={downloadCsv}
         className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-[11px] glass hover:bg-white/10"
@@ -79,12 +97,6 @@ export default function SurveyExportBar({ surveyId }: Props) {
         className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-[11px] glass hover:bg-white/10"
       >
         <FileText className="w-3.5 h-3.5" /> PDF
-      </button>
-      <button
-        onClick={downloadHtml}
-        className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-[11px] glass hover:bg-white/10"
-      >
-        <Globe className="w-3.5 h-3.5" /> HTML
       </button>
     </div>
   );

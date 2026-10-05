@@ -66,6 +66,7 @@ const publicClient: AxiosInstance = axios.create({
 
 export const publicSurveyApi = {
   getBySlug: (slug: string) => publicClient.get(`/surveys/public/${slug}`).then((r) => r.data),
+  getStats: (slug: string) => publicClient.get(`/surveys/public/${slug}/stats`).then((r) => r.data),
   submit: (slug: string, data: {
     deviceId: string;
     contactName?: string;

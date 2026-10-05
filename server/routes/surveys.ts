@@ -6,7 +6,7 @@ import {
   createQuestion, updateQuestion, deleteQuestion, reorderQuestions,
   getSurveyStats, exportCSV, exportPDF, exportHTML,
 } from '../controllers/surveyController';
-import { getPublicSurvey, submitSurveyResponse } from '../controllers/surveyPublicController';
+import { getPublicSurvey, submitSurveyResponse, getPublicSurveyStats } from '../controllers/surveyPublicController';
 
 const router = Router();
 router.use(authenticateToken);
@@ -42,6 +42,7 @@ export default router;
 // Public (unauthenticated) — mount BEFORE auth router
 const publicRouter = Router();
 publicRouter.get('/surveys/public/:slug', getPublicSurvey);
+publicRouter.get('/surveys/public/:slug/stats', getPublicSurveyStats);
 publicRouter.post('/surveys/public/:slug/submit', submitSurveyResponse);
 
 export { publicRouter };

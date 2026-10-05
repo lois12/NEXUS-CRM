@@ -16,6 +16,79 @@ function safeJson(s: any): any[] {
   }
 }
 
+/** Public: live stats page data by slug (no auth, published only) */
+export const getPublicSurveyStats = (req: AuthRequest, res: Response) => {
+  try {
+    const survey = get('SELECT * FROM surveys WHERE publicSlug = ? AND isPublic = 1', [req.params.slug]);
+    if (!survey) return res.status(404).json({ success: false, error: 'Опрос не найден или не опубликован' });
+
+    const questions = query(
+      'SELECT * FROM survey_questions WHERE surveyId = ? ORDER BY position ASC, createdAt ASC',
+      [survey.id],
+    ).map((q: any) => ({ ...q, options: safeJson(q.options) }));
+    const responses = query(
+      'SELECT * FROM survey_responses WHERE surveyId = ? ORDER BY datetime(createdAt) ASC',
+      [survey.id],
+    );
+
+    const answerOf = (r: any, qid: string) => {
+      try {
+        const a = JSON.parse(r.answers || '{}');
+        return a[qid];
+      } catch {
+        return undefined;
+      }
+    };
+
+    const stats = questions.map((q: any) => {
+      if (q.type === 'choice') {
+        const counts: Record<string, number> = {};
+        (q.options as string[]).forEach((o: string) => { counts[o] = 0; });
+        let total = 0;
+        for (const r of responses) {
+          const v = answerOf(r, q.id);
+          if (typeof v === 'string' && v in counts) {
+            counts[v] += 1;
+            total += 1;
+          }
+        }
+        return {
+          id: q.id,
+          type: 'choice',
+          title: q.title,
+          total,
+          distribution: (q.options as string[]).map((o) => ({
+            option: o,
+            count: counts[o] || 0,
+            percent: total ? Math.round(((counts[o] || 0) / total) * 1000) / 10 : 0,
+          })),
+          openAnswers: [],
+        };
+      }
+      const openAnswers: string[] = [];
+      for (const r of responses) {
+        const v = answerOf(r, q.id);
+        if (typeof v === 'string' && v.trim()) openAnswers.push(v.trim());
+      }
+      return { id: q.id, type: 'open', title: q.title, total: openAnswers.length, distribution: [], openAnswers };
+    });
+
+    res.json({
+      success: true,
+      data: {
+        name: survey.name,
+        description: survey.description,
+        responseCount: responses.length,
+        updatedAt: survey.updatedAt,
+        stats,
+      },
+    });
+  } catch (error) {
+    console.error('GetPublicSurveyStats error:', error);
+    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+  }
+};
+
 /** Public: survey form by slug (no auth) */
 export const getPublicSurvey = (req: AuthRequest, res: Response) => {
   try {

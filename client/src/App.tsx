@@ -55,6 +55,7 @@ const Lists = lazy(() => import('./pages/Lists'));
 const PublicList = lazy(() => import('./pages/PublicList'));
 const Surveys = lazy(() => import('./pages/Surveys'));
 const PublicSurvey = lazy(() => import('./pages/PublicSurvey'));
+const PublicSurveyStats = lazy(() => import('./pages/PublicSurveyStats'));
 
 function PageWrapper({ children }: { children: ReactNode }) {
   return <ErrorBoundary><Suspense fallback={<LoadingScreen />}>{children}</Suspense></ErrorBoundary>;
@@ -111,6 +112,8 @@ function AppRoutes() {
       <Route path="/lists/public/:slug" element={<PageWrapper><PublicList /></PageWrapper>} />
       <Route path="/survey/:slug" element={<PageWrapper><PublicSurvey /></PageWrapper>} />
       <Route path="/opros/:slug" element={<PageWrapper><PublicSurvey /></PageWrapper>} />
+      <Route path="/survey/:slug/stats" element={<PageWrapper><PublicSurveyStats /></PageWrapper>} />
+      <Route path="/opros/:slug/stats" element={<PageWrapper><PublicSurveyStats /></PageWrapper>} />
       <Route
         path="/"
         element={

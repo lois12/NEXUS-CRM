@@ -54,7 +54,7 @@ export default function SurveyStats({ surveyId, onBack }: Props) {
         <h2 className="font-mono text-base sm:text-lg font-bold flex-1 min-w-0 truncate" style={{ color: 'var(--color-primary)' }}>
           СТАТИСТИКА · {survey?.name || '…'}
         </h2>
-        <SurveyExportBar surveyId={surveyId} />
+        <SurveyExportBar surveyId={surveyId} publicSlug={survey?.publicSlug} />
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
