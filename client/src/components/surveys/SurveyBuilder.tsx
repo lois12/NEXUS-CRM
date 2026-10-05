@@ -170,38 +170,58 @@ export default function SurveyBuilder({ survey, onSaved, onBack }: Props) {
         </button>
       </div>
 
-      {/* Link plate — always visible after publish */}
+      {/* Link plate — edit path + copy */}
       <div
-        className="rounded-xl p-3 flex flex-wrap items-center gap-2"
+        className="rounded-xl p-3 space-y-2"
         style={{
           background: isPublic ? 'rgba(0,255,136,0.08)' : 'rgba(255,255,255,0.03)',
           border: `1px solid ${isPublic ? 'rgba(0,255,136,0.25)' : 'rgba(255,255,255,0.08)'}`,
         }}
       >
-        <div className="flex-1 min-w-[200px]">
-          <div className="font-mono text-[9px] text-gray-500 uppercase tracking-wider mb-0.5">
-            {isPublic ? 'Ссылка для пользователей' : 'Ссылка появится после публикации'}
-          </div>
-          <div className="font-mono text-sm truncate" style={{ color: isPublic ? 'var(--color-primary)' : '#555' }}>
-            {publicUrl || `/opros/${publicSlug || '…'}`}
-          </div>
+        <div className="font-mono text-[9px] text-gray-500 uppercase tracking-wider">
+          Ссылка для пользователей · можно задать свой адрес
         </div>
-        <button
-          onClick={copyLink}
-          disabled={!isPublic}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-[11px] font-bold disabled:opacity-40"
-          style={{ background: 'var(--color-primary)', color: '#000' }}
-        >
-          <Copy className="w-3.5 h-3.5" /> КОПИРОВАТЬ
-        </button>
-        {isPublic && publicUrl && (
+        <div className="flex items-stretch gap-2 flex-wrap">
+          <div className="flex items-stretch flex-1 min-w-[220px]">
+            <span className="px-2.5 flex items-center rounded-l-lg font-mono text-[11px] text-gray-400 border border-r-0 border-gray-700 bg-white/5">
+              /opros/
+            </span>
+            <input
+              value={publicSlug}
+              onChange={(e) => setPublicSlug(e.target.value.toLowerCase().replace(/[^a-z0-9а-яё_-]/g, '-'))}
+              placeholder="ocenka-meropriyatiya"
+              className="flex-1 px-2 py-2.5 rounded-r-lg font-mono text-sm bg-black/40 border border-gray-700 text-white focus:outline-none focus:border-[var(--color-primary)]"
+            />
+          </div>
           <button
-            onClick={() => window.open(publicUrl, '_blank')}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-[11px] glass hover:bg-white/10"
+            onClick={() => save()}
+            disabled={saving}
+            className="px-3 py-2 rounded-lg font-mono text-[11px] font-bold disabled:opacity-50"
+            style={{ background: 'rgba(255,255,255,0.1)', color: '#ddd' }}
+            title="Сохранить адрес"
           >
-            <ExternalLink className="w-3.5 h-3.5" /> ОТКРЫТЬ
+            <Save className="w-3.5 h-3.5 inline mr-1" />СОХРАНИТЬ АДРЕС
           </button>
-        )}
+          <button
+            onClick={copyLink}
+            disabled={!isPublic}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-[11px] font-bold disabled:opacity-40"
+            style={{ background: 'var(--color-primary)', color: '#000' }}
+          >
+            <Copy className="w-3.5 h-3.5" /> КОПИРОВАТЬ
+          </button>
+          {isPublic && publicUrl && (
+            <button
+              onClick={() => window.open(publicUrl, '_blank')}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-[11px] glass hover:bg-white/10"
+            >
+              <ExternalLink className="w-3.5 h-3.5" /> ОТКРЫТЬ
+            </button>
+          )}
+        </div>
+        <div className="font-mono text-[11px] truncate" style={{ color: isPublic ? 'var(--color-primary)' : '#666' }}>
+          {publicUrl || `после публикации: /opros/${publicSlug || '…'}`}
+        </div>
       </div>
 
       <SurveyMetaFields
@@ -211,7 +231,6 @@ export default function SurveyBuilder({ survey, onSaved, onBack }: Props) {
         isAnonymous={isAnonymous}
         thanksText={thanksText}
         thanksRedirectUrl={thanksRedirectUrl}
-        publicSlug={publicSlug}
         onChange={(p) => {
           if (p.name !== undefined) setName(p.name);
           if (p.description !== undefined) setDescription(p.description);
