@@ -22,6 +22,9 @@ import './migrations/006_widgets_lists';
 import './migrations/007_control_password';
 import './migrations/008_chat_hidden';
 import './migrations/009_short_links';
+import './migrations/010_collage_projects';
+import './migrations/011_surveys';
+import './migrations/012_survey_thanks';
 
 export function runMigrations(): void {
   run(`CREATE TABLE IF NOT EXISTS schema_migrations (
