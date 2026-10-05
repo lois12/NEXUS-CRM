@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import SurveyList from '../components/surveys/SurveyList';
 import SurveyBuilder from '../components/surveys/SurveyBuilder';
 import SurveyStats from '../components/surveys/SurveyStats';
-import { surveyApi, type Survey, type SurveyQuestion } from '../services/surveyApi';
+import { surveyApi, type Survey, type SurveyQuestion, type SurveyStatus } from '../services/surveyApi';
 import { showToast } from '../components/ui/NexusModal';
 
 type View = 'list' | 'builder' | 'stats';
@@ -54,22 +54,25 @@ export default function Surveys() {
   };
 
   const openPublic = (s: Survey) => {
-    if (s.isPublic && s.publicSlug) {
+    if (s.publicSlug && (s.status === 'published' || s.status === 'completed' || s.isPublic)) {
       window.open(`/opros/${s.publicSlug}`, '_blank');
     } else {
-      showToast('Сначала опубликуйте опрос', 'info');
+      showToast('Опрос ещё не доступен по ссылке', 'info');
     }
   };
 
-  const togglePublish = async (s: Survey) => {
+  const setStatus = async (s: Survey, status: SurveyStatus, opensAt?: string) => {
     try {
-      const res = await surveyApi.togglePublish(s.id);
+      const res = await surveyApi.setStatus(s.id, status, opensAt);
       if (res?.success) {
-        showToast(res.data?.isPublic ? 'Опрос опубликован' : 'Снят с публикации', 'success');
+        const labels: Record<SurveyStatus, string> = {
+          draft: 'Черновик', scheduled: 'Запланирован', published: 'Опубликован', completed: 'Завершён',
+        };
+        showToast(labels[status], 'success');
         refresh();
       }
     } catch (e: any) {
-      showToast(e?.response?.data?.error || 'Ошибка публикации', 'error');
+      showToast(e?.response?.data?.error || 'Ошибка статуса', 'error');
     }
   };
 
@@ -130,7 +133,7 @@ export default function Surveys() {
       onEdit={openEdit}
       onStats={openStats}
       onOpenPublic={openPublic}
-      onTogglePublish={togglePublish}
+      onSetStatus={setStatus}
       onDuplicate={duplicate}
       onDelete={remove}
       onCopyLink={copyLink}

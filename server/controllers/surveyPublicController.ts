@@ -105,11 +105,56 @@ export const getPublicSurveyStats = (req: AuthRequest, res: Response) => {
   }
 };
 
+function normalizeStatus(raw: any, isPublic?: any): string {
+  const s = String(raw || '').toLowerCase();
+  if (s === 'scheduled' || s === 'published' || s === 'completed') return s;
+  return isPublic ? 'published' : 'draft';
+}
+
 /** Public: survey form by slug (no auth) */
 export const getPublicSurvey = (req: AuthRequest, res: Response) => {
   try {
-    const row = get('SELECT * FROM surveys WHERE publicSlug = ? AND isPublic = 1', [req.params.slug]);
-    if (!row) return res.status(404).json({ success: false, error: 'Опрос не найден или не опубликован' });
+    const row = get('SELECT * FROM surveys WHERE publicSlug = ?', [req.params.slug]);
+    if (!row) return res.status(404).json({ success: false, error: 'Опрос не найден' });
+    const status = normalizeStatus(row.status, row.isPublic);
+    if (status === 'draft') return res.status(404).json({ success: false, error: 'Опрос не найден или не опубликован' });
+
+    const thanksText = row.thanksText || DEFAULT_THANKS;
+    const thanksRedirectUrl = row.thanksRedirectUrl || DEFAULT_THANKS_URL;
+
+    if (status === 'completed') {
+      return res.json({
+        success: true,
+        data: {
+          mode: 'completed',
+          id: row.id,
+          name: row.name,
+          description: row.description,
+          imageUrl: row.imageUrl,
+          thanksText,
+          thanksRedirectUrl,
+          questions: [],
+        },
+      });
+    }
+
+    if (status === 'scheduled') {
+      return res.json({
+        success: true,
+        data: {
+          mode: 'scheduled',
+          id: row.id,
+          name: row.name,
+          description: row.description,
+          imageUrl: row.imageUrl,
+          opensAt: row.opensAt ? new Date(row.opensAt).toISOString() : null,
+          thanksText,
+          thanksRedirectUrl,
+          questions: [],
+        },
+      });
+    }
+
     const questions = query(
       'SELECT * FROM survey_questions WHERE surveyId = ? ORDER BY position ASC, createdAt ASC',
       [row.id],
@@ -118,13 +163,14 @@ export const getPublicSurvey = (req: AuthRequest, res: Response) => {
     res.json({
       success: true,
       data: {
+        mode: 'open',
         id: row.id,
         name: row.name,
         description: row.description,
         imageUrl: row.imageUrl,
         isAnonymous: !!row.isAnonymous,
-        thanksText: row.thanksText || DEFAULT_THANKS,
-        thanksRedirectUrl: row.thanksRedirectUrl || DEFAULT_THANKS_URL,
+        thanksText,
+        thanksRedirectUrl,
         responseCount,
         questions,
       },
@@ -138,8 +184,12 @@ export const getPublicSurvey = (req: AuthRequest, res: Response) => {
 /** Public: submit response (1 per device per survey) */
 export const submitSurveyResponse = (req: AuthRequest, res: Response) => {
   try {
-    const survey = get('SELECT * FROM surveys WHERE publicSlug = ? AND isPublic = 1', [req.params.slug]);
+    const survey = get('SELECT * FROM surveys WHERE publicSlug = ?', [req.params.slug]);
     if (!survey) return res.status(404).json({ success: false, error: 'Опрос не найден или не опубликован' });
+    const status = normalizeStatus(survey.status, survey.isPublic);
+    if (status !== 'published') {
+      return res.status(400).json({ success: false, error: 'Приём ответов сейчас закрыт' });
+    }
 
     const {
       deviceId = '',

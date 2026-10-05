@@ -64,15 +64,28 @@ function withQuestions(id: string) {
 }
 
 function publicShape(row: any) {
+  const status = normalizeStatus(row.status, row.isPublic);
   return {
     ...row,
+    status,
     isAnonymous: !!row.isAnonymous,
-    isPublic: !!row.isPublic,
+    isPublic: status === 'published',
     thanksText: row.thanksText || DEFAULT_THANKS,
     thanksRedirectUrl: row.thanksRedirectUrl || DEFAULT_THANKS_URL,
+    opensAt: toIsoUtc(row.opensAt),
+    closedAt: toIsoUtc(row.closedAt),
     createdAt: toIsoUtc(row.createdAt),
     updatedAt: toIsoUtc(row.updatedAt),
   };
+}
+
+export type SurveyStatus = 'draft' | 'scheduled' | 'published' | 'completed';
+const STATUSES: SurveyStatus[] = ['draft', 'scheduled', 'published', 'completed'];
+
+function normalizeStatus(raw: any, isPublic?: any): SurveyStatus {
+  const s = String(raw || '').toLowerCase();
+  if (s === 'scheduled' || s === 'published' || s === 'completed') return s;
+  return isPublic ? 'published' : 'draft';
 }
 
 function countResponses(id: string): number {
@@ -127,8 +140,8 @@ export const createSurvey = (req: AuthRequest, res: Response) => {
     if (!name || !String(name).trim()) throw new HttpError(400, 'Название обязательно');
     const id = uuidv4();
     run(
-      `INSERT INTO surveys (id, name, description, imageUrl, isAnonymous, publicSlug, isPublic, createdBy, thanksText, thanksRedirectUrl)
-       VALUES (?, ?, ?, ?, ?, NULL, 0, ?, ?, ?)`,
+      `INSERT INTO surveys (id, name, description, imageUrl, isAnonymous, publicSlug, isPublic, createdBy, thanksText, thanksRedirectUrl, status)
+       VALUES (?, ?, ?, ?, ?, NULL, 0, ?, ?, ?, 'draft')`,
       [
         id, String(name).trim(), description, imageUrl, isAnonymous ? 1 : 0, req.user!.id,
         String(thanksText || DEFAULT_THANKS), String(thanksRedirectUrl || DEFAULT_THANKS_URL),
@@ -202,24 +215,51 @@ export const deleteSurvey = (req: AuthRequest, res: Response) => {
 };
 
 export const togglePublish = (req: AuthRequest, res: Response) => {
+  // legacy alias — treat as flip published ↔ draft
+  const cur = get('SELECT * FROM surveys WHERE id = ?', [req.params.id]);
+  if (!cur) return res.status(404).json({ success: false, error: 'Опрос не найден' });
+  const st = normalizeStatus(cur.status, cur.isPublic);
+  req.body = { status: st === 'published' ? 'draft' : 'published' };
+  return setStatus(req, res);
+};
+
+/** POST /surveys/:id/status { status, opensAt? } */
+export const setStatus = (req: AuthRequest, res: Response) => {
   try {
     const id = req.params.id;
     const cur = get('SELECT * FROM surveys WHERE id = ?', [id]);
     if (!cur) return res.status(404).json({ success: false, error: 'Опрос не найден' });
-    if (cur.isPublic) {
-      run('UPDATE surveys SET isPublic = 0, updatedAt = datetime(\'now\') WHERE id = ?', [id]);
-      return res.json({ success: true, data: { isPublic: false, publicSlug: cur.publicSlug } });
+
+    const next = normalizeStatus((req.body || {}).status);
+    const opensAtRaw = (req.body || {}).opensAt;
+    let opensAt: string | null = cur.opensAt || null;
+    if (typeof opensAtRaw === 'string' && opensAtRaw) {
+      const d = new Date(opensAtRaw);
+      if (!isNaN(d.getTime())) opensAt = d.toISOString();
     }
-    // keep admin-set custom path if any, else generate from name
-    let slug = normalizePublicPath(cur.publicSlug) || slugify(cur.name);
-    for (let i = 0; i < 5 && get('SELECT 1 FROM surveys WHERE publicSlug = ? AND id != ?', [slug, id]); i++) {
-      slug = `${slug}-${Math.random().toString(36).slice(2, 5)}`;
+
+    let publicSlug = cur.publicSlug;
+    if (next === 'published') {
+      if (!publicSlug) {
+        publicSlug = slugify(cur.name);
+        for (let i = 0; i < 5 && get('SELECT 1 FROM surveys WHERE publicSlug = ? AND id != ?', [publicSlug, id]); i++) {
+          publicSlug = `${publicSlug}-${Math.random().toString(36).slice(2, 5)}`;
+        }
+      }
     }
-    run('UPDATE surveys SET isPublic = 1, publicSlug = ?, updatedAt = datetime(\'now\') WHERE id = ?', [slug, id]);
-    res.json({ success: true, data: { isPublic: true, publicSlug: slug } });
-  } catch (error) {
-    console.error('TogglePublish survey error:', error);
-    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+
+    const closedAt = next === 'completed' ? new Date().toISOString() : null;
+    const isPublic = next === 'published' ? 1 : 0;
+
+    run(
+      `UPDATE surveys SET status = ?, isPublic = ?, publicSlug = ?, opensAt = ?, closedAt = ?, updatedAt = datetime('now') WHERE id = ?`,
+      [next, isPublic, publicSlug, opensAt, closedAt, id],
+    );
+    const row = get('SELECT * FROM surveys WHERE id = ?', [id]);
+    res.json({ success: true, data: publicShape(row) });
+  } catch (error: any) {
+    console.error('SetSurveyStatus error:', error);
+    res.status(error instanceof HttpError ? error.status : 500).json({ success: false, error: error?.message || 'Ошибка сервера' });
   }
 };
 
@@ -233,8 +273,8 @@ export const duplicateSurvey = (req: AuthRequest, res: Response) => {
     const newId = uuidv4();
     run(
       `INSERT INTO surveys
-         (id, name, description, imageUrl, isAnonymous, publicSlug, isPublic, createdBy, thanksText, thanksRedirectUrl, createdAt, updatedAt)
-       VALUES (?, ?, ?, ?, ?, NULL, 0, ?, ?, ?, datetime('now'), datetime('now'))`,
+         (id, name, description, imageUrl, isAnonymous, publicSlug, isPublic, createdBy, thanksText, thanksRedirectUrl, createdAt, updatedAt, status)
+       VALUES (?, ?, ?, ?, ?, NULL, 0, ?, ?, ?, datetime('now'), datetime('now'), 'draft')`,
       [
         newId,
         `${cur.name} (копия)`,

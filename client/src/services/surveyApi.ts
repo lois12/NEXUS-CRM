@@ -10,6 +10,8 @@ export interface SurveyQuestion {
   position?: number;
 }
 
+export type SurveyStatus = 'draft' | 'scheduled' | 'published' | 'completed';
+
 export interface Survey {
   id: string;
   name: string;
@@ -17,6 +19,9 @@ export interface Survey {
   imageUrl: string;
   isAnonymous: boolean;
   isPublic: boolean;
+  status?: SurveyStatus;
+  opensAt?: string | null;
+  closedAt?: string | null;
   publicSlug: string | null;
   thanksText?: string;
   thanksRedirectUrl?: string;
@@ -37,6 +42,8 @@ export const surveyApi = {
     api.put(`/surveys/${id}`, data).then((r) => r.data),
   remove: (id: string) => api.delete(`/surveys/${id}`).then((r) => r.data),
   togglePublish: (id: string) => api.post(`/surveys/${id}/toggle-publish`).then((r) => r.data),
+  setStatus: (id: string, status: SurveyStatus, opensAt?: string) =>
+    api.post(`/surveys/${id}/status`, { status, opensAt }).then((r) => r.data),
   duplicate: (id: string) => api.post(`/surveys/${id}/duplicate`).then((r) => r.data),
   uploadImage: (id: string, file: File) => {
     const fd = new FormData();
