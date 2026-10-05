@@ -451,24 +451,36 @@ export const exportPDF = (req: AuthRequest, res: Response) => {
       return texts.map((t) => `<tr><td colspan="3">${t.replace(/</g, '&lt;')}</td></tr>`).join('') || '<tr><td colspan="3">—</td></tr>';
     };
 
-    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${survey.name}</title>
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${survey.name} · NEXUS CRM</title>
 <style>
-body{font-family:system-ui,sans-serif;color:#111;padding:32px}
-h1{font-size:20px;margin:0 0 4px}
-.meta{color:#666;font-size:12px;margin-bottom:20px}
-h2{font-size:15px;margin:18px 0 8px}
-table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:12px}
+body{font-family:system-ui,sans-serif;color:#111;padding:32px;padding-bottom:56px}
+.brand{display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid #00c853;padding-bottom:10px;margin-bottom:18px}
+.brand h1{font-size:16px;margin:0;letter-spacing:.12em;color:#00c853;text-transform:uppercase}
+.brand .sub{font-size:11px;color:#888;letter-spacing:.08em}
+h2{font-size:14px;margin:20px 0 8px}
+.meta{color:#666;font-size:11px;margin-bottom:8px}
+table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:8px}
 th,td{border:1px solid #ddd;padding:6px 8px;text-align:left}
 th{background:#f3f4f6}
-.bar{height:8px;background:#00ff88;margin-top:4px}
-@media print { button{display:none} }
+.pct{font-variant-numeric:tabular-nums;font-weight:600;color:#0a7a32}
+.foot{position:fixed;left:32px;right:32px;bottom:18px;display:flex;justify-content:space-between;
+  font-size:10px;color:#999;border-top:1px solid #ddd;padding-top:8px;letter-spacing:.04em}
+@media print { button{display:none} body{padding-bottom:64px} }
 </style></head><body>
-<h1>${survey.name}</h1>
-<div class="meta">Ответов: ${responses.length} · ${new Date().toLocaleString('ru-RU')}</div>
+<div class="brand">
+  <h1>NEXUS CRM</h1>
+  <div class="sub">ОТЧЁТ ПО ОПРОСУ</div>
+</div>
+<h2 style="margin-top:0">${survey.name}</h2>
+<div class="meta">Ответов: ${responses.length} · сформировано ${new Date().toLocaleString('ru-RU')}</div>
 ${questions.map((q: any) => `
-<h2>${q.title} <small style="color:#666">(${q.type === 'choice' ? 'варианты' : 'открытый'})</small></h2>
+<h2>${q.title} <small style="color:#666;font-weight:400">(${q.type === 'choice' ? 'варианты' : 'открытый'})</small></h2>
 <table><thead><tr>${q.type === 'choice' ? '<th>Вариант</th><th>Шт.</th><th>%</th>' : '<th>Ответ</th>'}</tr></thead>
 <tbody>${rowsFor(q)}</tbody></table>`).join('')}
+<div class="foot">
+  <span>NEXUS CRM · nexus-liberty.online</span>
+  <span>${new Date().toLocaleDateString('ru-RU')}</span>
+</div>
 <script>window.onload=()=>window.print()</script>
 </body></html>`;
     res.send(html);
