@@ -12,11 +12,33 @@ function slugify(name: string): string {
   return base || `s-${Date.now().toString(36)}`;
 }
 
+const DEFAULT_THANKS = 'Спасибо что уделили время и проши опрос, Ваше мнение важно для нас';
+const DEFAULT_THANKS_URL = 'https://visit-norilsk.ru';
+
+function safeJson(s: any): any[] {
+  try {
+    const v = JSON.parse(s || '[]');
+    return Array.isArray(v) ? v : [];
+  } catch {
+    return [];
+  }
+}
+
 function withQuestions(id: string) {
   return query(
     'SELECT * FROM survey_questions WHERE surveyId = ? ORDER BY position ASC, createdAt ASC',
     [id],
-  ).map((q: any) => ({ ...q, options: JSON.parse(q.options || '[]') }));
+  ).map((q: any) => ({ ...q, options: safeJson(q.options) }));
+}
+
+function publicShape(row: any) {
+  return {
+    ...row,
+    isAnonymous: !!row.isAnonymous,
+    isPublic: !!row.isPublic,
+    thanksText: row.thanksText || DEFAULT_THANKS,
+    thanksRedirectUrl: row.thanksRedirectUrl || DEFAULT_THANKS_URL,
+  };
 }
 
 function countResponses(id: string): number {
@@ -33,7 +55,7 @@ export const getSurveys = (req: AuthRequest, res: Response) => {
       LEFT JOIN users u ON s.createdBy = u.id
       ORDER BY datetime(s.updatedAt) DESC
     `);
-    res.json({ success: true, data: rows });
+    res.json({ success: true, data: rows.map(publicShape) });
   } catch (error) {
     console.error('GetSurveys error:', error);
     res.status(500).json({ success: false, error: 'Ошибка сервера' });
@@ -47,9 +69,7 @@ export const getSurveyById = (req: AuthRequest, res: Response) => {
     res.json({
       success: true,
       data: {
-        ...row,
-        isAnonymous: !!row.isAnonymous,
-        isPublic: !!row.isPublic,
+        ...publicShape(row),
         questions: withQuestions(row.id),
         responseCount: countResponses(row.id),
       },
@@ -62,19 +82,29 @@ export const getSurveyById = (req: AuthRequest, res: Response) => {
 
 export const createSurvey = (req: AuthRequest, res: Response) => {
   try {
-    const { name, description = '', isAnonymous = false, imageUrl = '' } = req.body || {};
+    const {
+      name,
+      description = '',
+      isAnonymous = false,
+      imageUrl = '',
+      thanksText = DEFAULT_THANKS,
+      thanksRedirectUrl = DEFAULT_THANKS_URL,
+    } = req.body || {};
     if (!name || !String(name).trim()) throw new HttpError(400, 'Название обязательно');
     const id = uuidv4();
     run(
-      `INSERT INTO surveys (id, name, description, imageUrl, isAnonymous, publicSlug, isPublic, createdBy)
-       VALUES (?, ?, ?, ?, ?, NULL, 0, ?)`,
-      [id, String(name).trim(), description, imageUrl, isAnonymous ? 1 : 0, req.user!.id],
+      `INSERT INTO surveys (id, name, description, imageUrl, isAnonymous, publicSlug, isPublic, createdBy, thanksText, thanksRedirectUrl)
+       VALUES (?, ?, ?, ?, ?, NULL, 0, ?, ?, ?)`,
+      [
+        id, String(name).trim(), description, imageUrl, isAnonymous ? 1 : 0, req.user!.id,
+        String(thanksText || DEFAULT_THANKS), String(thanksRedirectUrl || DEFAULT_THANKS_URL),
+      ],
     );
     const row = get('SELECT * FROM surveys WHERE id = ?', [id]);
-    res.status(201).json({ success: true, data: { ...row, isAnonymous: !!row.isAnonymous, questions: [], responseCount: 0 } });
+    res.status(201).json({ success: true, data: { ...publicShape(row), questions: [], responseCount: 0 } });
   } catch (error: any) {
     console.error('CreateSurvey error:', error);
-    res.status(error instanceof HttpError ? 400 : 500).json({ success: false, error: error?.message || 'Ошибка сервера' });
+    res.status(error instanceof HttpError ? error.status : 500).json({ success: false, error: error?.message || 'Ошибка сервера' });
   }
 };
 
@@ -83,13 +113,15 @@ export const updateSurvey = (req: AuthRequest, res: Response) => {
     const id = req.params.id;
     const cur = get('SELECT * FROM surveys WHERE id = ?', [id]);
     if (!cur) return res.status(404).json({ success: false, error: 'Опрос не найден' });
-    const { name, description, isAnonymous, imageUrl } = req.body || {};
+    const { name, description, isAnonymous, imageUrl, thanksText, thanksRedirectUrl } = req.body || {};
     run(
       `UPDATE surveys SET
          name = COALESCE(?, name),
          description = COALESCE(?, description),
          imageUrl = COALESCE(?, imageUrl),
          isAnonymous = COALESCE(?, isAnonymous),
+         thanksText = COALESCE(?, thanksText),
+         thanksRedirectUrl = COALESCE(?, thanksRedirectUrl),
          updatedAt = datetime('now')
        WHERE id = ?`,
       [
@@ -97,6 +129,8 @@ export const updateSurvey = (req: AuthRequest, res: Response) => {
         typeof description === 'string' ? description : null,
         typeof imageUrl === 'string' ? imageUrl : null,
         typeof isAnonymous === 'boolean' ? (isAnonymous ? 1 : 0) : null,
+        typeof thanksText === 'string' ? thanksText : null,
+        typeof thanksRedirectUrl === 'string' ? thanksRedirectUrl : null,
         id,
       ],
     );

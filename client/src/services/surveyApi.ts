@@ -18,6 +18,8 @@ export interface Survey {
   isAnonymous: boolean;
   isPublic: boolean;
   publicSlug: string | null;
+  thanksText?: string;
+  thanksRedirectUrl?: string;
   questions?: SurveyQuestion[];
   responseCount?: number;
   questionCount?: number;

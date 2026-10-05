@@ -4,6 +4,18 @@ import { get, query, run } from '../db/database';
 import { AuthRequest } from '../middleware/auth';
 import { HttpError } from '../middleware/errorHandler';
 
+const DEFAULT_THANKS = 'Спасибо что уделили время и проши опрос, Ваше мнение важно для нас';
+const DEFAULT_THANKS_URL = 'https://visit-norilsk.ru';
+
+function safeJson(s: any): any[] {
+  try {
+    const v = JSON.parse(s || '[]');
+    return Array.isArray(v) ? v : [];
+  } catch {
+    return [];
+  }
+}
+
 /** Public: survey form by slug (no auth) */
 export const getPublicSurvey = (req: AuthRequest, res: Response) => {
   try {
@@ -12,7 +24,7 @@ export const getPublicSurvey = (req: AuthRequest, res: Response) => {
     const questions = query(
       'SELECT * FROM survey_questions WHERE surveyId = ? ORDER BY position ASC, createdAt ASC',
       [row.id],
-    ).map((q: any) => ({ ...q, options: JSON.parse(q.options || '[]') }));
+    ).map((q: any) => ({ ...q, options: safeJson(q.options) }));
     res.json({
       success: true,
       data: {
@@ -21,6 +33,8 @@ export const getPublicSurvey = (req: AuthRequest, res: Response) => {
         description: row.description,
         imageUrl: row.imageUrl,
         isAnonymous: !!row.isAnonymous,
+        thanksText: row.thanksText || DEFAULT_THANKS,
+        thanksRedirectUrl: row.thanksRedirectUrl || DEFAULT_THANKS_URL,
         questions,
       },
     });
@@ -78,7 +92,14 @@ export const submitSurveyResponse = (req: AuthRequest, res: Response) => {
       ],
     );
 
-    res.status(201).json({ success: true, message: 'Спасибо за ответ!' });
+    res.status(201).json({
+      success: true,
+      message: 'Спасибо за ответ!',
+      data: {
+        thanksText: survey.thanksText || DEFAULT_THANKS,
+        thanksRedirectUrl: survey.thanksRedirectUrl || DEFAULT_THANKS_URL,
+      },
+    });
   } catch (error: any) {
     if (error instanceof HttpError) {
       return res.status(error.status).json({ success: false, error: error.message });

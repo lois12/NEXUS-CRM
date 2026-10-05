@@ -18,6 +18,12 @@ export default function SurveyBuilder({ survey, onSaved, onBack }: Props) {
   const [description, setDescription] = useState(survey.description || '');
   const [imageUrl, setImageUrl] = useState(survey.imageUrl || '');
   const [isAnonymous, setIsAnonymous] = useState(!!survey.isAnonymous);
+  const [thanksText, setThanksText] = useState(
+    survey.thanksText || 'Спасибо что уделили время и проши опрос, Ваше мнение важно для нас',
+  );
+  const [thanksRedirectUrl, setThanksRedirectUrl] = useState(
+    survey.thanksRedirectUrl || 'https://visit-norilsk.ru',
+  );
   const [questions, setQuestions] = useState<SurveyQuestion[]>(
     (survey.questions || []).map((q) => ({
       id: q.id,
@@ -62,6 +68,8 @@ export default function SurveyBuilder({ survey, onSaved, onBack }: Props) {
         description,
         imageUrl,
         isAnonymous,
+        thanksText,
+        thanksRedirectUrl,
       });
 
       // questions: create missing, update existing, delete removed
@@ -125,11 +133,15 @@ export default function SurveyBuilder({ survey, onSaved, onBack }: Props) {
         description={description}
         imageUrl={imageUrl}
         isAnonymous={isAnonymous}
+        thanksText={thanksText}
+        thanksRedirectUrl={thanksRedirectUrl}
         onChange={(p) => {
           if (p.name !== undefined) setName(p.name);
           if (p.description !== undefined) setDescription(p.description);
           if (p.imageUrl !== undefined) setImageUrl(p.imageUrl);
           if (p.isAnonymous !== undefined) setIsAnonymous(p.isAnonymous);
+          if (p.thanksText !== undefined) setThanksText(p.thanksText);
+          if (p.thanksRedirectUrl !== undefined) setThanksRedirectUrl(p.thanksRedirectUrl);
         }}
         onUploadCover={async (file) => {
           try {

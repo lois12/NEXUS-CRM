@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Send, CheckCircle2 } from 'lucide-react';
 import SurveyConsent from './SurveyConsent';
 import { publicSurveyApi, getSurveyDeviceId, type Survey, type SurveyQuestion } from '../../services/surveyApi';
@@ -8,6 +8,9 @@ interface Props {
   survey: Survey & { questions: SurveyQuestion[] };
   slug: string;
 }
+
+const DEFAULT_THANKS = 'Спасибо что уделили время и проши опрос, Ваше мнение важно для нас';
+const DEFAULT_THANKS_URL = 'https://visit-norilsk.ru';
 
 /** Public survey fill form (one response per device) */
 export default function SurveyFillForm({ survey, slug }: Props) {
@@ -19,7 +22,26 @@ export default function SurveyFillForm({ survey, slug }: Props) {
   const [errors, setErrors] = useState<{ privacy?: string }>({});
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
+  const [secondsLeft, setSecondsLeft] = useState(5);
   const isAnon = !!survey.isAnonymous;
+  const thanksText = survey.thanksText || DEFAULT_THANKS;
+  const thanksUrl = survey.thanksRedirectUrl || DEFAULT_THANKS_URL;
+
+  // after submit: 5s then redirect
+  useEffect(() => {
+    if (!done) return;
+    const t = setInterval(() => {
+      setSecondsLeft((s) => {
+        if (s <= 1) {
+          clearInterval(t);
+          if (thanksUrl) window.location.href = thanksUrl;
+          return 0;
+        }
+        return s - 1;
+      });
+    }, 1000);
+    return () => clearInterval(t);
+  }, [done, thanksUrl]);
 
   const setAns = (qid: string, v: string) => setAnswers((a) => ({ ...a, [qid]: v }));
 
@@ -69,8 +91,17 @@ export default function SurveyFillForm({ survey, slug }: Props) {
     return (
       <div className="glass rounded-xl p-10 text-center">
         <CheckCircle2 className="w-12 h-12 mx-auto mb-4" style={{ color: 'var(--color-primary)' }} />
-        <h2 className="font-mono text-xl font-bold mb-2" style={{ color: 'var(--color-primary)' }}>СПАСИБО ЗА ОТВЕТ</h2>
-        <p className="font-mono text-xs text-gray-400">Ваш ответ записан</p>
+        <p className="font-mono text-sm text-gray-300 leading-relaxed mb-4">{thanksText}</p>
+        <p className="font-mono text-[10px] text-gray-600">
+          через {secondsLeft} сек. → {thanksUrl}
+        </p>
+        <button
+          onClick={() => { if (thanksUrl) window.location.href = thanksUrl; }}
+          className="mt-4 px-4 py-2 rounded-lg font-mono text-xs font-bold"
+          style={{ background: 'var(--color-primary)', color: '#000' }}
+        >
+          ПЕРЕЙТИ СЕЙЧАС
+        </button>
       </div>
     );
   }

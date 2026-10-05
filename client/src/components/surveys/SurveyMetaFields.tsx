@@ -7,12 +7,16 @@ interface Props {
   description: string;
   imageUrl: string;
   isAnonymous: boolean;
+  thanksText: string;
+  thanksRedirectUrl: string;
   onChange: (patch: Partial<Survey>) => void;
   onUploadCover: (file: File) => void;
 }
 
-/** Survey meta: name, description, cover, anonymity toggle */
-export default function SurveyMetaFields({ name, description, imageUrl, isAnonymous, onChange, onUploadCover }: Props) {
+/** Survey meta: name, description, cover, anonymity, thanks screen */
+export default function SurveyMetaFields({
+  name, description, imageUrl, isAnonymous, thanksText, thanksRedirectUrl, onChange, onUploadCover,
+}: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState('');
 
@@ -77,6 +81,25 @@ export default function SurveyMetaFields({ name, description, imageUrl, isAnonym
       >
         {isAnonymous ? '✓ АНОНИМНЫЙ ОПРОС' : 'ИДЕНТИФИЦИРОВАННЫЙ (ФИО / телефон / email)'}
       </button>
+      <div>
+        <label className="font-mono text-[10px] text-gray-500 mb-1 block">ТЕКСТ ПОСЛЕ ОТПРАВКИ (5 сек → редирект)</label>
+        <textarea
+          value={thanksText}
+          onChange={(e) => onChange({ thanksText: e.target.value })}
+          rows={2}
+          placeholder="Спасибо что уделили время и проши опрос…"
+          className="w-full px-2 py-2 rounded font-mono text-xs bg-black/30 border border-gray-700 text-gray-200 focus:outline-none resize-none"
+        />
+      </div>
+      <div>
+        <label className="font-mono text-[10px] text-gray-500 mb-1 block">КУДА РЕДИРЕКТ (через 5 сек)</label>
+        <input
+          value={thanksRedirectUrl}
+          onChange={(e) => onChange({ thanksRedirectUrl: e.target.value })}
+          placeholder="https://visit-norilsk.ru"
+          className="w-full px-2 py-2 rounded font-mono text-xs bg-black/30 border border-gray-700 text-gray-200 focus:outline-none"
+        />
+      </div>
     </div>
   );
 }
