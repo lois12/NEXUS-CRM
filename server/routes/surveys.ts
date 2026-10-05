@@ -4,7 +4,7 @@ import { upload } from '../middleware/upload';
 import {
   getSurveys, getSurveyById, createSurvey, updateSurvey, deleteSurvey, togglePublish, duplicateSurvey,
   createQuestion, updateQuestion, deleteQuestion, reorderQuestions,
-  getSurveyStats, exportCSV, exportPDF,
+  getSurveyStats, exportCSV, exportPDF, exportHTML,
 } from '../controllers/surveyController';
 import { getPublicSurvey, submitSurveyResponse } from '../controllers/surveyPublicController';
 
@@ -35,6 +35,7 @@ router.put('/:id/questions-reorder', requireRole('super_admin', 'руковод�
 router.get('/:id/stats', getSurveyStats);
 router.get('/:id/export/csv', exportCSV);
 router.get('/:id/export/pdf', exportPDF);
+router.get('/:id/export/html', exportHTML);
 
 export default router;
 

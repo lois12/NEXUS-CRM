@@ -118,6 +118,11 @@ export default function SurveyFillForm({ survey, slug }: Props) {
         )}
         <p className="font-mono text-[9px] text-gray-600">
           {isAnon ? 'Анонимный опрос' : 'Опрос с указанием контактов'} · 1 ответ с устройства
+          {typeof survey.responseCount === 'number' && (
+            <> · уже проголосовало <b style={{ color: 'var(--color-primary)' }}>
+              {survey.responseCount} {survey.responseCount === 1 ? 'человек' : 'чел.'}
+            </b></>
+          )}
         </p>
       </div>
 

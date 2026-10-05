@@ -19,7 +19,7 @@ export default function SurveyCharts({ title, type, total, distribution, openAns
       <div className="flex items-start justify-between gap-3">
         <h3 className="font-mono text-[13px] font-bold text-gray-200 leading-snug">{title}</h3>
         <span className="font-mono text-[9px] text-gray-500 shrink-0 pt-0.5">
-          {type === 'choice' ? `${total}` : `${openAnswers.length}`}
+          {type === 'choice' ? `${total} чел.` : `${openAnswers.length} чел.`}
         </span>
       </div>
 

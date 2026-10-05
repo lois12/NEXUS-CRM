@@ -462,7 +462,7 @@ export const exportPDF = (req: AuthRequest, res: Response) => {
         return (q.options as string[]).map((o) => {
           const c = counts[o] || 0;
           const pct = total ? Math.round((c / total) * 1000) / 10 : 0;
-          return `<tr><td>${o}</td><td>${c}</td><td>${pct}%</td></tr>`;
+          return `<tr><td>${o}</td><td>${c} чел.</td><td>${pct}%</td></tr>`;
         }).join('');
       }
       const texts: string[] = [];
@@ -483,6 +483,8 @@ body{font-family:system-ui,sans-serif;color:#111;padding:32px;padding-bottom:56p
 .brand .sub{font-size:11px;color:#888;letter-spacing:.08em}
 h2{font-size:14px;margin:20px 0 8px}
 .meta{color:#666;font-size:11px;margin-bottom:8px}
+.total{display:inline-block;background:#00c853;color:#fff;font-size:13px;font-weight:700;
+  padding:8px 16px;border-radius:8px;margin:6px 0 14px}
 table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:8px}
 th,td{border:1px solid #ddd;padding:6px 8px;text-align:left}
 th{background:#f3f4f6}
@@ -496,10 +498,11 @@ th{background:#f3f4f6}
   <div class="sub">ОТЧЁТ ПО ОПРОСУ</div>
 </div>
 <h2 style="margin-top:0">${survey.name}</h2>
-<div class="meta">Ответов: ${responses.length} · сформировано ${fmtRu(new Date().toISOString())} (${REPORT_TZ})</div>
+<div class="total">ПРОГОЛОСОВАЛО: ${responses.length} ${responses.length === 1 ? 'ЧЕЛОВЕК' : 'ЧЕЛ.'}</div>
+<div class="meta">сформировано ${fmtRu(new Date().toISOString())} (${REPORT_TZ})</div>
 ${questions.map((q: any) => `
 <h2>${q.title} <small style="color:#666;font-weight:400">(${q.type === 'choice' ? 'варианты' : 'открытый'})</small></h2>
-<table><thead><tr>${q.type === 'choice' ? '<th>Вариант</th><th>Шт.</th><th>%</th>' : '<th>Ответ</th>'}</tr></thead>
+<table><thead><tr>${q.type === 'choice' ? '<th>Вариант</th><th>Чел.</th><th>%</th>' : '<th>Ответ</th>'}</tr></thead>
 <tbody>${rowsFor(q)}</tbody></table>`).join('')}
 <div class="foot">
   <span>NEXUS CRM · nexus-liberty.online</span>
@@ -510,6 +513,102 @@ ${questions.map((q: any) => `
     res.send(html);
   } catch (error) {
     console.error('ExportSurveyPDF error:', error);
+    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+  }
+};
+
+/** Pretty standalone HTML report (download) */
+export const exportHTML = (req: AuthRequest, res: Response) => {
+  try {
+    const id = req.params.id;
+    const survey = get('SELECT * FROM surveys WHERE id = ?', [id]);
+    if (!survey) return res.status(404).json({ success: false, error: 'Опрос не найден' });
+    const questions = withQuestions(id);
+    const responses = query('SELECT * FROM survey_responses WHERE surveyId = ? ORDER BY datetime(createdAt) ASC', [id]);
+    const esc = (s: any) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
+
+    const answerOf = (r: any, qid: string) => {
+      try {
+        const a = JSON.parse(r.answers || '{}');
+        return a[qid];
+      } catch {
+        return undefined;
+      }
+    };
+
+    const blocks = questions.map((q: any) => {
+      if (q.type === 'choice') {
+        const counts: Record<string, number> = {};
+        (q.options as string[]).forEach((o) => { counts[o] = 0; });
+        let total = 0;
+        for (const r of responses) {
+          const v = answerOf(r, q.id);
+          if (typeof v === 'string' && v in counts) { counts[v] += 1; total += 1; }
+        }
+        const rows = (q.options as string[]).map((o) => {
+          const c = counts[o] || 0;
+          const pct = total ? Math.round((c / total) * 1000) / 10 : 0;
+          return `<div class="row">
+            <div class="lab">${esc(o)}</div>
+            <div class="num">${c} чел.</div>
+            <div class="num pct">${pct.toFixed(1)}%</div>
+            <div class="barwrap"><div class="bar" style="width:${pct}%"></div></div>
+          </div>`;
+        }).join('');
+        return `<div class="q"><h3>${esc(q.title)}</h3>${rows}</div>`;
+      }
+      const texts: string[] = [];
+      for (const r of responses) {
+        const v = answerOf(r, q.id);
+        if (typeof v === 'string' && v.trim()) texts.push(v.trim());
+      }
+      const rows = texts.map((t, i) => `<div class="open"><span class="n">${i + 1}.</span> ${esc(t)}</div>`).join('')
+        || '<div class="open">—</div>';
+      return `<div class="q"><h3>${esc(q.title)}</h3>${rows}</div>`;
+    }).join('');
+
+    const html = `<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${esc(survey.name)} · NEXUS CRM</title>
+<style>
+:root{--acc:#00c853;--bg:#0c0e14;--card:#141824;--text:#e8e8ec;--mut:#8b8b9a}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);padding:28px 20px 60px}
+.wrap{max-width:720px;margin:0 auto}
+.brand{display:flex;align-items:center;justify-content:space-between;gap:12px;
+  border-bottom:2px solid var(--acc);padding-bottom:12px;margin-bottom:20px}
+.brand h1{margin:0;font-size:15px;letter-spacing:.18em;color:var(--acc)}
+.brand span{font-size:11px;color:var(--mut);letter-spacing:.12em}
+h2.title{margin:0 0 6px;font-size:22px}
+.meta{color:var(--mut);font-size:12px;margin-bottom:16px}
+.total{display:inline-flex;align-items:center;gap:8px;background:rgba(0,200,83,.15);
+  border:1px solid rgba(0,200,83,.35);color:var(--acc);font-weight:700;font-size:14px;
+  padding:10px 18px;border-radius:12px;margin-bottom:22px}
+.q{background:var(--card);border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:16px;margin-bottom:14px}
+.q h3{margin:0 0 12px;font-size:14px;font-weight:600;line-height:1.45}
+.row{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.row .lab{flex:0 0 36%;font-size:12px;color:#c8c8d0;line-height:1.35}
+.row .num{flex:0 0 70px;font-size:12px;text-align:right;color:var(--acc);font-variant-numeric:tabular-nums}
+.barwrap{flex:1;height:8px;background:rgba(255,255,255,.06);border-radius:99px;overflow:hidden}
+.bar{height:100%;background:var(--acc);border-radius:99px;opacity:.9}
+.open{background:rgba(255,255,255,.03);border-radius:10px;padding:10px 12px;font-size:13px;
+  line-height:1.5;margin-bottom:8px;border:1px solid rgba(255,255,255,.05)}
+.open .n{color:var(--mut);margin-right:6px}
+.foot{margin-top:28px;padding-top:12px;border-top:1px solid rgba(255,255,255,.08);
+  display:flex;justify-content:space-between;font-size:11px;color:var(--mut);letter-spacing:.06em}
+</style></head><body><div class="wrap">
+<div class="brand"><h1>NEXUS CRM</h1><span>ОТЧЁТ ПО ОПРОСУ</span></div>
+<h2 class="title">${esc(survey.name)}</h2>
+<div class="total">ПРОГОЛОСОВАЛО: ${responses.length} ${responses.length === 1 ? 'ЧЕЛОВЕК' : 'ЧЕЛ.'}</div>
+<div class="meta">сформировано ${fmtRu(new Date().toISOString())} (${REPORT_TZ})</div>
+${blocks}
+<div class="foot"><span>NEXUS CRM · nexus-liberty.online</span><span>${fmtRu(new Date().toISOString())}</span></div>
+</div></body></html>`;
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="survey_${id}.html"`);
+    res.send(html);
+  } catch (error) {
+    console.error('ExportSurveyHTML error:', error);
     res.status(500).json({ success: false, error: 'Ошибка сервера' });
   }
 };

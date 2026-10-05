@@ -55,6 +55,7 @@ export const surveyApi = {
     return res.data as Blob;
   },
   exportPdfUrl: (id: string) => `/api/surveys/${id}/export/pdf`,
+  exportHtmlUrl: (id: string) => `/api/surveys/${id}/export/html`,
 };
 
 /** Public surveys API — own client, NO login redirect on 401 */

@@ -61,8 +61,10 @@ export default function SurveyStats({ surveyId, onBack }: Props) {
         <div className="glass rounded-xl p-3 flex items-center gap-2">
           <Users className="w-5 h-5 shrink-0" style={{ color: 'var(--color-primary)' }} />
           <div>
-            <div className="font-mono text-[10px] text-gray-500">ОТВЕТОВ</div>
-            <div className="font-mono text-lg font-bold text-white">{responseCount}</div>
+            <div className="font-mono text-[10px] text-gray-500">ПРОГОЛОСОВАЛО</div>
+            <div className="font-mono text-lg font-bold text-white">
+              {responseCount} {responseCount === 1 ? 'человек' : 'чел.'}
+            </div>
           </div>
         </div>
         <div className="glass rounded-xl p-3 flex items-center gap-2">
