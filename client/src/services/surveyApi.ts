@@ -36,6 +36,7 @@ export const surveyApi = {
   update: (id: string, data: Partial<Survey>) => api.put(`/surveys/${id}`, data).then((r) => r.data),
   remove: (id: string) => api.delete(`/surveys/${id}`).then((r) => r.data),
   togglePublish: (id: string) => api.post(`/surveys/${id}/toggle-publish`).then((r) => r.data),
+  duplicate: (id: string) => api.post(`/surveys/${id}/duplicate`).then((r) => r.data),
   uploadImage: (id: string, file: File) => {
     const fd = new FormData();
     fd.append('file', file);

@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { authenticateToken, requireRole } from '../middleware/auth';
 import { upload } from '../middleware/upload';
 import {
-  getSurveys, getSurveyById, createSurvey, updateSurvey, deleteSurvey, togglePublish,
+  getSurveys, getSurveyById, createSurvey, updateSurvey, deleteSurvey, togglePublish, duplicateSurvey,
   createQuestion, updateQuestion, deleteQuestion, reorderQuestions,
   getSurveyStats, exportCSV, exportPDF,
 } from '../controllers/surveyController';
@@ -18,6 +18,7 @@ router.post('/', requireRole('super_admin', 'руководитель', 'ред�
 router.put('/:id', requireRole('super_admin', 'руководитель', 'редактор'), updateSurvey);
 router.delete('/:id', requireRole('super_admin', 'руководитель'), deleteSurvey);
 router.post('/:id/toggle-publish', requireRole('super_admin', 'руководитель', 'редактор'), togglePublish);
+router.post('/:id/duplicate', requireRole('super_admin', 'руководитель', 'редактор'), duplicateSurvey);
 router.post('/:id/image', requireRole('super_admin', 'руководитель', 'редактор'), upload.single('file'), (req, res) => {
   const file = (req as any).file;
   if (!file) return res.status(400).json({ success: false, error: 'Файл не получен' });

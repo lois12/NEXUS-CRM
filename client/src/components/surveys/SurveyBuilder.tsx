@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Save, ArrowLeft } from 'lucide-react';
+import { Plus, Save, ArrowLeft, Globe, Link2, EyeOff, Copy } from 'lucide-react';
 import SurveyMetaFields from './SurveyMetaFields';
 import SurveyQuestionCard from './SurveyQuestionCard';
 import type { Survey, SurveyQuestion } from '../../services/surveyApi';
@@ -18,6 +18,8 @@ export default function SurveyBuilder({ survey, onSaved, onBack }: Props) {
   const [description, setDescription] = useState(survey.description || '');
   const [imageUrl, setImageUrl] = useState(survey.imageUrl || '');
   const [isAnonymous, setIsAnonymous] = useState(!!survey.isAnonymous);
+  const [isPublic, setIsPublic] = useState(!!survey.isPublic);
+  const [publicSlug, setPublicSlug] = useState<string | null>(survey.publicSlug || null);
   const [thanksText, setThanksText] = useState(
     survey.thanksText || 'Спасибо что уделили время и проши опрос, Ваше мнение важно для нас',
   );
@@ -56,7 +58,35 @@ export default function SurveyBuilder({ survey, onSaved, onBack }: Props) {
     setQuestions(next);
   };
 
-  const save = async () => {
+  const publicUrl = publicSlug
+    ? `${window.location.origin}/survey/${publicSlug}`
+    : null;
+
+  const togglePublish = async () => {
+    try {
+      await save(true);
+      const res = await surveyApi.togglePublish(survey.id);
+      if (res?.success && res.data) {
+        setIsPublic(!!res.data.isPublic);
+        setPublicSlug(res.data.publicSlug || null);
+        showToast(res.data.isPublic ? 'Опрос опубликован' : 'Снят с публикации', 'success');
+      }
+    } catch (e: any) {
+      showToast(e?.response?.data?.error || e?.message || 'Ошибка публикации', 'error');
+    }
+  };
+
+  const copyLink = async () => {
+    if (!publicUrl) return;
+    try {
+      await navigator.clipboard.writeText(publicUrl);
+      showToast('Ссылка скопирована', 'success');
+    } catch {
+      showToast(publicUrl, 'info');
+    }
+  };
+
+  const save = async (quiet = false) => {
     if (!name.trim()) {
       showToast('Укажите название', 'error');
       return;
@@ -99,7 +129,7 @@ export default function SurveyBuilder({ survey, onSaved, onBack }: Props) {
       }
       if (keepIds.length) await surveyApi.reorderQuestions(survey.id, keepIds);
 
-      showToast('Опрос сохранён', 'success');
+      if (!quiet) showToast('Опрос сохранён', 'success');
       onSaved();
     } catch (e: any) {
       showToast(e?.response?.data?.error || e?.message || 'Ошибка сохранения', 'error');
@@ -118,15 +148,45 @@ export default function SurveyBuilder({ survey, onSaved, onBack }: Props) {
           КОНСТРУКТОР · {name || 'новый опрос'}
         </h2>
         <button
-          onClick={save}
+          onClick={() => save()}
           disabled={saving}
           className="flex items-center gap-1.5 px-4 py-2 rounded-lg font-mono text-xs font-bold disabled:opacity-50"
-          style={{ background: 'var(--color-primary)', color: '#000' }}
+          style={{ background: 'rgba(255,255,255,0.08)', color: '#ccc' }}
         >
           <Save className="w-3.5 h-3.5" />
           {saving ? 'СОХРАНЕНИЕ…' : 'СОХРАНИТЬ'}
         </button>
+        <button
+          onClick={togglePublish}
+          disabled={saving}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-lg font-mono text-xs font-bold disabled:opacity-50"
+          style={isPublic
+            ? { background: 'rgba(234,179,8,0.2)', color: '#eab308', border: '1px solid rgba(234,179,8,0.4)' }
+            : { background: 'var(--color-primary)', color: '#000' }}
+          title={isPublic ? 'Снять с публикации' : 'Сохранить и опубликовать'}
+        >
+          {isPublic ? <><EyeOff className="w-3.5 h-3.5" /> СНЯТЬ С ПУБЛИКАЦИИ</> : <><Globe className="w-3.5 h-3.5" /> ОПУБЛИКОВАТЬ</>}
+        </button>
       </div>
+
+      {isPublic && publicUrl && (
+        <div className="glass rounded-xl px-3 py-2 flex items-center gap-2 flex-wrap">
+          <Link2 className="w-3.5 h-3.5 shrink-0" style={{ color: 'var(--color-primary)' }} />
+          <span className="font-mono text-[10px] text-gray-300 flex-1 min-w-0 truncate">{publicUrl}</span>
+          <button
+            onClick={copyLink}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg font-mono text-[10px] glass hover:bg-white/10"
+          >
+            <Copy className="w-3 h-3" /> КОПИЯ
+          </button>
+          <button
+            onClick={() => window.open(publicUrl, '_blank')}
+            className="px-2.5 py-1.5 rounded-lg font-mono text-[10px] glass hover:bg-white/10"
+          >
+            ОТКРЫТЬ
+          </button>
+        </div>
+      )}
 
       <SurveyMetaFields
         name={name}

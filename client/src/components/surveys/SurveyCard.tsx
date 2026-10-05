@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { BarChart3, Globe, Lock, Image as ImageIcon } from 'lucide-react';
+import { BarChart3, Globe, Image as ImageIcon, Copy, Link2, EyeOff, Trash2 } from 'lucide-react';
 import type { Survey } from '../../services/surveyApi';
 import { formatRuDate } from '../../utils/collageStore';
 
@@ -8,9 +8,15 @@ interface Props {
   onOpen: () => void;
   onEdit: () => void;
   onStats: () => void;
+  onTogglePublish: () => void;
+  onDuplicate: () => void;
+  onDelete: () => void;
+  onCopyLink: () => void;
 }
 
-export default function SurveyCard({ survey, onOpen, onEdit, onStats }: Props) {
+export default function SurveyCard({
+  survey, onOpen, onEdit, onStats, onTogglePublish, onDuplicate, onDelete, onCopyLink,
+}: Props) {
   return (
     <motion.div
       whileHover={{ scale: 1.01 }}
@@ -37,7 +43,7 @@ export default function SurveyCard({ survey, onOpen, onEdit, onStats }: Props) {
       <div className="p-3 space-y-1.5">
         <h3 className="font-mono text-sm font-bold text-white truncate">{survey.name}</h3>
         {survey.description && (
-          <p className="font-mono text-[10px] text-gray-400 line-clamp-2" style={{
+          <p className="font-mono text-[10px] text-gray-400" style={{
             display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
           }}>{survey.description}</p>
         )}
@@ -48,7 +54,7 @@ export default function SurveyCard({ survey, onOpen, onEdit, onStats }: Props) {
           <span>{survey.isAnonymous ? 'анонимный' : 'идент.'}</span>
           <span>{survey.updatedAt ? formatRuDate(Date.parse(survey.updatedAt) || Date.now()) : ''}</span>
         </div>
-        <div className="flex gap-1.5 pt-1" onClick={(e) => e.stopPropagation()}>
+        <div className="flex flex-wrap gap-1.5 pt-1" onClick={(e) => e.stopPropagation()}>
           <button
             onClick={onEdit}
             className="flex-1 py-1.5 rounded-lg font-mono text-[10px] glass hover:bg-white/10"
@@ -61,15 +67,39 @@ export default function SurveyCard({ survey, onOpen, onEdit, onStats }: Props) {
           >
             СТАТИСТИКА
           </button>
+          <button
+            onClick={onTogglePublish}
+            className="flex-1 py-1.5 rounded-lg font-mono text-[10px]"
+            style={survey.isPublic
+              ? { background: 'rgba(234,179,8,0.15)', color: '#eab308' }
+              : { background: 'var(--color-primary)', color: '#000' }}
+            title={survey.isPublic ? 'Снять с публикации' : 'Опубликовать'}
+          >
+            {survey.isPublic ? <><EyeOff className="w-3 h-3 inline mr-1" />СНЯТЬ</> : <><Globe className="w-3 h-3 inline mr-1" />ОПУБЛ.</>}
+          </button>
           {survey.isPublic && survey.publicSlug && (
             <button
-              onClick={onOpen}
+              onClick={onCopyLink}
               className="px-2 py-1.5 rounded-lg font-mono text-[10px] glass hover:bg-white/10"
-              title="Открыть публичную форму"
+              title="Скопировать ссылку"
             >
-              {survey.isAnonymous ? <Lock className="w-3 h-3" /> : <Globe className="w-3 h-3" />}
+              <Link2 className="w-3 h-3" />
             </button>
           )}
+          <button
+            onClick={onDuplicate}
+            className="px-2 py-1.5 rounded-lg font-mono text-[10px] glass hover:bg-white/10"
+            title="Дублировать"
+          >
+            <Copy className="w-3 h-3" />
+          </button>
+          <button
+            onClick={onDelete}
+            className="px-2 py-1.5 rounded-lg font-mono text-[10px] hover:bg-red-500/15 text-red-400"
+            title="Удалить"
+          >
+            <Trash2 className="w-3 h-3" />
+          </button>
         </div>
       </div>
     </motion.div>

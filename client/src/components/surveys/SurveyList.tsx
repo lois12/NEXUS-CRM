@@ -8,9 +8,15 @@ interface Props {
   onEdit: (s: Survey) => void;
   onStats: (s: Survey) => void;
   onOpenPublic: (s: Survey) => void;
+  onTogglePublish: (s: Survey) => void;
+  onDuplicate: (s: Survey) => void;
+  onDelete: (s: Survey) => void;
+  onCopyLink: (s: Survey) => void;
 }
 
-export default function SurveyList({ surveys, onCreate, onEdit, onStats, onOpenPublic }: Props) {
+export default function SurveyList({
+  surveys, onCreate, onEdit, onStats, onOpenPublic, onTogglePublish, onDuplicate, onDelete, onCopyLink,
+}: Props) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -44,6 +50,10 @@ export default function SurveyList({ surveys, onCreate, onEdit, onStats, onOpenP
               onOpen={() => onOpenPublic(s)}
               onEdit={() => onEdit(s)}
               onStats={() => onStats(s)}
+              onTogglePublish={() => onTogglePublish(s)}
+              onDuplicate={() => onDuplicate(s)}
+              onDelete={() => onDelete(s)}
+              onCopyLink={() => onCopyLink(s)}
             />
           ))}
         </div>

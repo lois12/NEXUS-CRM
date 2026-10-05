@@ -178,6 +178,51 @@ export const togglePublish = (req: AuthRequest, res: Response) => {
   }
 };
 
+/** Duplicate survey (questions copied, responses NOT) */
+export const duplicateSurvey = (req: AuthRequest, res: Response) => {
+  try {
+    const id = req.params.id;
+    const cur = get('SELECT * FROM surveys WHERE id = ?', [id]);
+    if (!cur) return res.status(404).json({ success: false, error: 'Опрос не найден' });
+
+    const newId = uuidv4();
+    run(
+      `INSERT INTO surveys
+         (id, name, description, imageUrl, isAnonymous, publicSlug, isPublic, createdBy, thanksText, thanksRedirectUrl, createdAt, updatedAt)
+       VALUES (?, ?, ?, ?, ?, NULL, 0, ?, ?, ?, datetime('now'), datetime('now'))`,
+      [
+        newId,
+        `${cur.name} (копия)`,
+        cur.description || '',
+        cur.imageUrl || '',
+        cur.isAnonymous ? 1 : 0,
+        req.user!.id,
+        cur.thanksText || DEFAULT_THANKS,
+        cur.thanksRedirectUrl || DEFAULT_THANKS_URL,
+      ],
+    );
+    for (const q of withQuestions(id)) {
+      run(
+        `INSERT INTO survey_questions (id, surveyId, type, title, options, required, position)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [uuidv4(), newId, q.type, q.title, JSON.stringify(q.options || []), q.required ? 1 : 0, q.position || 0],
+      );
+    }
+    const row = get('SELECT * FROM surveys WHERE id = ?', [newId]);
+    res.status(201).json({
+      success: true,
+      data: {
+        ...publicShape(row),
+        questions: withQuestions(newId),
+        responseCount: 0,
+      },
+    });
+  } catch (error: any) {
+    console.error('DuplicateSurvey error:', error);
+    res.status(500).json({ success: false, error: error?.message || 'Ошибка сервера' });
+  }
+};
+
 // ── Questions ─────────────────────────────────────────────────
 
 export const createQuestion = (req: AuthRequest, res: Response) => {

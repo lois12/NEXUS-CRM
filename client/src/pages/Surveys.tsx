@@ -61,6 +61,50 @@ export default function Surveys() {
     }
   };
 
+  const togglePublish = async (s: Survey) => {
+    try {
+      const res = await surveyApi.togglePublish(s.id);
+      if (res?.success) {
+        showToast(res.data?.isPublic ? 'Опрос опубликован' : 'Снят с публикации', 'success');
+        refresh();
+      }
+    } catch (e: any) {
+      showToast(e?.response?.data?.error || 'Ошибка публикации', 'error');
+    }
+  };
+
+  const duplicate = async (s: Survey) => {
+    try {
+      const res = await surveyApi.duplicate(s.id);
+      if (res?.success) {
+        showToast('Опрос скопирован', 'success');
+        refresh();
+      }
+    } catch (e: any) {
+      showToast(e?.response?.data?.error || 'Ошибка копирования', 'error');
+    }
+  };
+
+  const remove = async (s: Survey) => {
+    try {
+      await surveyApi.remove(s.id);
+      showToast('Удалено', 'success');
+      refresh();
+    } catch (e: any) {
+      showToast(e?.response?.data?.error || 'Ошибка удаления', 'error');
+    }
+  };
+
+  const copyLink = async (s: Survey) => {
+    const url = `${window.location.origin}/survey/${s.publicSlug}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      showToast('Ссылка скопирована', 'success');
+    } catch {
+      showToast(url, 'info');
+    }
+  };
+
   if (view === 'builder' && current) {
     return (
       <SurveyBuilder
@@ -86,6 +130,10 @@ export default function Surveys() {
       onEdit={openEdit}
       onStats={openStats}
       onOpenPublic={openPublic}
+      onTogglePublish={togglePublish}
+      onDuplicate={duplicate}
+      onDelete={remove}
+      onCopyLink={copyLink}
     />
   );
 }
