@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Plus, Save, ArrowLeft, Globe, EyeOff, Copy, ExternalLink } from 'lucide-react';
+import { Plus, Save, ArrowLeft, Globe, EyeOff, Copy, ExternalLink, Eye } from 'lucide-react';
 import SurveyMetaFields from './SurveyMetaFields';
 import SurveyQuestionCard from './SurveyQuestionCard';
+import SurveyPreviewModal from './SurveyPreviewModal';
 import type { Survey, SurveyQuestion } from '../../services/surveyApi';
 import { surveyApi } from '../../services/surveyApi';
 import { showToast } from '../ui/NexusModal';
@@ -37,6 +38,7 @@ export default function SurveyBuilder({ survey, onSaved, onBack }: Props) {
   );
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   const setQ = (i: number, patch: Partial<SurveyQuestion>) => {
     setQuestions((prev) => prev.map((q, j) => (j === i ? { ...q, ...patch } : q)));
@@ -151,11 +153,19 @@ export default function SurveyBuilder({ survey, onSaved, onBack }: Props) {
         <button
           onClick={() => save()}
           disabled={saving}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-lg font-mono text-xs font-bold disabled:opacity-50"
+          className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-xs font-bold disabled:opacity-50"
           style={{ background: 'rgba(255,255,255,0.08)', color: '#ccc' }}
         >
           <Save className="w-3.5 h-3.5" />
           {saving ? 'СОХРАНЕНИЕ…' : 'СОХРАНИТЬ'}
+        </button>
+        <button
+          onClick={() => setPreviewOpen(true)}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-xs font-bold"
+          style={{ background: 'rgba(255,255,255,0.1)', color: '#eee' }}
+          title="Превью формы"
+        >
+          <Eye className="w-3.5 h-3.5" /> ПРЕВЬЮ
         </button>
         <button
           onClick={togglePublish}
@@ -281,6 +291,22 @@ export default function SurveyBuilder({ survey, onSaved, onBack }: Props) {
           <p className="font-mono text-[10px] text-gray-600 text-center py-4">добавьте первый вопрос</p>
         )}
       </div>
+
+      <SurveyPreviewModal
+        open={previewOpen}
+        onClose={() => setPreviewOpen(false)}
+        survey={{
+          ...survey,
+          name,
+          description,
+          imageUrl,
+          isAnonymous,
+          thanksText,
+          thanksRedirectUrl,
+          publicSlug,
+          questions,
+        }}
+      />
     </div>
   );
 }
