@@ -22,8 +22,8 @@ function normalizePublicPath(raw: unknown): string | null {
   return s || null;
 }
 
-/** SQLite datetime('now') is UTC without Z — render in app timezone */
-const REPORT_TZ = process.env.REPORT_TZ || 'Europe/Moscow';
+/** SQLite datetime('now') is UTC without Z — render in Norilsk time (Krasnoyarsk) */
+const REPORT_TZ = process.env.REPORT_TZ || 'Asia/Krasnoyarsk';
 
 function fmtRu(sqlite?: string | null): string {
   if (!sqlite) return '—';
