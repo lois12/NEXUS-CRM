@@ -110,6 +110,7 @@ function AppRoutes() {
       <Route path="/w/:slug" element={<PageWrapper><PublicWidget /></PageWrapper>} />
       <Route path="/lists/public/:slug" element={<PageWrapper><PublicList /></PageWrapper>} />
       <Route path="/survey/:slug" element={<PageWrapper><PublicSurvey /></PageWrapper>} />
+      <Route path="/opros/:slug" element={<PageWrapper><PublicSurvey /></PageWrapper>} />
       <Route
         path="/"
         element={

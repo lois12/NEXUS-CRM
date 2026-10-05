@@ -51,22 +51,22 @@ export default function SurveyStats({ surveyId, onBack }: Props) {
         <button onClick={onBack} className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-xs glass hover:bg-white/10">
           <ArrowLeft className="w-3.5 h-3.5" /> НАЗАД
         </button>
-        <h2 className="font-mono text-lg font-bold flex-1 min-w-0 truncate" style={{ color: 'var(--color-primary)' }}>
+        <h2 className="font-mono text-base sm:text-lg font-bold flex-1 min-w-0 truncate" style={{ color: 'var(--color-primary)' }}>
           СТАТИСТИКА · {survey?.name || '…'}
         </h2>
         <SurveyExportBar surveyId={surveyId} />
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div className="glass rounded-xl p-3 flex items-center gap-2">
-          <Users className="w-5 h-5" style={{ color: 'var(--color-primary)' }} />
+          <Users className="w-5 h-5 shrink-0" style={{ color: 'var(--color-primary)' }} />
           <div>
             <div className="font-mono text-[10px] text-gray-500">ОТВЕТОВ</div>
             <div className="font-mono text-lg font-bold text-white">{responseCount}</div>
           </div>
         </div>
         <div className="glass rounded-xl p-3 flex items-center gap-2">
-          <Clock className="w-5 h-5" style={{ color: '#3b82f6' }} />
+          <Clock className="w-5 h-5 shrink-0" style={{ color: '#3b82f6' }} />
           <div className="min-w-0">
             <div className="font-mono text-[10px] text-gray-500">ПОСЛЕДНИЙ ОТВЕТ</div>
             <div className="font-mono text-xs text-white truncate">

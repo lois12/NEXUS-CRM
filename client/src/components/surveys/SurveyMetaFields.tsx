@@ -9,13 +9,14 @@ interface Props {
   isAnonymous: boolean;
   thanksText: string;
   thanksRedirectUrl: string;
+  publicSlug: string;
   onChange: (patch: Partial<Survey>) => void;
   onUploadCover: (file: File) => void;
 }
 
-/** Survey meta: name, description, cover, anonymity, thanks screen */
+/** Survey meta: name, description, cover, anonymity, custom /opros path, thanks */
 export default function SurveyMetaFields({
-  name, description, imageUrl, isAnonymous, thanksText, thanksRedirectUrl, onChange, onUploadCover,
+  name, description, imageUrl, isAnonymous, thanksText, thanksRedirectUrl, publicSlug, onChange, onUploadCover,
 }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState('');
@@ -70,6 +71,23 @@ export default function SurveyMetaFields({
             className="mt-2 w-full max-h-32 object-cover rounded-lg border border-white/10"
           />
         )}
+      </div>
+      <div>
+        <label className="font-mono text-[10px] text-gray-500 mb-1 block">АДРЕС СТРАНИЦЫ (/opros/…)</label>
+        <div className="flex items-center gap-0">
+          <span className="px-2 py-2 rounded-l-lg font-mono text-[11px] text-gray-400 border border-r-0 border-gray-700 bg-white/5">
+            /opros/
+          </span>
+          <input
+            value={publicSlug}
+            onChange={(e) => onChange({ publicSlug: e.target.value.toLowerCase().replace(/[^a-z0-9а-яё_-]/g, '-') })}
+            placeholder="ocenka-meropriyatiya"
+            className="flex-1 px-2 py-2 rounded-r-lg font-mono text-xs bg-black/30 border border-gray-700 text-gray-200 focus:outline-none"
+          />
+        </div>
+        <p className="font-mono text-[9px] text-gray-600 mt-1">
+          латиница/цифры/дефис · пользователи откроют {typeof window !== 'undefined' ? window.location.origin : ''}/opros/{publicSlug || '…'}
+        </p>
       </div>
       <button
         type="button"

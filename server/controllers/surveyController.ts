@@ -12,6 +12,16 @@ function slugify(name: string): string {
   return base || `s-${Date.now().toString(36)}`;
 }
 
+/** normalize custom public path (admin-controlled) */
+function normalizePublicPath(raw: unknown): string | null {
+  if (typeof raw !== 'string') return null;
+  let s = raw.trim().toLowerCase();
+  // allow pasting full URL or /opros/foo → foo
+  s = s.replace(/^https?:\/\/[^/]+/i, '').replace(/^\/(opros|survey)\//i, '').replace(/^\//, '');
+  s = s.replace(/[^a-z0-9а-яё_-]+/gi, '-').replace(/^-|-$/g, '').slice(0, 48);
+  return s || null;
+}
+
 const DEFAULT_THANKS = 'Спасибо что уделили время и проши опрос, Ваше мнение важно для нас';
 const DEFAULT_THANKS_URL = 'https://visit-norilsk.ru';
 
@@ -113,7 +123,10 @@ export const updateSurvey = (req: AuthRequest, res: Response) => {
     const id = req.params.id;
     const cur = get('SELECT * FROM surveys WHERE id = ?', [id]);
     if (!cur) return res.status(404).json({ success: false, error: 'Опрос не найден' });
-    const { name, description, isAnonymous, imageUrl, thanksText, thanksRedirectUrl } = req.body || {};
+    const {
+      name, description, isAnonymous, imageUrl, thanksText, thanksRedirectUrl,
+      publicSlug,
+    } = req.body || {};
     run(
       `UPDATE surveys SET
          name = COALESCE(?, name),
@@ -134,10 +147,17 @@ export const updateSurvey = (req: AuthRequest, res: Response) => {
         id,
       ],
     );
+    // custom public path — admin sets /opros/<slug>
+    const wantSlug = normalizePublicPath(publicSlug);
+    if (wantSlug !== null) {
+      const taken = get('SELECT id FROM surveys WHERE publicSlug = ? AND id != ?', [wantSlug, id]);
+      if (taken) throw new HttpError(400, 'Такой адрес уже занят другим опросом');
+      run('UPDATE surveys SET publicSlug = ? WHERE id = ?', [wantSlug, id]);
+    }
     res.json({ success: true, message: 'Обновлено' });
-  } catch (error) {
+  } catch (error: any) {
     console.error('UpdateSurvey error:', error);
-    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+    res.status(error instanceof HttpError ? error.status : 500).json({ success: false, error: error?.message || 'Ошибка сервера' });
   }
 };
 
@@ -166,7 +186,8 @@ export const togglePublish = (req: AuthRequest, res: Response) => {
       run('UPDATE surveys SET isPublic = 0, updatedAt = datetime(\'now\') WHERE id = ?', [id]);
       return res.json({ success: true, data: { isPublic: false, publicSlug: cur.publicSlug } });
     }
-    let slug = cur.publicSlug || slugify(cur.name);
+    // keep admin-set custom path if any, else generate from name
+    let slug = normalizePublicPath(cur.publicSlug) || slugify(cur.name);
     for (let i = 0; i < 5 && get('SELECT 1 FROM surveys WHERE publicSlug = ? AND id != ?', [slug, id]); i++) {
       slug = `${slug}-${Math.random().toString(36).slice(2, 5)}`;
     }

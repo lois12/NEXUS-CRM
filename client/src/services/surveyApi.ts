@@ -33,7 +33,8 @@ export const surveyApi = {
   getAll: () => api.get('/surveys').then((r) => r.data),
   getOne: (id: string) => api.get(`/surveys/${id}`).then((r) => r.data),
   create: (data: Partial<Survey>) => api.post('/surveys', data).then((r) => r.data),
-  update: (id: string, data: Partial<Survey>) => api.put(`/surveys/${id}`, data).then((r) => r.data),
+  update: (id: string, data: Partial<Survey> & { publicSlug?: string }) =>
+    api.put(`/surveys/${id}`, data).then((r) => r.data),
   remove: (id: string) => api.delete(`/surveys/${id}`).then((r) => r.data),
   togglePublish: (id: string) => api.post(`/surveys/${id}/toggle-publish`).then((r) => r.data),
   duplicate: (id: string) => api.post(`/surveys/${id}/duplicate`).then((r) => r.data),

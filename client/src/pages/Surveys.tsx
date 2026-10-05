@@ -55,7 +55,7 @@ export default function Surveys() {
 
   const openPublic = (s: Survey) => {
     if (s.isPublic && s.publicSlug) {
-      window.open(`/survey/${s.publicSlug}`, '_blank');
+      window.open(`/opros/${s.publicSlug}`, '_blank');
     } else {
       showToast('Сначала опубликуйте опрос', 'info');
     }
@@ -96,7 +96,7 @@ export default function Surveys() {
   };
 
   const copyLink = async (s: Survey) => {
-    const url = `${window.location.origin}/survey/${s.publicSlug}`;
+    const url = `${window.location.origin}/opros/${s.publicSlug}`;
     try {
       await navigator.clipboard.writeText(url);
       showToast('Ссылка скопирована', 'success');
