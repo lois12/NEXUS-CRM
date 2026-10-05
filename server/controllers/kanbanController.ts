@@ -78,11 +78,12 @@ export const deleteTask = (req: AuthRequest, res: Response) => {
     const task = get('SELECT * FROM kanban_tasks WHERE id = ? AND userId = ?', [id, req.user?.id]);
     if (!task) return res.status(404).json({ success: false, error: 'Задача не найдена' });
 
+    run('DELETE FROM task_attachments WHERE taskId = ?', [id]);
     run('DELETE FROM kanban_tasks WHERE id = ?', [id]);
     res.json({ success: true, message: 'Задача удалена' });
-  } catch (error) {
+  } catch (error: any) {
     console.error('DeleteTask error:', error);
-    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+    res.status(500).json({ success: false, error: error?.message || 'Ошибка сервера' });
   }
 };
 

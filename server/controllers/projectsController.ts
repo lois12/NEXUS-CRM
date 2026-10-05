@@ -86,11 +86,12 @@ export const deleteProject = (req: AuthRequest, res: Response) => {
     }
     run('DELETE FROM project_timeline WHERE projectId = ?', [id]);
     run('DELETE FROM project_documents WHERE projectId = ?', [id]);
+    run('DELETE FROM project_links WHERE projectId = ?', [id]);
     run('DELETE FROM projects WHERE id = ?', [id]);
     res.json({ success: true, message: 'Проект удалён' });
-  } catch (error) {
+  } catch (error: any) {
     console.error('DeleteProject error:', error);
-    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+    res.status(500).json({ success: false, error: error?.message || 'Ошибка сервера' });
   }
 };
 

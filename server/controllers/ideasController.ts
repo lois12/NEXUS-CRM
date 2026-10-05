@@ -107,17 +107,19 @@ export const deleteIdea = (req: AuthRequest, res: Response) => {
       return res.status(404).json({ success: false, error: 'Идея не найдена' });
     }
 
-    // Delete links
+    // Delete children first (old schemas may lack ON DELETE CASCADE)
     run('DELETE FROM idea_links WHERE sourceId = ? OR targetId = ?', [id, id]);
+    run('DELETE FROM idea_comments WHERE ideaId = ?', [id]);
+    run('DELETE FROM idea_attachments WHERE ideaId = ?', [id]);
     // Detach children
     run('UPDATE ideas SET parentId = NULL WHERE parentId = ?', [id]);
     // Delete idea
     run('DELETE FROM ideas WHERE id = ?', [id]);
 
     res.json({ success: true, message: 'Идея удалена' });
-  } catch (error) {
+  } catch (error: any) {
     console.error('DeleteIdea error:', error);
-    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+    res.status(500).json({ success: false, error: error?.message || 'Ошибка сервера' });
   }
 };
 

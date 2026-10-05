@@ -77,10 +77,11 @@ export const deleteEvent = (req: AuthRequest, res: Response) => {
       const filePath = path.join(UPLOADS_DIR, path.basename(event.imageUrl));
       if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
     }
+    run('DELETE FROM event_blocks WHERE eventId = ?', [id]);
     run('DELETE FROM events WHERE id = ?', [id]);
     res.json({ success: true, message: 'Мероприятие удалено' });
-  } catch (error) {
+  } catch (error: any) {
     console.error('DeleteEvent error:', error);
-    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+    res.status(500).json({ success: false, error: error?.message || 'Ошибка сервера' });
   }
 };

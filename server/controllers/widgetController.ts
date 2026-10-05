@@ -100,11 +100,12 @@ export const deleteWidget = (req: AuthRequest, res: Response) => {
       if (fs.existsSync(imgPath)) fs.unlinkSync(imgPath);
     }
 
+    run('DELETE FROM widget_images WHERE widgetId = ?', [id]);
     run('DELETE FROM widgets WHERE id = ?', [id]);
     res.json({ success: true });
-  } catch (error) {
+  } catch (error: any) {
     console.error('DeleteWidget error:', error);
-    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+    res.status(500).json({ success: false, error: error?.message || 'Ошибка сервера' });
   }
 };
 

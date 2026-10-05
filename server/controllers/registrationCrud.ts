@@ -224,11 +224,15 @@ export const deleteRegistration = (req: AuthRequest, res: Response) => {
       const filePath = path.join(UPLOADS_DIR, path.basename(reg.imageUrl));
       if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
     }
+    // Explicit cascade — old VPS schemas may lack ON DELETE CASCADE
+    run('DELETE FROM registration_fields WHERE registrationId = ?', [id]);
+    run('DELETE FROM registration_media WHERE registrationId = ?', [id]);
+    run('DELETE FROM registration_submissions WHERE registrationId = ?', [id]);
     run('DELETE FROM registrations WHERE id = ?', [id]);
     res.json({ success: true, message: 'Удалено' });
-  } catch (error) {
+  } catch (error: any) {
     console.error('DeleteRegistration error:', error);
-    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+    res.status(500).json({ success: false, error: error?.message || 'Ошибка сервера' });
   }
 };
 

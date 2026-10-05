@@ -211,26 +211,44 @@ export const deleteUser = (req: AuthRequest, res: Response) => {
       return res.status(404).json({ success: false, error: 'Пользователь не найден' });
     }
 
-    // Cascade: clean up related records before deleting user
+    // Cascade: clean up / reassign related records before deleting user.
+    // Many FKs are NOT NULL (senderId, authorId, createdBy) — reassign to the acting admin.
+    const actorId = req.user?.id || id;
     run('DELETE FROM kanban_tasks WHERE userId = ?', [id]);
     run('DELETE FROM activities WHERE userId = ?', [id]);
     run('DELETE FROM idea_comments WHERE authorId = ?', [id]);
     run('DELETE FROM idea_attachments WHERE uploadedBy = ?', [id]);
     run('DELETE FROM content_comments WHERE authorId = ?', [id]);
     run('DELETE FROM content_approvals WHERE approverId = ?', [id]);
-    run('UPDATE chat_messages SET deleted = 1, content = "[Удалено]" WHERE senderId = ?', [id]);
+    // chat: keep history, scrub author (senderId is NOT NULL)
+    run('UPDATE chat_messages SET deleted = 1, content = "[Удалено]", senderId = ? WHERE senderId = ?', [actorId, id]);
     run('DELETE FROM chat_group_members WHERE userId = ?', [id]);
     run('DELETE FROM chat_reads WHERE userId = ?', [id]);
     run('DELETE FROM chat_pinned WHERE pinnedBy = ?', [id]);
     run('DELETE FROM chat_reactions WHERE userId = ?', [id]);
+    run('DELETE FROM chat_favorites WHERE userId = ?', [id]);
+    run('DELETE FROM chat_user_mutes WHERE userId = ?', [id]);
+    run('DELETE FROM chat_muted WHERE userId = ? OR mutedBy = ?', [id, id]);
+    run('UPDATE chat_polls SET createdBy = ? WHERE createdBy = ?', [actorId, id]);
     run('DELETE FROM vacations WHERE userId = ?', [id]);
+    run('UPDATE vacations SET approvedBy = NULL WHERE approvedBy = ?', [id]);
     run('DELETE FROM notifications WHERE userId = ? OR senderId = ?', [id, id]);
     run('DELETE FROM materials WHERE uploadedBy = ?', [id]);
     run('DELETE FROM brand_assets WHERE uploadedBy = ?', [id]);
+    run('DELETE FROM knowledge_attachments WHERE uploadedBy = ?', [id]);
     run('DELETE FROM knowledge_base WHERE authorId = ?', [id]);
     run('DELETE FROM push_subscriptions WHERE userId = ?', [id]);
     run('DELETE FROM qr_codes WHERE createdBy = ?', [id]);
     run('DELETE FROM image_gen_log WHERE userId = ?', [id]);
+    // ownership NOT NULL → reassign to admin so FK allows user delete
+    run('UPDATE content_posts SET authorId = ? WHERE authorId = ?', [actorId, id]);
+    run('UPDATE ideas SET authorId = ? WHERE authorId = ?', [actorId, id]);
+    run('UPDATE lists SET createdBy = ? WHERE createdBy = ?', [actorId, id]);
+    run('UPDATE widgets SET createdBy = ? WHERE createdBy = ?', [actorId, id]);
+    run('UPDATE registrations SET createdBy = ? WHERE createdBy = ?', [actorId, id]);
+    run('UPDATE collage_projects SET ownerId = ? WHERE ownerId = ?', [actorId, id]);
+    run('UPDATE short_links SET createdBy = ? WHERE createdBy = ?', [actorId, id]);
+    run('UPDATE knowledge_attachments SET uploadedBy = NULL WHERE uploadedBy = ?', [id]);
 
     // Log activity BEFORE deleting user (so userId is still valid)
     run(`INSERT INTO activities (id, type, description, userId) VALUES (?, ?, ?, ?)`,

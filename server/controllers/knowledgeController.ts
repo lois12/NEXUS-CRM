@@ -93,11 +93,12 @@ export const deleteArticle = (req: AuthRequest, res: Response) => {
       if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
     }
 
+    run('DELETE FROM knowledge_attachments WHERE articleId = ?', [id]);
     run('DELETE FROM knowledge_base WHERE id = ?', [id]);
     res.json({ success: true, message: 'Статья удалена' });
-  } catch (error) {
+  } catch (error: any) {
     console.error('DeleteArticle error:', error);
-    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+    res.status(500).json({ success: false, error: error?.message || 'Ошибка сервера' });
   }
 };
 
