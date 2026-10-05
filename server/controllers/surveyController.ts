@@ -22,6 +22,28 @@ function normalizePublicPath(raw: unknown): string | null {
   return s || null;
 }
 
+/** SQLite datetime('now') is UTC without Z — render in app timezone */
+const REPORT_TZ = process.env.REPORT_TZ || 'Europe/Moscow';
+
+function fmtRu(sqlite?: string | null): string {
+  if (!sqlite) return '—';
+  const iso = /[TzZ]/.test(String(sqlite)) ? String(sqlite) : String(sqlite).replace(' ', 'T') + 'Z';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return String(sqlite);
+  return d.toLocaleString('ru-RU', {
+    timeZone: REPORT_TZ,
+    day: '2-digit', month: '2-digit', year: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  });
+}
+
+function toIsoUtc(sqlite?: string | null): string | null {
+  if (!sqlite) return null;
+  const iso = /[TzZ]/.test(String(sqlite)) ? String(sqlite) : String(sqlite).replace(' ', 'T') + 'Z';
+  const d = new Date(iso);
+  return isNaN(d.getTime()) ? null : d.toISOString();
+}
+
 const DEFAULT_THANKS = 'Спасибо что уделили время и проши опрос, Ваше мнение важно для нас';
 const DEFAULT_THANKS_URL = 'https://visit-norilsk.ru';
 
@@ -48,6 +70,8 @@ function publicShape(row: any) {
     isPublic: !!row.isPublic,
     thanksText: row.thanksText || DEFAULT_THANKS,
     thanksRedirectUrl: row.thanksRedirectUrl || DEFAULT_THANKS_URL,
+    createdAt: toIsoUtc(row.createdAt),
+    updatedAt: toIsoUtc(row.updatedAt),
   };
 }
 
@@ -374,7 +398,7 @@ export const getSurveyStats = (req: AuthRequest, res: Response) => {
       data: {
         survey: { ...survey, isAnonymous: !!survey.isAnonymous, isPublic: !!survey.isPublic },
         responseCount: responses.length,
-        lastResponseAt: responses[0]?.createdAt || null,
+        lastResponseAt: toIsoUtc(responses[0]?.createdAt),
         stats,
         responses: responses.map((r: any) => ({ ...r, answers: JSON.parse(r.answers || '{}') })),
       },
@@ -402,7 +426,7 @@ export const exportCSV = (req: AuthRequest, res: Response) => {
       let a: any = {};
       try { a = JSON.parse(r.answers || '{}'); } catch { /* skip */ }
       lines.push([
-        r.createdAt, r.contactName, r.contactPhone, r.contactEmail,
+        fmtRu(r.createdAt), r.contactName, r.contactPhone, r.contactEmail,
         ...questions.map((q: any) => (a[q.id] ?? '')),
       ].map(esc).join(';'));
     }
@@ -472,14 +496,14 @@ th{background:#f3f4f6}
   <div class="sub">ОТЧЁТ ПО ОПРОСУ</div>
 </div>
 <h2 style="margin-top:0">${survey.name}</h2>
-<div class="meta">Ответов: ${responses.length} · сформировано ${new Date().toLocaleString('ru-RU')}</div>
+<div class="meta">Ответов: ${responses.length} · сформировано ${fmtRu(new Date().toISOString())} (${REPORT_TZ})</div>
 ${questions.map((q: any) => `
 <h2>${q.title} <small style="color:#666;font-weight:400">(${q.type === 'choice' ? 'варианты' : 'открытый'})</small></h2>
 <table><thead><tr>${q.type === 'choice' ? '<th>Вариант</th><th>Шт.</th><th>%</th>' : '<th>Ответ</th>'}</tr></thead>
 <tbody>${rowsFor(q)}</tbody></table>`).join('')}
 <div class="foot">
   <span>NEXUS CRM · nexus-liberty.online</span>
-  <span>${new Date().toLocaleDateString('ru-RU')}</span>
+  <span>${fmtRu(new Date().toISOString())}</span>
 </div>
 <script>window.onload=()=>window.print()</script>
 </body></html>`;
