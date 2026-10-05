@@ -477,21 +477,22 @@ export const exportPDF = (req: AuthRequest, res: Response) => {
 
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${survey.name} · NEXUS CRM</title>
 <style>
-body{font-family:system-ui,sans-serif;color:#111;padding:32px;padding-bottom:56px}
+@page { margin: 18mm 16mm; }
+body{font-family:system-ui,sans-serif;color:#111;margin:0;padding:0}
 .brand{display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid #00c853;padding-bottom:10px;margin-bottom:18px}
 .brand h1{font-size:16px;margin:0;letter-spacing:.12em;color:#00c853;text-transform:uppercase}
 .brand .sub{font-size:11px;color:#888;letter-spacing:.08em}
-h2{font-size:14px;margin:20px 0 8px}
-.meta{color:#666;font-size:11px;margin-bottom:8px}
+h2{font-size:14px;margin:22px 0 8px;break-after:avoid}
+.meta{color:#666;font-size:11px;margin-bottom:6px}
 .total{display:inline-block;background:#00c853;color:#fff;font-size:13px;font-weight:700;
   padding:8px 16px;border-radius:8px;margin:6px 0 14px}
 table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:8px}
 th,td{border:1px solid #ddd;padding:6px 8px;text-align:left}
 th{background:#f3f4f6}
-.pct{font-variant-numeric:tabular-nums;font-weight:600;color:#0a7a32}
-.foot{position:fixed;left:32px;right:32px;bottom:18px;display:flex;justify-content:space-between;
-  font-size:10px;color:#999;border-top:1px solid #ddd;padding-top:8px;letter-spacing:.04em}
-@media print { button{display:none} body{padding-bottom:64px} }
+tr{break-inside:avoid}
+.foot{margin-top:28px;padding-top:10px;border-top:1px solid #ddd;display:flex;justify-content:space-between;
+  font-size:10px;color:#999;letter-spacing:.04em;break-inside:avoid}
+@media print { button{display:none} }
 </style></head><body>
 <div class="brand">
   <h1>NEXUS CRM</h1>
