@@ -25,6 +25,7 @@ export const getPublicSurvey = (req: AuthRequest, res: Response) => {
       'SELECT * FROM survey_questions WHERE surveyId = ? ORDER BY position ASC, createdAt ASC',
       [row.id],
     ).map((q: any) => ({ ...q, options: safeJson(q.options) }));
+    const responseCount = get('SELECT COUNT(*) as c FROM survey_responses WHERE surveyId = ?', [row.id])?.c || 0;
     res.json({
       success: true,
       data: {
@@ -35,6 +36,7 @@ export const getPublicSurvey = (req: AuthRequest, res: Response) => {
         isAnonymous: !!row.isAnonymous,
         thanksText: row.thanksText || DEFAULT_THANKS,
         thanksRedirectUrl: row.thanksRedirectUrl || DEFAULT_THANKS_URL,
+        responseCount,
         questions,
       },
     });
