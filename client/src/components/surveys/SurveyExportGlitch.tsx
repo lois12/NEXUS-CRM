@@ -117,18 +117,21 @@ export default function SurveyExportMenu({ surveyName, stats, responseCount }: P
 
       {open && (
         <div
-          className="absolute right-0 mt-1.5 w-52 rounded-xl overflow-hidden z-50"
+          className="absolute right-0 mt-1.5 w-52 overflow-hidden z-50"
           style={{
-            background: 'rgba(12,14,20,0.98)',
+            borderRadius: 14,
+            background: 'linear-gradient(160deg, rgba(16,20,28,0.98), rgba(10,12,18,0.99))',
             border: '1px solid rgba(255,255,255,0.12)',
-            boxShadow: '0 12px 40px rgba(0,0,0,0.5)',
-            animation: 'exportOpen .18s ease',
+            boxShadow: '0 18px 50px rgba(0,0,0,0.55), 0 0 30px rgba(0,255,136,0.08)',
+            animation: 'exportUnfold .28s cubic-bezier(.2,.9,.25,1)',
+            transformOrigin: 'top right',
           }}
         >
           <style>{`
-            @keyframes exportOpen {
-              from { opacity: 0; transform: translateY(-8px) scaleY(0.9); transform-origin: top; }
-              to { opacity: 1; transform: none; }
+            @keyframes exportUnfold {
+              0% { opacity: 0; transform: scaleY(0.15) scaleX(0.92) translateY(-10px); filter: blur(4px); }
+              55% { opacity: 1; filter: blur(0); }
+              100% { opacity: 1; transform: none; }
             }
           `}</style>
           {([

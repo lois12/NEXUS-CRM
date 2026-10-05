@@ -48,7 +48,7 @@ export default function PublicSurveyStats() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [updatedAt, setUpdatedAt] = useState<number>(Date.now());
-  const [chartView, setChartView] = useState<ChartView>('pie3d');
+  const [chartView, setChartView] = useState<ChartView>('bars');
 
   useEffect(() => {
     let cancelled = false;
@@ -145,15 +145,15 @@ export default function PublicSurveyStats() {
         <div className="glass rounded-xl px-3 py-2.5 flex items-center gap-3 flex-wrap">
           <span className="font-mono text-[10px] text-gray-500 uppercase tracking-wider">ВИД</span>
           {([
-            ['pie3d', 'Круговая 3D'],
             ['bars', 'Гистограмма'],
+            ['pie3d', 'Круговая 3D'],
           ] as const).map(([v, label]) => (
             <button
               key={v}
               onClick={() => setChartView(v)}
-              className="px-3 py-1.5 rounded-lg font-mono text-[11px] transition-colors"
+              className="px-3 py-1.5 rounded-lg font-mono text-[11px] transition-all duration-200 hover:scale-105"
               style={chartView === v
-                ? { background: 'var(--color-primary)', color: '#000' }
+                ? { background: 'var(--color-primary)', color: '#000', boxShadow: '0 0 16px rgba(0,255,136,0.35)' }
                 : { background: 'rgba(255,255,255,0.05)', color: '#888' }}
             >
               {label}
