@@ -13,6 +13,8 @@ app.use('/api/content', contentRoutes);
 beforeAll(() => {
   initDatabase(true);
   initializeDatabase();
+  // migration 022 (platforms) for in-memory test DB — runMigrations is circular-imported under vitest
+  run('ALTER TABLE content_posts ADD COLUMN platforms TEXT', [], true);
   // Satisfy FK constraints on activities/content_posts
   run('INSERT INTO users (id, username, password, email, fullName, role) VALUES (?, ?, ?, ?, ?, ?)',
     ['test-admin-id', 'testadmin', 'x', 'test@test.local', 'Test Admin', 'smm']);

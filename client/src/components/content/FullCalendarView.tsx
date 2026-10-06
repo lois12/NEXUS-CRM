@@ -39,14 +39,18 @@ export default function FullCalendarView({
 }: FullCalendarViewProps) {
 
   const events = useMemo(() => {
+    const getTags = (post: ContentPost): SocialPlatform[] =>
+      post.platforms?.length ? post.platforms : post.platform ? [post.platform] : ['telegram'];
+
     return posts
-      .filter(p => filterPlatform === 'all' || p.platform === filterPlatform)
+      .filter(p => filterPlatform === 'all' || getTags(p).includes(filterPlatform))
       .filter(p => p.scheduledDate || p.createdAt)
       .map(post => {
         const dateStr = post.scheduledDate || post.createdAt;
-        const color = platformColors[post.platform] || '#6b7280';
+        const tags = getTags(post);
+        const color = platformColors[tags[0]] || '#6b7280';
         const statusColor = statusColors[post.status] || '#6b7280';
-        const platformLabel = post.platform.toUpperCase();
+        const platformLabel = tags.map(t => t.toUpperCase()).join('·');
 
         return {
           id: post.id,
@@ -127,7 +131,7 @@ export default function FullCalendarView({
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', overflow: 'hidden', padding: '2px 4px' }}>
               <span style={{ width: 6, height: 6, borderRadius: '50%', flexShrink: 0, background: statusDot, boxShadow: `0 0 4px ${statusDot}` }} />
               <span style={{ fontSize: 9, fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, opacity: 0.6, flexShrink: 0 }}>
-                {post.platform.toUpperCase()}
+                {(post.platforms?.length ? post.platforms : [post.platform]).map(t => t.toUpperCase()).join('·')}
               </span>
               <span style={{ fontSize: 11, fontFamily: 'JetBrains Mono, monospace', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {post.title}

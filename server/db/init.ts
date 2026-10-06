@@ -26,6 +26,7 @@ export function initializeDatabase() {
       title TEXT NOT NULL,
       content TEXT NOT NULL,
       platform TEXT NOT NULL DEFAULT 'telegram',
+      platforms TEXT,
       status TEXT NOT NULL DEFAULT 'черновик',
       scheduledDate TEXT,
       publishedDate TEXT,

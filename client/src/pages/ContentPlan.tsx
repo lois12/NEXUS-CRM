@@ -28,7 +28,8 @@ import PostComments from '../components/content/PostComments';
 import { useAuth } from '../context/AuthContext';
 import { formatDateKR, formatTimeKR } from '../utils/timezone';
 import FullCalendarView from '../components/content/FullCalendarView';
-import { LayoutGrid, CalendarDays } from 'lucide-react';
+import WeekAccordionView from '../components/content/WeekAccordionView';
+import { LayoutGrid, CalendarDays, Rows } from 'lucide-react';
 
 // SVG icons for platforms
 const TelegramIcon = () => (
@@ -79,6 +80,40 @@ const statusConfig: Record<string, { label: string; color: string; icon: React.R
   утверждён: { label: 'Утверждён', color: '#bf00ff', icon: <Timer className="w-3 h-3" /> },
 };
 
+/** All platform tags of a post (legacy fallback to single platform) */
+function getPostPlatforms(post: ContentPost): SocialPlatform[] {
+  if (post.platforms?.length) return post.platforms;
+  return post.platform ? [post.platform] : ['telegram'];
+}
+
+function PlatformBadges({ post, size = 'md' }: { post: ContentPost; size?: 'sm' | 'md' }) {
+  const tags = getPostPlatforms(post);
+  return (
+    <span className="flex flex-wrap items-center gap-1">
+      {tags.map((p) => {
+        const cfg = platformConfig[p] || {
+          icon: <Globe className={size === 'sm' ? 'w-3 h-3' : 'w-4 h-4'} />,
+          label: p,
+          shortLabel: '??',
+          color: '#6b7280',
+          gradient: 'linear-gradient(135deg, #6b7280, #4a4a60)',
+        };
+        return (
+          <span
+            key={p}
+            className={`inline-flex items-center gap-1 rounded font-mono font-bold ${size === 'sm' ? 'px-1.5 py-0.5 text-[10px]' : 'px-2 py-0.5 text-xs'}`}
+            style={{ background: cfg.gradient, color: '#fff' }}
+            title={cfg.label}
+          >
+            {cfg.icon}
+            {size === 'sm' ? cfg.shortLabel : cfg.label}
+          </span>
+        );
+      })}
+    </span>
+  );
+}
+
 const DAYS_OF_WEEK = ['ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ', 'ВС'];
 const MONTHS = [
   'ЯНВАРЬ', 'ФЕВРАЛЬ', 'МАРТ', 'АПРЕЛЬ', 'МАЙ', 'ИЮНЬ',
@@ -110,9 +145,10 @@ export default function ContentPlan() {
   const contextMenuRef = useRef<HTMLDivElement>(null);
   const { confirmState, showConfirm, closeConfirm } = useNexusConfirm();
   const [expandedPost, setExpandedPost] = useState<string | null>(null);
-  const [calendarView, setCalendarView] = useState<'grid' | 'full'>(() =>
-    (localStorage.getItem('nexus_contentplan_view') as 'grid' | 'full') || 'grid'
-  );
+  const [calendarView, setCalendarView] = useState<'grid' | 'week' | 'full'>(() => {
+    const v = localStorage.getItem('nexus_contentplan_view');
+    return v === 'week' || v === 'full' || v === 'grid' ? v : 'grid';
+  });
   const [formData, setFormData] = useState({
     title: '',
     content: '',
@@ -157,24 +193,29 @@ export default function ContentPlan() {
     e.preventDefault();
     setIsSaving(true);
     try {
+      const platforms = formData.platforms.length > 0 ? formData.platforms : (['telegram'] as SocialPlatform[]);
+      const payload = {
+        title: formData.title,
+        content: formData.content,
+        status: formData.status,
+        scheduledDate: formData.scheduledDate,
+        platforms,
+        platform: platforms[0],
+      };
       if (editingPost) {
-        // Update existing post with first selected platform
-        const data = { ...formData, platform: formData.platforms[0] || 'telegram' };
-        await contentApi.update(editingPost.id, data);
+        // One post — all selected platforms saved as tags
+        await contentApi.update(editingPost.id, payload);
         if (postImageFiles.length > 0) {
           for (const file of postImageFiles) {
             await contentApi.uploadImage(editingPost.id, file);
           }
         }
       } else {
-        // Create one post per selected platform
-        for (const platform of formData.platforms) {
-          const data = { ...formData, platform };
-          const res = await contentApi.create(data);
-          if (res.success && res.data && postImageFiles.length > 0) {
-            for (const file of postImageFiles) {
-              await contentApi.uploadImage(res.data.id, file);
-            }
+        // One post per entry (not one per platform)
+        const res = await contentApi.create(payload);
+        if (res.success && res.data && postImageFiles.length > 0) {
+          for (const file of postImageFiles) {
+            await contentApi.uploadImage(res.data.id, file);
           }
         }
       }
@@ -235,7 +276,7 @@ export default function ContentPlan() {
     setFormData({
       title: post.title,
       content: post.content,
-      platforms: [post.platform],
+      platforms: post.platforms?.length ? post.platforms : [post.platform],
       status: post.status,
       scheduledDate: post.scheduledDate || '',
     });
@@ -250,7 +291,7 @@ export default function ContentPlan() {
     setFormData({
       title: `${post.title} (копия)`,
       content: post.content,
-      platforms: [post.platform],
+      platforms: post.platforms?.length ? post.platforms : [post.platform],
       status: 'черновик',
       scheduledDate: post.scheduledDate || '',
     });
@@ -335,9 +376,9 @@ export default function ContentPlan() {
       const matchesDate = postDate.getDate() === date.getDate() &&
         postDate.getMonth() === date.getMonth() &&
         postDate.getFullYear() === date.getFullYear();
-      
+
       if (filterPlatform !== 'all') {
-        return matchesDate && post.platform === filterPlatform;
+        return matchesDate && getPostPlatforms(post).includes(filterPlatform);
       }
       return matchesDate;
     });
@@ -527,10 +568,17 @@ export default function ContentPlan() {
           {/* Calendar view toggle */}
           <div className="flex rounded-lg overflow-hidden border border-gray-700">
             <button onClick={() => setCalendarView('grid')}
+              title="Сетка месяца"
               className={`p-2 transition-all ${calendarView === 'grid' ? 'bg-white/10 text-white' : 'text-gray-500 hover:text-gray-300'}`}>
               <LayoutGrid className="w-4 h-4" />
             </button>
+            <button onClick={() => setCalendarView('week')}
+              title="Недели"
+              className={`p-2 transition-all ${calendarView === 'week' ? 'bg-white/10 text-white' : 'text-gray-500 hover:text-gray-300'}`}>
+              <Rows className="w-4 h-4" />
+            </button>
             <button onClick={() => setCalendarView('full')}
+              title="Полный календарь"
               className={`p-2 transition-all ${calendarView === 'full' ? 'bg-white/10 text-white' : 'text-gray-500 hover:text-gray-300'}`}>
               <CalendarDays className="w-4 h-4" />
             </button>
@@ -597,6 +645,28 @@ export default function ContentPlan() {
                 onDateClick={handleFullCalendarDateClick}
                 onEventClick={handleFullCalendarEventClick}
                 onEventDrop={handleFullCalendarEventDrop}
+              />
+            </motion.div>
+          ) : calendarView === 'week' ? (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="glass rounded-2xl p-4 md:p-6 overflow-hidden"
+            >
+              <WeekAccordionView
+                posts={posts}
+                filterPlatform={filterPlatform}
+                canEdit={canEdit}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+                onDuplicate={handleDuplicate}
+                onCreateForDate={(date) => {
+                  setSelectedDate(date);
+                  setEditingPost(null);
+                  resetForm();
+                  setFormData(prev => ({ ...prev, scheduledDate: formatLocalDate(date) }));
+                  setShowModal(true);
+                }}
               />
             </motion.div>
           ) : (
@@ -730,7 +800,6 @@ export default function ContentPlan() {
                 {selectedDatePosts.length > 0 ? (
                   <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1">
                     {selectedDatePosts.map((post, index) => {
-                      const config = platformConfig[post.platform] || { icon: <Globe className="w-4 h-4" />, label: post.platform || 'Неизвестно', shortLabel: '??', color: '#6b7280', gradient: 'linear-gradient(135deg, #6b7280, #4a4a60)' };
                       const status = statusConfig[post.status] || statusConfig['черновик'];
                       return (
                         <motion.div
@@ -740,19 +809,11 @@ export default function ContentPlan() {
                           transition={{ delay: index * 0.1 }}
                           className="glass-card rounded-xl p-3 group"
                         >
-                          <div className="flex items-start justify-between mb-2">
-                            <span 
-                              className="px-2 py-0.5 rounded text-xs font-mono font-bold"
-                              style={{ 
-                                background: config.gradient,
-                                color: '#fff'
-                              }}
-                            >
-                              {config.icon} {config.label}
-                            </span>
-                            <span 
-                              className="px-2 py-0.5 rounded text-xs"
-                              style={{ 
+                          <div className="flex items-start justify-between mb-2 gap-2">
+                            <PlatformBadges post={post} size="sm" />
+                            <span
+                              className="px-2 py-0.5 rounded text-xs flex-shrink-0"
+                              style={{
                                 backgroundColor: `${status.color}20`,
                                 color: status.color
                               }}
@@ -957,7 +1018,6 @@ export default function ContentPlan() {
               {selectedDatePosts.length > 0 ? (
                 <div className="space-y-2">
                   {selectedDatePosts.map((post, index) => {
-                    const config = platformConfig[post.platform] || { icon: <Globe className="w-4 h-4" />, label: post.platform || 'Неизвестно', shortLabel: '??', color: '#6b7280', gradient: 'linear-gradient(135deg, #6b7280, #4a4a60)' };
                     const status = statusConfig[post.status] || statusConfig['черновик'];
                     const isExpanded = expandedPost === post.id;
                     return (
@@ -973,12 +1033,7 @@ export default function ContentPlan() {
                           onClick={() => setExpandedPost(isExpanded ? null : post.id)}
                           className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-white/[0.03] transition-colors"
                         >
-                          <span
-                            className="px-2 py-0.5 rounded text-[10px] font-mono font-bold flex-shrink-0"
-                            style={{ background: config.gradient, color: '#fff' }}
-                          >
-                            {config.shortLabel}
-                          </span>
+                          <PlatformBadges post={post} size="sm" />
                           <span className="text-sm font-medium text-gray-200 truncate flex-1">{post.title}</span>
                           <span
                             className="px-2 py-0.5 rounded text-[10px] flex-shrink-0"

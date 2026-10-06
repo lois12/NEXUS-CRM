@@ -36,7 +36,10 @@ export interface ContentPost {
   id: string;
   title: string;
   content: string;
+  /** primary platform (legacy = platforms[0]) */
   platform: SocialPlatform;
+  /** all platforms this post will be published to */
+  platforms: SocialPlatform[];
   status: ContentStatus;
   scheduledDate?: string;
   scheduledAt?: string;

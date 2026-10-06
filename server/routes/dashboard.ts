@@ -197,15 +197,26 @@ router.get('/analytics/posts-by-day', (req: AuthRequest, res: Response) => {
   }
 });
 
-// Analytics — posts by platform
+// Analytics — posts by platform (one post may carry several platform tags)
 router.get('/analytics/by-platform', (req: AuthRequest, res: Response) => {
   try {
-    const rows = query(`
-      SELECT platform, COUNT(*) as count
-      FROM content_posts
-      GROUP BY platform
-    `);
-    res.json({ success: true, data: rows });
+    const rows = query(`SELECT platform, platforms FROM content_posts`);
+    const counts: Record<string, number> = {};
+    for (const row of rows) {
+      let tags: string[] = [];
+      if (row.platforms) {
+        try {
+          const arr = JSON.parse(row.platforms);
+          if (Array.isArray(arr)) tags = arr.filter((p: unknown) => typeof p === 'string' && p);
+        } catch { /* fallback */ }
+      }
+      if (tags.length === 0 && row.platform) tags = [row.platform];
+      if (tags.length === 0) tags = ['telegram'];
+      for (const t of new Set(tags)) {
+        counts[t] = (counts[t] || 0) + 1;
+      }
+    }
+    res.json({ success: true, data: Object.entries(counts).map(([platform, count]) => ({ platform, count })) });
   } catch (error) {
     console.error('ByPlatform error:', error);
     res.status(500).json({ success: false, error: 'Ошибка сервера' });

@@ -26,6 +26,7 @@ import './migrations/010_collage_projects';
 import './migrations/011_surveys';
 import './migrations/012_survey_thanks';
 import './migrations/013_survey_status';
+import './migrations/014_content_platforms';
 
 export function runMigrations(): void {
   run(`CREATE TABLE IF NOT EXISTS schema_migrations (
