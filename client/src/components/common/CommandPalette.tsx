@@ -7,6 +7,7 @@ import {
   Calendar, Image, Zap, ArrowRight, Plus, ClipboardList,
 } from 'lucide-react';
 import { searchApi } from '../../services/api';
+import { useTheme } from '../../context/ThemeContext';
 
 const typeIcons: Record<string, typeof Search> = {
   user: Users, task: CheckSquare, project: Rocket, event: PartyPopper,
@@ -165,6 +166,29 @@ export default function CommandPalette() {
   };
 
   const showQuickActions = query.length < 2;
+  const { themeName } = useTheme();
+  const isLight = themeName === 'office-light';
+
+  const c = {
+    overlay: isLight ? 'rgba(15,23,32,0.35)' : 'rgba(0,0,0,0.6)',
+    panel: isLight
+      ? 'linear-gradient(135deg, rgba(255,255,255,0.98), rgba(244,246,248,0.99))'
+      : 'linear-gradient(135deg, rgba(20,20,35,0.98), rgba(10,10,20,0.99))',
+    panelBorder: isLight ? 'rgba(15,118,110,0.15)' : 'rgba(255,255,255,0.08)',
+    panelShadow: isLight
+      ? '0 24px 64px rgba(15,23,32,0.18)'
+      : '0 24px 64px rgba(0,0,0,0.6)',
+    divider: isLight ? 'rgba(15,118,110,0.12)' : 'rgba(255,255,255,0.06)',
+    text: isLight ? '#1a2332' : '#e0e0e0',
+    textSoft: isLight ? '#4a5568' : '#c0c0d0',
+    textMuted: isLight ? '#718096' : '#8a8aa0',
+    textFaint: isLight ? '#94a3b8' : '#5a5a70',
+    hoverBg: isLight ? 'rgba(15,118,110,0.10)' : 'rgba(0,255,136,0.08)',
+    chipBg: isLight ? 'rgba(15,118,110,0.08)' : 'rgba(255,255,255,0.05)',
+    chipBorder: isLight ? 'rgba(15,118,110,0.12)' : 'rgba(255,255,255,0.08)',
+    accent: isLight ? '#0d9488' : '#00d4ff',
+    iconBg: isLight ? 'rgba(15,118,110,0.12)' : 'rgba(255,255,255,0.03)',
+  };
 
   return (
     <AnimatePresence>
@@ -174,7 +198,7 @@ export default function CommandPalette() {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           className="fixed inset-0 z-[200] flex items-start justify-center pt-[15vh]"
-          style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
+          style={{ background: c.overlay, backdropFilter: 'blur(4px)' }}
           onClick={() => setIsOpen(false)}
         >
           <motion.div
@@ -183,11 +207,11 @@ export default function CommandPalette() {
             exit={{ opacity: 0, y: -20, scale: 0.95 }}
             transition={{ duration: 0.15 }}
             className="w-full max-w-lg rounded-2xl overflow-hidden"
-            style={{ background: 'linear-gradient(135deg, rgba(20,20,35,0.98), rgba(10,10,20,0.99))', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 24px 64px rgba(0,0,0,0.6)' }}
+            style={{ background: c.panel, border: `1px solid ${c.panelBorder}`, boxShadow: c.panelShadow }}
             onClick={e => e.stopPropagation()}
           >
             {/* Input */}
-            <div className="flex items-center gap-3 px-5 py-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+            <div className="flex items-center gap-3 px-5 py-4" style={{ borderBottom: `1px solid ${c.divider}` }}>
               <Search className="w-5 h-5 flex-shrink-0" style={{ color: 'var(--color-primary)' }} />
               <input
                 ref={inputRef}
@@ -196,9 +220,9 @@ export default function CommandPalette() {
                 onKeyDown={handleKeyDown}
                 placeholder="Поиск по всему..."
                 className="flex-1 bg-transparent text-sm outline-none font-mono"
-                style={{ color: '#e0e0e0' }}
+                style={{ color: c.text }}
               />
-              <kbd className="px-2 py-0.5 rounded text-[10px] font-mono" style={{ background: 'rgba(255,255,255,0.05)', color: '#5a5a70', border: '1px solid rgba(255,255,255,0.08)' }}>ESC</kbd>
+              <kbd className="px-2 py-0.5 rounded text-[10px] font-mono" style={{ background: c.chipBg, color: c.textFaint, border: `1px solid ${c.chipBorder}` }}>ESC</kbd>
             </div>
 
             {/* Results */}
@@ -208,39 +232,39 @@ export default function CommandPalette() {
                   {recent.length > 0 && (
                     <>
                       <div className="px-5 py-1.5">
-                        <span className="text-[10px] font-mono tracking-wider" style={{ color: '#5a5a70' }}>НЕДАВНИЕ</span>
+                        <span className="text-[10px] font-mono tracking-wider" style={{ color: c.textFaint }}>НЕДАВНИЕ</span>
                       </div>
                       {recent.map((action, i) => (
                         <button
                           key={'r-' + action.link}
                           onClick={() => handleSelect(action)}
                           className="w-full flex items-center gap-3 px-5 py-2 transition-colors text-left"
-                          style={selectedIndex === i ? { background: 'rgba(0,255,136,0.08)' } : {}}
+                          style={selectedIndex === i ? { background: c.hoverBg } : {}}
                           onMouseEnter={() => setSelectedIndex(i)}
                         >
-                          <action.icon className="w-3.5 h-3.5" style={{ color: selectedIndex === i ? 'var(--color-primary)' : '#5a5a70' }} />
-                          <span className="text-xs flex-1 truncate" style={{ color: selectedIndex === i ? '#e0e0e0' : '#8a8aa0' }}>{action.label}</span>
+                          <action.icon className="w-3.5 h-3.5" style={{ color: selectedIndex === i ? 'var(--color-primary)' : c.textFaint }} />
+                          <span className="text-xs flex-1 truncate" style={{ color: selectedIndex === i ? c.text : c.textMuted }}>{action.label}</span>
                         </button>
                       ))}
                     </>
                   )}
                   <div className="px-5 py-1.5">
-                    <span className="text-[10px] font-mono tracking-wider" style={{ color: '#5a5a70' }}>БЫСТРЫЙ ДОСТУП</span>
+                    <span className="text-[10px] font-mono tracking-wider" style={{ color: c.textFaint }}>БЫСТРЫЙ ДОСТУП</span>
                   </div>
                   {quickActions.map((action, i) => (
                     <button
                       key={action.link}
                       onClick={() => handleSelect(action)}
                       className="w-full flex items-center gap-3 px-5 py-2.5 transition-colors text-left"
-                      style={selectedIndex === i ? { background: 'rgba(0,255,136,0.08)' } : {}}
+                      style={selectedIndex === i ? { background: c.hoverBg } : {}}
                       onMouseEnter={() => setSelectedIndex(i)}
                     >
-                      <action.icon className="w-4 h-4" style={{ color: selectedIndex === i ? 'var(--color-primary)' : action.create ? '#00d4ff' : '#5a5a70' }} />
-                      <span className="text-sm flex-1" style={{ color: selectedIndex === i ? '#e0e0e0' : action.create ? '#c0c0d0' : '#8a8aa0' }}>{action.label}</span>
+                      <action.icon className="w-4 h-4" style={{ color: selectedIndex === i ? 'var(--color-primary)' : action.create ? c.accent : c.textFaint }} />
+                      <span className="text-sm flex-1" style={{ color: selectedIndex === i ? c.text : action.create ? c.textSoft : c.textMuted }}>{action.label}</span>
                       {action.hint && (
-                        <kbd className="px-1.5 py-0.5 rounded text-[9px] font-mono" style={{ background: 'rgba(255,255,255,0.05)', color: '#5a5a70' }}>{action.hint}</kbd>
+                        <kbd className="px-1.5 py-0.5 rounded text-[9px] font-mono" style={{ background: c.chipBg, color: c.textFaint }}>{action.hint}</kbd>
                       )}
-                      <ArrowRight className="w-3 h-3 opacity-0 group-hover:opacity-100" style={{ color: '#5a5a70' }} />
+                      <ArrowRight className="w-3 h-3 opacity-0 group-hover:opacity-100" style={{ color: c.textFaint }} />
                     </button>
                   ))}
                 </>
@@ -251,7 +275,7 @@ export default function CommandPalette() {
               ) : results.length > 0 ? (
                 <>
                   <div className="px-5 py-1.5">
-                    <span className="text-[10px] font-mono tracking-wider" style={{ color: '#5a5a70' }}>РЕЗУЛЬТАТЫ ({results.length})</span>
+                    <span className="text-[10px] font-mono tracking-wider" style={{ color: c.textFaint }}>РЕЗУЛЬТАТЫ ({results.length})</span>
                   </div>
                   {results.slice(0, 15).map((r, i) => {
                     const Icon = typeIcons[r.type] || Search;
@@ -260,16 +284,16 @@ export default function CommandPalette() {
                         key={`${r.type}-${r.id}`}
                         onClick={() => handleSelect(r)}
                         className="w-full flex items-center gap-3 px-5 py-2.5 transition-colors text-left"
-                        style={selectedIndex === i ? { background: 'rgba(0,255,136,0.08)' } : {}}
+                        style={selectedIndex === i ? { background: c.hoverBg } : {}}
                         onMouseEnter={() => setSelectedIndex(i)}
                       >
                         <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
-                          style={{ background: selectedIndex === i ? 'rgba(0,255,136,0.15)' : 'rgba(255,255,255,0.03)' }}>
-                          <Icon className="w-3.5 h-3.5" style={{ color: selectedIndex === i ? 'var(--color-primary)' : '#5a5a70' }} />
+                          style={{ background: selectedIndex === i ? c.hoverBg : c.iconBg }}>
+                          <Icon className="w-3.5 h-3.5" style={{ color: selectedIndex === i ? 'var(--color-primary)' : c.textFaint }} />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <span className="text-sm truncate block" style={{ color: selectedIndex === i ? '#e0e0e0' : '#c0c0d0' }}>{r.title}</span>
-                          <span className="text-[10px] font-mono" style={{ color: '#5a5a70' }}>{typeLabels[r.type]}{r.subtitle ? ` · ${r.subtitle}` : ''}</span>
+                          <span className="text-sm truncate block" style={{ color: selectedIndex === i ? c.text : c.textSoft }}>{r.title}</span>
+                          <span className="text-[10px] font-mono" style={{ color: c.textFaint }}>{typeLabels[r.type]}{r.subtitle ? ` · ${r.subtitle}` : ''}</span>
                         </div>
                       </button>
                     );
@@ -277,24 +301,24 @@ export default function CommandPalette() {
                 </>
               ) : (
                 <div className="px-5 py-8 text-center">
-                  <p className="text-xs font-mono" style={{ color: '#5a5a70' }}>Ничего не найдено</p>
+                  <p className="text-xs font-mono" style={{ color: c.textFaint }}>Ничего не найдено</p>
                 </div>
               )}
             </div>
 
             {/* Footer */}
-            <div className="flex items-center gap-4 px-5 py-2.5" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+            <div className="flex items-center gap-4 px-5 py-2.5" style={{ borderTop: `1px solid ${c.divider}` }}>
               <div className="flex items-center gap-1">
-                <kbd className="px-1.5 py-0.5 rounded text-[9px] font-mono" style={{ background: 'rgba(255,255,255,0.05)', color: '#5a5a70' }}>↑↓</kbd>
-                <span className="text-[9px] font-mono" style={{ color: '#3a3a50' }}>навигация</span>
+                <kbd className="px-1.5 py-0.5 rounded text-[9px] font-mono" style={{ background: c.chipBg, color: c.textFaint }}>↑↓</kbd>
+                <span className="text-[9px] font-mono" style={{ color: c.textFaint }}>навигация</span>
               </div>
               <div className="flex items-center gap-1">
-                <kbd className="px-1.5 py-0.5 rounded text-[9px] font-mono" style={{ background: 'rgba(255,255,255,0.05)', color: '#5a5a70' }}>Enter</kbd>
-                <span className="text-[9px] font-mono" style={{ color: '#3a3a50' }}>выбрать</span>
+                <kbd className="px-1.5 py-0.5 rounded text-[9px] font-mono" style={{ background: c.chipBg, color: c.textFaint }}>Enter</kbd>
+                <span className="text-[9px] font-mono" style={{ color: c.textFaint }}>выбрать</span>
               </div>
               <div className="flex items-center gap-1">
-                <kbd className="px-1.5 py-0.5 rounded text-[9px] font-mono" style={{ background: 'rgba(255,255,255,0.05)', color: '#5a5a70' }}>Ctrl+K</kbd>
-                <span className="text-[9px] font-mono" style={{ color: '#3a3a50' }}>открыть</span>
+                <kbd className="px-1.5 py-0.5 rounded text-[9px] font-mono" style={{ background: c.chipBg, color: c.textFaint }}>Ctrl+K</kbd>
+                <span className="text-[9px] font-mono" style={{ color: c.textFaint }}>открыть</span>
               </div>
             </div>
           </motion.div>
