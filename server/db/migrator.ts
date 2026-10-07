@@ -27,6 +27,7 @@ import './migrations/011_surveys';
 import './migrations/012_survey_thanks';
 import './migrations/013_survey_status';
 import './migrations/014_content_platforms';
+import './migrations/015_feedback_messages';
 
 export function runMigrations(): void {
   run(`CREATE TABLE IF NOT EXISTS schema_migrations (

@@ -29,7 +29,8 @@ export default function OnlineUsers() {
     if (!socket) return;
 
     const handleOnline = (ids: string[]) => {
-      setOnlineIds(ids.filter(id => id !== user?.id));
+      // include current user — admin wants to see themselves online
+      setOnlineIds([...new Set(ids)]);
     };
 
     socket.on('users:online', handleOnline);
@@ -95,7 +96,12 @@ export default function OnlineUsers() {
                       <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full"
                         style={{ background: '#00ff88', border: '2px solid rgba(20,20,35,0.98)', boxShadow: '0 0 4px rgba(0,255,136,0.4)' }} />
                     </div>
-                    <span className="text-xs truncate" style={{ color: '#c0c0d0' }}>{u.fullName}</span>
+                    <span className="text-xs truncate" style={{ color: '#c0c0d0' }}>
+                      {u.fullName}
+                      {u.id === user?.id && (
+                        <span className="ml-1 text-[9px] font-mono" style={{ color: 'var(--color-primary)' }}>(вы)</span>
+                      )}
+                    </span>
                   </div>
                 ))
               )}

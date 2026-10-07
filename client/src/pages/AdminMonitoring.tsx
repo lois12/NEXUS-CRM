@@ -8,6 +8,7 @@ import {
 import { dashboardApi } from '../services/api';
 import { MAINT_PAGES } from '../config/maintPages';
 import { showToast } from '../components/ui/NexusModal';
+import { FeedbackInbox, RoleMatrixEditor } from '../components/admin/RoleFeedbackPanels';
 
 function formatBytes(bytes: number): string {
   if (bytes === 0) return '0 B';
@@ -102,91 +103,6 @@ function ProjectGradeCard() {
       <p className="text-[10px] font-mono" style={{ color: '#4a4a60' }}>
         // слабые места: тесты · монолиты · UX-плотность
       </p>
-    </div>
-  );
-}
-
-const ROLE_MATRIX: { role: string; modules: Record<string, boolean | 'own'> }[] = [
-  {
-    role: 'super_admin',
-    modules: {
-      'Дашборд': true, 'Контент-план': true, 'Опросы': true, 'Задачи': true,
-      'События/Регистрации': true, 'Пользователи': true, 'Админка/Бэкапы': true, 'Экспорт': true,
-    },
-  },
-  {
-    role: 'руководитель',
-    modules: {
-      'Дашборд': true, 'Контент-план': true, 'Опросы': true, 'Задачи': true,
-      'События/Регистрации': true, 'Пользователи': true, 'Админка/Бэкапы': false, 'Экспорт': true,
-    },
-  },
-  {
-    role: 'smm',
-    modules: {
-      'Дашборд': true, 'Контент-план': true, 'Опросы': true, 'Задачи': 'own',
-      'События/Регистрации': true, 'Пользователи': false, 'Админка/Бэкапы': false, 'Экспорт': true,
-    },
-  },
-  {
-    role: 'редактор',
-    modules: {
-      'Дашборд': true, 'Контент-план': true, 'Опросы': 'own', 'Задачи': 'own',
-      'События/Регистрации': 'own', 'Пользователи': false, 'Админка/Бэкапы': false, 'Экспорт': 'own',
-    },
-  },
-  {
-    role: 'документовед',
-    modules: {
-      'Дашборд': true, 'Контент-план': false, 'Опросы': false, 'Задачи': 'own',
-      'События/Регистрации': 'own', 'Пользователи': false, 'Админка/Бэкапы': false, 'Экспорт': 'own',
-    },
-  },
-];
-
-function RoleMatrixCard() {
-  const cols = Object.keys(ROLE_MATRIX[0].modules);
-  return (
-    <div className="glass rounded-xl p-4 space-y-3">
-      <h3 className="font-mono text-xs font-bold tracking-wider" style={{ color: '#6b7280' }}>МАТРИЦА РОЛЕЙ · КТО ЧТО ВИДИТ</h3>
-      <div className="overflow-x-auto">
-        <table className="w-full text-[10px] font-mono">
-          <thead>
-            <tr>
-              <th className="text-left pb-2 pr-2" style={{ color: '#4a4a60' }}>Роль</th>
-              {cols.map((c) => (
-                <th key={c} className="text-center pb-2 px-1" style={{ color: '#4a4a60' }}>{c}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {ROLE_MATRIX.map((row) => (
-              <tr key={row.role} className="border-t border-white/5">
-                <td className="py-1.5 pr-2 font-bold" style={{ color: '#c0c0d0' }}>{row.role}</td>
-                {cols.map((c) => {
-                  const v = row.modules[c];
-                  return (
-                    <td key={c} className="text-center py-1.5 px-1">
-                      {v === true ? (
-                        <span className="inline-block w-2 h-2 rounded-full" style={{ background: '#00ff88', boxShadow: '0 0 6px #00ff8880' }} />
-                      ) : v === 'own' ? (
-                        <span className="text-[9px]" style={{ color: '#eab308' }}>свои</span>
-                      ) : (
-                        <span className="inline-block w-2 h-2 rounded-full" style={{ background: 'rgba(255,255,255,0.12)' }} />
-                      )}
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <div className="flex flex-wrap gap-3 text-[9px] font-mono" style={{ color: '#4a4a60' }}>
-        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full inline-block" style={{ background: '#00ff88' }} /> полный доступ</span>
-        <span style={{ color: '#eab308' }}>свои = только свои записи</span>
-        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full inline-block" style={{ background: 'rgba(255,255,255,0.12)' }} /> нет доступа</span>
-      </div>
     </div>
   );
 }
@@ -513,8 +429,10 @@ export default function AdminMonitoring() {
       {/* Project grade + role matrix */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <ProjectGradeCard />
-        <RoleMatrixCard />
+        <FeedbackInbox />
       </div>
+
+      <RoleMatrixEditor />
 
       {/* Memory & CPU */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

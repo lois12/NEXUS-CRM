@@ -6,6 +6,7 @@ import { usersApi } from '../services/api';
 import { showToast } from '../components/ui/NexusModal';
 import Spinner from '../components/common/Spinner';
 import { formatDateKR } from '../utils/timezone';
+import { OnboardingResetButton } from '../components/common/Onboarding';
 
 const STATUS_OPTIONS = [
   { value: '', label: 'Без статуса', icon: '' },
@@ -71,9 +72,15 @@ export default function Profile() {
     try {
       const nav = typeof window !== 'undefined' ? window.navigator : null;
       if (!nav?.serviceWorker) {
-        showToast('Service Worker не поддерживается', 'error');
+        showToast('Push не поддерживаются в этом браузере', 'error');
         return;
       }
+      if ('Notification' in window && Notification.permission === 'denied') {
+        showToast('Уведомления заблокированы в браузере — разрешите в настройках сайта', 'error');
+        return;
+      }
+
+      const token = localStorage.getItem('nexus_token') || sessionStorage.getItem('nexus_token') || '';
 
       if (pushEnabled) {
         // Unsubscribe
@@ -84,7 +91,7 @@ export default function Profile() {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': `Bearer ${localStorage.getItem('nexus_token') || sessionStorage.getItem('nexus_token')}`,
+              'Authorization': `Bearer ${token}`,
             },
             body: JSON.stringify({ endpoint: sub.endpoint }),
           });
@@ -97,33 +104,40 @@ export default function Profile() {
         await nav.serviceWorker.register('/sw.js');
         const ready = await nav.serviceWorker.ready;
 
-        const vapidRes = await (await fetch('/api/push/vapid-key', {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('nexus_token') || sessionStorage.getItem('nexus_token')}` }
-        })).json();
+        const vapidRes = await fetch('/api/push/vapid-key', {
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+        });
+        const vapidData = await vapidRes.json().catch(() => ({}));
 
-        if (!vapidRes.success || !vapidRes.data?.publicKey) {
-          showToast('Ошибка получения ключа', 'error');
+        if (!vapidRes.ok || !vapidData?.success || !vapidData.data?.publicKey) {
+          showToast(vapidData?.error || 'Push не настроены на сервере (VAPID)', 'error');
           return;
         }
 
-        const key = vapidRes.data.publicKey;
+        const key = vapidData.data.publicKey;
         const padding = '='.repeat((4 - (key.length % 4)) % 4);
         const base64 = (key + padding).replace(/-/g, '+').replace(/_/g, '/');
         const rawData = atob(base64);
         const keyArray = new Uint8Array(rawData.length);
         for (let i = 0; i < rawData.length; i++) keyArray[i] = rawData.charCodeAt(i);
 
-        const sub = await ready.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: keyArray,
-        });
+        let sub: PushSubscription;
+        try {
+          sub = await ready.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: keyArray,
+          });
+        } catch {
+          showToast('Браузер отклонил подписку на push', 'error');
+          return;
+        }
 
         const subJson = sub.toJSON();
         const saveRes = await fetch('/api/push/subscribe', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('nexus_token') || sessionStorage.getItem('nexus_token')}`,
+            'Authorization': `Bearer ${token}`,
           },
           body: JSON.stringify({
             subscription: {
@@ -133,12 +147,12 @@ export default function Profile() {
           }),
         });
 
-        const saveData = await saveRes.json();
-        if (saveData.success) {
+        const saveData = await saveRes.json().catch(() => ({}));
+        if (saveRes.ok && saveData.success) {
           setPushEnabled(true);
           showToast('Push-уведомления включены', 'success');
         } else {
-          showToast('Ошибка сохранения', 'error');
+          showToast(saveData?.error || `Ошибка сохранения (${saveRes.status})`, 'error');
         }
       }
     } catch (err) {
@@ -455,6 +469,14 @@ export default function Profile() {
                 />
               </button>
             </div>
+          </div>
+
+          {/* Onboarding */}
+          <div className="glass rounded-2xl p-6">
+            <h2 className="font-mono text-sm font-bold mb-3" style={{ color: 'var(--color-text-secondary)' }}>
+              ПОДСКАЗКИ
+            </h2>
+            <OnboardingResetButton />
           </div>
 
           {/* Password change */}

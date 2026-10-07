@@ -116,6 +116,7 @@ export default function PublicSurveyStats() {
               surveyName={data.name}
               stats={data.stats}
               responseCount={data.responseCount}
+              description={data.description}
             />
           </div>
         </div>

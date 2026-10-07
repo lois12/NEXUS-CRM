@@ -216,6 +216,11 @@ export const deleteUser = (req: AuthRequest, res: Response) => {
     // silent=true: optional/migration tables may be absent on older schemas
     const actorId = req.user?.id || id;
     const sweep = (sql: string, params: any[]) => run(sql, params, true);
+
+    // Conversations reference users as NOT NULL — reassign ownership
+    sweep('UPDATE chat_conversations SET user1Id = ? WHERE user1Id = ?', [actorId, id]);
+    sweep('UPDATE chat_conversations SET user2Id = ? WHERE user2Id = ?', [actorId, id]);
+
     sweep('DELETE FROM kanban_tasks WHERE userId = ?', [id]);
     sweep('DELETE FROM activities WHERE userId = ?', [id]);
     sweep('DELETE FROM idea_comments WHERE authorId = ?', [id]);
@@ -231,6 +236,8 @@ export const deleteUser = (req: AuthRequest, res: Response) => {
     sweep('DELETE FROM chat_favorites WHERE userId = ?', [id]);
     sweep('DELETE FROM chat_user_mutes WHERE userId = ?', [id]);
     sweep('DELETE FROM chat_muted WHERE userId = ? OR mutedBy = ?', [id, id]);
+    sweep('DELETE FROM chat_hidden WHERE userId = ?', [id]);
+    sweep('DELETE FROM chat_poll_votes WHERE userId = ?', [id]);
     sweep('UPDATE chat_polls SET createdBy = ? WHERE createdBy = ?', [actorId, id]);
     sweep('DELETE FROM vacations WHERE userId = ?', [id]);
     sweep('UPDATE vacations SET approvedBy = NULL WHERE approvedBy = ?', [id]);
@@ -242,6 +249,7 @@ export const deleteUser = (req: AuthRequest, res: Response) => {
     sweep('DELETE FROM push_subscriptions WHERE userId = ?', [id]);
     sweep('DELETE FROM qr_codes WHERE createdBy = ?', [id]);
     sweep('DELETE FROM image_gen_log WHERE userId = ?', [id]);
+    sweep('DELETE FROM feedback_messages WHERE userId = ?', [id]);
     // ownership NOT NULL → reassign to admin so FK allows user delete
     sweep('UPDATE content_posts SET authorId = ? WHERE authorId = ?', [actorId, id]);
     sweep('UPDATE ideas SET authorId = ? WHERE authorId = ?', [actorId, id]);
@@ -251,6 +259,38 @@ export const deleteUser = (req: AuthRequest, res: Response) => {
     sweep('UPDATE collage_projects SET ownerId = ? WHERE ownerId = ?', [actorId, id]);
     sweep('UPDATE short_links SET createdBy = ? WHERE createdBy = ?', [actorId, id]);
     sweep('UPDATE knowledge_attachments SET uploadedBy = NULL WHERE uploadedBy = ?', [id]);
+    sweep('UPDATE projects SET createdBy = ? WHERE createdBy = ?', [actorId, id]);
+    sweep('UPDATE ideas SET userId = ? WHERE userId = ?', [actorId, id]);
+    sweep('DELETE FROM idea_links WHERE userId = ?', [id]);
+
+    // Dynamic fallback: any remaining FK to users → delete child rows
+    try {
+      const tables = query<{ name: string }>(`SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'`);
+      for (const t of tables) {
+        if (t.name === 'users' || t.name === 'schema_migrations') continue;
+        let fks: any[] = [];
+        try {
+          fks = query(`PRAGMA foreign_key_list("${t.name}")`);
+        } catch {
+          continue;
+        }
+        for (const fk of fks) {
+          if (fk?.table !== 'users') continue;
+          const col = fk.from;
+          if (!col || !/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(col)) continue;
+          // reassign optional owners, delete pure child rows
+          try {
+            run(`DELETE FROM "${t.name}" WHERE "${col}" = ?`, [id], true);
+          } catch {
+            try {
+              run(`UPDATE "${t.name}" SET "${col}" = ? WHERE "${col}" = ?`, [actorId, id], true);
+            } catch { /* leave it — final DELETE will surface the issue */ }
+          }
+        }
+      }
+    } catch (e) {
+      console.error('DeleteUser FK sweep warn:', e);
+    }
 
     // Log activity BEFORE deleting user (so userId is still valid)
     run(`INSERT INTO activities (id, type, description, userId) VALUES (?, ?, ?, ?)`,

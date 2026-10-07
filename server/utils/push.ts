@@ -3,10 +3,24 @@ import { v4 as uuidv4 } from 'uuid';
 import { run, query, get } from '../db/database';
 import { VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY } from '../config';
 
-webpush.setVapidDetails('mailto:nexus@crm.local', VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+let vapidReady = false;
+try {
+  if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
+    webpush.setVapidDetails('mailto:nexus@crm.local', VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+    vapidReady = true;
+  } else {
+    console.warn('[push] VAPID keys not configured — push notifications disabled');
+  }
+} catch (e) {
+  console.error('[push] Invalid VAPID keys — push notifications disabled', e);
+}
+
+export function isPushReady() {
+  return vapidReady;
+}
 
 export function getVapidPublicKey() {
-  return VAPID_PUBLIC_KEY;
+  return vapidReady ? VAPID_PUBLIC_KEY : null;
 }
 
 export function saveSubscription(userId: string, subscription: { endpoint: string; keys: { p256dh: string; auth: string } }, userAgent: string) {

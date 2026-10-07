@@ -6,7 +6,14 @@ const router = Router();
 
 // Get VAPID public key
 router.get('/vapid-key', (req: AuthRequest, res: Response) => {
-  res.json({ success: true, data: { publicKey: getVapidPublicKey() } });
+  const publicKey = getVapidPublicKey();
+  if (!publicKey) {
+    return res.status(503).json({
+      success: false,
+      error: 'Push-уведомления не настроены (нет VAPID-ключей в .env)',
+    });
+  }
+  res.json({ success: true, data: { publicKey } });
 });
 
 // Save push subscription

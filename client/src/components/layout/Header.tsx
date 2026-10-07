@@ -6,6 +6,7 @@ import { ThemeName } from '../../types';
 import { Search, Palette, Check, Menu, X, User, CheckSquare, Rocket, PartyPopper, Lightbulb, Users, Package, FolderOpen, BookOpen, FileText } from 'lucide-react';
 import NotificationBell from '../notifications/NotificationBell';
 import OnlineUsers from '../common/OnlineUsers';
+import FeedbackButton from '../common/FeedbackButton';
 import { searchApi } from '../../services/api';
 import { useNavigate, Link } from 'react-router-dom';
 
@@ -212,6 +213,7 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
         </div>
 
         <NotificationBell />
+        <FeedbackButton />
         <OnlineUsers />
 
         <div className="h-8 w-px bg-white/10 mx-1 hidden md:block"></div>

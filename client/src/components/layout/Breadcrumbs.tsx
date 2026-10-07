@@ -30,6 +30,14 @@ const ROUTE_NAMES: Record<string, string> = {
   'users': 'Пользователи',
   'admin': 'Управление',
   'monitoring': 'Мониторинг',
+  'surveys': 'Опросы',
+  'lists': 'Списки',
+  'widgets': 'Виджеты',
+  'registrations': 'Регистрации',
+  'participants': 'Участники',
+  'checkin-scanner': 'Сканер QR',
+  'aurora': 'Аврора',
+  'control': 'CONTROL',
 };
 
 export default function Breadcrumbs() {
@@ -37,6 +45,19 @@ export default function Breadcrumbs() {
   const pathParts = location.pathname.split('/').filter(Boolean);
 
   if (pathParts.length === 0) return null;
+  // hide on public / auth surfaces
+  if (
+    location.pathname.startsWith('/login') ||
+    location.pathname.startsWith('/reg/') ||
+    location.pathname.startsWith('/control') ||
+    location.pathname.startsWith('/opros/') ||
+    location.pathname.startsWith('/survey/') ||
+    location.pathname.startsWith('/w/') ||
+    location.pathname.startsWith('/lists/public/') ||
+    location.pathname.startsWith('/qr-confirm')
+  ) {
+    return null;
+  }
 
   const crumbs = [
     { path: '/', label: 'Главная' },

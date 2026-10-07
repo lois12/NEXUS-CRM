@@ -44,12 +44,31 @@ const quickActions: PaletteItem[] = [
   { label: 'Новая идея', icon: Plus, link: '/ideas?new=1', create: true },
 ];
 
+const RECENT_KEY = 'nexus_cmd_recent';
+
+function loadRecent(): PaletteItem[] {
+  try {
+    return JSON.parse(localStorage.getItem(RECENT_KEY) || '[]');
+  } catch {
+    return [];
+  }
+}
+
+function pushRecent(item: PaletteItem) {
+  try {
+    const list = loadRecent().filter((x) => x.link !== item.link);
+    list.unshift({ ...item });
+    localStorage.setItem(RECENT_KEY, JSON.stringify(list.slice(0, 8)));
+  } catch { /* noop */ }
+}
+
 export default function CommandPalette() {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<any[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [recent, setRecent] = useState<PaletteItem[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
 
@@ -75,6 +94,7 @@ export default function CommandPalette() {
       setQuery('');
       setResults([]);
       setSelectedIndex(0);
+      setRecent(loadRecent());
     }
   }, [isOpen]);
 
@@ -98,7 +118,14 @@ export default function CommandPalette() {
     return () => clearTimeout(timeout);
   }, [query]);
 
-  const handleSelect = useCallback((link: string) => {
+  const handleSelect = useCallback((item: PaletteItem | { link: string; label?: string; icon?: any }) => {
+    const link = item.link;
+    pushRecent({
+      label: (item as PaletteItem).label || link,
+      icon: (item as PaletteItem).icon || ArrowRight,
+      link,
+      create: (item as PaletteItem).create,
+    });
     navigate(link);
     setIsOpen(false);
   }, [navigate]);
@@ -114,9 +141,9 @@ export default function CommandPalette() {
     } else if (e.key === 'Enter') {
       e.preventDefault();
       if (query.length >= 2 && results[selectedIndex]) {
-        handleSelect(results[selectedIndex].link);
+        handleSelect(results[selectedIndex]);
       } else if (query.length < 2 && quickActions[selectedIndex]) {
-        handleSelect(quickActions[selectedIndex].link);
+        handleSelect(quickActions[selectedIndex]);
       }
     }
   };
@@ -162,13 +189,32 @@ export default function CommandPalette() {
             <div className="max-h-80 overflow-y-auto py-2">
               {showQuickActions ? (
                 <>
+                  {recent.length > 0 && (
+                    <>
+                      <div className="px-5 py-1.5">
+                        <span className="text-[10px] font-mono tracking-wider" style={{ color: '#5a5a70' }}>НЕДАВНИЕ</span>
+                      </div>
+                      {recent.map((action, i) => (
+                        <button
+                          key={'r-' + action.link}
+                          onClick={() => handleSelect(action)}
+                          className="w-full flex items-center gap-3 px-5 py-2 transition-colors text-left"
+                          style={selectedIndex === i ? { background: 'rgba(0,255,136,0.08)' } : {}}
+                          onMouseEnter={() => setSelectedIndex(i)}
+                        >
+                          <action.icon className="w-3.5 h-3.5" style={{ color: selectedIndex === i ? 'var(--color-primary)' : '#5a5a70' }} />
+                          <span className="text-xs flex-1 truncate" style={{ color: selectedIndex === i ? '#e0e0e0' : '#8a8aa0' }}>{action.label}</span>
+                        </button>
+                      ))}
+                    </>
+                  )}
                   <div className="px-5 py-1.5">
                     <span className="text-[10px] font-mono tracking-wider" style={{ color: '#5a5a70' }}>БЫСТРЫЙ ДОСТУП</span>
                   </div>
                   {quickActions.map((action, i) => (
                     <button
                       key={action.link}
-                      onClick={() => handleSelect(action.link)}
+                      onClick={() => handleSelect(action)}
                       className="w-full flex items-center gap-3 px-5 py-2.5 transition-colors text-left"
                       style={selectedIndex === i ? { background: 'rgba(0,255,136,0.08)' } : {}}
                       onMouseEnter={() => setSelectedIndex(i)}
@@ -196,7 +242,7 @@ export default function CommandPalette() {
                     return (
                       <button
                         key={`${r.type}-${r.id}`}
-                        onClick={() => handleSelect(r.link)}
+                        onClick={() => handleSelect(r)}
                         className="w-full flex items-center gap-3 px-5 py-2.5 transition-colors text-left"
                         style={selectedIndex === i ? { background: 'rgba(0,255,136,0.08)' } : {}}
                         onMouseEnter={() => setSelectedIndex(i)}
