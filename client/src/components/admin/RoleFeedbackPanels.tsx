@@ -161,28 +161,70 @@ export function FeedbackInbox() {
 
 export function RoleMatrixEditor() {
   const [matrix, setMatrix] = useState(loadMatrix);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const token = localStorage.getItem('nexus_token') || sessionStorage.getItem('nexus_token') || '';
+    fetch('/api/roles/matrix', { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.success && data.data && typeof data.data === 'object') {
+          setMatrix(data.data);
+          try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data.data)); } catch { /* noop */ }
+        }
+      })
+      .catch(() => { /* offline / 401 — keep default */ });
+  }, []);
+
   const roles = Object.keys(matrix);
   const cols = Object.keys(matrix[roles[0]] || {});
+
+  const persist = async (next: Record<string, Record<string, boolean | 'own'>>) => {
+    setSaving(true);
+    try {
+      const token = localStorage.getItem('nexus_token') || sessionStorage.getItem('nexus_token') || '';
+      const res = await fetch('/api/roles/matrix', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ matrix: next }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success) {
+        showToast('Права сохранены на сервере', 'success');
+      } else {
+        showToast(data?.error || 'Не удалось сохранить на сервере', 'error');
+      }
+    } catch {
+      showToast('Ошибка сети — сохранено только локально', 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const cycle = (role: string, mod: string) => {
     setMatrix((prev: any) => {
       const cur = prev[role][mod];
-      const next = cur === true ? 'own' : cur === 'own' ? false : true;
-      const copy = { ...prev, [role]: { ...prev[role], [mod]: next } };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(copy));
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(copy));
-      } catch { /* noop */ }
+      const nextVal = cur === true ? 'own' : cur === 'own' ? false : true;
+      const copy = { ...prev, [role]: { ...prev[role], [mod]: nextVal } };
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(copy)); } catch { /* noop */ }
+      persist(copy);
       return copy;
     });
-    showToast('Права обновлены (сохранено локально)', 'success');
   };
 
   return (
     <div className="glass rounded-xl p-4 space-y-3">
-      <h3 className="font-mono text-xs font-bold tracking-wider" style={{ color: '#6b7280' }}>
-        ПРАВА РОЛЕЙ · КЛИК ПО ЯЧЕЙКЕ = ПОЛНЫЙ → СВОИ → НЕТ
-      </h3>
+      <div className="flex items-center justify-between">
+        <h3 className="font-mono text-xs font-bold tracking-wider" style={{ color: '#6b7280' }}>
+          ПРАВА РОЛЕЙ · КЛИК = ПОЛНЫЙ → СВОИ → НЕТ
+        </h3>
+        {saving && (
+          <span className="text-[10px] font-mono" style={{ color: 'var(--color-primary)' }}>сохранение…</span>
+        )}
+      </div>
       <div className="overflow-x-auto">
         <table className="w-full text-[10px] font-mono">
           <thead>
@@ -203,7 +245,8 @@ export function RoleMatrixEditor() {
                     <td key={c} className="text-center py-1.5 px-1">
                       <button
                         onClick={() => cycle(role, c)}
-                        className="w-full h-7 rounded transition-colors"
+                        disabled={saving}
+                        className="w-full h-7 rounded transition-colors disabled:opacity-50"
                         style={{
                           background:
                             v === true ? 'rgba(0,255,136,0.25)' : v === 'own' ? 'rgba(234,179,8,0.2)' : 'rgba(255,255,255,0.04)',
@@ -222,7 +265,7 @@ export function RoleMatrixEditor() {
         </table>
       </div>
       <p className="text-[10px] font-mono" style={{ color: '#4a4a60' }}>
-        // макет прав: сохраняется в браузере. Бэкенд-гейты — requireRole (см. AGENTS.md)
+        // сохраняется в БД (app_settings.roleMatrix) · видно всем супер-админам
       </p>
     </div>
   );

@@ -75,16 +75,23 @@ export default function CommandPalette() {
   // Global keyboard shortcut
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+      // Ctrl+K / Cmd+K / Ctrl+Shift+K — browser often steals Ctrl+K (address/search bar)
+      const isPalette =
+        (e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K');
+      if (isPalette) {
+        // capture-phase + preventDefault + stopPropagation beats Chrome/Firefox bar
         e.preventDefault();
+        e.stopPropagation();
         setIsOpen(prev => !prev);
+        return;
       }
       if (e.key === 'Escape' && isOpen) {
         setIsOpen(false);
       }
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    // capture: true — fire before browser default (Ctrl+K address bar)
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => window.removeEventListener('keydown', handleKeyDown, true);
   }, [isOpen]);
 
   // Focus input when opened
