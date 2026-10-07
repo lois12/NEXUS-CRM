@@ -164,15 +164,41 @@ export default function ContentPlan() {
   }, []);
 
   // Ctrl+K quick action: /content?new=1 → open create modal
+  // Search hit: /content?post=<id> → open that post
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get('new') === '1') {
+    const postId = params.get('post');
+    const isNew = params.get('new') === '1';
+
+    const clearParams = () => {
+      params.delete('new');
+      params.delete('post');
+      const qs = params.toString();
+      window.history.replaceState({}, '', qs ? `?${qs}` : window.location.pathname);
+    };
+
+    if (isNew) {
       setEditingPost(null);
       resetForm();
       setShowModal(true);
-      params.delete('new');
-      const qs = params.toString();
-      window.history.replaceState({}, '', qs ? `?${qs}` : window.location.pathname);
+      clearParams();
+      return;
+    }
+
+    if (postId) {
+      clearParams();
+      (async () => {
+        try {
+          const res = await contentApi.getById(postId);
+          if (res.success && res.data) {
+            handleEdit(res.data);
+          } else {
+            showToast('Пост не найден', 'error');
+          }
+        } catch {
+          showToast('Не удалось открыть пост', 'error');
+        }
+      })();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

@@ -86,7 +86,7 @@ export function searchAll(req: AuthRequest, res: Response) {
       for (const r of rows) {
         if (ciLike(r.title, term) || ciLike(r.content, term)) {
           const sub = ciLike(r.content, term) ? findSnippet(r.content, term) : (r.subtitle || '');
-          results.push({ id: r.id, title: r.title, subtitle: sub, type: 'content', link: '/content', avatar: '' });
+          results.push({ id: r.id, title: r.title, subtitle: sub, type: 'content', link: `/content?post=${r.id}`, avatar: '' });
           if (results.length >= 20) break;
         }
       }
