@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { query, run, get, initDatabase } from '../db/database';
 import { initializeDatabase } from '../db/init';
+import { setupTestDb } from './helpers/testDb';
 
 describe('Database Operations', () => {
   beforeAll(() => {
-    initDatabase(true);
-    initializeDatabase();
-  });
+  setupTestDb();
+});
   describe('query()', () => {
     it('should return array of results', () => {
       const users = query('SELECT * FROM users');

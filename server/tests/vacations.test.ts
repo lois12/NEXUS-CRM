@@ -3,9 +3,14 @@ import request from 'supertest';
 import express from 'express';
 import vacationsRoutes from '../routes/vacations';
 import { generateToken } from '../middleware/auth';
+import { setupTestDb } from './helpers/testDb';
 
 const app = express();
 app.use(express.json());
+
+beforeAll(() => {
+  setupTestDb();
+});
 app.use('/api/vacations', vacationsRoutes);
 
 function adminToken() {

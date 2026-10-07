@@ -1,12 +1,17 @@
 import { describe, it, expect } from 'vitest';
 import request from 'supertest';
 import express from 'express';
+import { setupTestDb } from './helpers/testDb';
 
 const app = express();
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+beforeAll(() => {
+  setupTestDb();
 });
 
 describe('Health Check', () => {

@@ -3,9 +3,14 @@ import request from 'supertest';
 import express from 'express';
 import usersRoutes from '../routes/users';
 import { generateToken } from '../middleware/auth';
+import { setupTestDb } from './helpers/testDb';
 
 const app = express();
 app.use(express.json());
+
+beforeAll(() => {
+  setupTestDb();
+});
 app.use('/api/users', usersRoutes);
 
 function adminToken() {

@@ -213,42 +213,44 @@ export const deleteUser = (req: AuthRequest, res: Response) => {
 
     // Cascade: clean up / reassign related records before deleting user.
     // Many FKs are NOT NULL (senderId, authorId, createdBy) — reassign to the acting admin.
+    // silent=true: optional/migration tables may be absent on older schemas
     const actorId = req.user?.id || id;
-    run('DELETE FROM kanban_tasks WHERE userId = ?', [id]);
-    run('DELETE FROM activities WHERE userId = ?', [id]);
-    run('DELETE FROM idea_comments WHERE authorId = ?', [id]);
-    run('DELETE FROM idea_attachments WHERE uploadedBy = ?', [id]);
-    run('DELETE FROM content_comments WHERE authorId = ?', [id]);
-    run('DELETE FROM content_approvals WHERE approverId = ?', [id]);
+    const sweep = (sql: string, params: any[]) => run(sql, params, true);
+    sweep('DELETE FROM kanban_tasks WHERE userId = ?', [id]);
+    sweep('DELETE FROM activities WHERE userId = ?', [id]);
+    sweep('DELETE FROM idea_comments WHERE authorId = ?', [id]);
+    sweep('DELETE FROM idea_attachments WHERE uploadedBy = ?', [id]);
+    sweep('DELETE FROM content_comments WHERE authorId = ?', [id]);
+    sweep('DELETE FROM content_approvals WHERE approverId = ?', [id]);
     // chat: keep history, scrub author (senderId is NOT NULL)
-    run('UPDATE chat_messages SET deleted = 1, content = "[Удалено]", senderId = ? WHERE senderId = ?', [actorId, id]);
-    run('DELETE FROM chat_group_members WHERE userId = ?', [id]);
-    run('DELETE FROM chat_reads WHERE userId = ?', [id]);
-    run('DELETE FROM chat_pinned WHERE pinnedBy = ?', [id]);
-    run('DELETE FROM chat_reactions WHERE userId = ?', [id]);
-    run('DELETE FROM chat_favorites WHERE userId = ?', [id]);
-    run('DELETE FROM chat_user_mutes WHERE userId = ?', [id]);
-    run('DELETE FROM chat_muted WHERE userId = ? OR mutedBy = ?', [id, id]);
-    run('UPDATE chat_polls SET createdBy = ? WHERE createdBy = ?', [actorId, id]);
-    run('DELETE FROM vacations WHERE userId = ?', [id]);
-    run('UPDATE vacations SET approvedBy = NULL WHERE approvedBy = ?', [id]);
-    run('DELETE FROM notifications WHERE userId = ? OR senderId = ?', [id, id]);
-    run('DELETE FROM materials WHERE uploadedBy = ?', [id]);
-    run('DELETE FROM brand_assets WHERE uploadedBy = ?', [id]);
-    run('DELETE FROM knowledge_attachments WHERE uploadedBy = ?', [id]);
-    run('DELETE FROM knowledge_base WHERE authorId = ?', [id]);
-    run('DELETE FROM push_subscriptions WHERE userId = ?', [id]);
-    run('DELETE FROM qr_codes WHERE createdBy = ?', [id]);
-    run('DELETE FROM image_gen_log WHERE userId = ?', [id]);
+    sweep("UPDATE chat_messages SET deleted = 1, content = '[Удалено]', senderId = ? WHERE senderId = ?", [actorId, id]);
+    sweep('DELETE FROM chat_group_members WHERE userId = ?', [id]);
+    sweep('DELETE FROM chat_reads WHERE userId = ?', [id]);
+    sweep('DELETE FROM chat_pinned WHERE pinnedBy = ?', [id]);
+    sweep('DELETE FROM chat_reactions WHERE userId = ?', [id]);
+    sweep('DELETE FROM chat_favorites WHERE userId = ?', [id]);
+    sweep('DELETE FROM chat_user_mutes WHERE userId = ?', [id]);
+    sweep('DELETE FROM chat_muted WHERE userId = ? OR mutedBy = ?', [id, id]);
+    sweep('UPDATE chat_polls SET createdBy = ? WHERE createdBy = ?', [actorId, id]);
+    sweep('DELETE FROM vacations WHERE userId = ?', [id]);
+    sweep('UPDATE vacations SET approvedBy = NULL WHERE approvedBy = ?', [id]);
+    sweep('DELETE FROM notifications WHERE userId = ? OR senderId = ?', [id, id]);
+    sweep('DELETE FROM materials WHERE uploadedBy = ?', [id]);
+    sweep('DELETE FROM brand_assets WHERE uploadedBy = ?', [id]);
+    sweep('DELETE FROM knowledge_attachments WHERE uploadedBy = ?', [id]);
+    sweep('DELETE FROM knowledge_base WHERE authorId = ?', [id]);
+    sweep('DELETE FROM push_subscriptions WHERE userId = ?', [id]);
+    sweep('DELETE FROM qr_codes WHERE createdBy = ?', [id]);
+    sweep('DELETE FROM image_gen_log WHERE userId = ?', [id]);
     // ownership NOT NULL → reassign to admin so FK allows user delete
-    run('UPDATE content_posts SET authorId = ? WHERE authorId = ?', [actorId, id]);
-    run('UPDATE ideas SET authorId = ? WHERE authorId = ?', [actorId, id]);
-    run('UPDATE lists SET createdBy = ? WHERE createdBy = ?', [actorId, id]);
-    run('UPDATE widgets SET createdBy = ? WHERE createdBy = ?', [actorId, id]);
-    run('UPDATE registrations SET createdBy = ? WHERE createdBy = ?', [actorId, id]);
-    run('UPDATE collage_projects SET ownerId = ? WHERE ownerId = ?', [actorId, id]);
-    run('UPDATE short_links SET createdBy = ? WHERE createdBy = ?', [actorId, id]);
-    run('UPDATE knowledge_attachments SET uploadedBy = NULL WHERE uploadedBy = ?', [id]);
+    sweep('UPDATE content_posts SET authorId = ? WHERE authorId = ?', [actorId, id]);
+    sweep('UPDATE ideas SET authorId = ? WHERE authorId = ?', [actorId, id]);
+    sweep('UPDATE lists SET createdBy = ? WHERE createdBy = ?', [actorId, id]);
+    sweep('UPDATE widgets SET createdBy = ? WHERE createdBy = ?', [actorId, id]);
+    sweep('UPDATE registrations SET createdBy = ? WHERE createdBy = ?', [actorId, id]);
+    sweep('UPDATE collage_projects SET ownerId = ? WHERE ownerId = ?', [actorId, id]);
+    sweep('UPDATE short_links SET createdBy = ? WHERE createdBy = ?', [actorId, id]);
+    sweep('UPDATE knowledge_attachments SET uploadedBy = NULL WHERE uploadedBy = ?', [id]);
 
     // Log activity BEFORE deleting user (so userId is still valid)
     run(`INSERT INTO activities (id, type, description, userId) VALUES (?, ?, ?, ?)`,

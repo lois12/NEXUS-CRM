@@ -2,6 +2,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { generateToken, authenticateToken, requireRole } from '../middleware/auth';
 import { recordFailedAttempt, recordSuccessfulLogin, rateLimitAuth } from '../middleware/rateLimit';
 import { Request, Response, NextFunction } from 'express';
+import { setupTestDb } from './helpers/testDb';
+
+beforeAll(() => {
+  setupTestDb();
+});
 
 describe('Auth Middleware', () => {
   const mockUser = {
