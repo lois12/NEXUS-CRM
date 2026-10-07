@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Suspense, lazy } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus,
@@ -22,13 +22,15 @@ import {
 import { ContentPost, SocialPlatform, ContentStatus } from '../types';
 import { contentApi } from '../services/api';
 import { ConfirmModal, useNexusConfirm, NexusSpinner, showToast } from '../components/ui/NexusModal';
+import EmptyState from '../components/ui/EmptyState';
+import { exportWeekCsv, exportWeekPdf } from '../utils/contentExport';
 import ImageUpload from '../components/ui/ImageUpload';
 import RichEditor from '../components/ui/RichEditor';
 import PostComments from '../components/content/PostComments';
 import { useAuth } from '../context/AuthContext';
 import { formatDateKR, formatTimeKR } from '../utils/timezone';
-import FullCalendarView from '../components/content/FullCalendarView';
-import WeekAccordionView from '../components/content/WeekAccordionView';
+const FullCalendarView = lazy(() => import('../components/content/FullCalendarView'));
+const WeekAccordionView = lazy(() => import('../components/content/WeekAccordionView'));
 import { LayoutGrid, CalendarDays, Rows } from 'lucide-react';
 
 // SVG icons for platforms
@@ -159,6 +161,20 @@ export default function ContentPlan() {
 
   useEffect(() => {
     fetchPosts();
+  }, []);
+
+  // Ctrl+K quick action: /content?new=1 → open create modal
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('new') === '1') {
+      setEditingPost(null);
+      resetForm();
+      setShowModal(true);
+      params.delete('new');
+      const qs = params.toString();
+      window.history.replaceState({}, '', qs ? `?${qs}` : window.location.pathname);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -584,6 +600,24 @@ export default function ContentPlan() {
             </button>
           </div>
 
+          {/* Week export */}
+          <div className="flex gap-1">
+            <button
+              onClick={() => exportWeekPdf(posts)}
+              title="Экспорт недели в PDF"
+              className="px-2.5 py-2 rounded-lg text-xs font-mono glass text-gray-400 hover:text-gray-200 transition-colors"
+            >
+              PDF
+            </button>
+            <button
+              onClick={() => exportWeekCsv(posts)}
+              title="Экспорт недели в CSV (Excel)"
+              className="px-2.5 py-2 rounded-lg text-xs font-mono glass text-gray-400 hover:text-gray-200 transition-colors"
+            >
+              CSV
+            </button>
+          </div>
+
           {/* Platform filters */}
           <div className="flex gap-1 p-1 rounded-xl glass overflow-x-auto">
             <button
@@ -639,13 +673,15 @@ export default function ContentPlan() {
               animate={{ opacity: 1, y: 0 }}
               className="glass rounded-2xl p-4 md:p-6 overflow-hidden"
             >
-              <FullCalendarView
-                posts={posts}
-                filterPlatform={filterPlatform}
-                onDateClick={handleFullCalendarDateClick}
-                onEventClick={handleFullCalendarEventClick}
-                onEventDrop={handleFullCalendarEventDrop}
-              />
+              <Suspense fallback={<div className="h-64 flex items-center justify-center"><NexusSpinner isVisible /></div>}>
+                <FullCalendarView
+                  posts={posts}
+                  filterPlatform={filterPlatform}
+                  onDateClick={handleFullCalendarDateClick}
+                  onEventClick={handleFullCalendarEventClick}
+                  onEventDrop={handleFullCalendarEventDrop}
+                />
+              </Suspense>
             </motion.div>
           ) : calendarView === 'week' ? (
             <motion.div
@@ -653,21 +689,23 @@ export default function ContentPlan() {
               animate={{ opacity: 1, y: 0 }}
               className="glass rounded-2xl p-4 md:p-6 overflow-hidden"
             >
-              <WeekAccordionView
-                posts={posts}
-                filterPlatform={filterPlatform}
-                canEdit={canEdit}
-                onEdit={handleEdit}
-                onDelete={handleDelete}
-                onDuplicate={handleDuplicate}
-                onCreateForDate={(date) => {
-                  setSelectedDate(date);
-                  setEditingPost(null);
-                  resetForm();
-                  setFormData(prev => ({ ...prev, scheduledDate: formatLocalDate(date) }));
-                  setShowModal(true);
-                }}
-              />
+              <Suspense fallback={<div className="h-64 flex items-center justify-center"><NexusSpinner isVisible /></div>}>
+                <WeekAccordionView
+                  posts={posts}
+                  filterPlatform={filterPlatform}
+                  canEdit={canEdit}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                  onDuplicate={handleDuplicate}
+                  onCreateForDate={(date) => {
+                    setSelectedDate(date);
+                    setEditingPost(null);
+                    resetForm();
+                    setFormData(prev => ({ ...prev, scheduledDate: formatLocalDate(date) }));
+                    setShowModal(true);
+                  }}
+                />
+              </Suspense>
             </motion.div>
           ) : (
           <motion.div 
@@ -847,20 +885,16 @@ export default function ContentPlan() {
                     })}
                   </div>
                 ) : (
-                  <div className="text-center py-8 text-gray-500">
-                    <Calendar className="w-10 h-10 mx-auto mb-2 opacity-30" />
-                    <p className="font-mono text-sm">// НЕТ ПОСТОВ</p>
-                    <button
-                      onClick={() => {
-                        resetForm();
-                        setShowModal(true);
-                      }}
-                      className="mt-3 text-sm font-mono hover:underline transition-colors"
-                      style={{ color: 'var(--color-primary)' }}
-                    >
-                      + ДОБАВИТЬ
-                    </button>
-                  </div>
+                  <EmptyState
+                    title="Нет постов"
+                    description="В этот день публикаций пока нет."
+                    actionLabel="СОЗДАТЬ ПОСТ"
+                    onAction={() => {
+                      resetForm();
+                      setEditingPost(null);
+                      setShowModal(true);
+                    }}
+                  />
                 )}
               </>
             ) : (
@@ -1096,23 +1130,16 @@ export default function ContentPlan() {
                   })}
                 </div>
               ) : (
-                <div className="text-center py-12 text-gray-500">
-                  <Calendar className="w-16 h-16 mx-auto mb-3 opacity-30" />
-                  <p className="font-mono">// НЕТ ПОСТОВ</p>
-                  {canEdit && (
-                    <button
-                      onClick={() => {
-                        resetForm();
-                        setEditingPost(null);
-                        setShowModal(true);
-                      }}
-                      className="mt-4 px-4 py-2 rounded-xl font-mono text-sm transition-all"
-                      style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}
-                    >
-                      + ДОБАВИТЬ
-                    </button>
-                  )}
-                </div>
+                <EmptyState
+                  title="Нет постов"
+                  description="На выбранную дату публикаций нет."
+                  actionLabel={canEdit ? 'СОЗДАТЬ ПОСТ' : undefined}
+                  onAction={canEdit ? () => {
+                    resetForm();
+                    setEditingPost(null);
+                    setShowModal(true);
+                  } : undefined}
+                />
               )}
 
               {/* Delete all button */}

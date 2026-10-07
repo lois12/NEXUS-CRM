@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Plus, Search, Edit3, Trash2, Puzzle, Copy, Globe, Lock, Upload, Code, ExternalLink, ChevronLeft, Eye, Pin, PinOff, CopyPlus, Settings, ImagePlus, X } from 'lucide-react';
 import { widgetsApi } from '../services/api';
 import { showToast, useNexusConfirm, ConfirmModal } from '../components/ui/NexusModal';
+import EmptyState from '../components/ui/EmptyState';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
 import { SkeletonGrid, SkeletonHeader } from '../components/ui/Skeleton';
 import { EditorView, basicSetup } from 'codemirror';
@@ -674,7 +675,12 @@ export default function Widgets() {
       {filtered.length === 0 ? (
         <div className="text-center py-20">
           <Puzzle className="w-16 h-16 mx-auto mb-4 text-gray-600" />
-          <p className="font-mono text-gray-500">{search || categoryFilter || folderFilter ? 'Ничего не найдено' : 'Виджетов пока нет'}</p>
+          <EmptyState
+            title={search || categoryFilter || folderFilter ? 'Ничего не найдено' : 'Виджетов пока нет'}
+            description={search || categoryFilter || folderFilter ? 'Попробуйте изменить фильтры или поиск.' : 'Создайте первый виджет — HTML-карточку для публикации.'}
+            actionLabel={!search && !categoryFilter && !folderFilter ? 'СОЗДАТЬ ВИДЖЕТ' : undefined}
+            onAction={!search && !categoryFilter && !folderFilter ? () => openCreate() : undefined}
+          />
           {!search && !categoryFilter && !folderFilter && (
             <button onClick={openCreate} className="mt-4 px-5 py-2 rounded-xl font-mono text-sm"
               style={{ background: 'rgba(0,255,136,0.1)', color: 'var(--color-primary)', border: '1px solid rgba(0,255,136,0.2)' }}>

@@ -52,6 +52,145 @@ function ProgressBar({ value, max, color, label }: { value: number; max: number;
   );
 }
 
+/** Project quality grade card (78/100 as of 2026-10) */
+function ProjectGradeCard() {
+  const dims = [
+    { label: 'Функциональность', score: 90 },
+    { label: 'UI / UX', score: 70 },
+    { label: 'Архитектура', score: 80 },
+    { label: 'Тесты', score: 55 },
+    { label: 'Безопасность', score: 78 },
+    { label: 'Надёжность данных', score: 92 },
+    { label: 'Dev-процесс', score: 85 },
+    { label: 'Производительность', score: 80 },
+    { label: 'Документация', score: 85 },
+    { label: 'Масштабируемость', score: 70 },
+  ];
+  const total = Math.round(dims.reduce((s, d) => s + d.score, 0) / dims.length);
+  const gradeColor = total >= 85 ? '#00ff88' : total >= 75 ? '#eab308' : '#ff6b6b';
+
+  return (
+    <div className="glass rounded-xl p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <h3 className="font-mono text-xs font-bold tracking-wider" style={{ color: '#6b7280' }}>ГРЕЙД ПРОЕКТА</h3>
+        <div className="flex items-baseline gap-1">
+          <span className="text-2xl font-bold font-mono" style={{ color: gradeColor, textShadow: `0 0 16px ${gradeColor}50` }}>{total}</span>
+          <span className="text-xs font-mono" style={{ color: '#6b7280'}}>/100</span>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-x-3 gap-y-2">
+        {dims.map((d) => (
+          <div key={d.label} className="flex items-center gap-2">
+            <div className="flex-1">
+              <div className="flex justify-between text-[9px] font-mono mb-0.5">
+                <span style={{ color: '#6b7280' }}>{d.label}</span>
+                <span style={{ color: d.score >= 80 ? '#00ff88' : d.score >= 60 ? '#eab308' : '#ff6b6b' }}>{d.score}</span>
+              </div>
+              <div className="h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: `${d.score}%` }}
+                  transition={{ duration: 0.8 }}
+                  className="h-full rounded-full"
+                  style={{ background: d.score >= 80 ? '#00ff88' : d.score >= 60 ? '#eab308' : '#ff6b6b' }}
+                />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+      <p className="text-[10px] font-mono" style={{ color: '#4a4a60' }}>
+        // слабые места: тесты · монолиты · UX-плотность
+      </p>
+    </div>
+  );
+}
+
+const ROLE_MATRIX: { role: string; modules: Record<string, boolean | 'own'> }[] = [
+  {
+    role: 'super_admin',
+    modules: {
+      'Дашборд': true, 'Контент-план': true, 'Опросы': true, 'Задачи': true,
+      'События/Регистрации': true, 'Пользователи': true, 'Админка/Бэкапы': true, 'Экспорт': true,
+    },
+  },
+  {
+    role: 'руководитель',
+    modules: {
+      'Дашборд': true, 'Контент-план': true, 'Опросы': true, 'Задачи': true,
+      'События/Регистрации': true, 'Пользователи': true, 'Админка/Бэкапы': false, 'Экспорт': true,
+    },
+  },
+  {
+    role: 'smm',
+    modules: {
+      'Дашборд': true, 'Контент-план': true, 'Опросы': true, 'Задачи': 'own',
+      'События/Регистрации': true, 'Пользователи': false, 'Админка/Бэкапы': false, 'Экспорт': true,
+    },
+  },
+  {
+    role: 'редактор',
+    modules: {
+      'Дашборд': true, 'Контент-план': true, 'Опросы': 'own', 'Задачи': 'own',
+      'События/Регистрации': 'own', 'Пользователи': false, 'Админка/Бэкапы': false, 'Экспорт': 'own',
+    },
+  },
+  {
+    role: 'документовед',
+    modules: {
+      'Дашборд': true, 'Контент-план': false, 'Опросы': false, 'Задачи': 'own',
+      'События/Регистрации': 'own', 'Пользователи': false, 'Админка/Бэкапы': false, 'Экспорт': 'own',
+    },
+  },
+];
+
+function RoleMatrixCard() {
+  const cols = Object.keys(ROLE_MATRIX[0].modules);
+  return (
+    <div className="glass rounded-xl p-4 space-y-3">
+      <h3 className="font-mono text-xs font-bold tracking-wider" style={{ color: '#6b7280' }}>МАТРИЦА РОЛЕЙ · КТО ЧТО ВИДИТ</h3>
+      <div className="overflow-x-auto">
+        <table className="w-full text-[10px] font-mono">
+          <thead>
+            <tr>
+              <th className="text-left pb-2 pr-2" style={{ color: '#4a4a60' }}>Роль</th>
+              {cols.map((c) => (
+                <th key={c} className="text-center pb-2 px-1" style={{ color: '#4a4a60' }}>{c}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {ROLE_MATRIX.map((row) => (
+              <tr key={row.role} className="border-t border-white/5">
+                <td className="py-1.5 pr-2 font-bold" style={{ color: '#c0c0d0' }}>{row.role}</td>
+                {cols.map((c) => {
+                  const v = row.modules[c];
+                  return (
+                    <td key={c} className="text-center py-1.5 px-1">
+                      {v === true ? (
+                        <span className="inline-block w-2 h-2 rounded-full" style={{ background: '#00ff88', boxShadow: '0 0 6px #00ff8880' }} />
+                      ) : v === 'own' ? (
+                        <span className="text-[9px]" style={{ color: '#eab308' }}>свои</span>
+                      ) : (
+                        <span className="inline-block w-2 h-2 rounded-full" style={{ background: 'rgba(255,255,255,0.12)' }} />
+                      )}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="flex flex-wrap gap-3 text-[9px] font-mono" style={{ color: '#4a4a60' }}>
+        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full inline-block" style={{ background: '#00ff88' }} /> полный доступ</span>
+        <span style={{ color: '#eab308' }}>свои = только свои записи</span>
+        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full inline-block" style={{ background: 'rgba(255,255,255,0.12)' }} /> нет доступа</span>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminMonitoring() {
   const [health, setHealth] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -369,6 +508,12 @@ export default function AdminMonitoring() {
         <StatCard icon={Globe} label="ОС" value={`${health.platform.os} ${health.platform.arch}`} color="#6b7280" />
         <StatCard icon={Server} label="Node.js" value={health.platform.nodeVersion} color="#3b82f6" />
         <StatCard icon={Zap} label="Hostname" value={health.platform.hostname} color="#a78bfa" />
+      </div>
+
+      {/* Project grade + role matrix */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <ProjectGradeCard />
+        <RoleMatrixCard />
       </div>
 
       {/* Memory & CPU */}

@@ -1019,6 +1019,9 @@ select option:checked {
   --fc-event-border-color: transparent;
   --fc-highlight-color: rgba(0, 255, 136, 0.06);
   --fc-non-business-color: rgba(255, 59, 48, 0.03);
+  --fc-list-event-hover-bg-color: rgba(0, 255, 136, 0.06);
+  --fc-list-event-dot-color: var(--color-primary);
+  --fc-now-indicator-color: #ff3b30;
   font-family: 'JetBrains Mono', monospace !important;
   color: #c0c0d0;
   position: relative;
@@ -1622,4 +1625,123 @@ input[type="file"]::file-selector-button:hover {
     height: calc(100vh - 4rem);
     height: calc(100dvh - 4rem);
   }
+}
+
+/* ===== Office light theme overrides ===== */
+.theme-light {
+  --color-text-primary: #1a2332;
+  --color-text-secondary: #4a5568;
+  --color-text-tertiary: #718096;
+  --normal-text: #1a2332 !important;
+  --success-text: #0f766e !important;
+  --error-text: #dc2626 !important;
+  --warning-text: #d97706 !important;
+  --info-text: #0d9488 !important;
+}
+.theme-light body,
+.theme-light {
+  color: #1a2332;
+  background-color: #f4f6f8;
+}
+.theme-light .glass,
+.theme-light .glass-card,
+.theme-light .glass-frost {
+  background: rgba(255, 255, 255, 0.82) !important;
+  border-color: rgba(15, 118, 110, 0.12) !important;
+  color: #1a2332;
+}
+.theme-light .text-gray-200,
+.theme-light .text-gray-300,
+.theme-light .text-gray-100 {
+  color: #1a2332 !important;
+}
+.theme-light .text-gray-400 {
+  color: #4a5568 !important;
+}
+.theme-light .text-gray-500 {
+  color: #64748b !important;
+}
+.theme-light .text-white {
+  color: #0f172a !important;
+}
+.theme-light .bg-white\/5,
+.theme-light .bg-white\/\[0\.03\] {
+  background: rgba(15, 118, 110, 0.06) !important;
+}
+.theme-light .border-white\/10,
+.theme-light .border-white\/5 {
+  border-color: rgba(15, 118, 110, 0.12) !important;
+}
+.theme-light select option {
+  background: #ffffff;
+  color: #1a2332;
+}
+.theme-light .cyber-input,
+.theme-light input,
+.theme-light textarea {
+  background: rgba(255, 255, 255, 0.9) !important;
+  color: #1a2332 !important;
+  border-color: rgba(15, 118, 110, 0.18) !important;
+}
+.theme-light .neon-text,
+.theme-light .heading-neon {
+  text-shadow: none !important;
+}
+.theme-light .nexus-fullcalendar {
+  --fc-page-bg-color: transparent;
+  --fc-neutral-bg-color: rgba(15, 118, 110, 0.04);
+  --fc-border-color: rgba(15, 118, 110, 0.12);
+  --fc-button-bg-color: rgba(15, 118, 110, 0.08);
+  --fc-button-text-color: #334155;
+  --fc-button-hover-bg-color: rgba(15, 118, 110, 0.14);
+  --fc-button-active-bg-color: #0f766e;
+  --fc-button-active-text-color: #fff;
+  --fc-today-bg-color: rgba(15, 118, 110, 0.06);
+  --fc-highlight-color: rgba(15, 118, 110, 0.1);
+}
+.theme-light .nexus-fullcalendar .fc-col-header-cell-cushion,
+.theme-light .nexus-fullcalendar .fc-daygrid-day-number,
+.theme-light .nexus-fullcalendar .fc-list-day-text,
+.theme-light .nexus-fullcalendar .fc-list-event-title {
+  color: #1a2332 !important;
+}
+.theme-light .weekend-cell {
+  background: rgba(220, 38, 38, 0.05) !important;
+}
+
+
+/* FullCalendar text surfaces (dark) */
+.fc .fc-col-header-cell-cushion,
+.fc .fc-daygrid-day-number,
+.fc .fc-daygrid-week-number,
+.fc .fc-list-day-text,
+.fc .fc-list-day-side-text,
+.fc .fc-list-event-title,
+.fc .fc-list-event-time,
+.fc .fc-timegrid-slot-label-cushion,
+.fc .fc-list-empty {
+  color: #c0c0d0 !important;
+}
+.fc .fc-col-header-cell-cushion:hover,
+.fc .fc-daygrid-day-number:hover {
+  color: var(--color-primary) !important;
+}
+.fc .fc-daygrid-day.fc-day-today {
+  background: rgba(0, 255, 136, 0.05) !important;
+}
+.fc .fc-button {
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 11px !important;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border-radius: 8px !important;
+}
+.fc .fc-list {
+  background: rgba(10, 10, 15, 0.35);
+  border: 1px solid rgba(0, 255, 136, 0.08);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.fc .fc-list-event:hover td {
+  background: rgba(0, 255, 136, 0.06) !important;
 }

@@ -1,9 +1,10 @@
-﻿import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Lightbulb, Zap, Unlink, Expand, Minimize2 } from 'lucide-react';
 import { Idea, IdeaLink, IdeaType } from '../types';
 import { ideasApi } from '../services/api';
-import IdeaGraph from '../components/ideamap/IdeaGraph';
+import { lazy, Suspense } from 'react';
+const IdeaGraph = lazy(() => import('../components/ideamap/IdeaGraph'));
 import IdeaToolbar from '../components/ideamap/IdeaToolbar';
 import IdeaSidebar from '../components/ideamap/IdeaSidebar';
 import OrientationGlobe from '../components/ideamap/OrientationGlobe';
@@ -333,6 +334,7 @@ export default function IdeaMap() {
 
       {/* 3D Graph */}
       <div ref={containerRef} className="flex-1 rounded-2xl overflow-hidden relative" style={{ border: '1px solid var(--color-border)' }}>
+        <Suspense fallback={<div className="h-full flex items-center justify-center font-mono text-xs" style={{ color: 'var(--color-primary)' }}>ЗАГРУЗКА ГРАФА…</div>}>
         <IdeaGraph
           ideas={searchFiltered}
           links={links}
@@ -353,6 +355,7 @@ export default function IdeaMap() {
           onGetCameraDistance={(cb) => { getCameraDistanceRef.current = cb; }}
           onBackgroundClickAt={(pos) => { pendingPosRef.current = pos; handleAdd(); }}
         />
+        </Suspense>
 
         {/* Fullscreen button */}
         <button

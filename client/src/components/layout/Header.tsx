@@ -15,6 +15,7 @@ const themeColors: Record<ThemeName, string> = {
   'cyber-blue': '#00d4ff',
   'cyber-purple': '#bf00ff',
   'cyber-orange': '#ff6600',
+  'office-light': '#0f766e',
 };
 
 const typeIcons: Record<string, typeof User> = {

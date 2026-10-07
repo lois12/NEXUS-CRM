@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search, LayoutDashboard, CheckSquare, Rocket, PartyPopper,
   Lightbulb, Users, Package, FolderOpen, BookOpen, FileText,
-  Calendar, Image, Zap, ArrowRight,
+  Calendar, Image, Zap, ArrowRight, Plus, ClipboardList,
 } from 'lucide-react';
 import { searchApi } from '../../services/api';
 
@@ -20,7 +20,15 @@ const typeLabels: Record<string, string> = {
   knowledge: 'Знание', content: 'Контент',
 };
 
-const quickActions = [
+interface PaletteItem {
+  label: string;
+  icon: typeof Search;
+  link: string;
+  hint?: string;
+  create?: boolean;
+}
+
+const quickActions: PaletteItem[] = [
   { label: 'Дашборд', icon: LayoutDashboard, link: '/' },
   { label: 'Задачи', icon: CheckSquare, link: '/kanban' },
   { label: 'Контент-план', icon: Calendar, link: '/content' },
@@ -29,6 +37,11 @@ const quickActions = [
   { label: 'Материалы', icon: FolderOpen, link: '/materials' },
   { label: 'Генератор изображений', icon: Image, link: '/images' },
   { label: 'AI Чат', icon: Zap, link: '/ai-chat' },
+  { label: 'Опросы', icon: ClipboardList, link: '/surveys' },
+  { label: 'Создать пост', icon: Plus, link: '/content?new=1', hint: 'Ctrl+N', create: true },
+  { label: 'Новый опрос', icon: Plus, link: '/surveys?new=1', create: true },
+  { label: 'Новая задача', icon: Plus, link: '/kanban?new=1', create: true },
+  { label: 'Новая идея', icon: Plus, link: '/ideas?new=1', create: true },
 ];
 
 export default function CommandPalette() {
@@ -160,8 +173,11 @@ export default function CommandPalette() {
                       style={selectedIndex === i ? { background: 'rgba(0,255,136,0.08)' } : {}}
                       onMouseEnter={() => setSelectedIndex(i)}
                     >
-                      <action.icon className="w-4 h-4" style={{ color: selectedIndex === i ? 'var(--color-primary)' : '#5a5a70' }} />
-                      <span className="text-sm flex-1" style={{ color: selectedIndex === i ? '#e0e0e0' : '#8a8aa0' }}>{action.label}</span>
+                      <action.icon className="w-4 h-4" style={{ color: selectedIndex === i ? 'var(--color-primary)' : action.create ? '#00d4ff' : '#5a5a70' }} />
+                      <span className="text-sm flex-1" style={{ color: selectedIndex === i ? '#e0e0e0' : action.create ? '#c0c0d0' : '#8a8aa0' }}>{action.label}</span>
+                      {action.hint && (
+                        <kbd className="px-1.5 py-0.5 rounded text-[9px] font-mono" style={{ background: 'rgba(255,255,255,0.05)', color: '#5a5a70' }}>{action.hint}</kbd>
+                      )}
                       <ArrowRight className="w-3 h-3 opacity-0 group-hover:opacity-100" style={{ color: '#5a5a70' }} />
                     </button>
                   ))}

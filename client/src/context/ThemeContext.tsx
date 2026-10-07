@@ -72,6 +72,20 @@ const themes: Record<ThemeName, Theme> = {
       border: 'rgba(255, 102, 0, 0.2)',
     },
   },
+  'office-light': {
+    name: 'office-light',
+    label: 'ОФИС',
+    description: 'Светлая рабочая тема',
+    colors: {
+      primary: '#0f766e',
+      secondary: '#115e59',
+      accent: '#0d9488',
+      glow: 'rgba(15, 118, 110, 0.18)',
+      bg: '#f4f6f8',
+      card: 'rgba(255, 255, 255, 0.92)',
+      border: 'rgba(15, 118, 110, 0.18)',
+    },
+  },
 };
 
 interface ThemeContextType {
@@ -93,7 +107,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     localStorage.setItem('nexus_theme', themeName);
-    
+
     // Apply theme CSS variables to root
     const theme = themes[themeName];
     const root = document.documentElement;
@@ -104,6 +118,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     root.style.setProperty('--color-bg', theme.colors.bg);
     root.style.setProperty('--color-card', theme.colors.card);
     root.style.setProperty('--color-border', theme.colors.border);
+    // Light / dark class for CSS overrides
+    root.classList.toggle('theme-light', themeName === 'office-light');
+    root.classList.toggle('theme-dark', themeName !== 'office-light');
   }, [themeName]);
 
   const setTheme = useCallback((name: ThemeName) => {

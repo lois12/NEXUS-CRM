@@ -126,7 +126,7 @@ export interface Activity {
 }
 
 // Theme types
-export type ThemeName = 'cyber-green' | 'cyber-pink' | 'cyber-blue' | 'cyber-purple' | 'cyber-orange';
+export type ThemeName = 'cyber-green' | 'cyber-pink' | 'cyber-blue' | 'cyber-purple' | 'cyber-orange' | 'office-light';
 
 export interface Theme {
   name: ThemeName;

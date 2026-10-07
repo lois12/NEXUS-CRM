@@ -24,6 +24,18 @@ export default function Surveys() {
 
   useEffect(() => { refresh(); }, []);
 
+  // Ctrl+K quick action: /surveys?new=1 → create survey
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('new') === '1') {
+      params.delete('new');
+      const qs = params.toString();
+      window.history.replaceState({}, '', qs ? `?${qs}` : window.location.pathname);
+      createSurvey();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const createSurvey = async () => {
     try {
       const res = await surveyApi.create({ name: 'Новый опрос', description: '', isAnonymous: false });

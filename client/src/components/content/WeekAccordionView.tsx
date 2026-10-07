@@ -153,18 +153,18 @@ export default function WeekAccordionView({
   return (
     <div>
       {/* Header nav */}
-      <div className="flex items-center justify-between mb-5">
+      <div className="flex items-center justify-between mb-4 md:mb-5 gap-2">
         <motion.button
           whileHover={{ scale: 1.08, x: -2 }}
           whileTap={{ scale: 0.92 }}
           onClick={() => setAnchor((p) => addDays(p, -7))}
-          className="p-2 md:p-2.5 rounded-xl glass hover:glass-accent transition-all"
+          className="p-2 md:p-2.5 rounded-xl glass hover:glass-accent transition-all flex-shrink-0"
         >
           <ChevronLeft className="w-4 h-4 md:w-5 md:h-5" style={{ color: 'var(--color-primary)' }} />
         </motion.button>
 
-        <div className="flex items-center gap-2 md:gap-3">
-          <h2 className="text-sm md:text-lg font-bold font-mono text-gray-200 tracking-wider">
+        <div className="flex items-center gap-2 md:gap-3 min-w-0">
+          <h2 className="text-xs sm:text-sm md:text-lg font-bold font-mono text-gray-200 tracking-wider truncate">
             {navLabel}
           </h2>
           <motion.button
@@ -176,7 +176,7 @@ export default function WeekAccordionView({
               setOpenWeekKey(formatShort(t));
               setOpenDayKey(formatShort(new Date()));
             }}
-            className="px-3 py-1.5 rounded-xl text-xs font-mono glass hover:glass-accent transition-all"
+            className="px-2.5 md:px-3 py-1.5 rounded-xl text-[10px] md:text-xs font-mono glass hover:glass-accent transition-all flex-shrink-0"
             style={{ color: 'var(--color-primary)' }}
           >
             СЕГОДНЯ
@@ -187,7 +187,7 @@ export default function WeekAccordionView({
           whileHover={{ scale: 1.08, x: 2 }}
           whileTap={{ scale: 0.92 }}
           onClick={() => setAnchor((p) => addDays(p, 7))}
-          className="p-2 md:p-2.5 rounded-xl glass hover:glass-accent transition-all"
+          className="p-2 md:p-2.5 rounded-xl glass hover:glass-accent transition-all flex-shrink-0"
         >
           <ChevronRight className="w-4 h-4 md:w-5 md:h-5" style={{ color: 'var(--color-primary)' }} />
         </motion.button>
@@ -295,7 +295,7 @@ export default function WeekAccordionView({
                           >
                             <button
                               onClick={() => setOpenDayKey(isDayOpen ? null : dayKey)}
-                              className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-white/[0.03] transition-colors"
+                              className="w-full flex items-center gap-2 sm:gap-3 px-2.5 sm:px-3 py-2.5 text-left hover:bg-white/[0.03] transition-colors"
                             >
                               <span
                                 className="text-xs font-mono font-bold w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
@@ -309,11 +309,11 @@ export default function WeekAccordionView({
                               >
                                 {day.getDate()}
                               </span>
-                              <span className={`flex-1 text-xs md:text-sm font-mono truncate ${isWeekend ? 'text-gray-400' : 'text-gray-200'}`}>
+                              <span className={`flex-1 text-[11px] sm:text-xs md:text-sm font-mono truncate ${isWeekend ? 'text-gray-400' : 'text-gray-200'}`}>
                                 {formatDayLabel(day)}
                               </span>
                               {isToday && (
-                                <span className="text-[9px] font-mono px-1.5 py-0.5 rounded flex-shrink-0"
+                                <span className="hidden sm:inline text-[9px] font-mono px-1.5 py-0.5 rounded flex-shrink-0"
                                   style={{ background: 'rgba(0,255,136,0.15)', color: 'var(--color-primary)' }}>
                                   СЕГОДНЯ
                                 </span>

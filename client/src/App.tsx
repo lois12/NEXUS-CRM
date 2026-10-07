@@ -11,6 +11,7 @@ import { LoadingScreen } from './components/ui/LoadingScreen';
 import MaintenanceOverlay from './components/ui/MaintenanceOverlay';
 const ChatWidget = lazy(() => import('./components/chat/ChatWidget'));
 const CommandPalette = lazy(() => import('./components/common/CommandPalette'));
+const Onboarding = lazy(() => import('./components/common/Onboarding'));
 import { Toaster } from 'sonner';
 
 // Lazy loaded pages (heavy bundles)
@@ -189,6 +190,14 @@ function ChatWidgetWrapper() {
   return <ErrorBoundary><Suspense fallback={null}><ChatWidget /></Suspense></ErrorBoundary>;
 }
 
+function OnboardingWrapper() {
+  const { isAuthenticated } = useAuth();
+  const { pathname } = useLocation();
+  if (!isAuthenticated) return null;
+  if (pathname.startsWith('/reg/') || pathname.startsWith('/control') || pathname.startsWith('/w/') || pathname.startsWith('/login')) return null;
+  return <Suspense fallback={null}><Onboarding /></Suspense>;
+}
+
 function App() {
   return (
     <Router>
@@ -199,6 +208,7 @@ function App() {
           </div>
           <ChatWidgetWrapper />
           <CommandPalette />
+          <OnboardingWrapper />
           <MaintenanceOverlay />
           <NexusToasts />
           <Toaster
