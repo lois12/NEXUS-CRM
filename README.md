@@ -244,6 +244,22 @@ cd client && npm test
 - Перед `content`-тестами используется in-memory БД + `initializeDatabase()`
 - Проверка перед коммитом: **`npx tsc --noEmit`** в `client/` и `server/`
 
+### Smoke-проверка после деплоя
+
+```bash
+# локально (dev/prod на :8080)
+node scripts/smoke.mjs
+
+# против прода
+node scripts/smoke.mjs https://nexus-liberty.online
+
+# полная (с логином — проверяет API под токеном)
+SMOKE_USER=admin SMOKE_PASS=*** node scripts/smoke.mjs https://nexus-liberty.online
+```
+
+Скрипт проверяет: `/api/health`, SPA, Swagger, отказ неверного логина, (опционально) `auth/me`, `content`, `users`, `chat/unread-count`, `dashboard/health`.  
+Exit `0` = всё ок, `1` = есть падения. `update.sh` вызывает его автоматически после деплоя.
+
 ---
 
 ## Деплой (VPS)

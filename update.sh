@@ -208,4 +208,15 @@ else
 fi
 
 log "=== DEPLOY SUCCESS === ${BEFORE:0:7} -> ${AFTER:0:7}"
+
+# Smoke check (non-blocking for rollback — health already passed)
+if command -v node >/dev/null 2>&1 && [ -f "$APP_DIR/scripts/smoke.mjs" ]; then
+    log "Running smoke check..."
+    if node "$APP_DIR/scripts/smoke.mjs" "http://localhost:8080"; then
+        log "Smoke check PASSED"
+    else
+        log "Smoke check FAILED — app is live, inspect manually (node scripts/smoke.mjs)"
+    fi
+fi
+
 echo "DEPLOY_OK"
