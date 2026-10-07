@@ -313,7 +313,6 @@ export default function ContentPlan() {
   };
 
   const handleEdit = (post: ContentPost) => {
-    if (!canEdit) return;
     setEditingPost(post);
     setFormData({
       title: post.title,
@@ -1205,8 +1204,13 @@ export default function ContentPlan() {
             >
               <h2 className="text-xl font-bold font-mono text-gray-200 mb-4 flex items-center gap-2">
                 <Sparkles className="w-5 h-5" style={{ color: 'var(--color-primary)' }} />
-                {editingPost ? 'РЕДАКТИРОВАТЬ ПОСТ' : 'НОВЫЙ ПОСТ'}
+                {!canEdit && editingPost ? 'ПРОСМОТР ПОСТА' : editingPost ? 'РЕДАКТИРОВАТЬ ПОСТ' : 'НОВЫЙ ПОСТ'}
               </h2>
+              {!canEdit && (
+                <p className="text-[11px] font-mono text-gray-500 mb-3 -mt-2">
+                  // только просмотр — нет прав на редактирование
+                </p>
+              )}
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
@@ -1217,8 +1221,9 @@ export default function ContentPlan() {
                     type="text"
                     value={formData.title}
                     onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-gray-200 font-mono"
+                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-gray-200 font-mono disabled:opacity-60"
                     required
+                    disabled={!canEdit}
                   />
                 </div>
 
@@ -1226,18 +1231,25 @@ export default function ContentPlan() {
                   <label className="block text-xs font-mono mb-2" style={{ color: 'var(--color-primary)' }}>
                     // СОДЕРЖАНИЕ
                   </label>
-                  <RichEditor
-                    content={formData.content}
-                    onChange={(html) => setFormData({ ...formData, content: html })}
-                    placeholder="// ВВЕДИТЕ ТЕКСТ ПОСТА..."
-                  />
+                  {canEdit ? (
+                    <RichEditor
+                      content={formData.content}
+                      onChange={(html) => setFormData({ ...formData, content: html })}
+                      placeholder="// ВВЕДИТЕ ТЕКСТ ПОСТА..."
+                    />
+                  ) : (
+                    <div
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-gray-300 font-mono text-sm leading-relaxed"
+                      dangerouslySetInnerHTML={{ __html: formData.content }}
+                    />
+                  )}
                 </div>
 
                 <div>
                   <label className="block text-xs font-mono mb-2" style={{ color: 'var(--color-primary)' }}>
                     // ПЛОЩАДКИ
                   </label>
-                  <div className="flex flex-wrap gap-2">
+                  <div className={`flex flex-wrap gap-2 ${!canEdit ? 'opacity-60 pointer-events-none' : ''}`}>
                     {(Object.keys(platformConfig) as SocialPlatform[]).map((platform) => {
                       const cfg = platformConfig[platform];
                       const selected = formData.platforms.includes(platform);
@@ -1275,7 +1287,8 @@ export default function ContentPlan() {
                     // СТАТУС
                   </label>
                   <select value={formData.status} onChange={(e) => setFormData({ ...formData, status: e.target.value as ContentStatus })}
-                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-gray-200">
+                    disabled={!canEdit}
+                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-gray-200 disabled:opacity-60">
                     <option value="черновик">Черновик</option>
                     <option value="запланирован">Запланирован</option>
                     <option value="опубликован">Опубликован</option>
@@ -1295,29 +1308,33 @@ export default function ContentPlan() {
                 </div>
 
                 {/* Image Upload */}
-                <div>
-                  <label className="block text-xs font-mono mb-2" style={{ color: 'var(--color-primary)' }}>
-                    // ИЗОБРАЖЕНИЯ
-                  </label>
-                  <ImageUpload
-                    images={postImages}
-                    onImagesChange={setPostImages}
-                    onFilesChange={setPostImageFiles}
-                    maxImages={10}
-                    maxSizeMB={5}
-                  />
-                </div>
+                {canEdit && (
+                  <div>
+                    <label className="block text-xs font-mono mb-2" style={{ color: 'var(--color-primary)' }}>
+                      // ИЗОБРАЖЕНИЯ
+                    </label>
+                    <ImageUpload
+                      images={postImages}
+                      onImagesChange={setPostImages}
+                      onFilesChange={setPostImageFiles}
+                      maxImages={10}
+                      maxSizeMB={5}
+                    />
+                  </div>
+                )}
 
                 <div className="flex gap-3 pt-4">
                   <button type="button" onClick={() => setShowModal(false)}
                     className="flex-1 py-3 px-4 rounded-xl glass text-gray-400 hover:text-gray-200 transition-colors font-mono">
-                    ОТМЕНА
+                    {canEdit ? 'ОТМЕНА' : 'ЗАКРЫТЬ'}
                   </button>
-                  <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} type="submit"
-                    className="flex-1 py-3 px-4 rounded-xl font-mono font-bold transition-all"
-                    style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}>
-                    {editingPost ? 'СОХРАНИТЬ' : 'СОЗДАТЬ'}
-                  </motion.button>
+                  {canEdit && (
+                    <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} type="submit"
+                      className="flex-1 py-3 px-4 rounded-xl font-mono font-bold transition-all"
+                      style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}>
+                      {editingPost ? 'СОХРАНИТЬ' : 'СОЗДАТЬ'}
+                    </motion.button>
+                  )}
                 </div>
               </form>
 
