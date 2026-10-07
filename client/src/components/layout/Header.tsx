@@ -110,8 +110,11 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
               type="text"
               value={searchQuery}
               onChange={e => { setSearchQuery(e.target.value); setShowSearch(true); }}
-              onFocus={() => searchQuery.length >= 2 && setShowSearch(true)}
-              placeholder="Поиск..."
+              onFocus={(e) => {
+                e.target.blur();
+                window.dispatchEvent(new Event('nexus-open-palette'));
+              }}
+              placeholder="Поиск... (Ctrl+K)"
               className="w-full pl-10 pr-8 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-gray-200 focus:border-white/20 transition-colors placeholder:text-gray-600"
             />
             {searchQuery && (

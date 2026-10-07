@@ -75,11 +75,14 @@ export default function CommandPalette() {
   // Global keyboard shortcut
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ctrl+K / Cmd+K / Ctrl+Shift+K — browser often steals Ctrl+K (address/search bar)
-      const isPalette =
-        (e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K');
-      if (isPalette) {
-        // capture-phase + preventDefault + stopPropagation beats Chrome/Firefox bar
+      // Multiple combos — browsers steal Ctrl+K (address bar)
+      const key = e.key?.toLowerCase();
+      const wantsPalette =
+        ((e.ctrlKey || e.metaKey) && (key === 'k')) ||
+        ((e.ctrlKey || e.metaKey) && e.shiftKey && (key === 'p' || key === 'k')) ||
+        (e.altKey && key === 'k') ||
+        ((e.ctrlKey || e.metaKey) && key === 'p' && e.shiftKey);
+      if (wantsPalette) {
         e.preventDefault();
         e.stopPropagation();
         setIsOpen(prev => !prev);
@@ -89,9 +92,15 @@ export default function CommandPalette() {
         setIsOpen(false);
       }
     };
-    // capture: true — fire before browser default (Ctrl+K address bar)
+
+    const openFromUi = () => setIsOpen(true);
+    window.addEventListener('nexus-open-palette', openFromUi as EventListener);
+
     window.addEventListener('keydown', handleKeyDown, true);
-    return () => window.removeEventListener('keydown', handleKeyDown, true);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown, true);
+      window.removeEventListener('nexus-open-palette', openFromUi as EventListener);
+    };
   }, [isOpen]);
 
   // Focus input when opened

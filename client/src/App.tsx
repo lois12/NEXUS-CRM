@@ -198,6 +198,16 @@ function OnboardingWrapper() {
   return <Suspense fallback={null}><Onboarding /></Suspense>;
 }
 
+function CommandPaletteWrapper() {
+  return (
+    <ErrorBoundary>
+      <Suspense fallback={null}>
+        <CommandPalette />
+      </Suspense>
+    </ErrorBoundary>
+  );
+}
+
 function App() {
   return (
     <Router>
@@ -207,7 +217,7 @@ function App() {
             <AppRoutes />
           </div>
           <ChatWidgetWrapper />
-          <CommandPalette />
+          <CommandPaletteWrapper />
           <OnboardingWrapper />
           <MaintenanceOverlay />
           <NexusToasts />
