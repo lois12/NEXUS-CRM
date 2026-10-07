@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { useTheme } from '../context/ThemeContext';
 
 // Inject glitch CSS once
 const glitchCSS = `
@@ -427,17 +428,70 @@ function TypingLine() {
   );
 }
 
-export default function Dashboard() {
+/** Light-theme hero: soft gradient + floating glass shapes (no dark 3D) */
+function LightHeroScene() {
   return (
-    <div className="h-[calc(100vh-6rem)] md:h-[calc(100vh-8rem)] relative rounded-xl md:rounded-2xl overflow-hidden">
-      {/* 3D Model */}
+    <div
+      className="absolute inset-0 overflow-hidden"
+      style={{
+        background:
+          'radial-gradient(ellipse at 30% 20%, rgba(15,118,110,0.12) 0%, transparent 50%), radial-gradient(ellipse at 70% 80%, rgba(13,148,136,0.10) 0%, transparent 45%), linear-gradient(180deg, #eef6f5 0%, #f4f6f8 100%)',
+      }}
+    >
+      {/* soft grid */}
+      <div
+        className="absolute inset-0 opacity-40"
+        style={{
+          backgroundImage:
+            'linear-gradient(rgba(15,118,110,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(15,118,110,0.06) 1px, transparent 1px)',
+          backgroundSize: '48px 48px',
+          maskImage: 'radial-gradient(ellipse at 50% 40%, black 20%, transparent 75%)',
+        }}
+      />
+      {/* floating orbs */}
+      {[
+        { s: 220, x: '12%', y: '18%', c: 'rgba(15,118,110,0.14)', d: 0 },
+        { s: 160, x: '72%', y: '22%', c: 'rgba(13,148,136,0.12)', d: 1.2 },
+        { s: 280, x: '58%', y: '58%', c: 'rgba(15,118,110,0.10)', d: 0.6 },
+        { s: 120, x: '28%', y: '68%', c: 'rgba(20,184,166,0.12)', d: 1.8 },
+      ].map((o, i) => (
+        <motion.div
+          key={i}
+          className="absolute rounded-full"
+          style={{
+            width: o.s,
+            height: o.s,
+            left: o.x,
+            top: o.y,
+            background: `radial-gradient(circle at 35% 30%, rgba(255,255,255,0.7), ${o.c})`,
+            border: '1px solid rgba(15,118,110,0.12)',
+            filter: 'blur(0.5px)',
+          }}
+          animate={{ y: [0, -18, 0], opacity: [0.7, 1, 0.7] }}
+          transition={{ duration: 8 + o.d, repeat: Infinity, ease: 'easeInOut' }}
+        />
+      ))}
+    </div>
+  );
+}
+
+export default function Dashboard() {
+  const { themeName } = useTheme();
+  const isLight = themeName === 'office-light';
+
+  return (
+    <div
+      className="h-[calc(100vh-6rem)] md:h-[calc(100vh-8rem)] relative rounded-xl md:rounded-2xl overflow-hidden"
+      style={isLight ? { background: '#f4f6f8' } : undefined}
+    >
+      {/* 3D Model (dark themes) / soft light hero */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.5 }}
         className="absolute inset-0"
       >
-        <EarthScene modelPath={MODEL_PATH} />
+        {isLight ? <LightHeroScene /> : <EarthScene modelPath={MODEL_PATH} />}
       </motion.div>
 
       {/* Title */}

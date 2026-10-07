@@ -50,10 +50,10 @@ export function GlitchTransition({ active, onComplete, duration = 800 }: GlitchT
           exit={{ opacity: 0 }}
           transition={{ duration: 0.1 }}
         >
-          {/* Base dark overlay */}
+          {/* Base theme-aware overlay */}
           <motion.div
             className="absolute inset-0"
-            style={{ backgroundColor: '#0a0a0f' }}
+            style={{ backgroundColor: 'var(--color-bg, #0a0a0f)' }}
             initial={{ opacity: 0 }}
             animate={{ opacity: phase === 'glitch' ? 0.85 : 1 }}
             transition={{ duration: 0.15 }}
@@ -165,7 +165,7 @@ export function GlitchTransition({ active, onComplete, duration = 800 }: GlitchT
           {phase === 'fade' && (
             <motion.div
               className="absolute inset-0 flex items-center justify-center"
-              style={{ backgroundColor: '#0a0a0f' }}
+              style={{ backgroundColor: 'var(--color-bg, #0a0a0f)' }}
               initial={{ opacity: 1 }}
               animate={{ opacity: 0 }}
               transition={{ duration: 0.3, ease: 'easeIn' }}

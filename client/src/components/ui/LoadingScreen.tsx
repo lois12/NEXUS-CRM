@@ -8,7 +8,7 @@ export function LoadingScreen({ message = 'Загрузка...' }: LoadingScreen
   return (
     <div
       className="min-h-screen flex flex-col items-center justify-center gap-6"
-      style={{ backgroundColor: '#0a0a0f' }}
+      style={{ backgroundColor: 'var(--color-bg, #0a0a0f)', color: 'var(--color-text-primary, #e8e8ec)' }}
     >
       <NexusLogo size={64} showText={false} />
       <div className="flex flex-col items-center gap-2">
