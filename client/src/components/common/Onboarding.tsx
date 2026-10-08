@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Rocket, LayoutGrid, Keyboard, Sparkles, RefreshCw } from 'lucide-react';
 
@@ -98,13 +99,29 @@ export function resetOnboarding() {
 export default function Onboarding() {
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(0);
+  const location = useLocation();
+  const path = location.pathname;
 
   const openTour = () => {
     setStep(0);
     setOpen(true);
   };
 
+  const publicPath =
+    path.startsWith('/login') ||
+    path.startsWith('/reg') ||
+    path.startsWith('/control') ||
+    path.startsWith('/w/') ||
+    path.startsWith('/opros/') ||
+    path.startsWith('/survey/') ||
+    path.startsWith('/lists/public/') ||
+    path.startsWith('/qr-confirm');
+
   useEffect(() => {
+    if (publicPath) {
+      setOpen(false);
+      return;
+    }
     const start = () => {
       if (!localStorage.getItem(STORAGE_KEY)) {
         const t = setTimeout(() => setOpen(true), 900);
@@ -118,7 +135,8 @@ export default function Onboarding() {
       cleanup?.();
       window.removeEventListener('nexus-onboarding-reset', onReset);
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [publicPath]);
 
   const close = () => {
     localStorage.setItem(STORAGE_KEY, '2');
@@ -129,6 +147,8 @@ export default function Onboarding() {
     if (step >= STEPS.length - 1) close();
     else setStep((s) => s + 1);
   };
+
+  if (publicPath) return null;
 
   const S = STEPS[step];
 

@@ -190,11 +190,25 @@ function ChatWidgetWrapper() {
   return <ErrorBoundary><Suspense fallback={null}><ChatWidget /></Suspense></ErrorBoundary>;
 }
 
+function isPublicPath(pathname: string): boolean {
+  return (
+    pathname.startsWith('/login') ||
+    pathname.startsWith('/reg/') ||
+    pathname.startsWith('/reg') ||
+    pathname.startsWith('/control') ||
+    pathname.startsWith('/w/') ||
+    pathname.startsWith('/opros/') ||
+    pathname.startsWith('/survey/') ||
+    pathname.startsWith('/lists/public/') ||
+    pathname.startsWith('/qr-confirm')
+  );
+}
+
 function OnboardingWrapper() {
   const { isAuthenticated } = useAuth();
   const { pathname } = useLocation();
   if (!isAuthenticated) return null;
-  if (pathname.startsWith('/reg/') || pathname.startsWith('/control') || pathname.startsWith('/w/') || pathname.startsWith('/login')) return null;
+  if (isPublicPath(pathname)) return null;
   return <Suspense fallback={null}><Onboarding /></Suspense>;
 }
 
