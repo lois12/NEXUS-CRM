@@ -8,6 +8,7 @@ import {
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { useTheme } from '../context/ThemeContext';
+import MyDay from '../components/dashboard/MyDay';
 
 // Inject glitch CSS once
 const glitchCSS = `
@@ -480,19 +481,20 @@ export default function Dashboard() {
   const isLight = themeName === 'office-light';
 
   return (
-    <div
-      className="h-[calc(100vh-6rem)] md:h-[calc(100vh-8rem)] relative rounded-xl md:rounded-2xl overflow-hidden"
-      style={isLight ? { background: '#f4f6f8' } : undefined}
-    >
-      {/* 3D Model (dark themes) / soft light hero */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.5 }}
-        className="absolute inset-0"
+    <>
+      <div
+        className="h-[calc(100vh-11rem)] md:h-[calc(100vh-12rem)] min-h-[360px] relative rounded-xl md:rounded-2xl overflow-hidden"
+        style={isLight ? { background: '#f4f6f8' } : undefined}
       >
-        {isLight ? <LightHeroScene /> : <EarthScene modelPath={MODEL_PATH} />}
-      </motion.div>
+        {/* 3D Model (dark themes) / soft light hero */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.5 }}
+          className="absolute inset-0"
+        >
+          {isLight ? <LightHeroScene /> : <EarthScene modelPath={MODEL_PATH} />}
+        </motion.div>
 
       {/* Title */}
       <div className="absolute inset-0 flex flex-col items-center justify-start pt-4 md:pt-6 z-20 pointer-events-none">
@@ -528,6 +530,8 @@ export default function Dashboard() {
       </div>
 
       <FloatingBadges />
-    </div>
+      </div>
+      <MyDay />
+    </>
   );
 }

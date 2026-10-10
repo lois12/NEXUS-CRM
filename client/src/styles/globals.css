@@ -1847,3 +1847,34 @@ input[type="file"]::file-selector-button:hover {
     scroll-behavior: auto !important;
   }
 }
+
+/* ===== MyDay HUD panels (signature corner-cut) ===== */
+.hud-panel {
+  position: relative;
+  border: 1px solid rgba(0,255,136,0.18);
+  border-radius: 4px;
+  clip-path: polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 18px 100%, 0 calc(100% - 18px));
+  transition: border-color 0.25s ease, transform 0.25s ease;
+}
+.hud-panel::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 28%;
+  height: 1px;
+  background: linear-gradient(90deg, var(--color-primary), transparent);
+}
+.hud-panel:hover {
+  border-color: rgba(0,255,136,0.38);
+}
+.theme-light .hud-panel {
+  background: #ffffff !important;
+  border-color: rgba(15,118,110,0.22);
+}
+.theme-light .hud-panel .text-white,
+.theme-light .hud-panel .text-gray-200,
+.theme-light .hud-panel .text-gray-300 { color: #1e293b !important; }
+.theme-light .hud-panel .text-gray-400 { color: #475569 !important; }
+.theme-light .hud-panel .text-gray-500 { color: #64748b !important; }
+.theme-light .hud-panel .text-gray-600 { color: #94a3b8 !important; }
