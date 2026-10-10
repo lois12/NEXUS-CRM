@@ -1,5 +1,5 @@
 import { Response, NextFunction } from 'express';
-import { AuthRequest } from './auth';
+import type { AuthRequest } from './auth';
 
 /**
  * NEXUS roles (v2):

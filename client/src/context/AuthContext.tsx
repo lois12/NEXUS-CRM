@@ -107,9 +107,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const hasRole = (role: string | string[]) => {
     if (!user) return false;
-    const userRoles = user.roles?.length ? user.roles : [user.role];
-    if (Array.isArray(role)) return role.some(r => userRoles.includes(r));
-    return userRoles.includes(role);
+    const raw = user.roles?.length ? user.roles : [user.role];
+    // expand legacy ↔ new role names
+    const map: Record<string, string[]> = {
+      редактор: ['информационный'],
+      smm: ['информационный'],
+      документовед: ['туризм'],
+      мол: ['туризм'],
+      информационный: ['редактор', 'smm'],
+      туризм: ['документовед', 'мол'],
+    };
+    const userRoles = new Set<string>();
+    for (const r of raw) {
+      if (!r) continue;
+      userRoles.add(r);
+      for (const a of map[r] || []) userRoles.add(a);
+    }
+    const wanted = Array.isArray(role) ? role : [role];
+    const expandedWanted = new Set<string>();
+    for (const w of wanted) {
+      expandedWanted.add(w);
+      for (const a of map[w] || []) expandedWanted.add(a);
+    }
+    return [...expandedWanted].some((w) => userRoles.has(w));
   };
 
   return (

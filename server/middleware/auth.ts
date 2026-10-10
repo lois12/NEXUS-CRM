@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { get, run } from '../db/database';
 import { JWT_SECRET } from '../config';
+import { hasAnyRole } from './permissions';
 
 // Throttle lastSeen updates — once per user per 60s
 const lastSeenCache = new Map<string, number>();
@@ -57,10 +58,21 @@ export function requireRole(...roles: string[]) {
       return res.status(401).json({ success: false, error: 'Требуется авторизация' });
     }
 
-    const userRoles = req.user.roles || [req.user.role];
-    const hasRole = roles.some(r => userRoles.includes(r));
+    // Expand legacy + accept new role names (see permissions.ts)
+    const map: Record<string, string[]> = {
+      редактор: ['информационный'],
+      smm: ['информационный'],
+      документовед: ['туризм'],
+      мол: ['туризм'],
+      информационный: ['редактор', 'smm'],
+      туризм: ['документовед', 'мол'],
+    };
+    const expanded = new Set(roles);
+    for (const r of roles) {
+      for (const a of map[r] || []) expanded.add(a);
+    }
 
-    if (!hasRole) {
+    if (!hasAnyRole(req, ...expanded)) {
       return res.status(403).json({ success: false, error: 'Недостаточно прав' });
     }
 

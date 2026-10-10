@@ -26,9 +26,8 @@ const MODULES = [
   'Опросы / Списки',
   'Регистрации',
   'Материалы (файлы)',
-  'Задачи',
-  'Пользователи',
-  'Админка / Бэкапы',
+  'Задачи (личные)',
+  'Администратор',
 ];
 
 /** Canonical v2 matrix — always these 4 roles */
@@ -39,9 +38,8 @@ const ROLE_MATRIX_DEFAULT: Record<string, Record<string, Perm>> = {
     'Опросы / Списки': true,
     'Регистрации': true,
     'Материалы (файлы)': true,
-    'Задачи': true,
-    'Пользователи': true,
-    'Админка / Бэкапы': true,
+    'Задачи (личные)': true,
+    'Администратор': true,
   },
   руководитель: {
     'Дашборд': true,
@@ -49,9 +47,8 @@ const ROLE_MATRIX_DEFAULT: Record<string, Record<string, Perm>> = {
     'Опросы / Списки': true,
     'Регистрации': true,
     'Материалы (файлы)': true,
-    'Задачи': true,
-    'Пользователи': true,
-    'Админка / Бэкапы': false,
+    'Задачи (личные)': true,
+    'Администратор': false,
   },
   информационный: {
     'Дашборд': true,
@@ -59,9 +56,8 @@ const ROLE_MATRIX_DEFAULT: Record<string, Record<string, Perm>> = {
     'Опросы / Списки': 'own',
     'Регистрации': 'own',
     'Материалы (файлы)': 'own',
-    'Задачи': true,
-    'Пользователи': false,
-    'Админка / Бэкапы': false,
+    'Задачи (личные)': true,
+    'Администратор': false,
   },
   туризм: {
     'Дашборд': true,
@@ -69,9 +65,8 @@ const ROLE_MATRIX_DEFAULT: Record<string, Record<string, Perm>> = {
     'Опросы / Списки': 'own',
     'Регистрации': 'own',
     'Материалы (файлы)': 'own',
-    'Задачи': true,
-    'Пользователи': false,
-    'Админка / Бэкапы': false,
+    'Задачи (личные)': true,
+    'Администратор': false,
   },
 };
 
