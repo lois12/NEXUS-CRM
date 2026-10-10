@@ -541,8 +541,8 @@ export function CollageInspector(props: CollageUIProps) {
 
           <Acc title={`Версии (${versions.length})`}>
             <button onClick={saveVersion}
-              className="w-full py-2 rounded-lg font-mono text-xs font-bold flex items-center justify-center gap-2"
-              style={{ background: 'var(--color-primary)', color: '#000' }}>
+              className="btn-primary w-full py-2 rounded-lg font-mono text-xs font-bold flex items-center justify-center gap-2"
+              >
               <History className="w-3.5 h-3.5" /> СОХРАНИТЬ ВЕРСИЮ
             </button>
             <div className="space-y-1 max-h-40 overflow-y-auto">

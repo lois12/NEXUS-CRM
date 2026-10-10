@@ -117,8 +117,8 @@ export default function Vacations() {
             <option value="">ВСЕ СТАТУСЫ</option>
             {Object.entries(STATUS_CONFIG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
           </select>
-          <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-sm font-bold"
-            style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}>
+          <button onClick={openCreate} className="btn-primary flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-sm font-bold"
+            >
             <Plus className="w-4 h-4" /> ЗАЯВКА
           </button>
         </div>

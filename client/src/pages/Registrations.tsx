@@ -495,8 +495,8 @@ export default function Registrations() {
               </>
             )}
             <button onClick={handleSave} disabled={uploading}
-              className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg font-mono text-xs sm:text-sm font-bold disabled:opacity-50"
-              style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}>
+              className="btn-primary flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg font-mono text-xs sm:text-sm font-bold disabled:opacity-50"
+              >
               {uploading ? 'СОХРАНЕНИЕ...' : 'СОХРАНИТЬ'}
             </button>
             {editing && (
@@ -947,8 +947,8 @@ export default function Registrations() {
           <button onClick={() => { setShowContacts(true); fetchContacts(); }} className="flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-sm glass hover:bg-white/10 transition-all">
             <Users className="w-4 h-4" /> БАЗА
           </button>
-          <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-sm font-bold"
-            style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}>
+          <button onClick={openCreate} className="btn-primary flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-sm font-bold"
+            >
             <Plus className="w-4 h-4" /> СОЗДАТЬ
           </button>
         </div>

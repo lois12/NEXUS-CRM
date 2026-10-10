@@ -122,8 +122,8 @@ export default function SurveyExportBar({ surveyId, publicSlug }: Props) {
     <div className="flex gap-2 flex-wrap">
       <button
         onClick={openLiveStats}
-        className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-[11px] font-bold"
-        style={{ background: 'var(--color-primary)', color: '#000' }}
+        className="btn-primary flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-[11px] font-bold"
+        
         title="Живая страница статистики"
       >
         <BarChart3 className="w-3.5 h-3.5" /> HTML СТАТИСТИКА

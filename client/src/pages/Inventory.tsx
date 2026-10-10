@@ -247,8 +247,8 @@ export default function Inventory() {
               <FolderPlus className="w-4 h-4" /> МЕСТО
             </button>
           )}
-          <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-sm font-bold"
-            style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}>
+          <button onClick={openCreate} className="btn-primary flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-sm font-bold"
+            >
             <Plus className="w-4 h-4" /> ДОБАВИТЬ
           </button>
         </div>
@@ -455,8 +455,8 @@ export default function Inventory() {
               </div>
               <div className="flex gap-3 mt-5">
                 <button onClick={() => setShowModal(false)} className="flex-1 px-4 py-2.5 rounded-xl glass font-mono text-sm text-gray-400">ОТМЕНА</button>
-                <button onClick={handleSave} className="flex-1 px-4 py-2.5 rounded-xl font-mono text-sm font-bold"
-                  style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}>{editing ? 'СОХРАНИТЬ' : 'СОЗДАТЬ'}</button>
+                <button onClick={handleSave} className="btn-primary flex-1 px-4 py-2.5 rounded-xl font-mono text-sm font-bold"
+                  >{editing ? 'СОХРАНИТЬ' : 'СОЗДАТЬ'}</button>
               </div>
             </motion.div>
           </motion.div>
@@ -480,8 +480,8 @@ export default function Inventory() {
                 autoFocus />
               <div className="flex gap-3 mt-4">
                 <button onClick={() => setShowLocModal(false)} className="flex-1 px-4 py-2.5 rounded-xl glass font-mono text-sm text-gray-400">ОТМЕНА</button>
-                <button onClick={addLocation} className="flex-1 px-4 py-2.5 rounded-xl font-mono text-sm font-bold"
-                  style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}>СОЗДАТЬ</button>
+                <button onClick={addLocation} className="btn-primary flex-1 px-4 py-2.5 rounded-xl font-mono text-sm font-bold"
+                  >СОЗДАТЬ</button>
               </div>
             </motion.div>
           </motion.div>

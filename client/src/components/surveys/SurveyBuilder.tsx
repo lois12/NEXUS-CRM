@@ -243,8 +243,8 @@ export default function SurveyBuilder({ survey, onSaved, onBack }: Props) {
             <button
               onClick={copyLink}
               disabled={!publicSlug}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-[11px] font-bold disabled:opacity-40"
-              style={{ background: 'var(--color-primary)', color: '#000' }}
+              className="btn-primary flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-[11px] font-bold disabled:opacity-40"
+              
             >
               <Copy className="w-3.5 h-3.5" /> КОПИРОВАТЬ
             </button>

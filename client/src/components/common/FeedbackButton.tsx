@@ -105,8 +105,8 @@ export default function FeedbackButton() {
                 <button
                   onClick={submit}
                   disabled={sending || !message.trim()}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-mono font-bold disabled:opacity-40"
-                  style={{ background: 'var(--color-primary)', color: '#000' }}
+                  className="btn-primary flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-mono font-bold disabled:opacity-40"
+                  
                 >
                   <Send className="w-3.5 h-3.5" />
                   {sending ? 'ОТПРАВКА…' : 'ОТПРАВИТЬ'}

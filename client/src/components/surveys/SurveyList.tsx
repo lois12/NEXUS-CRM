@@ -54,8 +54,8 @@ export default function SurveyList({
         </div>
         <button
           onClick={onCreate}
-          className="px-4 py-2.5 rounded-xl font-mono text-sm font-bold flex items-center gap-2"
-          style={{ background: 'var(--color-primary)', color: '#000' }}
+          className="btn-primary px-4 py-2.5 rounded-xl font-mono text-sm font-bold flex items-center gap-2"
+          
         >
           <Plus className="w-4 h-4" /> НОВЫЙ ОПРОС
         </button>

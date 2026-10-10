@@ -398,8 +398,8 @@ export default function Knowledge() {
             <option value="">ВСЕ ТЕГИ</option>
             {allTags.map(t => <option key={t} value={t}>#{t}</option>)}
           </select>
-          <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-sm font-bold"
-            style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}>
+          <button onClick={openCreate} className="btn-primary flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-sm font-bold"
+            >
             <Plus className="w-4 h-4" /> СТАТЬЯ
           </button>
         </div>

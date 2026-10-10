@@ -564,7 +564,7 @@ export default function Projects() {
               <div className="glass rounded-xl p-6">
                 <div className="flex items-center justify-between mb-6">
                   <span className="font-mono text-xs text-gray-400">ПРОЦЕСС РЕАЛИЗАЦИИ</span>
-                  <button onClick={openAddPoint} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-mono text-xs font-bold" style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}>
+                  <button onClick={openAddPoint} className="btn-primary flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-mono text-xs font-bold" >
                     <Plus className="w-3.5 h-3.5" /> ДОБАВИТЬ ТОЧКУ
                   </button>
                 </div>
@@ -644,7 +644,7 @@ export default function Projects() {
                         placeholder="Описание (необязательно)" className="w-full px-3 py-2 rounded-lg bg-black/30 border border-gray-700 text-sm text-gray-200 font-mono" />
                       <div className="flex gap-2">
                         <button onClick={() => setShowLinkForm(false)} className="flex-1 py-2 rounded-lg text-xs font-mono text-gray-400 hover:bg-white/5 border border-gray-700">Отмена</button>
-                        <button onClick={handleAddLink} className="flex-1 py-2 rounded-lg text-xs font-mono font-bold" style={{ background: 'var(--color-primary)', color: '#000' }}>Добавить</button>
+                        <button onClick={handleAddLink} className="btn-primary flex-1 py-2 rounded-lg text-xs font-mono font-bold" >Добавить</button>
                       </div>
                     </motion.div>
                   )}
@@ -710,7 +710,7 @@ export default function Projects() {
                 </div>
                 <div className="flex gap-3 mt-5">
                   <button onClick={() => setShowTimelineModal(false)} className="flex-1 px-4 py-2.5 rounded-xl glass font-mono text-sm text-gray-400">ОТМЕНА</button>
-                  <button onClick={handleSavePoint} className="flex-1 px-4 py-2.5 rounded-xl font-mono text-sm font-bold" style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}>{editingPoint ? 'СОХРАНИТЬ' : 'ДОБАВИТЬ'}</button>
+                  <button onClick={handleSavePoint} className="btn-primary flex-1 px-4 py-2.5 rounded-xl font-mono text-sm font-bold" >{editingPoint ? 'СОХРАНИТЬ' : 'ДОБАВИТЬ'}</button>
                 </div>
               </motion.div>
             </motion.div>
@@ -741,7 +741,7 @@ export default function Projects() {
           <h1 className="text-2xl md:text-3xl font-bold font-mono neon-text" style={{ color: 'var(--color-primary)' }}>ПРОЕКТЫ</h1>
           <p className="text-gray-400 font-mono text-sm mt-1">// {projects.length} ПРОЕКТОВ</p>
         </div>
-        <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-sm font-bold" style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}>
+        <button onClick={openCreate} className="btn-primary flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-sm font-bold" >
           <Plus className="w-4 h-4" /> СОЗДАТЬ
         </button>
       </div>
@@ -813,7 +813,7 @@ export default function Projects() {
               </div>
               <div className="flex gap-3 mt-5">
                 <button onClick={() => setShowModal(false)} className="flex-1 px-4 py-2.5 rounded-xl glass font-mono text-sm text-gray-400">ОТМЕНА</button>
-                <button onClick={handleSave} className="flex-1 px-4 py-2.5 rounded-xl font-mono text-sm font-bold" style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}>{editing ? 'СОХРАНИТЬ' : 'СОЗДАТЬ'}</button>
+                <button onClick={handleSave} className="btn-primary flex-1 px-4 py-2.5 rounded-xl font-mono text-sm font-bold" >{editing ? 'СОХРАНИТЬ' : 'СОЗДАТЬ'}</button>
               </div>
             </motion.div>
           </motion.div>

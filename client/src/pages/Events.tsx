@@ -173,7 +173,7 @@ export default function Events() {
                   </div>
                   <div className="flex gap-2">
                     <button onClick={() => setShowBlockForm(false)} className="flex-1 py-2 rounded-lg text-xs font-mono text-gray-400 hover:bg-white/5 border border-gray-700">Отмена</button>
-                    <button onClick={handleAddBlock} className="flex-1 py-2 rounded-lg text-xs font-mono font-bold" style={{ background: 'var(--color-primary)', color: '#000' }}>Добавить</button>
+                    <button onClick={handleAddBlock} className="btn-primary flex-1 py-2 rounded-lg text-xs font-mono font-bold" >Добавить</button>
                   </div>
                 </motion.div>
               )}
@@ -241,8 +241,8 @@ export default function Events() {
             <option value="">ВСЕ СТАТУСЫ</option>
             {Object.entries(STATUS_CONFIG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
           </select>
-          <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-sm font-bold"
-            style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}>
+          <button onClick={openCreate} className="btn-primary flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-sm font-bold"
+            >
             <Plus className="w-4 h-4" /> ДОБАВИТЬ
           </button>
         </div>

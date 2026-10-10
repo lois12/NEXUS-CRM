@@ -608,8 +608,8 @@ export default function Lists() {
               </>
             )}
             <button onClick={handleSave}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-sm font-bold"
-              style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}>
+              className="btn-primary flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-sm font-bold"
+              >
               СОХРАНИТЬ
             </button>
           </div>
@@ -965,8 +965,8 @@ export default function Lists() {
                 </div>
                 <div className="flex gap-3 mt-5">
                   <button onClick={() => { setShowAddEntry(false); setEditingEntry(null); }} className="flex-1 px-4 py-2.5 rounded-xl glass font-mono text-sm text-gray-400">ОТМЕНА</button>
-                  <button onClick={handleAddEntry} className="flex-1 px-4 py-2.5 rounded-xl font-mono text-sm font-bold"
-                    style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}>{editingEntry ? 'СОХРАНИТЬ' : 'ДОБАВИТЬ'}</button>
+                  <button onClick={handleAddEntry} className="btn-primary flex-1 px-4 py-2.5 rounded-xl font-mono text-sm font-bold"
+                    >{editingEntry ? 'СОХРАНИТЬ' : 'ДОБАВИТЬ'}</button>
                 </div>
               </motion.div>
             </motion.div>
@@ -1017,8 +1017,8 @@ export default function Lists() {
           <p className="text-gray-400 mt-1 font-mono text-sm">// {lists.length} СПИСКОВ</p>
         </div>
         <div className="flex gap-2">
-          <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-sm font-bold"
-            style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}>
+          <button onClick={openCreate} className="btn-primary flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-sm font-bold"
+            >
             <Plus className="w-4 h-4" /> СОЗДАТЬ
           </button>
         </div>
@@ -1029,8 +1029,8 @@ export default function Lists() {
         <div className="text-center py-16">
           <ListIcon className="w-16 h-16 mx-auto mb-4 opacity-30 text-gray-500" />
           <p className="font-mono text-gray-500">// НЕТ СПИСКОВ</p>
-          <button onClick={openCreate} className="mt-4 flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-sm font-bold mx-auto"
-            style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}>
+          <button onClick={openCreate} className="btn-primary mt-4 flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-sm font-bold mx-auto"
+            >
             <Plus className="w-4 h-4" /> СОЗДАТЬ
           </button>
         </div>

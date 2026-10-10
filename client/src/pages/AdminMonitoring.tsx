@@ -270,8 +270,8 @@ export default function AdminMonitoring() {
             <button
               onClick={saveMaintenance}
               disabled={saving}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-mono text-[10px] font-bold transition-all disabled:opacity-50"
-              style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}
+              className="btn-primary flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-mono text-[10px] font-bold transition-all disabled:opacity-50"
+              
             >
               <Save className="w-3.5 h-3.5" />
               {saving ? 'СОХРАНЕНИЕ…' : 'СОХРАНИТЬ'}
@@ -364,8 +364,8 @@ export default function AdminMonitoring() {
             <button
               onClick={createBackup}
               disabled={backingUp}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-[11px] font-bold disabled:opacity-50"
-              style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}
+              className="btn-primary flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-[11px] font-bold disabled:opacity-50"
+              
             >
               <Archive className="w-3.5 h-3.5" />
               {backingUp ? 'СОЗДАНИЕ…' : 'СОЗДАТЬ БЭКАП'}

@@ -222,8 +222,8 @@ export default function Randomizer() {
                 ))}
               </div>
               <button onClick={generateNumber} disabled={isSpinning}
-                className="w-full py-3 rounded-xl font-mono font-bold transition-all disabled:opacity-50"
-                style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}>
+                className="btn-primary w-full py-3 rounded-xl font-mono font-bold transition-all disabled:opacity-50"
+                >
                 {isSpinning ? 'ГЕНЕРАЦИЯ...' : 'ГЕНЕРИРОВАТЬ'}
               </button>
             </>
@@ -244,8 +244,8 @@ export default function Randomizer() {
                   className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-gray-200 font-mono text-sm" />
               </div>
               <button onClick={pickWinners} disabled={isSpinning}
-                className="w-full py-3 rounded-xl font-mono font-bold transition-all disabled:opacity-50"
-                style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}>
+                className="btn-primary w-full py-3 rounded-xl font-mono font-bold transition-all disabled:opacity-50"
+                >
                 {isSpinning ? 'ВЫБИРАЕМ...' : 'ВЫБРАТЬ ПОБЕДИТЕЛЯ'}
               </button>
             </>
@@ -286,8 +286,8 @@ export default function Randomizer() {
                 </div>
               </div>
               <button onClick={rollDice} disabled={isSpinning}
-                className="w-full py-3 rounded-xl font-mono font-bold transition-all disabled:opacity-50"
-                style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}>
+                className="btn-primary w-full py-3 rounded-xl font-mono font-bold transition-all disabled:opacity-50"
+                >
                 {isSpinning ? 'БРОСАЕМ...' : 'БРОСИТЬ КУБИК'}
               </button>
             </>

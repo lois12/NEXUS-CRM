@@ -325,8 +325,8 @@ export default function CheckinScanner() {
               </button>
             </div>
             <button onClick={saveControlPassword} disabled={pwdBusy || !pwdInput.trim()}
-              className="px-4 py-2 rounded-lg font-mono text-xs font-bold disabled:opacity-50"
-              style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}>
+              className="btn-primary px-4 py-2 rounded-lg font-mono text-xs font-bold disabled:opacity-50"
+              >
               {pwdBusy ? '...' : 'СОХРАНИТЬ'}
             </button>
           </div>
@@ -368,8 +368,8 @@ export default function CheckinScanner() {
           <div className="flex gap-2">
             {!scanning ? (
               <button onClick={startScanner}
-                className="flex-1 py-3 rounded-xl font-mono text-sm font-bold transition-all"
-                style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}>
+                className="btn-primary flex-1 py-3 rounded-xl font-mono text-sm font-bold transition-all"
+                >
                 <Camera className="w-4 h-4 inline mr-2" /> ЗАПУСТИТЬ КАМЕРУ
               </button>
             ) : (
@@ -403,8 +403,8 @@ export default function CheckinScanner() {
                 placeholder="// код или токен"
                 className="flex-1 px-3 py-2 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)]" />
               <button onClick={handleManualSubmit}
-                className="px-4 py-2 rounded-lg font-mono text-xs font-bold"
-                style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}>
+                className="btn-primary px-4 py-2 rounded-lg font-mono text-xs font-bold"
+                >
                 <Type className="w-3.5 h-3.5 inline mr-1" /> OK
               </button>
             </div>

@@ -341,8 +341,8 @@ export default function RichEditor({ content, onChange, placeholder = '// ВВЕ
                 <button
                   type="button"
                   onClick={addLink}
-                  className="px-3 py-1.5 text-sm rounded-lg font-mono font-bold"
-                  style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}
+                  className="btn-primary px-3 py-1.5 text-sm rounded-lg font-mono font-bold"
+                  
                 >
                   OK
                 </button>

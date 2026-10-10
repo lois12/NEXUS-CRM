@@ -235,8 +235,8 @@ export default function SurveyFillForm({ survey, slug }: Props) {
       <button
         onClick={submit}
         disabled={submitting || (!isAnon && !consent)}
-        className="w-full py-3 rounded-xl font-mono text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-40"
-        style={{ background: 'var(--color-primary)', color: '#000' }}
+        className="btn-primary w-full py-3 rounded-xl font-mono text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-40"
+        
       >
         <Send className="w-4 h-4" />
         {submitting ? 'ОТПРАВКА…' : 'ОТПРАВИТЬ'}

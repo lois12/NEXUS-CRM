@@ -199,8 +199,8 @@ export default function BrandBank() {
             </button>
           </div>
 
-          <button onClick={openCreateModal} className="flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-sm font-bold"
-            style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}>
+          <button onClick={openCreateModal} className="btn-primary flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-sm font-bold"
+            >
             <Plus className="w-4 h-4" /> ЗАГРУЗИТЬ
           </button>
         </div>
@@ -395,8 +395,8 @@ export default function BrandBank() {
               <div className="flex gap-3 mt-5">
                 <button onClick={() => { setShowModal(false); setEditingAsset(null); }} className="flex-1 px-4 py-2.5 rounded-xl glass font-mono text-sm text-gray-400">ОТМЕНА</button>
                 <button onClick={editingAsset ? handleUpdate : handleUpload} disabled={uploading || (!editingAsset && !selectedFile)}
-                  className="flex-1 px-4 py-2.5 rounded-xl font-mono text-sm font-bold disabled:opacity-50"
-                  style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}>
+                  className="btn-primary flex-1 px-4 py-2.5 rounded-xl font-mono text-sm font-bold disabled:opacity-50"
+                  >
                   {uploading ? 'СОХРАНЕНИЕ...' : editingAsset ? 'СОХРАНИТЬ' : 'ЗАГРУЗИТЬ'}
                 </button>
               </div>

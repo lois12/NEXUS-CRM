@@ -363,8 +363,8 @@ export default function Users() {
                     ОТМЕНИТЬ
                   </button>
                   <button type="submit"
-                    className="flex-1 px-4 py-2.5 rounded-xl font-mono text-sm font-bold transition-all"
-                    style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}>
+                    className="btn-primary flex-1 px-4 py-2.5 rounded-xl font-mono text-sm font-bold transition-all"
+                    >
                     {editingUser ? 'СОХРАНИТЬ' : 'ДОБАВИТЬ'}
                   </button>
                 </div>

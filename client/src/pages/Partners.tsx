@@ -204,8 +204,8 @@ export default function Partners() {
                   <input value={newCat} onChange={e => setNewCat(e.target.value)} placeholder="// НОВАЯ КАТЕГОРИЯ"
                     className="flex-1 px-3 py-2 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)]"
                     onKeyDown={e => e.key === 'Enter' && addCategory()} />
-                  <button onClick={addCategory} className="px-4 py-2 rounded-lg font-mono text-sm font-bold"
-                    style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}>+</button>
+                  <button onClick={addCategory} className="btn-primary px-4 py-2 rounded-lg font-mono text-sm font-bold"
+                    >+</button>
                 </div>
               </motion.div>
             </motion.div>
@@ -236,8 +236,8 @@ export default function Partners() {
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="ПОИСК..."
               className="pl-9 pr-4 py-2 rounded-lg focus:border-[var(--color-primary)] w-full sm:w-48" />
           </div>
-          <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-sm font-bold"
-            style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}>
+          <button onClick={openCreate} className="btn-primary flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-sm font-bold"
+            >
             <Plus className="w-4 h-4" /> ДОБАВИТЬ
           </button>
         </div>

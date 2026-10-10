@@ -418,7 +418,7 @@ export default function Kanban() {
             </button>
           </div>
           {tab === 'active' && (
-            <button onClick={openCreate} className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg font-mono text-xs sm:text-sm font-bold" style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}>
+            <button onClick={openCreate} className="btn-primary flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg font-mono text-xs sm:text-sm font-bold" >
               <Plus className="w-4 h-4" /> СОЗДАТЬ
             </button>
           )}
@@ -573,8 +573,8 @@ export default function Kanban() {
               </div>
               <div className="flex gap-3 mt-5">
                 <button onClick={() => setShowModal(false)} className="flex-1 px-4 py-2.5 rounded-xl glass font-mono text-sm text-gray-400">ОТМЕНА</button>
-                <button onClick={handleSave} className="flex-1 px-4 py-2.5 rounded-xl font-mono text-sm font-bold"
-                  style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}>{editingTask ? 'СОХРАНИТЬ' : 'СОЗДАТЬ'}</button>
+                <button onClick={handleSave} className="btn-primary flex-1 px-4 py-2.5 rounded-xl font-mono text-sm font-bold"
+                  >{editingTask ? 'СОХРАНИТЬ' : 'СОЗДАТЬ'}</button>
               </div>
             </motion.div>
           </motion.div>

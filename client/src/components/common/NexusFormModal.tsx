@@ -52,8 +52,8 @@ export default function NexusFormModal({
                   {cancelLabel}
                 </button>
                 <button onClick={onSave} disabled={saveDisabled}
-                  className="flex-1 px-4 py-2.5 rounded-xl font-mono text-sm font-bold disabled:opacity-50 transition-all"
-                  style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}>
+                  className="btn-primary flex-1 px-4 py-2.5 rounded-xl font-mono text-sm font-bold disabled:opacity-50 transition-all"
+                  >
                   {saveLabel}
                 </button>
               </div>

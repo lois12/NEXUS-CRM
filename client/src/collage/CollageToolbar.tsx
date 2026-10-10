@@ -173,8 +173,8 @@ export function CollageToolbar(props: CollageUIProps) {
         {drawing && (
           <>
             <button onClick={finishPolygon} disabled={drawPts.length < 3}
-              className="px-3 py-2 rounded-lg font-mono text-xs font-bold disabled:opacity-40"
-              style={{ background: 'var(--color-primary)', color: '#000' }}>ГОТОВО</button>
+              className="btn-primary px-3 py-2 rounded-lg font-mono text-xs font-bold disabled:opacity-40"
+              >ГОТОВО</button>
             <button onClick={() => { setDrawing(false); setDrawPts([]); }}
               className="px-3 py-2 rounded-lg font-mono text-xs glass text-gray-400">ОТМЕНА</button>
           </>

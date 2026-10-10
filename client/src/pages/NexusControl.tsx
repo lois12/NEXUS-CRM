@@ -270,8 +270,8 @@ export default function NexusControl() {
               <button
                 type="submit"
                 disabled={passwordLoading || !passwordInput.trim()}
-                className="w-full py-3 rounded-xl font-mono text-sm font-bold transition-all disabled:opacity-50"
-                style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}
+                className="btn-primary w-full py-3 rounded-xl font-mono text-sm font-bold transition-all disabled:opacity-50"
+                
               >
                 {passwordLoading ? 'ПРОВЕРКА...' : 'ВОЙТИ'}
               </button>

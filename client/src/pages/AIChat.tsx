@@ -311,8 +311,8 @@ export default function AIChat() {
               style={{ minHeight: '42px', maxHeight: '100px' }}
               onInput={(e) => { const t = e.currentTarget; t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 100) + 'px'; }} />
             <button onClick={sendMessage} disabled={!input.trim() || isLoading}
-              className="px-4 py-2.5 rounded-lg font-bold transition-all disabled:opacity-30 disabled:cursor-not-allowed flex-shrink-0"
-              style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}>
+              className="btn-primary px-4 py-2.5 rounded-lg font-bold transition-all disabled:opacity-30 disabled:cursor-not-allowed flex-shrink-0"
+              >
               {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
             </button>
           </div>

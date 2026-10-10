@@ -324,8 +324,8 @@ function IdeaSidebarContent({
               placeholder="// КОММЕНТАРИЙ..."
               className="flex-1 px-3 py-2 text-sm rounded-lg bg-white/5 border border-white/10 text-gray-200" />
             <button onClick={handleAddComment} disabled={!newComment.trim()}
-              className="px-3 py-2 rounded-lg font-mono text-xs font-bold transition-all disabled:opacity-30"
-              style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}>
+              className="btn-primary px-3 py-2 rounded-lg font-mono text-xs font-bold transition-all disabled:opacity-30"
+              >
               <Send className="w-4 h-4" />
             </button>
           </div>

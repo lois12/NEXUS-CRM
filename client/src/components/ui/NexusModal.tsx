@@ -92,8 +92,8 @@ export function AlertModal({ isOpen, onClose, title, message, type = 'info' }: A
             <div className="mt-6 flex justify-end">
               <button
                 onClick={onClose}
-                className="px-6 py-2.5 rounded-xl font-mono text-sm font-bold transition-all"
-                style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}
+                className="btn-primary px-6 py-2.5 rounded-xl font-mono text-sm font-bold transition-all"
+                
               >
                 OK
               </button>

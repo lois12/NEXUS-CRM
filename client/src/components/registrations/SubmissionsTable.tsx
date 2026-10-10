@@ -498,8 +498,8 @@ export default function SubmissionsTable({ registrationId, fields, submissions, 
                   ОТМЕНА
                 </button>
                 <button onClick={handleAddSubmit} disabled={adding}
-                  className="flex items-center gap-2 px-5 py-2 rounded-lg font-mono text-sm font-bold disabled:opacity-50 transition-all"
-                  style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}>
+                  className="btn-primary flex items-center gap-2 px-5 py-2 rounded-lg font-mono text-sm font-bold disabled:opacity-50 transition-all"
+                  >
                   <UserPlus className="w-4 h-4" />
                   {adding ? 'ДОБАВЛЕНИЕ...' : 'ДОБАВИТЬ'}
                 </button>

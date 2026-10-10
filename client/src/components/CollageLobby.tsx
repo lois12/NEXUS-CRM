@@ -221,8 +221,8 @@ export default function CollageLobby({ onOpen }: Props) {
                 ОТМЕНА
               </button>
               <button onClick={saveDraft}
-                className="flex-1 py-2.5 rounded-lg font-mono text-xs font-bold"
-                style={{ background: 'var(--color-primary)', color: '#000' }}>
+                className="btn-primary flex-1 py-2.5 rounded-lg font-mono text-xs font-bold"
+                >
                 {draft.id ? 'СОХРАНИТЬ' : 'СОЗДАТЬ И ОТКРЫТЬ'}
               </button>
             </div>

@@ -828,8 +828,8 @@ function ToolPanel({ tool, onBack }: { tool: ToolDef; onBack: () => void }) {
           ))}
           <div className="flex gap-2 pt-2">
             <button onClick={runConvert} disabled={isBusy}
-              className="flex-1 py-2.5 rounded-xl font-mono text-sm font-bold transition-all disabled:opacity-50"
-              style={{ background: 'var(--color-primary)', color: '#000' }}>
+              className="btn-primary flex-1 py-2.5 rounded-xl font-mono text-sm font-bold transition-all disabled:opacity-50"
+              >
               {isBusy ? 'КОНВЕРТАЦИЯ...' : 'КОНВЕРТИРОВАТЬ'}
             </button>
             {items.filter(i => i.status === 'done' && (i.resultBlob || i.resultUrl)).length > 1 && (
