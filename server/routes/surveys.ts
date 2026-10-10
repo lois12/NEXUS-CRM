@@ -1,5 +1,6 @@
 import { Router } from 'express';
-import { authenticateToken, requireRole } from '../middleware/auth';
+import { authenticateToken } from '../middleware/auth';
+import { requireAnyRole, requireOwnership, ROLE_SUPER, ROLE_BOSS, ROLE_INFO, ROLE_TOURISM } from '../middleware/permissions';
 import { upload } from '../middleware/upload';
 import {
   getSurveys, getSurveyById, createSurvey, updateSurvey, deleteSurvey, togglePublish, setStatus, duplicateSurvey,
@@ -11,26 +12,29 @@ import { getPublicSurvey, submitSurveyResponse, getPublicSurveyStats } from '../
 const router = Router();
 router.use(authenticateToken);
 
-// Surveys CRUD
+const canWrite = requireAnyRole(ROLE_SUPER, ROLE_BOSS, ROLE_INFO, ROLE_TOURISM);
+const ownSurvey = requireOwnership('surveys', 'createdBy');
+
+// Surveys CRUD — managers any, others only own
 router.get('/', getSurveys);
 router.get('/:id', getSurveyById);
-router.post('/', requireRole('super_admin', 'руководитель', 'редактор'), createSurvey);
-router.put('/:id', requireRole('super_admin', 'руководитель', 'редактор'), updateSurvey);
-router.delete('/:id', requireRole('super_admin', 'руководитель'), deleteSurvey);
-router.post('/:id/toggle-publish', requireRole('super_admin', 'руководитель', 'редактор'), togglePublish);
-router.post('/:id/status', requireRole('super_admin', 'руководитель', 'редактор'), setStatus);
-router.post('/:id/duplicate', requireRole('super_admin', 'руководитель', 'редактор'), duplicateSurvey);
-router.post('/:id/image', requireRole('super_admin', 'руководитель', 'редактор'), upload.single('file'), (req, res) => {
+router.post('/', canWrite, createSurvey);
+router.put('/:id', canWrite, ownSurvey, updateSurvey);
+router.delete('/:id', canWrite, ownSurvey, deleteSurvey);
+router.post('/:id/toggle-publish', canWrite, ownSurvey, togglePublish);
+router.post('/:id/status', canWrite, ownSurvey, setStatus);
+router.post('/:id/duplicate', canWrite, ownSurvey, duplicateSurvey);
+router.post('/:id/image', canWrite, ownSurvey, upload.single('file'), (req, res) => {
   const file = (req as any).file;
   if (!file) return res.status(400).json({ success: false, error: 'Файл не получен' });
   res.json({ success: true, data: { imageUrl: `/uploads/${file.filename}` } });
 });
 
 // Questions
-router.post('/:id/questions', requireRole('super_admin', 'руководитель', 'редактор'), createQuestion);
-router.put('/:id/questions/:questionId', requireRole('super_admin', 'руководитель', 'редактор'), updateQuestion);
-router.delete('/:id/questions/:questionId', requireRole('super_admin', 'руководитель', 'редактор'), deleteQuestion);
-router.put('/:id/questions-reorder', requireRole('super_admin', 'руководитель', 'редактор'), reorderQuestions);
+router.post('/:id/questions', canWrite, ownSurvey, createQuestion);
+router.put('/:id/questions/:questionId', canWrite, ownSurvey, updateQuestion);
+router.delete('/:id/questions/:questionId', canWrite, ownSurvey, deleteQuestion);
+router.put('/:id/questions-reorder', canWrite, ownSurvey, reorderQuestions);
 
 // Stats + export
 router.get('/:id/stats', getSurveyStats);

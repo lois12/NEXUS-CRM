@@ -8,7 +8,8 @@ import {
   getPublicRegistrations, getPublicSubmissions, createAdminSubmission,
   getRegistrationStats, exportPDF, getAllContacts,
 } from '../controllers/registrationController';
-import { authenticateToken, requireRole } from '../middleware/auth';
+import { authenticateToken } from '../middleware/auth';
+import { requireAnyRole, requireOwnership, ROLE_SUPER, ROLE_BOSS, ROLE_INFO, ROLE_TOURISM } from '../middleware/permissions';
 import { controlAuth } from '../middleware/controlAuth';
 import { getControlStatus, authControl, setControlPassword } from '../controllers/controlAuthController';
 import { upload } from '../middleware/upload';
@@ -32,42 +33,44 @@ router.get('/control/registrations/:id/submissions', controlAuth, getPublicSubmi
 
 // ── Authenticated routes ──
 const authRouter = Router();
+const canWrite = requireAnyRole(ROLE_SUPER, ROLE_BOSS, ROLE_INFO, ROLE_TOURISM);
+const ownReg = requireOwnership('registrations', 'createdBy');
 authRouter.use(authenticateToken);
 
 // Contacts
 authRouter.get('/contacts', getAllContacts);
 
 // CONTROL password management (admin)
-authRouter.put('/control-password', requireRole('super_admin', 'руководитель'), setControlPassword);
+authRouter.put('/control-password', canWrite, setControlPassword);
 
 // Registrations CRUD
 authRouter.get('/', getRegistrations);
 authRouter.get('/:id', getRegistrationById);
-authRouter.post('/', requireRole('super_admin', 'руководитель', 'редактор'), createRegistration);
-authRouter.put('/:id', requireRole('super_admin', 'руководитель', 'редактор'), updateRegistration);
-authRouter.put('/:id/notify', requireRole('super_admin', 'руководитель', 'редактор'), updateAndNotify);
-authRouter.delete('/:id', requireRole('super_admin', 'руководитель'), deleteRegistration);
-authRouter.post('/:id/duplicate', requireRole('super_admin', 'руководитель', 'редактор'), duplicateRegistration);
-authRouter.post('/:id/image', requireRole('super_admin', 'руководитель', 'редактор'), upload.single('file'), uploadImage);
-authRouter.post('/:id/video', requireRole('super_admin', 'руководитель', 'редактор'), upload.single('file'), uploadVideo);
+authRouter.post('/', canWrite, createRegistration);
+authRouter.put('/:id', canWrite, updateRegistration);
+authRouter.put('/:id/notify', canWrite, updateAndNotify);
+authRouter.delete('/:id', canWrite, deleteRegistration);
+authRouter.post('/:id/duplicate', canWrite, duplicateRegistration);
+authRouter.post('/:id/image', canWrite, upload.single('file'), uploadImage);
+authRouter.post('/:id/video', canWrite, upload.single('file'), uploadVideo);
 
 // Media gallery
 authRouter.get('/:id/media', getMedia);
-authRouter.post('/:id/media', requireRole('super_admin', 'руководитель', 'редактор'), upload.single('file'), uploadMedia);
-authRouter.delete('/media/:mediaId', requireRole('super_admin', 'руководитель', 'редактор'), deleteMedia);
+authRouter.post('/:id/media', canWrite, upload.single('file'), uploadMedia);
+authRouter.delete('/media/:mediaId', canWrite, deleteMedia);
 
 // Fields CRUD
-authRouter.post('/:id/fields', requireRole('super_admin', 'руководитель', 'редактор'), createField);
-authRouter.put('/:id/fields/:fieldId', requireRole('super_admin', 'руководитель', 'редактор'), updateField);
-authRouter.delete('/:id/fields/:fieldId', requireRole('super_admin', 'руководитель', 'редактор'), deleteField);
-authRouter.put('/:id/fields-reorder', requireRole('super_admin', 'руководитель', 'редактор'), reorderFields);
+authRouter.post('/:id/fields', canWrite, createField);
+authRouter.put('/:id/fields/:fieldId', canWrite, updateField);
+authRouter.delete('/:id/fields/:fieldId', canWrite, deleteField);
+authRouter.put('/:id/fields-reorder', canWrite, reorderFields);
 
 // Submissions
 authRouter.get('/:id/submissions', getSubmissions);
-authRouter.post('/:id/admin-submission', requireRole('super_admin', 'руководитель', 'редактор'), createAdminSubmission);
-authRouter.patch('/submissions/:subId/status', requireRole('super_admin', 'руководитель', 'редактор'), updateSubmissionStatus);
+authRouter.post('/:id/admin-submission', canWrite, createAdminSubmission);
+authRouter.patch('/submissions/:subId/status', canWrite, updateSubmissionStatus);
 authRouter.delete('/submissions/:subId', cancelSubmission);
-authRouter.delete('/submissions/:subId/delete', requireRole('super_admin', 'руководитель'), deleteSubmission);
+authRouter.delete('/submissions/:subId/delete', canWrite, deleteSubmission);
 authRouter.get('/:id/submissions/export', exportCSV);
 authRouter.get('/:id/stats', getRegistrationStats);
 authRouter.get('/:id/submissions/export-pdf', exportPDF);

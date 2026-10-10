@@ -1,5 +1,6 @@
 import { Router } from 'express';
-import { authenticateToken, requireRole } from '../middleware/auth';
+import { authenticateToken } from '../middleware/auth';
+import { requireAnyRole, requireOwnership, ROLE_SUPER, ROLE_BOSS, ROLE_INFO, ROLE_TOURISM } from '../middleware/permissions';
 import {
   getLists, getListById, createList, updateList, deleteList, duplicateList,
   togglePublish, getPublicList,
@@ -13,33 +14,36 @@ import {
 const router = Router();
 router.use(authenticateToken);
 
-// Lists
+const canWrite = requireAnyRole(ROLE_SUPER, ROLE_BOSS, ROLE_INFO, ROLE_TOURISM);
+const ownList = requireOwnership('lists', 'createdBy');
+
+// Lists — managers any, others only own
 router.get('/', getLists);
 router.get('/:id', getListById);
-router.post('/', requireRole('super_admin', 'руководитель', 'редактор'), createList);
-router.put('/:id', requireRole('super_admin', 'руководитель', 'редактор'), updateList);
-router.delete('/:id', requireRole('super_admin', 'руководитель'), deleteList);
-router.post('/:id/duplicate', requireRole('super_admin', 'руководитель', 'редактор'), duplicateList);
-router.post('/:id/toggle-publish', requireRole('super_admin', 'руководитель', 'редактор'), togglePublish);
+router.post('/', canWrite, createList);
+router.put('/:id', canWrite, ownList, updateList);
+router.delete('/:id', canWrite, ownList, deleteList);
+router.post('/:id/duplicate', canWrite, ownList, duplicateList);
+router.post('/:id/toggle-publish', canWrite, ownList, togglePublish);
 
 // Fields
-router.post('/:id/fields', requireRole('super_admin', 'руководитель', 'редактор'), createField);
-router.put('/:id/fields/:fieldId', requireRole('super_admin', 'руководитель', 'редактор'), updateField);
-router.delete('/:id/fields/:fieldId', requireRole('super_admin', 'руководитель', 'редактор'), deleteField);
-router.put('/:id/fields-reorder', requireRole('super_admin', 'руководитель', 'редактор'), reorderFields);
+router.post('/:id/fields', canWrite, ownList, createField);
+router.put('/:id/fields/:fieldId', canWrite, ownList, updateField);
+router.delete('/:id/fields/:fieldId', canWrite, ownList, deleteField);
+router.put('/:id/fields-reorder', canWrite, ownList, reorderFields);
 
 // Entries
-router.post('/:id/entries', requireRole('super_admin', 'руководитель', 'редактор'), createEntry);
-router.put('/:id/entries/:entryId', requireRole('super_admin', 'руководитель', 'редактор'), updateEntry);
-router.delete('/:id/entries/:entryId', requireRole('super_admin', 'руководитель', 'редактор'), deleteEntry);
-router.patch('/:id/entries/:entryId/toggle', requireRole('super_admin', 'руководитель', 'редактор'), toggleEntry);
-router.patch('/:id/entries/:entryId/pin', requireRole('super_admin', 'руководитель', 'редактор'), togglePin);
-router.patch('/:id/entries/:entryId/star', requireRole('super_admin', 'руководитель', 'редактор'), toggleStar);
-router.post('/:id/entries/:entryId/restore', requireRole('super_admin', 'руководитель', 'редактор'), restoreEntry);
-router.delete('/:id/entries/:entryId/permanent', requireRole('super_admin', 'руководитель'), permanentDelete);
-router.delete('/:id/trash', requireRole('super_admin', 'руководитель'), emptyTrash);
-router.get('/:id/trash', requireRole('super_admin', 'руководитель', 'редактор'), getTrash);
-router.post('/:id/mass-action', requireRole('super_admin', 'руководитель', 'редактор'), massAction);
+router.post('/:id/entries', canWrite, ownList, createEntry);
+router.put('/:id/entries/:entryId', canWrite, ownList, updateEntry);
+router.delete('/:id/entries/:entryId', canWrite, ownList, deleteEntry);
+router.patch('/:id/entries/:entryId/toggle', canWrite, ownList, toggleEntry);
+router.patch('/:id/entries/:entryId/pin', canWrite, ownList, togglePin);
+router.patch('/:id/entries/:entryId/star', canWrite, ownList, toggleStar);
+router.post('/:id/entries/:entryId/restore', canWrite, ownList, restoreEntry);
+router.delete('/:id/entries/:entryId/permanent', canWrite, ownList, permanentDelete);
+router.delete('/:id/trash', canWrite, ownList, emptyTrash);
+router.get('/:id/trash', canWrite, ownList, getTrash);
+router.post('/:id/mass-action', canWrite, ownList, massAction);
 
 // Export
 router.get('/:id/export/csv', exportCSV);

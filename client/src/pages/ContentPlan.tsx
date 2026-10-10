@@ -29,6 +29,7 @@ import RichEditor from '../components/ui/RichEditor';
 import PostComments from '../components/content/PostComments';
 import { useAuth } from '../context/AuthContext';
 import { formatDateKR, formatTimeKR } from '../utils/timezone';
+import { canWriteContent } from '../utils/permissions';
 const FullCalendarView = lazy(() => import('../components/content/FullCalendarView'));
 const WeekAccordionView = lazy(() => import('../components/content/WeekAccordionView'));
 import { LayoutGrid, CalendarDays, Rows } from 'lucide-react';
@@ -131,7 +132,7 @@ interface ContextMenu {
 
 export default function ContentPlan() {
   const { user } = useAuth();
-  const canEdit = !!user && (user.roles?.includes('super_admin') || user.roles?.includes('smm') || user.role === 'super_admin' || user.role === 'smm');
+  const canEdit = canWriteContent(user);
   const [posts, setPosts] = useState<ContentPost[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentDate, setCurrentDate] = useState(new Date());

@@ -25,9 +25,11 @@ import { formatLastSeenKR, formatDateKR } from '../utils/timezone';
 const ALL_ROLES: { value: UserRole; label: string; color: string }[] = [
   { value: 'super_admin', label: 'Super Admin', color: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' },
   { value: 'руководитель', label: 'Руководитель', color: 'bg-red-500/20 text-red-400 border-red-500/30' },
-  { value: 'редактор', label: 'Редактор', color: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
-  { value: 'smm', label: 'SMM', color: 'bg-purple-500/20 text-purple-400 border-purple-500/30' },
-  { value: 'документовед', label: 'Документовед', color: 'bg-green-500/20 text-green-400 border-green-500/30' },
+  { value: 'информационный', label: 'Информационный отдел', color: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
+  { value: 'туризм', label: 'Отдел развития туризма', color: 'bg-purple-500/20 text-purple-400 border-purple-500/30' },
+  { value: 'редактор', label: 'Редактор (legacy)', color: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
+  { value: 'smm', label: 'SMM (legacy)', color: 'bg-purple-500/20 text-purple-400 border-purple-500/30' },
+  { value: 'документовед', label: 'Документовед (legacy)', color: 'bg-green-500/20 text-green-400 border-green-500/30' },
   { value: 'мол', label: 'МОЛ', color: 'bg-amber-500/20 text-amber-400 border-amber-500/30' },
 ];
 

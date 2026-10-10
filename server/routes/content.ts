@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import { getAllPosts, getPostById, createPost, updatePost, deletePost, publishPost, getComments, addComment, deleteComment } from '../controllers/contentController';
-import { authenticateToken, requireRole, AuthRequest } from '../middleware/auth';
+import { authenticateToken, AuthRequest } from '../middleware/auth';
+import { requireAnyRole, ROLE_SUPER, ROLE_BOSS, ROLE_INFO } from '../middleware/permissions';
 import { upload } from '../middleware/upload';
 import { run, get } from '../db/database';
 import { generateThumbnail } from '../utils/thumbnail';
@@ -12,8 +13,8 @@ router.use(authenticateToken);
 router.get('/', getAllPosts);
 router.get('/:id', getPostById);
 
-// Write — только super_admin и smm
-const canWrite = requireRole('super_admin', 'smm');
+// Write — super_admin / руководитель / информационный (туризм = только чтение)
+const canWrite = requireAnyRole(ROLE_SUPER, ROLE_BOSS, ROLE_INFO);
 
 router.post('/', canWrite, createPost);
 router.put('/:id', canWrite, updatePost);

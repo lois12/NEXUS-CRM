@@ -1,5 +1,25 @@
 // User types
-export type UserRole = 'super_admin' | 'руководитель' | 'редактор' | 'smm' | 'документовед' | 'мол';
+export type UserRole =
+  | 'super_admin'
+  | 'руководитель'
+  | 'информационный'
+  | 'туризм'
+  // legacy
+  | 'редактор'
+  | 'smm'
+  | 'документовед'
+  | 'мол';
+
+/** New role labels for Users UI */
+export const ROLE_OPTIONS: { value: UserRole; label: string; color: string; desc: string }[] = [
+  { value: 'super_admin', label: 'Super Admin', color: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30', desc: 'Всё + админка' },
+  { value: 'руководитель', label: 'Руководитель', color: 'bg-red-500/20 text-red-400 border-red-500/30', desc: 'Всё кроме админки' },
+  { value: 'информационный', label: 'Информационный отдел', color: 'bg-blue-500/20 text-blue-400 border-blue-500/30', desc: 'Всё, свои файлы; контент-план писать можно' },
+  { value: 'туризм', label: 'Отдел развития туризма', color: 'bg-purple-500/20 text-purple-400 border-purple-500/30', desc: 'Контент-план только чтение; свои файлы' },
+  { value: 'редактор', label: 'Редактор (legacy)', color: 'bg-blue-500/20 text-blue-400 border-blue-500/30', desc: '= информационный' },
+  { value: 'smm', label: 'SMM (legacy)', color: 'bg-purple-500/20 text-purple-400 border-purple-500/30', desc: '= информационный' },
+  { value: 'документовед', label: 'Документовед (legacy)', color: 'bg-green-500/20 text-green-400 border-green-500/30', desc: '= туризм' },
+];
 
 export interface User {
   id: string;
