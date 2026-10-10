@@ -2,7 +2,7 @@ import { Router, Response } from 'express';
 import crypto from 'crypto';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { get, run, query } from '../db/database';
-import { httpsRequest, getGigaChatToken as getToken } from '../utils/gigachat';
+import { generateImageBuffer, hasCloudflare } from '../utils/imageGenProviders';
 
 const router = Router();
 
@@ -20,16 +20,8 @@ function getMonthlyCount(userId: string, month: string): number {
 
 // POST /api/generate-image
 router.post('/generate-image', authenticateToken, async (req: AuthRequest, res: Response) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-
-  if (req.method === 'OPTIONS') {
-    return res.sendStatus(200);
-  }
-
   try {
-    const { prompt, style } = req.body;
+    const { prompt, style, provider, width, height } = req.body;
     if (!prompt) {
       return res.status(400).json({ error: 'Prompt is required' });
     }
@@ -75,79 +67,46 @@ router.post('/generate-image', authenticateToken, async (req: AuthRequest, res: 
       pop_art: 'поп-арт, в стиле Энди Уорхолла, яркие цвета, точки, высокий контраст',
     };
 
-    const systemPrompt = 'Ты — профессиональный художник. Генерируй изображения по описанию пользователя.';
-    const fullPrompt = stylePrompts[style || 'cyberpunk']
-      ? `${prompt}, ${stylePrompts[style || 'cyberpunk']}`
-      : prompt;
+    const styleSuffix = stylePrompts[style || 'cyberpunk'] || stylePrompts.cyberpunk;
+    const fullPrompt = `${prompt}, ${styleSuffix}`;
 
-    const token = await getToken();
-
-    const chatRes = await httpsRequest({
-      hostname: 'api.giga.chat',
-      path: '/v1/chat/completions',
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'Authorization': 'Bearer ' + token,
-      },
-    }, JSON.stringify({
-      model: 'GigaChat-3-Ultra',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: `Нарисуй: ${fullPrompt}` },
-      ],
-      function_call: 'auto',
-    }));
-
-    if (chatRes.status !== 200) {
-      return res.status(chatRes.status).json({ error: 'GigaChat error', details: chatRes.body.toString().substring(0, 500) });
-    }
-
-    const chatJson = JSON.parse(chatRes.body.toString());
-    const content = chatJson.choices?.[0]?.message?.content || '';
-
-    const match = content.match(/src="([^"]+)"/);
-    if (!match) {
-      return res.status(500).json({ error: 'No image generated', response: content.substring(0, 300) });
-    }
-
-    const fileId = match[1];
-
-    // Download image
-    const dlRes = await httpsRequest({
-      hostname: 'api.giga.chat',
-      path: '/v1/files/' + fileId + '/content',
-      method: 'GET',
-      headers: {
-        'Accept': 'application/jpg',
-        'Authorization': 'Bearer ' + token,
-      },
+    const { buf, provider: used } = await generateImageBuffer(fullPrompt, {
+      width: Number(width) || 1024,
+      height: Number(height) || 1024,
+      provider: provider === 'cloudflare' || provider === 'pollinations' ? provider : undefined,
     });
-
-    if (dlRes.status !== 200 || dlRes.body.length < 1000) {
-      return res.status(500).json({ error: 'Failed to download image' });
-    }
 
     // Log generation
     const month = getCurrentMonth();
     run('INSERT INTO image_gen_log (id, userId, month) VALUES (?, ?, ?)', [crypto.randomUUID(), userId, month]);
 
-    // Return base64
-    const base64 = dlRes.body.toString('base64');
-
-    // Send remaining count for non-admins
+    const isPng = buf[0] === 0x89 && buf[1] === 0x50;
+    const mime = isPng ? 'image/png' : 'image/jpeg';
+    const base64 = buf.toString('base64');
     const remaining = isSuperAdmin ? -1 : MONTHLY_LIMIT - getMonthlyCount(userId, month);
 
     res.json({
-      image: `data:image/jpeg;base64,${base64}`,
+      image: `data:${mime};base64,${base64}`,
+      provider: used,
+      cloudflareConfigured: hasCloudflare(),
       remaining,
       limit: isSuperAdmin ? 'unlimited' : MONTHLY_LIMIT,
     });
   } catch (err: any) {
     console.error('Image gen error:', err);
-    res.status(500).json({ error: 'Ошибка генерации изображения' });
+    res.status(500).json({ error: 'Ошибка генерации изображения', detail: err?.message });
   }
+});
+
+/** Provider status for UI */
+router.get('/image-providers', authenticateToken, (_req: AuthRequest, res: Response) => {
+  res.json({
+    success: true,
+    data: {
+      cloudflare: hasCloudflare(),
+      pollinations: true,
+    },
+  });
 });
 
 export default router;

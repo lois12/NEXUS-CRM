@@ -20,6 +20,10 @@ export const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || '';
 export const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || '';
 export const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
 
+/** Cloudflare Workers AI (free tier ~10k neurons/day) */
+export const CF_ACCOUNT_ID = process.env.CF_ACCOUNT_ID || '';
+export const CF_API_TOKEN = process.env.CF_API_TOKEN || '';
+
 // ── Startup validation ──
 if (!JWT_SECRET || JWT_SECRET.length < 16 || JWT_SECRET === 'CHANGE_ME_TO_RANDOM_STRING') {
   console.error('\x1b[31mFATAL: JWT_SECRET is not set or too short. Set it in .env (min 16 chars).\x1b[0m');
