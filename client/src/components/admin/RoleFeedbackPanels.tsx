@@ -11,33 +11,111 @@ interface FeedbackRow {
   createdAt: string;
 }
 
-const ROLE_MATRIX_DEFAULT: Record<string, Record<string, boolean | 'own'>> = {
+type Perm = boolean | 'own' | 'view';
+
+const ROLE_LABELS: Record<string, string> = {
+  super_admin: 'Super Admin',
+  руководитель: 'Руководитель',
+  информационный: 'Информационный отдел',
+  туризм: 'Отдел развития туризма',
+};
+
+const MODULES = [
+  'Дашборд',
+  'Контент-план',
+  'Опросы / Списки',
+  'Регистрации',
+  'Материалы (файлы)',
+  'Задачи',
+  'Пользователи',
+  'Админка / Бэкапы',
+];
+
+/** Canonical v2 matrix — always these 4 roles */
+const ROLE_MATRIX_DEFAULT: Record<string, Record<string, Perm>> = {
   super_admin: {
-    'Дашборд': true, 'Контент-план': true, 'Опросы': true, 'Задачи': true,
-    'События/Регистрации': true, 'Пользователи': true, 'Админка/Бэкапы': true, 'Экспорт': true,
+    'Дашборд': true,
+    'Контент-план': true,
+    'Опросы / Списки': true,
+    'Регистрации': true,
+    'Материалы (файлы)': true,
+    'Задачи': true,
+    'Пользователи': true,
+    'Админка / Бэкапы': true,
   },
   руководитель: {
-    'Дашборд': true, 'Контент-план': true, 'Опросы': true, 'Задачи': true,
-    'События/Регистрации': true, 'Пользователи': true, 'Админка/Бэкапы': false, 'Экспорт': true,
+    'Дашборд': true,
+    'Контент-план': true,
+    'Опросы / Списки': true,
+    'Регистрации': true,
+    'Материалы (файлы)': true,
+    'Задачи': true,
+    'Пользователи': true,
+    'Админка / Бэкапы': false,
   },
   информационный: {
-    'Дашборд': true, 'Контент-план': true, 'Опросы': 'own', 'Задачи': true,
-    'События/Регистрации': 'own', 'Пользователи': false, 'Админка/Бэкапы': false, 'Экспорт': 'own',
+    'Дашборд': true,
+    'Контент-план': true,
+    'Опросы / Списки': 'own',
+    'Регистрации': 'own',
+    'Материалы (файлы)': 'own',
+    'Задачи': true,
+    'Пользователи': false,
+    'Админка / Бэкапы': false,
   },
   туризм: {
-    'Дашборд': true, 'Контент-план': 'own', 'Опросы': 'own', 'Задачи': true,
-    'События/Регистрации': 'own', 'Пользователи': false, 'Админка/Бэкапы': false, 'Экспорт': 'own',
+    'Дашборд': true,
+    'Контент-план': 'view',
+    'Опросы / Списки': 'own',
+    'Регистрации': 'own',
+    'Материалы (файлы)': 'own',
+    'Задачи': true,
+    'Пользователи': false,
+    'Админка / Бэкапы': false,
   },
 };
 
-const STORAGE_KEY = 'nexus_role_matrix_v1';
+const STORAGE_KEY = 'nexus_role_matrix_v2';
 
-function loadMatrix() {
+/**
+ * Always render the 4 new roles/modules.
+ * Saved data is merged by key; legacy keys (smm, редактор, …) are ignored.
+ */
+function normalizeMatrix(stored: any): Record<string, Record<string, Perm>> {
+  const out: Record<string, Record<string, Perm>> = {};
+  for (const role of Object.keys(ROLE_MATRIX_DEFAULT)) {
+    out[role] = { ...ROLE_MATRIX_DEFAULT[role] };
+    const src = stored?.[role];
+    if (src && typeof src === 'object') {
+      for (const mod of MODULES) {
+        const v = src[mod];
+        if (v === true || v === false || v === 'own' || v === 'view') out[role][mod] = v;
+      }
+    }
+  }
+  return out;
+}
+
+function loadMatrix(): Record<string, Record<string, Perm>> {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
+    const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem('nexus_role_matrix_v1');
+    if (raw) return normalizeMatrix(JSON.parse(raw));
   } catch { /* noop */ }
   return ROLE_MATRIX_DEFAULT;
+}
+
+const PERM_LABEL: Record<string, string> = {
+  true: 'полный',
+  own: 'свои',
+  view: 'чтение',
+  false: 'нет',
+};
+
+function nextPerm(v: Perm): Perm {
+  if (v === true) return 'own';
+  if (v === 'own') return 'view';
+  if (v === 'view') return false;
+  return true;
 }
 
 export function FeedbackInbox() {
@@ -156,7 +234,7 @@ export function FeedbackInbox() {
 }
 
 export function RoleMatrixEditor() {
-  const [matrix, setMatrix] = useState(loadMatrix);
+  const [matrix, setMatrix] = useState<Record<string, Record<string, Perm>>>(loadMatrix);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -164,18 +242,20 @@ export function RoleMatrixEditor() {
     fetch('/api/roles/matrix', { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => r.json())
       .then((data) => {
-        if (data?.success && data.data && typeof data.data === 'object') {
-          setMatrix(data.data);
-          try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data.data)); } catch { /* noop */ }
-        }
+        // always normalize — server may still hold legacy role keys
+        const m = normalizeMatrix(data?.data);
+        setMatrix(m);
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(m));
+          localStorage.removeItem('nexus_role_matrix_v1');
+        } catch { /* noop */ }
       })
-      .catch(() => { /* offline / 401 — keep default */ });
+      .catch(() => { /* offline — keep local default */ });
   }, []);
 
   const roles = Object.keys(matrix);
-  const cols = Object.keys(matrix[roles[0]] || {});
 
-  const persist = async (next: Record<string, Record<string, boolean | 'own'>>) => {
+  const persist = async (next: Record<string, Record<string, Perm>>) => {
     setSaving(true);
     try {
       const token = localStorage.getItem('nexus_token') || sessionStorage.getItem('nexus_token') || '';
@@ -194,16 +274,15 @@ export function RoleMatrixEditor() {
         showToast(data?.error || 'Не удалось сохранить на сервере', 'error');
       }
     } catch {
-      showToast('Ошибка сети — сохранено только локально', 'error');
+      showToast('Ошибка сети', 'error');
     } finally {
       setSaving(false);
     }
   };
 
   const cycle = (role: string, mod: string) => {
-    setMatrix((prev: any) => {
-      const cur = prev[role][mod];
-      const nextVal = cur === true ? 'own' : cur === 'own' ? false : true;
+    setMatrix((prev) => {
+      const nextVal = nextPerm(prev[role][mod]);
       const copy = { ...prev, [role]: { ...prev[role], [mod]: nextVal } };
       try { localStorage.setItem(STORAGE_KEY, JSON.stringify(copy)); } catch { /* noop */ }
       persist(copy);
@@ -211,22 +290,46 @@ export function RoleMatrixEditor() {
     });
   };
 
+  const resetDefault = () => {
+    const copy = JSON.parse(JSON.stringify(ROLE_MATRIX_DEFAULT));
+    setMatrix(copy);
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(copy)); } catch { /* noop */ }
+    persist(copy);
+  };
+
   return (
     <div className="glass rounded-xl p-4 space-y-3">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <h3 className="font-mono text-xs font-bold tracking-wider" style={{ color: '#6b7280' }}>
-          ПРАВА РОЛЕЙ · КЛИК = ПОЛНЫЙ → СВОИ → НЕТ
+          РАЗДАЧА ПРАВ · КЛИК ПО ЯЧЕЙКЕ
         </h3>
-        {saving && (
-          <span className="text-[10px] font-mono" style={{ color: 'var(--color-primary)' }}>сохранение…</span>
-        )}
+        <div className="flex items-center gap-2">
+          {saving && (
+            <span className="text-[10px] font-mono" style={{ color: 'var(--color-primary)' }}>сохранение…</span>
+          )}
+          <button
+            onClick={resetDefault}
+            disabled={saving}
+            className="px-2.5 py-1 rounded-lg text-[10px] font-mono glass text-gray-400 hover:text-gray-200 disabled:opacity-50"
+          >
+            СБРОС
+          </button>
+        </div>
       </div>
+
+      <div className="flex flex-wrap gap-3 text-[9px] font-mono" style={{ color: '#4a4a60' }}>
+        <span><b style={{ color: '#00ff88' }}>полный</b> — любые записи</span>
+        <span><b style={{ color: '#eab308' }}>свои</b> — только созданные</span>
+        <span><b style={{ color: '#00d4ff' }}>чтение</b> — смотреть без правок</span>
+        <span><b style={{ color: '#5a5a70' }}>нет</b> — скрыто</span>
+      </div>
+
       <div className="overflow-x-auto">
         <table className="w-full text-[10px] font-mono">
           <thead>
             <tr>
               <th className="text-left pb-2 pr-2" style={{ color: '#4a4a60' }}>Роль</th>
-              {cols.map((c) => (
+              {MODULES.map((c) => (
                 <th key={c} className="text-center pb-2 px-1" style={{ color: '#4a4a60' }}>{c}</th>
               ))}
             </tr>
@@ -234,23 +337,28 @@ export function RoleMatrixEditor() {
           <tbody>
             {roles.map((role) => (
               <tr key={role} className="border-t border-white/5">
-                <td className="py-1.5 pr-2 font-bold" style={{ color: '#c0c0d0' }}>{role}</td>
-                {cols.map((c) => {
+                <td className="py-1.5 pr-2 font-bold whitespace-nowrap" style={{ color: '#c0c0d0' }}>
+                  {ROLE_LABELS[role] || role}
+                </td>
+                {MODULES.map((c) => {
                   const v = matrix[role][c];
+                  const bg =
+                    v === true ? 'rgba(0,255,136,0.28)'
+                    : v === 'own' ? 'rgba(234,179,8,0.22)'
+                    : v === 'view' ? 'rgba(0,212,255,0.18)'
+                    : 'rgba(255,255,255,0.04)';
+                  const fg =
+                    v === true ? '#00ff88' : v === 'own' ? '#eab308' : v === 'view' ? '#00d4ff' : '#5a5a70';
                   return (
                     <td key={c} className="text-center py-1.5 px-1">
                       <button
                         onClick={() => cycle(role, c)}
-                        disabled={saving}
-                        className="w-full h-7 rounded transition-colors disabled:opacity-50"
-                        style={{
-                          background:
-                            v === true ? 'rgba(0,255,136,0.25)' : v === 'own' ? 'rgba(234,179,8,0.2)' : 'rgba(255,255,255,0.04)',
-                          color: v === true ? '#00ff88' : v === 'own' ? '#eab308' : '#5a5a70',
-                        }}
-                        title={`${role} × ${c}`}
+                        disabled={saving || role === 'super_admin'}
+                        className="w-full h-7 rounded transition-colors disabled:opacity-40"
+                        style={{ background: bg, color: fg }}
+                        title={`${ROLE_LABELS[role] || role} × ${c}`}
                       >
-                        {v === true ? '✓' : v === 'own' ? 'свои' : '—'}
+                        {PERM_LABEL[String(v)] || String(v)}
                       </button>
                     </td>
                   );
@@ -261,7 +369,7 @@ export function RoleMatrixEditor() {
         </table>
       </div>
       <p className="text-[10px] font-mono" style={{ color: '#4a4a60' }}>
-        // сохраняется в БД (app_settings.roleMatrix) · видно всем супер-админам
+        // фактические гейты: server/middleware/permissions.ts · матрица — сводка и быстрый переключатель
       </p>
     </div>
   );
