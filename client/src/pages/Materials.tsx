@@ -10,6 +10,7 @@ import {
 import { Material, MaterialType, ChatConversation } from '../types';
 import { materialsApi, chatApi } from '../services/api';
 import { showToast, useNexusConfirm, ConfirmModal } from '../components/ui/NexusModal';
+import EmptyState from '../components/ui/EmptyState';
 import { formatDateKR } from '../utils/timezone';
 import { SkeletonGrid, SkeletonHeader } from '../components/ui/Skeleton';
 
@@ -443,10 +444,12 @@ export default function Materials() {
       </div>
 
       {filteredMaterials.length === 0 && (
-        <div className="text-center py-12">
-          <FolderOpen className="w-16 h-16 mx-auto mb-4 opacity-30 text-gray-500" />
-          <p className="font-mono text-gray-500">// НЕТ МАТЕРИАЛОВ</p>
-        </div>
+        <EmptyState
+          title={searchQuery || currentFolder || filterType !== 'all' ? 'Ничего не найдено' : 'Материалов пока нет'}
+          description={searchQuery || currentFolder || filterType !== 'all' ? 'Попробуйте другой запрос или папку.' : 'Загрузите файлы — они появятся здесь и в поиске.'}
+          actionLabel={!searchQuery && !currentFolder && filterType === 'all' ? 'ЗАГРУЗИТЬ ФАЙЛ' : undefined}
+          onAction={!searchQuery && !currentFolder && filterType === 'all' ? () => fileInputRef.current?.click() : undefined}
+        />
       )}
 
       {/* Send to Chat Modal */}

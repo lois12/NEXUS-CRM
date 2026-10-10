@@ -138,12 +138,28 @@ export function searchAll(req: AuthRequest, res: Response) {
       }
     }
 
-    // Materials
-    if (results.length < 20 && hasRole(user, 'super_admin', 'руководитель', 'редактор', 'smm', 'документовед')) {
-      const rows = query(`SELECT id, name AS title, folder AS subtitle FROM materials`);
+    // Materials — name + text-file content
+    if (results.length < 20 && hasRole(user, 'super_admin', 'руководитель', 'редактор', 'smm', 'документовед', 'информационный', 'туризм')) {
+      const rows = query(`SELECT id, name AS title, folder AS subtitle, url, mimeType FROM materials`);
       for (const r of rows) {
-        if (ciLike(r.title, term)) {
-          results.push({ ...r, type: 'material', link: '/materials', avatar: '' });
+        let hit = ciLike(r.title, term) || ciLike(r.subtitle, term);
+        let snippet = hit && ciLike(r.subtitle, term) ? String(r.subtitle || '') : '';
+        if (!hit) {
+          const snip = textFileSnippet(r.url, r.mimeType, term);
+          if (snip) {
+            hit = true;
+            snippet = snip;
+          }
+        }
+        if (hit) {
+          results.push({
+            id: r.id,
+            title: r.title,
+            subtitle: snippet || r.subtitle || '',
+            type: 'material',
+            link: '/materials',
+            avatar: '',
+          });
           if (results.length >= 20) break;
         }
       }
@@ -153,5 +169,33 @@ export function searchAll(req: AuthRequest, res: Response) {
   } catch (error) {
     console.error('Search error:', error);
     res.status(500).json({ success: false, error: 'Search failed' });
+  }
+}
+
+const TEXT_EXT = /\.(txt|md|csv|json|html?|xml|log|yml|yaml|tsv|sql|js|ts|tsx|css)$/i;
+
+/** Read small text files and find a snippet around the query */
+function textFileSnippet(url: string | null, mimeType: string | null, term: string): string | null {
+  if (!url) return null;
+  // only text-ish files (avoid binary/pdf)
+  const looksText = TEXT_EXT.test(url) || (mimeType || '').startsWith('text/') || (mimeType || '').includes('json');
+  if (!looksText) return null;
+  try {
+    const fs = require('fs') as typeof import('fs');
+    const path = require('path') as typeof import('path');
+    const { UPLOADS_DIR } = require('../paths') as typeof import('../paths');
+    // url like /uploads/filename.ext
+    const file = path.basename(String(url).split('?')[0]);
+    const full = path.join(UPLOADS_DIR, file);
+    const st = fs.statSync(full);
+    if (st.size > 512 * 1024) return null; // skip >512KB
+    const text = fs.readFileSync(full, 'utf8');
+    const idx = text.toLowerCase().indexOf(term);
+    if (idx === -1) return null;
+    const start = Math.max(0, idx - 40);
+    const end = Math.min(text.length, idx + term.length + 60);
+    return '…' + text.slice(start, end).replace(/\s+/g, ' ').trim() + '…';
+  } catch {
+    return null;
   }
 }

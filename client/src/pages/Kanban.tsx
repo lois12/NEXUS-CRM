@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Trash2, Edit3, Calendar, Flag, X, Archive, ArchiveRestore, Paperclip, Upload, FileText, Image, File, Download, GripVertical } from 'lucide-react';
 import { KanbanTask, KanbanStatus, KanbanPriority, KANBAN_COLUMNS } from '../types';
 import { kanbanApi } from '../services/api';
-import { showToast } from '../components/ui/NexusModal';
+import { showToast, showUndoToast } from '../components/ui/NexusModal';
 import {
   DndContext,
   DragOverlay,
@@ -341,8 +341,30 @@ export default function Kanban() {
   };
 
   const handleDelete = async (id: string) => {
-    try { await kanbanApi.delete(id); showToast('Удалено', 'success'); fetchTasks(); }
-    catch { showToast('Ошибка', 'error'); }
+    const victim = [...tasks, ...archived].find((t) => t.id === id);
+    try {
+      await kanbanApi.delete(id);
+      fetchTasks();
+      if (victim) {
+        showUndoToast('Задача удалена', async () => {
+          try {
+            await kanbanApi.create({
+              title: victim.title,
+              description: victim.description,
+              status: victim.status,
+              priority: victim.priority,
+              dueDate: victim.dueDate,
+            });
+            fetchTasks();
+            showToast('Задача восстановлена', 'success');
+          } catch {
+            showToast('Не удалось восстановить', 'error');
+          }
+        });
+      }
+    } catch {
+      showToast('Ошибка', 'error');
+    }
   };
   const handleArchive = async (id: string) => { try { await kanbanApi.archive(id); showToast('В архив', 'success'); fetchTasks(); } catch {} };
   const handleUnarchive = async (id: string) => { try { await kanbanApi.unarchive(id); showToast('Восстановлено', 'success'); fetchTasks(); } catch {} };

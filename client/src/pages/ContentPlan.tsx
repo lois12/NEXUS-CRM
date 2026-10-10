@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import { ContentPost, SocialPlatform, ContentStatus } from '../types';
 import { contentApi } from '../services/api';
-import { ConfirmModal, useNexusConfirm, NexusSpinner, showToast } from '../components/ui/NexusModal';
+import { ConfirmModal, useNexusConfirm, NexusSpinner, showToast, showUndoToast } from '../components/ui/NexusModal';
 import EmptyState from '../components/ui/EmptyState';
 import { exportWeekCsv, exportWeekPdf } from '../utils/contentExport';
 import ImageUpload from '../components/ui/ImageUpload';
@@ -277,13 +277,32 @@ export default function ContentPlan() {
   };
 
   const handleDelete = (id: string) => {
+    const victim = posts.find((p) => p.id === id);
     showConfirm(
       'УДАЛИТЬ ПОСТ?',
-      'Это действие нельзя отменить.',
+      'Есть 5 секунд на «Отменить» после удаления.',
       async () => {
         try {
           await contentApi.delete(id);
           fetchPosts();
+          if (victim) {
+            showUndoToast('Пост удалён', async () => {
+              try {
+                await contentApi.create({
+                  title: victim.title,
+                  content: victim.content,
+                  status: victim.status,
+                  scheduledDate: victim.scheduledDate,
+                  platforms: victim.platforms?.length ? victim.platforms : [victim.platform],
+                  platform: victim.platform,
+                });
+                fetchPosts();
+                showToast('Пост восстановлен', 'success');
+              } catch {
+                showToast('Не удалось восстановить', 'error');
+              }
+            });
+          }
         } catch (error) {
           console.error('Failed to delete post:', error);
         }

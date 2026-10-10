@@ -282,6 +282,23 @@ export function showToast(message: string, type: 'success' | 'info' | 'warning' 
   }
 }
 
+/**
+ * Toast with «Отменить» (5s). Call after a successful delete;
+ * `onUndo` should restore the item (re-create or un-delete).
+ */
+export function showUndoToast(message: string, onUndo: () => void, ms = 5000) {
+  const id = sonnerToast(message, {
+    duration: ms,
+    action: {
+      label: 'ОТМЕНИТЬ',
+      onClick: () => {
+        try { onUndo(); } catch (e) { console.error(e); }
+      },
+    },
+  });
+  return id;
+}
+
 export function NexusToasts() {
   // Sonner's <Toaster> is rendered in App.tsx — this component is kept for compatibility
   return null;

@@ -699,7 +699,7 @@ export default function ChatWidget() {
 
   const messagesAreaContent = (
     <>
-      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-5 py-4 space-y-4 relative"
+      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-3 sm:px-5 py-3 sm:py-4 space-y-3 sm:space-y-4 relative"
         style={{ background: chatWallpaper ? (chatWallpaper.startsWith('linear-gradient') ? chatWallpaper : `url(${chatWallpaper}) center/cover`) : 'linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.2) 100%)' }}
         onScroll={handleScroll}
         onDragOver={handleChatDragOver} onDragLeave={handleChatDragLeave} onDrop={handleChatDrop}>
@@ -807,7 +807,7 @@ export default function ChatWidget() {
           )}
         </div>
         {/* Toolbar row — buttons on top */}
-        <div className="flex items-center gap-1.5 md:gap-2 mb-2">
+        <div className="flex items-center gap-1.5 md:gap-2 mb-2 px-0">
           <input id="chat-file-input" type="file" className="hidden" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.zip,.rar,.txt,.csv"
             onChange={e => { const f = e.target.files?.[0]; if (f) handleFileUpload(f); e.target.value = ''; }} />
           <button onClick={() => { const el = document.getElementById('chat-file-input'); if (el) el.click(); }} className="p-2 rounded-xl transition-all hover:bg-white/5 flex-shrink-0" style={{ border: glassBorder }}>
@@ -941,11 +941,33 @@ export default function ChatWidget() {
   );
 
   const ChatHeader = ({ conv }: { conv: ChatConversation }) => (
-    <div className="relative flex items-center gap-3 px-5 py-3.5" style={{ background: glassBg, borderBottom: glassBorder, backdropFilter: glassBlur }}>
-      {(!isFullscreen || true) && <button onClick={() => {
-        if (isFullscreen && window.innerWidth < 768) { navigate('/'); setIsFullscreen(false); setIsOpen(false); }
-        else { setActiveConv(null); activeConvRef.current = null; setMessages([]); setReplyTo(null); }
-      }} className={`p-1.5 rounded-xl hover:bg-white/5 transition-colors ${isFullscreen ? 'sm:hidden' : ''}`}><ArrowLeft className="w-4 h-4" style={{ color: '#8a8aa0' }} /></button>}
+    <div className="relative flex items-center gap-2 sm:gap-3 px-3 sm:px-5 py-3 sm:py-3.5" style={{ background: glassBg, borderBottom: glassBorder, backdropFilter: glassBlur }}>
+      <button
+        onClick={() => {
+          // mobile: always back to list first; second back closes overlay
+          if (window.innerWidth < 640 && activeConv) {
+            setActiveConv(null);
+            activeConvRef.current = null;
+            setMessages([]);
+            setReplyTo(null);
+            return;
+          }
+          if (isFullscreen && window.innerWidth < 768) {
+            navigate('/');
+            setIsFullscreen(false);
+            setIsOpen(false);
+          } else {
+            setActiveConv(null);
+            activeConvRef.current = null;
+            setMessages([]);
+            setReplyTo(null);
+          }
+        }}
+        className="p-2 rounded-xl hover:bg-white/5 transition-colors min-w-[40px] min-h-[40px] flex items-center justify-center"
+        aria-label="Назад"
+      >
+        <ArrowLeft className="w-4 h-4" style={{ color: '#8a8aa0' }} />
+      </button>
       <Avatar name={conv.otherName} avatar={conv.otherAvatar} size={isFullscreen ? undefined : 'sm'} glow
         lastSeen={!isConnected ? undefined : conv.otherLastSeen}
         onClick={() => {
