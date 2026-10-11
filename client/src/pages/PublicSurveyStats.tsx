@@ -4,6 +4,7 @@ import { RefreshCw, Users } from 'lucide-react';
 import SurveyDailyChart from '../components/surveys/SurveyDailyChart';
 import SurveyChartView, { type ChartView } from '../components/surveys/SurveyChartView';
 import SurveyExportGlitch from '../components/surveys/SurveyExportGlitch';
+import PrivacyFooter from '../components/common/PrivacyFooter';
 import { AnimatedNumber } from '../components/surveys/useCountUp';
 import { publicSurveyApi } from '../services/surveyApi';
 
@@ -216,6 +217,7 @@ export default function PublicSurveyStats() {
           <span>NEXUS CRM · nexus-liberty.online</span>
           <span>{fmtRu(new Date().toISOString())}</span>
         </div>
+        <PrivacyFooter compact />
       </div>
     </div>
   );

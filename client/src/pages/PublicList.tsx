@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { List as ListIcon, AlertTriangle, Phone, Mail, Check, X as XIcon, Download, FileText } from 'lucide-react';
 import { publicListsApi } from '../services/api';
 import { CyberBackground } from '../components/ui/CyberBackground';
+import PrivacyFooter from '../components/common/PrivacyFooter';
 
 export default function PublicList() {
   const { slug } = useParams<{ slug: string }>();
@@ -184,6 +185,7 @@ export default function PublicList() {
             <p className="font-mono text-sm text-gray-500">Список пуст</p>
           </div>
         )}
+        <PrivacyFooter compact />
       </motion.div>
     </div>
   );

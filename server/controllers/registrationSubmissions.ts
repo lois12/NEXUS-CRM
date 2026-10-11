@@ -101,9 +101,10 @@ export const submitRegistration = (req: AuthRequest, res: Response) => {
     const checkinToken = uuidv4();
     const confirmCode = String(Math.floor(1000 + Math.random() * 9000));
 
-    run(`INSERT INTO registration_submissions (id, registrationId, userId, answers, contactName, contactLastName, contactFirstName, contactPatronymic, contactEmail, contactPhone, status, cancelToken, checkinToken, confirmCode, position)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [id, reg.id, req.user?.id || null, JSON.stringify(answers || {}), fullName, effectiveLastName, effectiveFirstName, patronymic, contactEmail || '', contactPhone || '', status, cancelToken, checkinToken, confirmCode, position]);
+    run(`INSERT INTO registration_submissions (id, registrationId, userId, answers, contactName, contactLastName, contactFirstName, contactPatronymic, contactEmail, contactPhone, status, cancelToken, checkinToken, confirmCode, position, consent, consentAt, consentIp)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, datetime('now'), ?)`,
+      [id, reg.id, req.user?.id || null, JSON.stringify(answers || {}), fullName, effectiveLastName, effectiveFirstName, patronymic, contactEmail || '', contactPhone || '', status, cancelToken, checkinToken, confirmCode, position,
+        (req.ip || req.socket?.remoteAddress || '').toString().slice(0, 64)]);
 
     const submission = get('SELECT * FROM registration_submissions WHERE id = ?', [id]);
     res.status(201).json({ success: true, data: { ...submission, cancelToken, checkinToken, confirmCode } });
@@ -182,9 +183,10 @@ export const createAdminSubmission = (req: AuthRequest, res: Response) => {
     const checkinToken = uuidv4();
     const confirmCode = String(Math.floor(1000 + Math.random() * 9000));
 
-    run(`INSERT INTO registration_submissions (id, registrationId, userId, answers, contactName, contactLastName, contactFirstName, contactPatronymic, contactEmail, contactPhone, status, cancelToken, checkinToken, confirmCode, position)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'registered', ?, ?, ?, 0)`,
-      [submissionId, id, req.user?.id || null, JSON.stringify(answers || {}), fullName, effectiveLastName, effectiveFirstName, patronymic, contactEmail?.trim() || '', contactPhone?.trim() || '', cancelToken, checkinToken, confirmCode]);
+    run(`INSERT INTO registration_submissions (id, registrationId, userId, answers, contactName, contactLastName, contactFirstName, contactPatronymic, contactEmail, contactPhone, status, cancelToken, checkinToken, confirmCode, position, consent, consentAt, consentIp)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'registered', ?, ?, ?, 0, 1, datetime('now'), ?)`,
+      [submissionId, id, req.user?.id || null, JSON.stringify(answers || {}), fullName, effectiveLastName, effectiveFirstName, patronymic, contactEmail?.trim() || '', contactPhone?.trim() || '', cancelToken, checkinToken, confirmCode,
+        (req.ip || req.socket?.remoteAddress || '').toString().slice(0, 64)]);
 
     const submission = get('SELECT * FROM registration_submissions WHERE id = ?', [submissionId]);
     res.status(201).json({ success: true, data: { ...submission, cancelToken, checkinToken, confirmCode } });

@@ -197,6 +197,7 @@ export const submitSurveyResponse = (req: AuthRequest, res: Response) => {
       contactPhone = '',
       contactEmail = '',
       answers = {},
+      consent = true,
     } = req.body || {};
 
     const dev = String(deviceId || '').trim().slice(0, 64);
@@ -208,6 +209,9 @@ export const submitSurveyResponse = (req: AuthRequest, res: Response) => {
       if (!String(contactEmail).trim()) throw new HttpError(400, 'Укажите email');
     }
 
+    // consent proof (152-FZ) — public forms always require it
+    if (!consent) throw new HttpError(400, 'Нужно согласие на обработку персональных данных');
+
     // one response per device
     const existing = get(
       'SELECT id FROM survey_responses WHERE surveyId = ? AND deviceId = ?',
@@ -217,10 +221,12 @@ export const submitSurveyResponse = (req: AuthRequest, res: Response) => {
 
     if (!answers || typeof answers !== 'object') throw new HttpError(400, 'Некорректные ответы');
 
+    const consentIp = (req.ip || req.socket?.remoteAddress || '').toString().slice(0, 64);
+
     run(
       `INSERT INTO survey_responses
-         (id, surveyId, deviceId, userId, contactName, contactPhone, contactEmail, answers)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+         (id, surveyId, deviceId, userId, contactName, contactPhone, contactEmail, answers, consent, consentAt, consentIp)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?)`,
       [
         uuidv4(),
         survey.id,
@@ -230,6 +236,8 @@ export const submitSurveyResponse = (req: AuthRequest, res: Response) => {
         survey.isAnonymous ? '' : String(contactPhone).trim(),
         survey.isAnonymous ? '' : String(contactEmail).trim(),
         JSON.stringify(answers),
+        1,
+        consentIp,
       ],
     );
 

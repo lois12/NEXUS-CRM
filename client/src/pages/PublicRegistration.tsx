@@ -6,6 +6,7 @@ import { publicRegApi } from '../services/api';
 import FieldRenderer from '../components/registrations/FieldRenderer';
 import MapField from '../components/registrations/MapField';
 import { CyberBackground } from '../components/ui/CyberBackground';
+import PrivacyFooter from '../components/common/PrivacyFooter';
 import { SkeletonForm, SkeletonBlock } from '../components/ui/Skeleton';
 import { QRCodeSVG } from 'qrcode.react';
 import { RegistrationField } from '../types';
@@ -694,6 +695,7 @@ export default function PublicRegistration() {
         )}
 
         <p className="text-center font-mono text-[10px] text-gray-600">Powered by NEXUS CRM</p>
+        <PrivacyFooter compact />
       </motion.div>
     </div>
   );

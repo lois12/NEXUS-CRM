@@ -58,6 +58,7 @@ const PublicList = lazyPage(() => import('./pages/PublicList'));
 const Surveys = lazyPage(() => import('./pages/Surveys'));
 const PublicSurvey = lazyPage(() => import('./pages/PublicSurvey'));
 const PublicSurveyStats = lazyPage(() => import('./pages/PublicSurveyStats'));
+const PublicPdRequest = lazyPage(() => import('./pages/PublicPdRequest'));
 
 function PageWrapper({ children }: { children: ReactNode }) {
   return <ErrorBoundary><Suspense fallback={<LoadingScreen />}>{children}</Suspense></ErrorBoundary>;
@@ -116,6 +117,7 @@ function AppRoutes() {
       <Route path="/opros/:slug" element={<PageWrapper><PublicSurvey /></PageWrapper>} />
       <Route path="/survey/:slug/stats" element={<PageWrapper><PublicSurveyStats /></PageWrapper>} />
       <Route path="/opros/:slug/stats" element={<PageWrapper><PublicSurveyStats /></PageWrapper>} />
+      <Route path="/pd-request" element={<PageWrapper><PublicPdRequest /></PageWrapper>} />
       <Route
         path="/"
         element={

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Wrench, Clock, CheckCircle2 } from 'lucide-react';
 import SurveyFillForm from '../components/surveys/SurveyFillForm';
+import PrivacyFooter from '../components/common/PrivacyFooter';
 import { publicSurveyApi, type Survey, type SurveyQuestion } from '../services/surveyApi';
 
 type PubMode = 'open' | 'scheduled' | 'completed';
@@ -107,6 +108,7 @@ export default function PublicSurvey() {
     <div className="min-h-screen p-4 md:p-8">
       <div className="max-w-xl mx-auto">
         <SurveyFillForm survey={survey} slug={slug!} />
+        <PrivacyFooter compact />
       </div>
     </div>
   );
