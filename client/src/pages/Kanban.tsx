@@ -20,7 +20,6 @@ import {
   SortableContext,
   verticalListSortingStrategy,
   useSortable,
-  arrayMove,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useDroppable } from '@dnd-kit/core';
@@ -240,31 +239,29 @@ export default function Kanban() {
     if (task) setActiveTask(task);
   };
 
+  /** Optimistic status while dragging over another column */
   const handleDragOver = (event: DragOverEvent) => {
     const { active, over } = event;
     if (!over) return;
 
     const activeId = active.id as string;
     const overId = over.id as string;
-
     const activeTask = tasks.find(t => t.id === activeId);
     if (!activeTask) return;
 
-    // Check if dropping on a column
     const overColumn = KANBAN_COLUMNS.find(c => c.id === overId);
     const overTask = tasks.find(t => t.id === overId);
 
     if (overColumn) {
-      // Moving to a different column
       if (activeTask.status !== overColumn.id) {
         setTasks(prev => prev.map(t => t.id === activeId ? { ...t, status: overColumn.id as KanbanStatus } : t));
       }
     } else if (overTask && activeTask.status !== overTask.status) {
-      // Moving to a column via hovering over a task in that column
       setTasks(prev => prev.map(t => t.id === activeId ? { ...t, status: overTask.status } : t));
     }
   };
 
+  /** Persist column + order on drop (server is source of truth) */
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveTask(null);
@@ -272,39 +269,49 @@ export default function Kanban() {
 
     const activeId = active.id as string;
     const overId = over.id as string;
-
     if (activeId === overId) return;
 
-    const activeTask = tasks.find(t => t.id === activeId);
-    if (!activeTask) return;
+    // Use functional update so we always see dragOver results
+    setTasks(prev => {
+      const moved = prev.find(t => t.id === activeId);
+      if (!moved) return prev;
 
-    // Check if reordering within same column
-    const overTask = tasks.find(t => t.id === overId);
-    if (overTask && activeTask.status === overTask.status) {
-      const colTasks = getColumnTasks(activeTask.status);
-      const oldIndex = colTasks.findIndex(t => t.id === activeId);
-      const newIndex = colTasks.findIndex(t => t.id === overId);
-      if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
-        const reordered = arrayMove(colTasks, oldIndex, newIndex);
-        setTasks(prev => {
-          const otherTasks = prev.filter(t => t.status !== activeTask.status);
-          const updated = reordered.map((t, i) => ({ ...t, position: i }));
-          return [...otherTasks, ...updated];
-        });
-        kanbanApi.reorder(reordered.map((t, i) => ({ id: t.id, status: t.status, position: i })))
-          .catch(() => fetchTasks());
+      const overColumn = KANBAN_COLUMNS.find(c => c.id === overId);
+      const overTask = prev.find(t => t.id === overId);
+      const targetStatus: KanbanStatus = (overColumn?.id as KanbanStatus) || overTask?.status || moved.status;
+
+      // column after the move (without the dragged task)
+      const colWithout = prev
+        .filter(t => t.status === targetStatus && t.id !== activeId)
+        .sort((a, b) => a.position - b.position);
+
+      let insertAt = colWithout.length;
+      if (overTask && overTask.id !== activeId && overTask.status === targetStatus) {
+        const idx = colWithout.findIndex(t => t.id === overTask.id);
+        if (idx >= 0) insertAt = idx;
       }
-    } else {
-      // Cross-column move — get updated task from current state
-      setTasks(prev => {
-        const movedTask = prev.find(t => t.id === activeId);
-        if (!movedTask) return prev;
-        const colTasks = prev.filter(t => t.status === movedTask.status);
-        kanbanApi.reorder(colTasks.map((t, i) => ({ id: t.id, status: t.status, position: i })))
-          .catch(() => fetchTasks());
-        return prev;
-      });
-    }
+
+      const finalMoved = { ...moved, status: targetStatus };
+      const ordered = [
+        ...colWithout.slice(0, insertAt),
+        finalMoved,
+        ...colWithout.slice(insertAt),
+      ].map((t, i) => ({ ...t, position: i }));
+
+      const next = prev
+        .filter(t => t.status !== targetStatus && t.id !== activeId)
+        .concat(ordered);
+
+      // persist both affected columns (moved-from + moved-to)
+      const oldStatus = moved.status;
+      const payload = next
+        .filter(t => t.status === targetStatus || t.status === oldStatus)
+        .map(t => ({ id: t.id, status: t.status, position: t.position }));
+
+      kanbanApi.reorder(payload).catch(() => fetchTasks());
+
+      return next;
+    });
   };
 
   // CRUD
