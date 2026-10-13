@@ -16,6 +16,7 @@ interface Article {
 
 interface Attachment {
   id: string; articleId: string; type: 'image' | 'document'; url: string;
+  thumbnailUrl?: string | null;
   filename: string; originalName: string; size: number;
   uploadedBy: string; uploaderName?: string; createdAt: string;
 }
@@ -68,6 +69,26 @@ export default function Knowledge() {
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Deep link: /knowledge?article=<id>
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get('article');
+    if (!id || !articles.length) return;
+    const a = articles.find(x => x.id === id);
+    if (a) {
+      setViewing(a);
+      fetchAttachments(a.id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [articles]);
+
+  const copyArticleLink = (a: Article) => {
+    const url = `${window.location.origin}/knowledge?article=${a.id}`;
+    navigator.clipboard?.writeText(url).then(
+      () => showToast('Ссылка на статью скопирована', 'success'),
+      () => showToast(url, 'info'),
+    );
+  };
 
   const categories = [...new Set(articles.map(a => a.category).filter(Boolean))];
   const allTags = [...new Set(articles.flatMap(a => a.tags ? a.tags.split(',').map(t => t.trim()) : []).filter(Boolean))];
@@ -205,6 +226,9 @@ export default function Knowledge() {
                 </span>
               )}
               <h1 className="text-2xl font-mono text-gray-200 heading-neon">{viewing.title}</h1>
+              <button onClick={() => copyArticleLink(viewing)} className="p-2 rounded hover:bg-white/10" title="Скопировать ссылку" aria-label="Скопировать ссылку">
+                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
+              </button>
             </div>
             <div className="flex gap-2 flex-shrink-0 ml-3">
               <button onClick={() => { setViewing(null); openEdit(viewing); }} className="p-2 rounded hover:bg-white/10" aria-label="Редактировать">
@@ -245,8 +269,9 @@ export default function Knowledge() {
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
               {images.map((att, idx) => (
                 <div key={att.id} className="relative rounded-xl overflow-hidden group">
-                  <img src={att.url} alt={att.originalName} draggable="false"
+                  <img src={(att as any).thumbnailUrl || att.url} alt={att.originalName} draggable="false"
                     className="w-full h-32 object-cover select-none cursor-pointer hover:scale-105 transition-transform"
+                    loading="lazy" decoding="async"
                     onClick={() => setLightboxIdx(idx)} />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
                     <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between">

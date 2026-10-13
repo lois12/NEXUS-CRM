@@ -104,16 +104,33 @@ export const deleteArticle = (req: AuthRequest, res: Response) => {
 
 // ── Attachments ──
 
-export const getAttachments = (req: AuthRequest, res: Response) => {
+export const getAttachments = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const attachments = query(`
+    let attachments: any[] = query(`
       SELECT ka.*, u.fullName as uploaderName
       FROM knowledge_attachments ka
       LEFT JOIN users u ON ka.uploadedBy = u.id
       WHERE ka.articleId = ?
       ORDER BY ka.position ASC, ka.createdAt ASC
     `, [id]);
+
+    // backfill thumbs for old images
+    const missing = attachments.filter(a => a.type === 'image' && !a.thumbnailUrl);
+    if (missing.length) {
+      try {
+        const { generateThumbnail } = await import('../utils/thumbnail');
+        for (const a of missing.slice(0, 30)) {
+          const abs = path.join(UPLOADS_DIR, path.basename(String(a.url || '')));
+          const thumb = await generateThumbnail(abs);
+          if (thumb) {
+            run('UPDATE knowledge_attachments SET thumbnailUrl = ? WHERE id = ?', [thumb, a.id]);
+            a.thumbnailUrl = thumb;
+          }
+        }
+      } catch { /* non-fatal */ }
+    }
+
     res.json({ success: true, data: attachments });
   } catch (error) {
     console.error('GetAttachments error:', error);
@@ -121,7 +138,7 @@ export const getAttachments = (req: AuthRequest, res: Response) => {
   }
 };
 
-export const uploadAttachment = (req: AuthRequest, res: Response) => {
+export const uploadAttachment = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const article = get('SELECT id FROM knowledge_base WHERE id = ?', [id]);
@@ -134,12 +151,20 @@ export const uploadAttachment = (req: AuthRequest, res: Response) => {
     const type = isImage ? 'image' : 'document';
     const originalName = (file as any).decodedOriginalname || file.originalname;
 
+    let thumbnailUrl: string | null = null;
+    if (isImage) {
+      try {
+        const { generateThumbnail } = await import('../utils/thumbnail');
+        thumbnailUrl = await generateThumbnail(file.path);
+      } catch { /* non-fatal */ }
+    }
+
     const attId = uuidv4();
     const maxPos = get('SELECT MAX(position) as maxPos FROM knowledge_attachments WHERE articleId = ?', [id]);
     const pos = (maxPos?.maxPos ?? -1) + 1;
 
-    run('INSERT INTO knowledge_attachments (id, articleId, type, url, filename, originalName, size, uploadedBy, position) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [attId, id, type, `/uploads/${file.filename}`, file.filename, originalName, file.size, req.user?.id, pos]);
+    run('INSERT INTO knowledge_attachments (id, articleId, type, url, filename, originalName, size, uploadedBy, position, thumbnailUrl) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [attId, id, type, `/uploads/${file.filename}`, file.filename, originalName, file.size, req.user?.id, pos, thumbnailUrl]);
 
     const attachment = get('SELECT * FROM knowledge_attachments WHERE id = ?', [attId]);
     res.status(201).json({ success: true, data: attachment });

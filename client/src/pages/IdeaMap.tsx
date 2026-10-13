@@ -123,10 +123,12 @@ export default function IdeaMap() {
   const pendingPosRef = useRef<{ x: number; y: number; z: number } | null>(null);
 
   const handleAdd = useCallback(async (parentId?: string) => {
+    const name = (window.prompt('Название идеи:', 'Новая идея') || '').trim();
+    if (!name) return;
     setIsSaving(true);
     try {
       const response = await ideasApi.create({
-        title: 'Новая идея',
+        title: name,
         type: 'default',
         parentId: parentId || drillParent || undefined,
       });

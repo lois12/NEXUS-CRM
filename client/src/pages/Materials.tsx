@@ -425,7 +425,11 @@ export default function Materials() {
           </div>
         )}
       {viewMode === 'grid' ? (
-        <div ref={filteredMaterials.length < 60 ? listRef : undefined} className={`grid ${preset.cols} gap-3 view-fade`}>
+        <div
+          key={`grid-${gridSize}-${currentFolder}-${filterType}`}
+          ref={filteredMaterials.length < 60 ? listRef : undefined}
+          className={`grid ${preset.cols} gap-3 view-fade`}
+        >
           {visibleMaterials.map(material => {
             const Icon = typeIcons[material.type];
             const thumb = (material as any).thumbnailUrl || material.url;

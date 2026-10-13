@@ -30,6 +30,7 @@ import './migrations/014_content_platforms';
 import './migrations/015_feedback_messages';
 import './migrations/016_consent_log';
 import './migrations/017_material_thumbs';
+import './migrations/018_knowledge_thumbs';
 
 export function runMigrations(): void {
   run(`CREATE TABLE IF NOT EXISTS schema_migrations (
