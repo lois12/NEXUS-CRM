@@ -249,6 +249,8 @@ export default function Materials() {
     showToast(`Папка "${name}" создана`, 'success');
   };
 
+  const [zoom, setZoom] = useState<Material | null>(null);
+
   // Context menu
   const [ctx, setCtx] = useState<{ x: number; y: number; material: Material } | null>(null);
   const [moveOpen, setMoveOpen] = useState(false);
@@ -454,7 +456,8 @@ export default function Materials() {
                       src={thumb}
                       alt={material.name}
                       draggable="false"
-                      className="h-full w-full object-cover select-none"
+                      className="h-full w-full object-cover select-none cursor-zoom-in"
+                      onClick={() => setZoom(material)}
                       onError={(e) => { (e.target as HTMLImageElement).src = material.url; }}
                     />
                   ) : (
@@ -631,6 +634,35 @@ export default function Materials() {
         )}
       </AnimatePresence>
 
+
+      {/* Image zoom lightbox */}
+      {zoom && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+          style={{ background: 'rgba(0,0,0,0.88)', backdropFilter: 'blur(8px)' }}
+          onClick={() => setZoom(null)}
+        >
+          <button
+            onClick={() => setZoom(null)}
+            className="absolute top-4 right-4 p-2 rounded-lg bg-white/10 text-gray-300 hover:text-white z-10"
+            aria-label="Закрыть"
+          >
+            <X className="w-5 h-5" />
+          </button>
+          <motion.img
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            src={zoom.url}
+            alt={zoom.name}
+            className="max-w-full max-h-[85vh] object-contain rounded-xl select-none"
+            style={{ boxShadow: '0 24px 80px rgba(0,0,0,0.6)' }}
+            onClick={(e) => e.stopPropagation()}
+          />
+          <div className="absolute bottom-6 left-0 right-0 text-center">
+            <p className="font-mono text-xs text-gray-400">{zoom.name}</p>
+          </div>
+        </div>
+      )}
 
       {/* Context menu (ПКМ) */}
       {ctx && (
