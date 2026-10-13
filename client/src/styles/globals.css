@@ -1900,3 +1900,10 @@ input[type="file"]::file-selector-button:hover {
   .mat-card-enter { animation: none; }
   .mat-card-enter:hover { transform: none; }
 }
+
+/* Materials view switch */
+.view-fade { animation: view-fade 0.35s ease both; }
+@keyframes view-fade {
+  from { opacity: 0; transform: translateY(12px) scale(0.985); }
+  to { opacity: 1; transform: none; }
+}

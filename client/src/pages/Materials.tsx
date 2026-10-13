@@ -229,6 +229,50 @@ export default function Materials() {
     } catch { showToast('Ошибка перемещения', 'error'); }
   }, [fetchMaterials]);
 
+  // Custom empty folders (persisted)
+  const [customFolders, setCustomFolders] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem('nexus_mat_folders') || '[]'); } catch { return []; }
+  });
+  const [showNewFolder, setShowNewFolder] = useState(false);
+  const [newFolderName, setNewFolderName] = useState('');
+  const allFolders = [...new Set([...folders, ...customFolders])];
+
+  const addFolder = () => {
+    const name = newFolderName.trim();
+    if (!name) return;
+    const next = [...new Set([...customFolders, name])];
+    setCustomFolders(next);
+    localStorage.setItem('nexus_mat_folders', JSON.stringify(next));
+    setShowNewFolder(false);
+    setNewFolderName('');
+    setCurrentFolder(name);
+    showToast(`Папка "${name}" создана`, 'success');
+  };
+
+  // Context menu
+  const [ctx, setCtx] = useState<{ x: number; y: number; material: Material } | null>(null);
+  const [moveOpen, setMoveOpen] = useState(false);
+
+  const closeCtx = useCallback(() => { setCtx(null); setMoveOpen(false); }, []);
+
+  const shareUrls = (material: Material) => {
+    const abs = `${window.location.origin}${material.url}`;
+    return {
+      telegram: `https://t.me/share/url?url=${encodeURIComponent(abs)}&text=${encodeURIComponent(material.name)}`,
+      max: `https://max.ru/share?text=${encodeURIComponent(material.name + ' ' + abs)}`,
+    };
+  };
+
+  const moveTo = async (folder: string) => {
+    if (!ctx) return;
+    try {
+      await materialsApi.update(ctx.material.id, { folder: folder || null as any });
+      showToast(folder ? `Перемещено в "${folder}"` : 'Убрано из папок', 'success');
+      fetchMaterials();
+    } catch { showToast('Ошибка', 'error'); }
+    closeCtx();
+  };
+
   if (isLoading) return <div className="p-6 space-y-6"><SkeletonHeader /><SkeletonGrid count={12} /></div>;
 
   return (
@@ -298,25 +342,41 @@ export default function Materials() {
       </div>
 
       {/* Folders */}
-      {folders.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          <button onClick={() => setCurrentFolder('')}
-            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${!currentFolder ? 'glass-accent' : 'bg-white/5 text-gray-400'}`}
-            style={!currentFolder ? { color: 'var(--color-primary)' } : {}}>
-            <FolderOpen className="w-4 h-4" /> Все файлы
+      <div className="flex flex-wrap gap-2 items-center">
+        <button onClick={() => setCurrentFolder('')}
+          className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${!currentFolder ? 'glass-accent' : 'bg-white/5 text-gray-400'}`}
+          style={!currentFolder ? { color: 'var(--color-primary)' } : {}}>
+          <FolderOpen className="w-4 h-4" /> Все файлы
+        </button>
+        {allFolders.map(f => (
+          <button key={f} onClick={() => setCurrentFolder(f)}
+            onDragOver={(e) => handleFolderDragOver(e, f)}
+            onDragLeave={() => setDragOverFolder(null)}
+            onDrop={(e) => handleFolderDrop(e, f)}
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${currentFolder === f ? 'glass-accent' : 'bg-white/5 text-gray-400'} ${dragOverFolder === f ? 'ring-2 ring-green-500/50' : ''}`}
+            style={currentFolder === f ? { color: 'var(--color-primary)' } : {}}>
+            <Folder className="w-4 h-4" /> {f}
           </button>
-          {folders.map(f => (
-            <button key={f} onClick={() => setCurrentFolder(f)}
-              onDragOver={(e) => handleFolderDragOver(e, f)}
-              onDragLeave={() => setDragOverFolder(null)}
-              onDrop={(e) => handleFolderDrop(e, f)}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${currentFolder === f ? 'glass-accent' : 'bg-white/5 text-gray-400'} ${dragOverFolder === f ? 'ring-2 ring-green-500/50' : ''}`}
-              style={currentFolder === f ? { color: 'var(--color-primary)' } : {}}>
-              <Folder className="w-4 h-4" /> {f}
-            </button>
-          ))}
-        </div>
-      )}
+        ))}
+        {showNewFolder ? (
+          <div className="flex items-center gap-1">
+            <input
+              autoFocus
+              value={newFolderName}
+              onChange={e => setNewFolderName(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') addFolder(); if (e.key === 'Escape') setShowNewFolder(false); }}
+              placeholder="Имя папки"
+              className="px-2 py-2 rounded-lg text-sm bg-white/5 border border-white/10 text-gray-200 w-32"
+            />
+            <button onClick={addFolder} className="btn-primary px-2 py-2 text-[10px]">OK</button>
+            <button onClick={() => setShowNewFolder(false)} className="btn-ghost px-2 py-2 text-[10px]">✕</button>
+          </div>
+        ) : (
+          <button onClick={() => setShowNewFolder(true)} className="flex items-center gap-1 px-3 py-2 rounded-lg text-sm btn-ghost">
+            + ПАПКА
+          </button>
+        )}
+      </div>
 
       {/* Upload progress panel */}
       <AnimatePresence>
@@ -365,7 +425,7 @@ export default function Materials() {
           </div>
         )}
       {viewMode === 'grid' ? (
-        <div ref={filteredMaterials.length < 60 ? listRef : undefined} className={`grid ${preset.cols} gap-3`}>
+        <div ref={filteredMaterials.length < 60 ? listRef : undefined} className={`grid ${preset.cols} gap-3 view-fade`}>
           {visibleMaterials.map(material => {
             const Icon = typeIcons[material.type];
             const thumb = (material as any).thumbnailUrl || material.url;
@@ -375,6 +435,11 @@ export default function Materials() {
                 draggable
                 onDragStart={(e) => handleFileDragStart(e as any, material.id)}
                 onDragEnd={handleFileDragEnd as any}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setMoveOpen(false);
+                  setCtx({ x: e.clientX, y: e.clientY, material });
+                }}
                 className="glass rounded-xl overflow-hidden hover:shadow-neon transition-all group cursor-grab active:cursor-grabbing mat-card mat-card-enter"
               >
                 <div className={`flex items-center justify-center ${preset.imgH} bg-white/5`}>
@@ -417,7 +482,7 @@ export default function Materials() {
           })}
         </div>
       ) : (
-        <div className="glass rounded-xl overflow-x-auto">
+        <div className="glass rounded-xl overflow-x-auto view-fade">
           <table className="w-full">
             <thead>
               <tr className="border-b border-white/5">
@@ -432,7 +497,15 @@ export default function Materials() {
               {visibleMaterials.map(material => {
                 const Icon = typeIcons[material.type];
                 return (
-                  <tr key={material.id} className="border-b border-white/5 hover:bg-white/[0.02]">
+                  <tr
+                    key={material.id}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      setMoveOpen(false);
+                      setCtx({ x: e.clientX, y: e.clientY, material });
+                    }}
+                    className="border-b border-white/5 hover:bg-white/[0.02]"
+                  >
                     <td className="p-4"><div className="flex items-center gap-3"><Icon className={`w-5 h-5 ${typeColors[material.type]}`} /><span className="text-sm text-gray-200">{material.name}</span></div></td>
                     <td className="p-4 text-sm text-gray-400 capitalize">{material.type}</td>
                     <td className="p-4 text-sm text-gray-400">{formatFileSize(material.size)}</td>
@@ -554,6 +627,79 @@ export default function Materials() {
         )}
       </AnimatePresence>
 
+
+      {/* Context menu (ПКМ) */}
+      {ctx && (
+        <>
+          <div className="fixed inset-0 z-[90]" onClick={closeCtx} onContextMenu={(e) => { e.preventDefault(); closeCtx(); }} />
+          <div
+            className="fixed z-[95] w-52 rounded-xl overflow-hidden py-1"
+            style={{
+              left: Math.min(ctx.x, window.innerWidth - 220),
+              top: Math.min(ctx.y, window.innerHeight - 280),
+              background: 'linear-gradient(160deg, rgba(16,20,28,0.98), rgba(10,12,18,0.99))',
+              border: '1px solid rgba(255,255,255,0.12)',
+              boxShadow: '0 18px 50px rgba(0,0,0,0.55)',
+            }}
+          >
+            <button
+              onClick={() => setMoveOpen(v => !v)}
+              className="w-full flex items-center gap-2 px-3.5 py-2.5 text-left text-xs font-mono text-gray-200 hover:bg-white/[0.06]"
+            >
+              <Folder className="w-3.5 h-3.5" /> Перенести в… {moveOpen ? '▴' : '▾'}
+            </button>
+            {moveOpen && (
+              <div className="py-1 border-t border-white/5">
+                <button onClick={() => moveTo('')} className="w-full text-left px-5 py-1.5 text-[11px] font-mono text-gray-400 hover:text-gray-200 hover:bg-white/[0.05]">
+                  — без папки —
+                </button>
+                {allFolders.map(f => (
+                  <button key={f} onClick={() => moveTo(f)} className="w-full text-left px-5 py-1.5 text-[11px] font-mono text-gray-300 hover:bg-white/[0.05] truncate">
+                    {f}
+                  </button>
+                ))}
+              </div>
+            )}
+            <button
+              onClick={() => { handleCopyLink(ctx.material); closeCtx(); }}
+              className="w-full flex items-center gap-2 px-3.5 py-2.5 text-left text-xs font-mono text-gray-200 hover:bg-white/[0.06]"
+            >
+              <Link className="w-3.5 h-3.5" /> Скопировать ссылку
+            </button>
+            <button
+              onClick={() => { openSendModal(ctx.material); closeCtx(); }}
+              className="w-full flex items-center gap-2 px-3.5 py-2.5 text-left text-xs font-mono text-gray-200 hover:bg-white/[0.06]"
+            >
+              <MessageCircle className="w-3.5 h-3.5" /> Поделиться в чате
+            </button>
+            <a
+              href={shareUrls(ctx.material).telegram}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={closeCtx}
+              className="w-full flex items-center gap-2 px-3.5 py-2.5 text-left text-xs font-mono text-gray-200 hover:bg-white/[0.06]"
+            >
+              <Send className="w-3.5 h-3.5" /> В Telegram
+            </a>
+            <a
+              href={shareUrls(ctx.material).max}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={closeCtx}
+              className="w-full flex items-center gap-2 px-3.5 py-2.5 text-left text-xs font-mono text-gray-200 hover:bg-white/[0.06]"
+            >
+              <Send className="w-3.5 h-3.5" /> В MAX
+            </a>
+            <button
+              onClick={() => { handleDelete(ctx.material.id); closeCtx(); }}
+              className="w-full flex items-center gap-2 px-3.5 py-2.5 text-left text-xs font-mono hover:bg-red-500/10"
+              style={{ color: '#ff6b6b' }}
+            >
+              <Trash className="w-3.5 h-3.5" /> Удалить
+            </button>
+          </div>
+        </>
+      )}
 
       <ConfirmModal isOpen={confirmState.isOpen} onConfirm={() => { confirmState.onConfirm(); closeConfirm(); }} onCancel={closeConfirm}
         title={confirmState.title} message={confirmState.message} type={confirmState.type} />
