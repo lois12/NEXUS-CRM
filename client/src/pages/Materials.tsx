@@ -229,7 +229,7 @@ export default function Materials() {
     } catch { showToast('Ошибка перемещения', 'error'); }
   }, [fetchMaterials]);
 
-  if (isLoading) return <div className="p-6 space-y-6"><SkeletonHeader /><SkeletonGrid count={6} /></div>;
+  if (isLoading) return <div className="p-6 space-y-6"><SkeletonHeader /><SkeletonGrid count={12} /></div>;
 
   return (
     <div className="space-y-6 cyber-grid">

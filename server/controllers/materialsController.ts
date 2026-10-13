@@ -6,10 +6,10 @@ import { query, get, run } from '../db/database';
 import { AuthRequest } from '../middleware/auth';
 import { UPLOADS_DIR } from '../paths';
 
-export const getAllMaterials = (req: AuthRequest, res: Response) => {
+export const getAllMaterials = async (req: AuthRequest, res: Response) => {
   try {
     const { folder, type } = req.query;
-    
+
     let sql = `
       SELECT m.*, u.fullName as uploaderName
       FROM materials m
@@ -32,7 +32,25 @@ export const getAllMaterials = (req: AuthRequest, res: Response) => {
     sql += ' ORDER BY m.createdAt DESC LIMIT ?';
     params.push(limit);
 
-    const materials = query(sql, params);
+    let materials = query(sql, params);
+
+    // Backfill thumbs for old images (once, then cached on disk + DB)
+    const missing = materials.filter((m: any) => m.type === 'image' && !m.thumbnailUrl);
+    if (missing.length) {
+      try {
+        const { generateThumbnail } = await import('../utils/thumbnail');
+        for (const m of missing.slice(0, 40)) {
+          const abs = path.join(UPLOADS_DIR, path.basename(String(m.url || '')));
+          const thumb = await generateThumbnail(abs);
+          if (thumb) {
+            run('UPDATE materials SET thumbnailUrl = ? WHERE id = ?', [thumb, m.id]);
+            m.thumbnailUrl = thumb;
+          }
+        }
+      } catch (e) {
+        console.warn('thumb backfill:', e);
+      }
+    }
 
     res.json({ success: true, data: materials });
   } catch (error) {
