@@ -13,7 +13,7 @@ interface GraphLink { source: string; target: string; linkData: IdeaLink; }
 interface IdeaGraphProps {
   ideas: Idea[]; links: IdeaLink[]; selectedId: string | null;
   onSelect: (id: string | null) => void; onDrillDown: (id: string) => void;
-  onEdit: (id: string) => void; onDelete: (id: string) => void;
+  onEdit: (id: string) => void; onDelete: (id: string) => void; onRename?: (id: string) => void;
   linkMode: boolean; linkSource: string | null;
   onLinkSource: (id: string | null) => void; onLinkTarget: (id: string) => void;
   filterTypes: string[]; selectedLinkId: string | null;
@@ -41,7 +41,7 @@ function loadPositions(): Record<string, { x: number; y: number; z: number }> {
 
 export default function IdeaGraph({
   ideas, links, selectedId, onSelect, onDrillDown,
-  onEdit, onDelete,
+  onEdit, onDelete, onRename,
   linkMode, linkSource, onLinkSource, onLinkTarget,
   filterTypes, selectedLinkId, onSelectLink,
   onGetCameraPos, onGetCameraRotation, onGetCameraDistance,
@@ -332,6 +332,11 @@ export default function IdeaGraph({
             className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-mono hover:bg-white/5 transition-colors"
             style={{ color: '#c0c0d0' }}>
             <span className="w-4 text-center" style={{ color: '#eab308' }}>✏</span> Редактировать
+          </button>
+          <button onClick={() => { onRename?.(contextMenu.node.id); setContextMenu(null); }}
+            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-mono hover:bg-white/5 transition-colors"
+            style={{ color: '#c0c0d0' }}>
+            <span className="w-4 text-center" style={{ color: 'var(--color-primary)' }}>А</span> Переименовать
           </button>
           <button onClick={() => { onDrillDown(contextMenu.node.id); setContextMenu(null); }}
             className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-mono hover:bg-white/5 transition-colors"

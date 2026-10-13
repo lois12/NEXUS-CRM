@@ -9,6 +9,7 @@ import IdeaToolbar from '../components/ideamap/IdeaToolbar';
 import IdeaSidebar from '../components/ideamap/IdeaSidebar';
 import OrientationGlobe from '../components/ideamap/OrientationGlobe';
 import { ConfirmModal, useNexusConfirm, NexusSpinner, showToast } from '../components/ui/NexusModal';
+import NexusPrompt from '../components/common/NexusPrompt';
 
 const CAMERA_STORAGE_KEY = 'nexus-ideamap-camera';
 
@@ -122,15 +123,22 @@ export default function IdeaMap() {
   // Store pending position for new nodes
   const pendingPosRef = useRef<{ x: number; y: number; z: number } | null>(null);
 
+  const [promptOpen, setPromptOpen] = useState(false);
+  const [promptParent, setPromptParent] = useState<string | undefined>(undefined);
+  const [renameId, setRenameId] = useState<string | null>(null);
+
   const handleAdd = useCallback(async (parentId?: string) => {
-    const name = (window.prompt('Название идеи:', 'Новая идея') || '').trim();
-    if (!name) return;
+    setPromptParent(parentId || drillParent || undefined);
+    setPromptOpen(true);
+  }, [drillParent]);
+
+  const createIdeaWithTitle = useCallback(async (name: string) => {
     setIsSaving(true);
     try {
       const response = await ideasApi.create({
         title: name,
         type: 'default',
-        parentId: parentId || drillParent || undefined,
+        parentId: promptParent || undefined,
       });
       if (response.success && response.data) {
         // Save position for the new node
@@ -148,7 +156,7 @@ export default function IdeaMap() {
     } finally {
       setIsSaving(false);
     }
-  }, [drillParent]);
+  }, [promptParent, fetchData, setSelectedId]);
 
   const handleUpdate = useCallback(async (id: string, data: Partial<Idea>) => {
     try {
@@ -344,6 +352,7 @@ export default function IdeaMap() {
           onSelect={setSelectedId}
           onDrillDown={handleDrillDown}
           onEdit={(id) => setSelectedId(id)}
+          onRename={(id) => setRenameId(id)}
           onDelete={handleDelete}
           linkMode={linkMode}
           linkSource={linkSource}
@@ -446,6 +455,25 @@ export default function IdeaMap() {
       </AnimatePresence>
 
       {/* Confirm Modal */}
+      <NexusPrompt
+        open={promptOpen}
+        title="НОВАЯ ИДЕЯ"
+        placeholder="Название идеи…"
+        confirmLabel="СОЗДАТЬ"
+        onConfirm={createIdeaWithTitle}
+        onClose={() => setPromptOpen(false)}
+      />
+      <NexusPrompt
+        open={!!renameId}
+        title="ПЕРЕИМЕНОВАТЬ ИДЕЮ"
+        placeholder="Новое название…"
+        defaultValue={ideas.find(i => i.id === renameId)?.title || ''}
+        confirmLabel="СОХРАНИТЬ"
+        onConfirm={(name) => {
+          if (renameId) handleUpdate(renameId, { title: name });
+        }}
+        onClose={() => setRenameId(null)}
+      />
       <ConfirmModal
         isOpen={confirmState.isOpen}
         onConfirm={() => { confirmState.onConfirm(); closeConfirm(); }}
