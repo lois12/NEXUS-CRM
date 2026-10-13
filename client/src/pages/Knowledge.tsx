@@ -288,18 +288,18 @@ export default function Knowledge() {
               {images.map((att, idx) => (
                 <div key={att.id} className="relative rounded-xl overflow-hidden group">
                   <img src={(att as any).thumbnailUrl || att.url} alt={att.originalName} draggable="false"
-                    className="w-full h-32 object-cover select-none cursor-zoom-in hover:scale-105 transition-transform"
+                    className="w-full h-32 object-cover select-none cursor-zoom-in hover:scale-105 transition-transform relative z-10"
                     loading="lazy" decoding="async"
                     onClick={() => setLightboxIdx(idx)} />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
-                    <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between">
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                    <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between pointer-events-auto">
                       <span className="text-[9px] font-mono text-gray-300 truncate max-w-[60%]">{att.originalName}</span>
                       <div className="flex gap-1">
-                        <button onClick={() => handleDownload(att)} className="p-1 rounded bg-black/50 hover:bg-black/80" title="Скачать" aria-label="Скачать">
+                        <button onClick={(e) => { e.stopPropagation(); handleDownload(att); }} className="p-1 rounded bg-black/50 hover:bg-black/80" title="Скачать" aria-label="Скачать">
                           <Download className="w-3 h-3 text-white" />
                         </button>
                         {canDeleteAttachment(att) && (
-                          <button onClick={() => handleDeleteAttachment(att)} className="p-1 rounded bg-black/50 hover:bg-red-500/80" title="Удалить" aria-label="Удалить">
+                          <button onClick={(e) => { e.stopPropagation(); handleDeleteAttachment(att); }} className="p-1 rounded bg-black/50 hover:bg-red-500/80" title="Удалить" aria-label="Удалить">
                             <X className="w-3 h-3 text-white" />
                           </button>
                         )}
