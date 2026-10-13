@@ -57,6 +57,7 @@ export default function Knowledge() {
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
   const [lightboxIdx, setLightboxIdx] = useState<number | null>(null);
+  const [contentZoom, setContentZoom] = useState<string | null>(null);
   const currentUserId = (() => { try { return JSON.parse(localStorage.getItem('nexus_user') || '{}').id; } catch { return ''; } })();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const modalFileInputRef = useRef<HTMLInputElement>(null);
@@ -257,7 +258,23 @@ export default function Knowledge() {
           </div>
 
           <div className="text-sm text-gray-300 leading-relaxed prose prose-invert prose-sm max-w-none">
-            <ReactMarkdown>{viewing.content || ''}</ReactMarkdown>
+            <ReactMarkdown
+              components={{
+                img: ({ src, alt }: any) => (
+                  <img
+                    src={src}
+                    alt={alt || ''}
+                    loading="lazy"
+                    decoding="async"
+                    draggable="false"
+                    className="max-w-full rounded-xl cursor-zoom-in my-3"
+                    onClick={() => setContentZoom(typeof src === 'string' ? src : '')}
+                  />
+                ),
+              }}
+            >
+              {viewing.content || ''}
+            </ReactMarkdown>
           </div>
         </div>
 
@@ -356,6 +373,40 @@ export default function Knowledge() {
               onChange={e => { if (e.target.files) handleUploadFiles(Array.from(e.target.files)); e.target.value = ''; }} />
           </label>
         </div>
+
+        {/* zoom for images inside article markdown */}
+        {createPortal(
+          <AnimatePresence>
+            {contentZoom && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 z-[300] flex items-center justify-center p-4"
+                style={{ background: 'rgba(0,0,0,0.92)', backdropFilter: 'blur(12px)' }}
+                onClick={() => setContentZoom(null)}
+              >
+                <motion.img
+                  src={contentZoom}
+                  alt=""
+                  initial={{ scale: 0.92, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.95, opacity: 0 }}
+                  className="max-w-[92vw] max-h-[88vh] object-contain rounded-xl select-none"
+                  onClick={(e) => e.stopPropagation()}
+                />
+                <button
+                  onClick={() => setContentZoom(null)}
+                  className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20"
+                  aria-label="Закрыть"
+                >
+                  <X className="w-6 h-6 text-white" />
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>,
+          document.body
+        )}
 
         {/* ── Lightbox (portal — outside glass stacking context) ── */}
         {createPortal(
