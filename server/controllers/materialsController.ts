@@ -41,7 +41,7 @@ export const getAllMaterials = (req: AuthRequest, res: Response) => {
   }
 };
 
-export const uploadMaterial = (req: AuthRequest, res: Response) => {
+export const uploadMaterial = async (req: AuthRequest, res: Response) => {
   try {
     if (!req.file) {
       return res.status(400).json({ success: false, error: 'Файл не загружен' });
@@ -66,10 +66,21 @@ export const uploadMaterial = (req: AuthRequest, res: Response) => {
     const url = `/uploads/${file.filename}`;
     const decodedName = (file as any).decodedOriginalname || file.originalname;
 
+    // Weak-PC perf: store a small thumb for image cards
+    let thumbnailUrl: string | null = null;
+    if (type === 'image') {
+      try {
+        const { generateThumbnail } = await import('../utils/thumbnail');
+        thumbnailUrl = await generateThumbnail(file.path);
+      } catch (e) {
+        console.warn('material thumb failed', e);
+      }
+    }
+
     run(`
-      INSERT INTO materials (id, name, type, url, size, mimeType, folder, uploadedBy)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `, [id, decodedName, type, url, file.size, file.mimetype, folder || null, uploadedBy]);
+      INSERT INTO materials (id, name, type, url, thumbnailUrl, size, mimeType, folder, uploadedBy)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [id, decodedName, type, url, thumbnailUrl, file.size, file.mimetype, folder || null, uploadedBy]);
 
     // Log activity
     run(`
@@ -84,6 +95,7 @@ export const uploadMaterial = (req: AuthRequest, res: Response) => {
         name: decodedName,
         type,
         url,
+        thumbnailUrl,
         size: file.size,
         mimeType: file.mimetype,
         folder: folder || null,

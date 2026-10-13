@@ -1878,3 +1878,9 @@ input[type="file"]::file-selector-button:hover {
 .theme-light .hud-panel .text-gray-400 { color: #475569 !important; }
 .theme-light .hud-panel .text-gray-500 { color: #64748b !important; }
 .theme-light .hud-panel .text-gray-600 { color: #94a3b8 !important; }
+
+/* Materials grid perf (weak PCs) */
+.mat-card {
+  content-visibility: auto;
+  contain-intrinsic-size: 200px;
+}

@@ -108,6 +108,7 @@ export interface Material {
   name: string;
   type: MaterialType;
   url: string;
+  thumbnailUrl?: string | null;
   size: number;
   mimeType: string;
   folder?: string;

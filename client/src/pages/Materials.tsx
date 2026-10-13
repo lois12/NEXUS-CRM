@@ -71,6 +71,7 @@ export default function Materials() {
 
   useEffect(() => { fetchMaterials(); }, []);
   useEffect(() => { localStorage.setItem('nexus_materials_grid', String(gridSize)); }, [gridSize]);
+  useEffect(() => { setVisibleCount(48); }, [debouncedSearch, filterType, currentFolder, viewMode]);
 
   const fetchMaterials = async () => {
     try {
@@ -179,6 +180,10 @@ export default function Materials() {
     if (currentFolder && m.folder !== currentFolder) return false;
     return true;
   });
+
+  // Weak-PC: don't render 200+ cards at once
+  const [visibleCount, setVisibleCount] = useState(48);
+  const visibleMaterials = filteredMaterials.slice(0, visibleCount);
 
   const folders = [...new Set(materials.map(m => m.folder).filter(Boolean))] as string[];
 
@@ -360,47 +365,56 @@ export default function Materials() {
           </div>
         )}
       {viewMode === 'grid' ? (
-        <div ref={listRef} className={`grid ${preset.cols} gap-3`}>
-          <AnimatePresence>
-            {filteredMaterials.map(material => {
-              const Icon = typeIcons[material.type];
-              return (
-                <motion.div key={material.id} layout initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}
-                  draggable
-                  onDragStart={(e) => handleFileDragStart(e as any, material.id)}
-                  onDragEnd={handleFileDragEnd as any}
-                  className="glass rounded-xl overflow-hidden hover:shadow-neon transition-shadow group cursor-grab active:cursor-grabbing">
-                  <div className={`flex items-center justify-center ${preset.imgH} bg-white/5`}>
-                    {material.type === 'image' ? (
-                      <img loading="lazy" decoding="async" src={material.url} alt={material.name} draggable="false" className="h-full w-full object-cover select-none" />
-                    ) : (
-                      <Icon className={`w-10 h-10 ${typeColors[material.type]}`} />
-                    )}
+        <div ref={filteredMaterials.length < 60 ? listRef : undefined} className={`grid ${preset.cols} gap-3`}>
+          {visibleMaterials.map(material => {
+            const Icon = typeIcons[material.type];
+            const thumb = (material as any).thumbnailUrl || material.url;
+            return (
+              <div
+                key={material.id}
+                draggable
+                onDragStart={(e) => handleFileDragStart(e as any, material.id)}
+                onDragEnd={handleFileDragEnd as any}
+                className="glass rounded-xl overflow-hidden hover:shadow-neon transition-shadow group cursor-grab active:cursor-grabbing mat-card"
+              >
+                <div className={`flex items-center justify-center ${preset.imgH} bg-white/5`}>
+                  {material.type === 'image' ? (
+                    <img
+                      loading="lazy"
+                      decoding="async"
+                      src={thumb}
+                      alt={material.name}
+                      draggable="false"
+                      className="h-full w-full object-cover select-none"
+                      onError={(e) => { (e.target as HTMLImageElement).src = material.url; }}
+                    />
+                  ) : (
+                    <Icon className={`w-10 h-10 ${typeColors[material.type]}`} />
+                  )}
+                </div>
+                <div className="p-2.5">
+                  <h3 className={`${preset.textSize} font-medium text-gray-200 truncate`}>{material.name}</h3>
+                  <p className="text-[10px] text-gray-400">{formatFileSize(material.size)}</p>
+                  <div className="flex items-center gap-1.5 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onClick={() => openSendModal(material)}
+                      className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-[10px] transition-colors"
+                      style={{ background: 'rgba(0,255,136,0.1)', color: 'var(--color-primary)', border: '1px solid rgba(0,255,136,0.2)' }}>
+                      <Send className="w-3 h-3" /> Чат
+                    </button>
+                    <a href={material.url} download className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-white/5 text-gray-400 hover:text-gray-200 text-[10px]" aria-label="Скачать">
+                      <Download className="w-3 h-3" />
+                    </a>
+                    <button onClick={() => handleCopyLink(material)} className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-white/5 text-gray-400 hover:text-gray-200 text-[10px]" aria-label="Копировать ссылку">
+                      <Link className="w-3 h-3" />
+                    </button>
+                    <button onClick={() => handleDelete(material.id)} className="p-1.5 rounded-lg bg-white/5 text-gray-400 hover:text-red-400 hover:bg-red-500/10" aria-label="Удалить">
+                      <Trash className="w-3 h-3" />
+                    </button>
                   </div>
-                  <div className="p-2.5">
-                    <h3 className={`${preset.textSize} font-medium text-gray-200 truncate`}>{material.name}</h3>
-                    <p className="text-[10px] text-gray-400">{formatFileSize(material.size)}</p>
-                    <div className="flex items-center gap-1.5 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => openSendModal(material)}
-                        className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-[10px] transition-colors"
-                        style={{ background: 'rgba(0,255,136,0.1)', color: 'var(--color-primary)', border: '1px solid rgba(0,255,136,0.2)' }}>
-                        <Send className="w-3 h-3" /> Чат
-                      </button>
-                      <a href={material.url} download className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-white/5 text-gray-400 hover:text-gray-200 text-[10px]" aria-label="Скачать">
-                        <Download className="w-3 h-3" />
-                      </a>
-                      <button onClick={() => handleCopyLink(material)} className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-white/5 text-gray-400 hover:text-gray-200 text-[10px]" aria-label="Копировать ссылку">
-                        <Link className="w-3 h-3" />
-                      </button>
-                      <button onClick={() => handleDelete(material.id)} className="p-1.5 rounded-lg bg-white/5 text-gray-400 hover:text-red-400 hover:bg-red-500/10" aria-label="Удалить">
-                        <Trash className="w-3 h-3" />
-                      </button>
-                    </div>
-                  </div>
-                </motion.div>
-              );
-            })}
-          </AnimatePresence>
+                </div>
+              </div>
+            );
+          })}
         </div>
       ) : (
         <div className="glass rounded-xl overflow-x-auto">
@@ -415,7 +429,7 @@ export default function Materials() {
               </tr>
             </thead>
             <tbody>
-              {filteredMaterials.map(material => {
+              {visibleMaterials.map(material => {
                 const Icon = typeIcons[material.type];
                 return (
                   <tr key={material.id} className="border-b border-white/5 hover:bg-white/[0.02]">
@@ -438,6 +452,17 @@ export default function Materials() {
               })}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {visibleMaterials.length < filteredMaterials.length && (
+        <div className="flex justify-center pt-2">
+          <button
+            onClick={() => setVisibleCount(c => c + 48)}
+            className="btn-ghost"
+          >
+            ПОКАЗАТЬ ЕЩЁ ({filteredMaterials.length - visibleMaterials.length})
+          </button>
         </div>
       )}
 
