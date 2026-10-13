@@ -375,7 +375,7 @@ export default function Materials() {
                 draggable
                 onDragStart={(e) => handleFileDragStart(e as any, material.id)}
                 onDragEnd={handleFileDragEnd as any}
-                className="glass rounded-xl overflow-hidden hover:shadow-neon transition-shadow group cursor-grab active:cursor-grabbing mat-card"
+                className="glass rounded-xl overflow-hidden hover:shadow-neon transition-all group cursor-grab active:cursor-grabbing mat-card mat-card-enter"
               >
                 <div className={`flex items-center justify-center ${preset.imgH} bg-white/5`}>
                   {material.type === 'image' ? (

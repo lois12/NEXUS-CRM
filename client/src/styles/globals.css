@@ -1884,3 +1884,19 @@ input[type="file"]::file-selector-button:hover {
   content-visibility: auto;
   contain-intrinsic-size: 200px;
 }
+
+/* Materials — light entrance (no layout anim) */
+.mat-card-enter {
+  animation: mat-card-in 0.35s ease both;
+}
+.mat-card-enter:hover {
+  transform: translateY(-2px) scale(1.01);
+}
+@keyframes mat-card-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mat-card-enter { animation: none; }
+  .mat-card-enter:hover { transform: none; }
+}
