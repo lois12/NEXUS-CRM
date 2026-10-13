@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Search, Edit3, Trash2, BookOpen, Clock, Eye, Upload, Download, X, Image as ImageIcon, FileText, ChevronLeft, ChevronRight } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
@@ -270,7 +271,7 @@ export default function Knowledge() {
               {images.map((att, idx) => (
                 <div key={att.id} className="relative rounded-xl overflow-hidden group">
                   <img src={(att as any).thumbnailUrl || att.url} alt={att.originalName} draggable="false"
-                    className="w-full h-32 object-cover select-none cursor-pointer hover:scale-105 transition-transform"
+                    className="w-full h-32 object-cover select-none cursor-zoom-in hover:scale-105 transition-transform"
                     loading="lazy" decoding="async"
                     onClick={() => setLightboxIdx(idx)} />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
@@ -356,40 +357,43 @@ export default function Knowledge() {
           </label>
         </div>
 
-        {/* ── Lightbox ── */}
-        <AnimatePresence>
-          {lightboxIdx !== null && images.length > 0 && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[200] flex items-center justify-center p-4"
-              style={{ background: 'rgba(0,0,0,0.9)', backdropFilter: 'blur(12px)' }}
-              onClick={() => setLightboxIdx(null)}>
-              <button onClick={e => { e.stopPropagation(); setLightboxIdx(i => i !== null && i > 0 ? i - 1 : images.length - 1); }}
-                className="absolute left-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-white/10 hover:bg-white/20 z-10" aria-label="Предыдущее изображение">
-                <ChevronLeft className="w-6 h-6 text-white" />
-              </button>
-              <motion.img key={images[lightboxIdx]?.id}
-                src={images[lightboxIdx]?.url} alt=""
-                initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
-                className="max-w-[90vw] max-h-[85vh] object-contain rounded-xl select-none"
-                onClick={e => e.stopPropagation()} />
-              <button onClick={e => { e.stopPropagation(); setLightboxIdx(i => i !== null && i < images.length - 1 ? i + 1 : 0); }}
-                className="absolute right-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-white/10 hover:bg-white/20 z-10" aria-label="Следующее изображение">
-                <ChevronRight className="w-6 h-6 text-white" />
-              </button>
-              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-4">
-                <span className="font-mono text-sm text-gray-400">{lightboxIdx + 1} / {images.length}</span>
-                <button onClick={e => { e.stopPropagation(); handleDownload(images[lightboxIdx]); }}
-                  className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 font-mono text-sm text-white flex items-center gap-2">
-                  <Download className="w-4 h-4" /> СКАЧАТЬ
+        {/* ── Lightbox (portal — outside glass stacking context) ── */}
+        {createPortal(
+          <AnimatePresence>
+            {lightboxIdx !== null && images.length > 0 && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                className="fixed inset-0 z-[300] flex items-center justify-center p-4"
+                style={{ background: 'rgba(0,0,0,0.92)', backdropFilter: 'blur(12px)' }}
+                onClick={() => setLightboxIdx(null)}>
+                <button onClick={e => { e.stopPropagation(); setLightboxIdx(i => i !== null && i > 0 ? i - 1 : images.length - 1); }}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-white/10 hover:bg-white/20 z-10" aria-label="Предыдущее изображение">
+                  <ChevronLeft className="w-6 h-6 text-white" />
                 </button>
-              </div>
-              <button onClick={() => setLightboxIdx(null)}
-                className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20" aria-label="Закрыть">
-                <X className="w-6 h-6 text-white" />
-              </button>
-            </motion.div>
-          )}
-        </AnimatePresence>
+                <motion.img key={images[lightboxIdx]?.id}
+                  src={images[lightboxIdx]?.url} alt=""
+                  initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
+                  className="max-w-[90vw] max-h-[85vh] object-contain rounded-xl select-none cursor-zoom-out"
+                  onClick={e => e.stopPropagation()} />
+                <button onClick={e => { e.stopPropagation(); setLightboxIdx(i => i !== null && i < images.length - 1 ? i + 1 : 0); }}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-white/10 hover:bg-white/20 z-10" aria-label="Следующее изображение">
+                  <ChevronRight className="w-6 h-6 text-white" />
+                </button>
+                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-4">
+                  <span className="font-mono text-sm text-gray-400">{lightboxIdx + 1} / {images.length}</span>
+                  <button onClick={e => { e.stopPropagation(); handleDownload(images[lightboxIdx]); }}
+                    className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 font-mono text-sm text-white flex items-center gap-2">
+                    <Download className="w-4 h-4" /> СКАЧАТЬ
+                  </button>
+                </div>
+                <button onClick={() => setLightboxIdx(null)}
+                  className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20" aria-label="Закрыть">
+                  <X className="w-6 h-6 text-white" />
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>,
+          document.body
+        )}
 
         <ConfirmModal isOpen={confirmState.isOpen} onConfirm={() => { confirmState.onConfirm(); closeConfirm(); }} onCancel={closeConfirm}
           title={confirmState.title} message={confirmState.message} type={confirmState.type} />
