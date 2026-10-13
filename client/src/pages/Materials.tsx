@@ -428,16 +428,19 @@ export default function Materials() {
         )}
       {viewMode === 'grid' ? (
         <div
-          key={`grid-${gridSize}-${currentFolder}-${filterType}`}
           ref={filteredMaterials.length < 60 ? listRef : undefined}
-          className={`grid ${preset.cols} gap-3 view-fade`}
+          className={`grid ${preset.cols} gap-3`}
         >
           {visibleMaterials.map(material => {
             const Icon = typeIcons[material.type];
             const thumb = (material as any).thumbnailUrl || material.url;
             return (
-              <div
+              <motion.div
                 key={material.id}
+                layout
+                initial={{ opacity: 0, scale: 0.92 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ type: 'spring', stiffness: 260, damping: 26 }}
                 draggable
                 onDragStart={(e) => handleFileDragStart(e as any, material.id)}
                 onDragEnd={handleFileDragEnd as any}
@@ -446,7 +449,7 @@ export default function Materials() {
                   setMoveOpen(false);
                   setCtx({ x: e.clientX, y: e.clientY, material });
                 }}
-                className="glass rounded-xl overflow-hidden hover:shadow-neon transition-all group cursor-grab active:cursor-grabbing mat-card mat-card-enter"
+                className="glass rounded-xl overflow-hidden hover:shadow-neon transition-all group cursor-grab active:cursor-grabbing mat-card"
               >
                 <div className={`flex items-center justify-center ${preset.imgH} bg-white/5`}>
                   {material.type === 'image' ? (
@@ -484,7 +487,7 @@ export default function Materials() {
                     </button>
                   </div>
                 </div>
-              </div>
+              </motion.div>
             );
           })}
         </div>
