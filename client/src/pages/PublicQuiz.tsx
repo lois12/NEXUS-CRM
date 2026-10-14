@@ -10,6 +10,16 @@ const api = {
   results: (slug: string) => fetch(`/api/quizzes/public/${slug}/results`).then((r) => r.json()),
 };
 
+function deviceId(): string {
+  const K = 'nexus_quiz_device_id';
+  let v = localStorage.getItem(K);
+  if (!v) {
+    v = crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    localStorage.setItem(K, v);
+  }
+  return v;
+}
+
 function fmtLeft(ms: number) {
   if (ms <= 0) return '00:00:00';
   const s = Math.floor(ms / 1000);
@@ -67,7 +77,7 @@ export default function PublicQuiz() {
 
   const start = async () => {
     if (!form.lastName || !form.firstName || !consent) return;
-    const d = await api.start(slug, { ...form, consent: true });
+    const d = await api.start(slug, { ...form, consent: true, deviceId: deviceId() });
     if (d.success && d.data?.participantId) {
       setParticipantId(d.data.participantId);
       startRef.current = Date.now();
@@ -80,6 +90,7 @@ export default function PublicQuiz() {
   const submit = async () => {
     const d = await api.submit(slug, {
       participantId,
+      deviceId: deviceId(),
       ...form,
       consent: true,
       answers: (quiz.questions || []).map((q: any) => ({

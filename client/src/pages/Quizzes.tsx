@@ -556,7 +556,25 @@ export default function Quizzes() {
               <h3 className="font-mono text-sm font-bold" style={{ color: 'var(--color-primary)' }}>
                 ИТОГИ · {resultsFor.title}
               </h3>
-              <button onClick={() => setResultsFor(null)}><X className="w-5 h-5 text-gray-400" /></button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={async () => {
+                    try {
+                      const token = localStorage.getItem('nexus_token') || sessionStorage.getItem('nexus_token') || '';
+                      const res = await fetch(`/api/quizzes/${resultsFor.id}/results/pdf`, {
+                        headers: { Authorization: `Bearer ${token}` },
+                      });
+                      const html = await res.text();
+                      const w = window.open('', '_blank');
+                      if (w) { w.document.write(html); w.document.close(); }
+                    } catch {
+                      showToast('Ошибка PDF', 'error');
+                    }
+                  }}
+                  className="btn-ghost px-2.5 py-1.5 text-[10px]"
+                >PDF</button>
+                <button onClick={() => setResultsFor(null)}><X className="w-5 h-5 text-gray-400" /></button>
+              </div>
             </div>
             {results.length === 0 ? (
               <p className="text-xs font-mono text-gray-500 text-center py-6">// ПОКА НИКТО НЕ ПРОШЁЛ</p>

@@ -195,6 +195,56 @@ export const listResults = (req: AuthRequest, res: Response) => {
   }
 };
 
+export const exportResultsPdf = (req: AuthRequest, res: Response) => {
+  try {
+    const quiz = get('SELECT * FROM quizzes WHERE id = ?', [req.params.id]);
+    if (!quiz) return res.status(404).json({ success: false, error: 'Квиз не найден' });
+    const rows = query(`
+      SELECT * FROM quiz_participants WHERE quizId = ?
+      ORDER BY score DESC, durationMs ASC, finishedAt ASC
+    `, [quiz.id]) as any[];
+
+    const esc = (s: any) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const trs = rows.map((r, i) => `
+      <tr>
+        <td>${i + 1}</td>
+        <td>${esc(r.lastName)} ${esc(r.firstName)} ${esc(r.patronymic || '')}</td>
+        <td>${esc(r.phone || '')}</td>
+        <td>${esc(r.email || '')}</td>
+        <td><b>${r.score}/${r.totalPoints}</b></td>
+        <td>${Math.round((r.durationMs || 0) / 1000)} с</td>
+        <td>${r.finishedAt ? esc(new Date(r.finishedAt).toLocaleString('ru-RU')) : '—'}</td>
+      </tr>`).join('');
+
+    const html = `<!DOCTYPE html>
+<html lang="ru"><head><meta charset="utf-8"><title>${esc(quiz.title)} — итоги</title>
+<style>
+  body{font-family:Arial,sans-serif;margin:28px;color:#111;font-size:12px}
+  h1{font-size:18px;margin:0 0 6px}
+  .sub{color:#555;margin-bottom:14px}
+  table{width:100%;border-collapse:collapse;margin-top:10px}
+  th,td{border:1px solid #ddd;padding:6px 8px;text-align:left}
+  th{background:#f3f4f6;font-size:10px;text-transform:uppercase}
+  .footer{margin-top:18px;color:#888;font-size:10px}
+</style></head><body>
+  <h1>${esc(quiz.title)}</h1>
+  <div class="sub">Организатор: ${esc(quiz.organizer || '—')} · участников: ${rows.length}</div>
+  <table>
+    <thead><tr><th>#</th><th>Участник</th><th>Телефон</th><th>Email</th><th>Балл</th><th>Время</th><th>Финиш</th></tr></thead>
+    <tbody>${trs || '<tr><td colspan="7">нет данных</td></tr>'}</tbody>
+  </table>
+  <div class="footer">NEXUS CRM · ${new Date().toLocaleString('ru-RU')}</div>
+  <script>window.onload = () => window.print();</script>
+</body></html>`;
+
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(html);
+  } catch (e) {
+    console.error('ExportResultsPdf', e);
+    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+  }
+};
+
 /* ── Public API ── */
 
 export const getPublicQuiz = (req: AuthRequest, res: Response) => {
@@ -277,10 +327,16 @@ export const submitQuiz = (req: AuthRequest, res: Response) => {
 
     const {
       participantId, lastName, firstName, patronymic = '', phone = '', email = '',
-      consent = true, answers = [],
+      consent = true, answers = [], deviceId = '',
     } = req.body || {};
     if (!consent) return res.status(400).json({ success: false, error: 'Нужно согласие на обработку ПД' });
     if (!lastName || !firstName) return res.status(400).json({ success: false, error: 'Фамилия и имя обязательны' });
+
+    const dev = String(deviceId || '').trim().slice(0, 64);
+    if (dev) {
+      const dup = get('SELECT id FROM quiz_participants WHERE quizId = ? AND deviceId = ?', [quiz.id, dev]);
+      if (dup) return res.status(400).json({ success: false, error: 'Вы уже проходили этот квиз' });
+    }
 
     const questions = query('SELECT * FROM quiz_questions WHERE quizId = ?', [quiz.id]) as any[];
     let score = 0;
@@ -301,9 +357,9 @@ export const submitQuiz = (req: AuthRequest, res: Response) => {
     if (!participant) {
       pid = uuidv4();
       run(`INSERT INTO quiz_participants
-        (id, quizId, lastName, firstName, patronymic, phone, email, consent, consentAt, consentIp, startedAt, finishedAt, score, totalPoints, durationMs)
-        VALUES (?, ?, ?, ?, ?, ?, ?, 1, datetime('now'), ?, datetime('now'), datetime('now'), ?, ?, 0)`,
-        [pid, quiz.id, lastName, firstName, patronymic, phone, email, consentIp, score, totalPoints]);
+        (id, quizId, lastName, firstName, patronymic, phone, email, consent, consentAt, consentIp, startedAt, finishedAt, score, totalPoints, durationMs, deviceId)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 1, datetime('now'), ?, datetime('now'), datetime('now'), ?, ?, 0, ?)`,
+        [pid, quiz.id, lastName, firstName, patronymic, phone, email, consentIp, score, totalPoints, dev || null]);
     } else {
       const durationMs = participant.startedAt
         ? Date.now() - new Date(participant.startedAt).getTime()
@@ -340,15 +396,23 @@ export const startQuiz = (req: AuthRequest, res: Response) => {
     const { slug } = req.params;
     const quiz = get('SELECT * FROM quizzes WHERE publicSlug = ?', [slug]) || get('SELECT * FROM quizzes WHERE id = ?', [slug]);
     if (!quiz) return res.status(404).json({ success: false, error: 'Квиз не найден' });
-    const { lastName, firstName, patronymic = '', phone = '', email = '', consent = true } = req.body || {};
+    const { lastName, firstName, patronymic = '', phone = '', email = '', consent = true, deviceId = '' } = req.body || {};
     if (!consent) return res.status(400).json({ success: false, error: 'Нужно согласие' });
     if (!lastName || !firstName) return res.status(400).json({ success: false, error: 'Фамилия и имя обязательны' });
 
+    const dev = String(deviceId || '').trim().slice(0, 64);
+    if (dev) {
+      const dup = get('SELECT id, startedAt FROM quiz_participants WHERE quizId = ? AND deviceId = ?', [quiz.id, dev]);
+      if (dup) {
+        return res.json({ success: true, data: { participantId: dup.id, startedAt: dup.startedAt, resumed: true } });
+      }
+    }
+
     const id = uuidv4();
     const consentIp = (req.ip || req.socket?.remoteAddress || '').toString().slice(0, 64);
-    run(`INSERT INTO quiz_participants (id, quizId, lastName, firstName, patronymic, phone, email, consent, consentAt, consentIp, startedAt)
-         VALUES (?, ?, ?, ?, ?, ?, ?, 1, datetime('now'), ?, datetime('now'))`,
-      [id, quiz.id, lastName, firstName, patronymic, phone, email, consentIp]);
+    run(`INSERT INTO quiz_participants (id, quizId, lastName, firstName, patronymic, phone, email, consent, consentAt, consentIp, startedAt, deviceId)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 1, datetime('now'), ?, datetime('now'), ?)`,
+      [id, quiz.id, lastName, firstName, patronymic, phone, email, consentIp, dev || null]);
     res.status(201).json({ success: true, data: { participantId: id, startedAt: new Date().toISOString() } });
   } catch (e) {
     console.error('StartQuiz', e);
