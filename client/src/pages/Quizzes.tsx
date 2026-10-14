@@ -537,7 +537,46 @@ export default function Quizzes() {
           <div className="glass-frost rounded-2xl p-6 text-center" onClick={(e) => e.stopPropagation()}>
             <h3 className="font-mono text-sm font-bold mb-3" style={{ color: 'var(--color-primary)' }}>QR КВИЗА</h3>
             <div className="bg-white p-4 rounded-xl inline-block">
-              <QRCodeSVG value={`${window.location.origin}/quiz/${qrFor.publicSlug || qrFor.id}`} size={200} />
+              <QRCodeSVG value={`${window.location.origin}/quiz/${qrFor.publicSlug || qrFor.id}`} size={200} id="quiz-qr-svg" />
+            </div>
+            <div className="flex gap-2 justify-center mt-3">
+              <button
+                onClick={() => {
+                  const svg = document.getElementById('quiz-qr-svg');
+                  if (!svg) return;
+                  const xml = new XMLSerializer().serializeToString(svg);
+                  const blob = new Blob([xml], { type: 'image/svg+xml' });
+                  const a = document.createElement('a');
+                  a.href = URL.createObjectURL(blob);
+                  a.download = `qr-${qrFor.publicSlug || qrFor.id}.svg`;
+                  a.click();
+                  URL.revokeObjectURL(a.href);
+                }}
+                className="btn-ghost px-3 py-1.5 text-[10px]"
+              >СКАЧАТЬ SVG</button>
+              <button
+                onClick={() => {
+                  const svg = document.getElementById('quiz-qr-svg');
+                  if (!svg) return;
+                  const xml = new XMLSerializer().serializeToString(svg);
+                  const img = new Image();
+                  const url = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(xml)));
+                  img.onload = () => {
+                    const c = document.createElement('canvas');
+                    c.width = 512; c.height = 512;
+                    const ctx = c.getContext('2d')!;
+                    ctx.fillStyle = '#fff';
+                    ctx.fillRect(0, 0, 512, 512);
+                    ctx.drawImage(img, 0, 0, 512, 512);
+                    const a = document.createElement('a');
+                    a.href = c.toDataURL('image/png');
+                    a.download = `qr-${qrFor.publicSlug || qrFor.id}.png`;
+                    a.click();
+                  };
+                  img.src = url;
+                }}
+                className="btn-primary px-3 py-1.5 text-[10px]"
+              >СКАЧАТЬ PNG</button>
             </div>
             <p className="text-[10px] font-mono text-gray-500 mt-3 break-all px-4">
               {window.location.origin}/quiz/{qrFor.publicSlug || qrFor.id}
@@ -585,6 +624,7 @@ export default function Quizzes() {
                     <th className="pb-2">#</th>
                     <th className="pb-2">УЧАСТНИК</th>
                     <th className="pb-2">БАЛЛ</th>
+                    <th className="pb-2">НАЧАЛ</th>
                     <th className="pb-2">ВРЕМЯ</th>
                   </tr>
                 </thead>
@@ -594,6 +634,7 @@ export default function Quizzes() {
                       <td className="py-1.5" style={{ color: i < 3 ? 'var(--color-primary)' : '#8b9bbb' }}>{i + 1}</td>
                       <td className="py-1.5 text-gray-200 truncate">{r.lastName} {r.firstName}</td>
                       <td className="py-1.5" style={{ color: '#7dffb2' }}>{r.score}/{r.totalPoints}</td>
+                      <td className="py-1.5 text-gray-400">{r.startedAt ? new Date(r.startedAt).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—'}</td>
                       <td className="py-1.5 text-gray-400">{Math.round((r.durationMs || 0) / 1000)}с</td>
                     </tr>
                   ))}

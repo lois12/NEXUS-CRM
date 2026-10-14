@@ -212,8 +212,8 @@ export const exportResultsPdf = (req: AuthRequest, res: Response) => {
         <td>${esc(r.phone || '')}</td>
         <td>${esc(r.email || '')}</td>
         <td><b>${r.score}/${r.totalPoints}</b></td>
+        <td>${r.startedAt ? esc(new Date(r.startedAt).toLocaleString('ru-RU')) : '—'}</td>
         <td>${Math.round((r.durationMs || 0) / 1000)} с</td>
-        <td>${r.finishedAt ? esc(new Date(r.finishedAt).toLocaleString('ru-RU')) : '—'}</td>
       </tr>`).join('');
 
     const html = `<!DOCTYPE html>
@@ -230,7 +230,7 @@ export const exportResultsPdf = (req: AuthRequest, res: Response) => {
   <h1>${esc(quiz.title)}</h1>
   <div class="sub">Организатор: ${esc(quiz.organizer || '—')} · участников: ${rows.length}</div>
   <table>
-    <thead><tr><th>#</th><th>Участник</th><th>Телефон</th><th>Email</th><th>Балл</th><th>Время</th><th>Финиш</th></tr></thead>
+    <thead><tr><th>#</th><th>Участник</th><th>Телефон</th><th>Email</th><th>Балл</th><th>Начал</th><th>Время</th></tr></thead>
     <tbody>${trs || '<tr><td colspan="7">нет данных</td></tr>'}</tbody>
   </table>
   <div class="footer">NEXUS CRM · ${new Date().toLocaleString('ru-RU')}</div>
@@ -385,6 +385,7 @@ export const submitQuiz = (req: AuthRequest, res: Response) => {
         participantId: pid,
         score, totalPoints,
         rank,
+        durationMs: participant ? Math.max(0, Date.now() - new Date(participant.startedAt || Date.now()).getTime()) : 0,
         afterEndText: quiz.afterEndText,
       },
     });

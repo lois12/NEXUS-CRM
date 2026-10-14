@@ -1,6 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams } from 'react-router-dom';
-import { QRCodeSVG } from 'qrcode.react';
 import PrivacyFooter from '../components/common/PrivacyFooter';
 import { showToast } from '../components/ui/NexusModal';
 
@@ -258,16 +257,12 @@ export default function PublicQuiz() {
 
         {phase === 'done' && result && (
           <div className="glass rounded-2xl p-6 mt-5 text-center">
-            <p className="font-mono text-[10px] tracking-[0.25em] text-gray-500">РЕЗУЛЬТАТ</p>
-            <div className="font-mono text-4xl font-bold my-2" style={{ color: 'var(--color-primary)' }}>
-              {result.score}/{result.totalPoints}
+            <p className="font-mono text-[10px] tracking-[0.25em] text-gray-500">ЗАВЕРШЕНО</p>
+            <div className="font-mono text-2xl font-bold my-3" style={{ color: 'var(--color-primary)' }}>
+              {Math.floor((result.durationMs || 0) / 60000)} мин {Math.round(((result.durationMs || 0) % 60000) / 1000)} сек
             </div>
-            <p className="text-sm text-gray-300">Место: <b>{result.rank}</b></p>
-            {quiz.afterEndText && <p className="text-sm text-gray-400 mt-3">{quiz.afterEndText}</p>}
-            <div className="bg-white p-3 rounded-xl inline-block mt-4">
-              <QRCodeSVG value={`${window.location.origin}/quiz/${quiz.publicSlug || slug}`} size={120} />
-            </div>
-            <ResultsTable results={results} highlight={participantId} />
+            <p className="text-sm text-gray-300">Вы ответили на все вопросы за это время.</p>
+            {quiz.afterEndText && <p className="text-sm text-gray-400 mt-4">{quiz.afterEndText}</p>}
           </div>
         )}
 
