@@ -114,11 +114,14 @@ export default function PublicQuiz() {
   const upcoming = quiz?.phase === 'upcoming';
   const finished = quiz?.phase === 'finished';
 
+  const [zoom, setZoom] = useState<string | null>(null);
+
   return (
     <div className="min-h-screen p-4 md:p-8">
       <div className="max-w-2xl mx-auto">
         {quiz?.imageUrl && (
-          <div className="w-full rounded-2xl overflow-hidden mb-4 bg-white/5 flex items-center justify-center">
+          <div className="w-full rounded-2xl overflow-hidden mb-4 bg-white/5 flex items-center justify-center cursor-zoom-in"
+            onClick={() => setZoom(quiz.imageUrl)}>
             <img src={quiz.imageUrl} alt="" className="w-full max-h-72 object-contain" />
           </div>
         )}
@@ -183,7 +186,10 @@ export default function PublicQuiz() {
                   <span className="font-mono text-[10px] text-gray-500 mt-1">{qi + 1}</span>
                   <div className="flex-1">
                     <p className="text-sm text-gray-200">{q.text}</p>
-                    {q.imageUrl && <img src={q.imageUrl} alt="" className="mt-2 rounded-lg max-h-48 object-contain" />}
+                    {q.imageUrl && (
+                      <img src={q.imageUrl} alt="" className="mt-2 rounded-lg max-h-48 object-contain cursor-zoom-in"
+                        onClick={() => setZoom(q.imageUrl)} />
+                    )}
                   </div>
                 </div>
                 {q.type === 'open' ? (
@@ -217,7 +223,10 @@ export default function PublicQuiz() {
                             {on ? '✓' : ''}
                           </span>
                           <span className="flex-1 text-gray-200">{o.text}</span>
-                          {o.imageUrl && <img src={o.imageUrl} alt="" className="w-10 h-10 rounded object-cover" />}
+                          {o.imageUrl && (
+                            <img src={o.imageUrl} alt="" className="w-10 h-10 rounded object-cover cursor-zoom-in"
+                              onClick={(e) => { e.stopPropagation(); setZoom(o.imageUrl); }} />
+                          )}
                         </button>
                       );
                     })}
@@ -246,6 +255,25 @@ export default function PublicQuiz() {
 
         <PrivacyFooter compact />
       </div>
+
+      {zoom && (
+        <div
+          className="fixed inset-0 z-[200] flex items-center justify-center p-4"
+          style={{ background: 'rgba(0,0,0,0.9)' }}
+          onClick={() => setZoom(null)}
+        >
+          <img
+            src={zoom}
+            alt=""
+            className="max-w-[92vw] max-h-[88vh] object-contain rounded-xl cursor-zoom-out"
+            onClick={(e) => { e.stopPropagation(); setZoom(null); }}
+          />
+          <button
+            onClick={() => setZoom(null)}
+            className="absolute top-4 right-4 px-3 py-2 rounded-full bg-white/10 text-white text-xs font-mono"
+          >✕</button>
+        </div>
+      )}
     </div>
   );
 }

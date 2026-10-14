@@ -335,7 +335,10 @@ export const submitQuiz = (req: AuthRequest, res: Response) => {
     const dev = String(deviceId || '').trim().slice(0, 64);
     if (dev) {
       const dup = get('SELECT id FROM quiz_participants WHERE quizId = ? AND deviceId = ?', [quiz.id, dev]);
-      if (dup) return res.status(400).json({ success: false, error: 'Вы уже проходили этот квиз' });
+      // allow the same participant to finish their own attempt
+      if (dup && dup.id !== participantId) {
+        return res.status(400).json({ success: false, error: 'Вы уже проходили этот квиз' });
+      }
     }
 
     const questions = query('SELECT * FROM quiz_questions WHERE quizId = ?', [quiz.id]) as any[];
