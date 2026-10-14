@@ -591,7 +591,7 @@ export default function Quizzes() {
         title={confirmState.title}
         message={confirmState.message}
         type={confirmState.type}
-        onConfirm={confirmState.onConfirm}
+        onConfirm={() => { confirmState.onConfirm?.(); closeConfirm(); }}
         onCancel={closeConfirm}
       />
     </div>

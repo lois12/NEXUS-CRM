@@ -44,16 +44,25 @@ export default function PublicQuiz() {
   }, [slug]);
 
   useEffect(() => {
-    if (!quiz?.startsAt || quiz.phase !== 'upcoming') return;
-    const t = setInterval(() => {
-      const ms = new Date(quiz.startsAt).getTime() - Date.now();
-      setLeft(ms);
-      if (ms <= 0) {
-        clearInterval(t);
-        api.get(slug).then((d) => { if (d.success) setQuiz(d.data); });
-      }
-    }, 1000);
-    return () => clearInterval(t);
+    if (!quiz?.startsAt) return;
+    const ms0 = new Date(quiz.startsAt).getTime() - Date.now();
+    if (ms0 > 0 && quiz.phase === 'upcoming') {
+      setLeft(ms0);
+      const t = setInterval(() => {
+        const ms = new Date(quiz!.startsAt).getTime() - Date.now();
+        setLeft(ms);
+        if (ms <= 0) {
+          clearInterval(t);
+          // open entry form immediately, then refresh state in background
+          setQuiz((q: any) => (q ? { ...q, phase: 'open' } : q));
+          api.get(slug).then((d) => { if (d.success) setQuiz(d.data); }).catch(() => {});
+        }
+      }, 1000);
+      return () => clearInterval(t);
+    }
+    if (ms0 <= 0) {
+      setQuiz((q: any) => (q && q.phase === 'upcoming' ? { ...q, phase: 'open' } : q));
+    }
   }, [quiz?.startsAt, quiz?.phase, slug]);
 
   const start = async () => {
@@ -98,7 +107,9 @@ export default function PublicQuiz() {
     <div className="min-h-screen p-4 md:p-8">
       <div className="max-w-2xl mx-auto">
         {quiz?.imageUrl && (
-          <img src={quiz.imageUrl} alt="" className="w-full h-48 md:h-56 object-cover rounded-2xl mb-4" />
+          <div className="w-full rounded-2xl overflow-hidden mb-4 bg-white/5 flex items-center justify-center">
+            <img src={quiz.imageUrl} alt="" className="w-full max-h-72 object-contain" />
+          </div>
         )}
         <h1 className="font-mono text-2xl font-bold" style={{ color: 'var(--color-primary)' }}>{quiz?.title}</h1>
         {quiz?.organizer && <p className="text-xs font-mono text-gray-500 mt-1">ОРГАНИЗАТОР · {quiz.organizer}</p>}
