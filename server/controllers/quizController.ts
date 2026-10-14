@@ -19,6 +19,7 @@ function shapeQuiz(row: any) {
     const options = query('SELECT * FROM quiz_options WHERE questionId = ? ORDER BY position ASC', [q.id]);
     return {
       ...q,
+      correctText: (q as any).correctText || '',
       isCorrect: !!q.isCorrect,
       options: options.map((o) => ({ ...o, isCorrect: !!o.isCorrect })),
     };
@@ -131,8 +132,8 @@ export const duplicateQuiz = (req: AuthRequest, res: Response) => {
       const qs = query('SELECT * FROM quiz_questions WHERE quizId = ? ORDER BY position', [src.id]) as any[];
       for (const q of qs) {
         const nq = uuidv4();
-        run('INSERT INTO quiz_questions (id, quizId, type, text, imageUrl, points, position) VALUES (?, ?, ?, ?, ?, ?, ?)',
-          [nq, newId, q.type, q.text, q.imageUrl, q.points, q.position]);
+        run('INSERT INTO quiz_questions (id, quizId, type, text, imageUrl, points, position, correctText) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+          [nq, newId, q.type, q.text, q.imageUrl, q.points, q.position, (q as any).correctText || '']);
         const opts = query('SELECT * FROM quiz_options WHERE questionId = ? ORDER BY position', [q.id]) as any[];
         for (const o of opts) {
           run('INSERT INTO quiz_options (id, questionId, text, imageUrl, isCorrect, position) VALUES (?, ?, ?, ?, ?, ?)',
