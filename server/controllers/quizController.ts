@@ -207,8 +207,8 @@ export const getPublicQuiz = (req: AuthRequest, res: Response) => {
     const starts = row.startsAt ? new Date(row.startsAt) : null;
     const ends = row.endsAt ? new Date(row.endsAt) : null;
     let phase: 'upcoming' | 'open' | 'finished' = 'open';
-    if (starts && now < starts) phase = 'upcoming';
-    if (ends && now > ends) phase = 'finished';
+    if (starts && now.getTime() + 2000 < starts.getTime()) phase = 'upcoming';
+    if (ends && now.getTime() > ends.getTime()) phase = 'finished';
     if (row.status === 'draft') phase = 'upcoming';
 
     const questions = query('SELECT id, type, text, imageUrl, points, position FROM quiz_questions WHERE quizId = ? ORDER BY position', [row.id]) as any[];
@@ -230,7 +230,7 @@ export const getPublicQuiz = (req: AuthRequest, res: Response) => {
         endsAt: row.endsAt,
         afterEndText: row.afterEndText,
         phase,
-        questions: phase === 'open' ? shaped : [],
+        questions: phase === 'finished' ? [] : shaped,
         questionCount: questions.length,
       },
     });
@@ -267,11 +267,11 @@ export const submitQuiz = (req: AuthRequest, res: Response) => {
     const quiz = get('SELECT * FROM quizzes WHERE publicSlug = ?', [slug]) || get('SELECT * FROM quizzes WHERE id = ?', [slug]);
     if (!quiz) return res.status(404).json({ success: false, error: 'Квиз не найден' });
 
-    const now = new Date();
-    if (quiz.startsAt && now < new Date(quiz.startsAt)) {
+    const now = Date.now();
+    if (quiz.startsAt && now + 2000 < new Date(quiz.startsAt).getTime()) {
       return res.status(400).json({ success: false, error: 'Квиз ещё не начался' });
     }
-    if (quiz.endsAt && now > new Date(quiz.endsAt)) {
+    if (quiz.endsAt && now > new Date(quiz.endsAt).getTime()) {
       return res.status(400).json({ success: false, error: 'Квиз завершён' });
     }
 

@@ -99,8 +99,8 @@ export default function Quizzes() {
     try {
       const payload = {
         ...form,
-        startsAt: form.startsAt || null,
-        endsAt: form.endsAt || null,
+        startsAt: form.startsAt ? new Date(form.startsAt).toISOString() : null,
+        endsAt: form.endsAt ? new Date(form.endsAt).toISOString() : null,
       };
       let id = editing?.id;
       if (editing) {
