@@ -3,7 +3,7 @@ import { authenticateToken } from '../middleware/auth';
 import { requireAnyRole, requireOwnership, ROLE_SUPER, ROLE_BOSS, ROLE_INFO, ROLE_TOURISM } from '../middleware/permissions';
 import {
   listQuizzes, getQuiz, createQuiz, updateQuiz, deleteQuiz, duplicateQuiz,
-  saveQuestions, listResults, exportResultsPdf, getPublicQuiz, submitQuiz, startQuiz, getPublicResults,
+  saveQuestions, listResults, deleteResult, exportResultsPdf, getPublicQuiz, submitQuiz, startQuiz, getPublicResults,
 } from '../controllers/quizController';
 
 const authRouter = Router();
@@ -20,6 +20,7 @@ authRouter.delete('/:id', canWrite, ownQuiz, deleteQuiz);
 authRouter.post('/:id/duplicate', canWrite, ownQuiz, duplicateQuiz);
 authRouter.put('/:id/questions', canWrite, ownQuiz, saveQuestions);
 authRouter.get('/:id/results', listResults);
+authRouter.delete('/:id/results/:participantId', canWrite, ownQuiz, deleteResult);
 authRouter.get('/:id/results/pdf', exportResultsPdf);
 
 // Public (no auth) — mount before auth router

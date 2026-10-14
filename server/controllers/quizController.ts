@@ -195,6 +195,25 @@ export const listResults = (req: AuthRequest, res: Response) => {
   }
 };
 
+export const deleteResult = (req: AuthRequest, res: Response) => {
+  try {
+    const { id, participantId } = req.params;
+    const quiz = get('SELECT id FROM quizzes WHERE id = ?', [id]);
+    if (!quiz) return res.status(404).json({ success: false, error: 'Квиз не найден' });
+    const row = get('SELECT id FROM quiz_participants WHERE id = ? AND quizId = ?', [participantId, id]);
+    if (!row) return res.status(404).json({ success: false, error: 'Участник не найден' });
+
+    transaction(() => {
+      run('DELETE FROM quiz_answers WHERE participantId = ?', [participantId]);
+      run('DELETE FROM quiz_participants WHERE id = ?', [participantId]);
+    });
+    res.json({ success: true });
+  } catch (e) {
+    console.error('DeleteResult', e);
+    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+  }
+};
+
 export const exportResultsPdf = (req: AuthRequest, res: Response) => {
   try {
     const quiz = get('SELECT * FROM quizzes WHERE id = ?', [req.params.id]);

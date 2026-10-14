@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus, Search, Edit3, Trash2, Copy, QrCode, Calendar, Play, FolderOpen,
-  X, Save, Image as ImageIcon, Link2, Users,
+  X, Save, Image as ImageIcon, Link2, Users, ArrowLeft,
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { quizzesApi, materialsApi } from '../services/api';
@@ -39,6 +39,7 @@ export default function Quizzes() {
   });
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
   const [qrFor, setQrFor] = useState<Quiz | null>(null);
+  const [view, setView] = useState<'list' | 'results'>('list');
   const [resultsFor, setResultsFor] = useState<Quiz | null>(null);
   const [results, setResults] = useState<any[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -163,10 +164,25 @@ export default function Quizzes() {
 
   const openResults = async (q: Quiz) => {
     setResultsFor(q);
+    setView('results');
     try {
       const res = await quizzesApi.getResults(q.id);
       if (res.success && res.data) setResults(res.data);
     } catch { setResults([]); }
+  };
+
+  const deleteParticipant = (participantId: string, name: string) => {
+    if (!resultsFor) return;
+    showConfirm('УДАЛИТЬ ПОЗИЦИЮ?', name, async () => {
+      try {
+        await quizzesApi.deleteResult(resultsFor.id, participantId);
+        setResults((prev) => prev.filter((r) => r.id !== participantId));
+        showToast('Позиция удалена', 'success');
+        load();
+      } catch {
+        showToast('Ошибка удаления', 'error');
+      }
+    }, 'danger');
   };
 
   const copyLink = (q: Quiz) => {
@@ -194,6 +210,137 @@ export default function Quizzes() {
 
   if (loading) {
     return <div className="p-6"><p className="font-mono text-sm text-gray-500">Загрузка…</p></div>;
+  }
+
+  if (view === 'results' && resultsFor) {
+    const avgScore = results.length
+      ? Math.round(results.reduce((s, r) => s + (r.score || 0), 0) / results.length * 10) / 10
+      : 0;
+    const avgTime = results.length
+      ? Math.round(results.reduce((s, r) => s + (r.durationMs || 0), 0) / results.length / 1000)
+      : 0;
+
+    return (
+      <div className="space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+          <div>
+            <button
+              onClick={() => { setView('list'); setResultsFor(null); }}
+              className="flex items-center gap-2 font-mono text-sm text-gray-400 hover:text-gray-200 transition-colors mb-2"
+            >
+              <ArrowLeft className="w-4 h-4" /> Назад к квизам
+            </button>
+            <h1 className="text-2xl font-bold font-mono" style={{ color: 'var(--color-primary)' }}>
+              ИТОГИ · {resultsFor.title}
+            </h1>
+            <p className="text-gray-400 mt-1 font-mono text-xs">
+              {resultsFor.organizer || '—'} · участников: {results.length}
+            </p>
+          </div>
+          <button
+            onClick={async () => {
+              try {
+                const token = localStorage.getItem('nexus_token') || sessionStorage.getItem('nexus_token') || '';
+                const res = await fetch(`/api/quizzes/${resultsFor.id}/results/pdf`, {
+                  headers: { Authorization: `Bearer ${token}` },
+                });
+                const html = await res.text();
+                const w = window.open('', '_blank');
+                if (w) { w.document.write(html); w.document.close(); }
+              } catch {
+                showToast('Ошибка PDF', 'error');
+              }
+            }}
+            className="btn-primary px-4 py-2.5 rounded-xl font-mono text-xs"
+          >PDF</button>
+        </div>
+
+        {results.length > 0 && (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="glass rounded-xl p-3">
+              <p className="text-[9px] font-mono text-gray-500 tracking-wider">УЧАСТНИКОВ</p>
+              <p className="font-mono text-xl font-bold mt-1" style={{ color: 'var(--color-primary)' }}>{results.length}</p>
+            </div>
+            <div className="glass rounded-xl p-3">
+              <p className="text-[9px] font-mono text-gray-500 tracking-wider">СРЕДНИЙ БАЛЛ</p>
+              <p className="font-mono text-xl font-bold mt-1" style={{ color: '#7dffb2' }}>{avgScore}</p>
+            </div>
+            <div className="glass rounded-xl p-3">
+              <p className="text-[9px] font-mono text-gray-500 tracking-wider">СРЕДНЕЕ ВРЕМЯ</p>
+              <p className="font-mono text-xl font-bold mt-1 text-gray-200">{avgTime}с</p>
+            </div>
+            <div className="glass rounded-xl p-3">
+              <p className="text-[9px] font-mono text-gray-500 tracking-wider">ВЫПОЛНИЛИ</p>
+              <p className="font-mono text-xl font-bold mt-1 text-gray-200">
+                {results.filter((r) => r.finishedAt).length}/{results.length}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {results.length === 0 ? (
+          <EmptyState
+            title="Пока никто не прошёл"
+            description="Результаты появятся здесь после прохождения квиза."
+          />
+        ) : (
+          <div className="glass rounded-2xl overflow-x-auto">
+            <table className="w-full text-xs font-mono">
+              <thead>
+                <tr className="text-gray-500 text-left">
+                  <th className="p-3">#</th>
+                  <th className="p-3">УЧАСТНИК</th>
+                  <th className="p-3">ТЕЛЕФОН</th>
+                  <th className="p-3">EMAIL</th>
+                  <th className="p-3">БАЛЛ</th>
+                  <th className="p-3">НАЧАЛ</th>
+                  <th className="p-3">ВРЕМЯ</th>
+                  <th className="p-3"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {results.map((r, i) => (
+                  <tr key={r.id} className="border-t border-white/5 hover:bg-white/[0.03]">
+                    <td className="p-3" style={{ color: i < 3 ? 'var(--color-primary)' : '#8b9bbb' }}>{i + 1}</td>
+                    <td className="p-3 text-gray-200 truncate">
+                      {r.lastName} {r.firstName} {r.patronymic || ''}
+                    </td>
+                    <td className="p-3 text-gray-400">{r.phone || '—'}</td>
+                    <td className="p-3 text-gray-400">{r.email || '—'}</td>
+                    <td className="p-3" style={{ color: '#7dffb2' }}>{r.score}/{r.totalPoints}</td>
+                    <td className="p-3 text-gray-400">
+                      {r.startedAt
+                        ? new Date(r.startedAt).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+                        : '—'}
+                    </td>
+                    <td className="p-3 text-gray-400">{Math.round((r.durationMs || 0) / 1000)}с</td>
+                    <td className="p-3 text-right">
+                      <button
+                        onClick={() => deleteParticipant(r.id, `${r.lastName} ${r.firstName}`)}
+                        className="p-1.5 rounded-lg hover:bg-red-500/20 transition-colors"
+                        title="Удалить позицию"
+                        aria-label="Удалить позицию"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        <ConfirmModal
+          isOpen={confirmState.isOpen}
+          title={confirmState.title}
+          message={confirmState.message}
+          type={confirmState.type}
+          onConfirm={() => { confirmState.onConfirm?.(); closeConfirm(); }}
+          onCancel={closeConfirm}
+        />
+      </div>
+    );
   }
 
   return (
@@ -582,65 +729,6 @@ export default function Quizzes() {
               {window.location.origin}/quiz/{qrFor.publicSlug || qrFor.id}
             </p>
             <button onClick={() => setQrFor(null)} className="btn-primary mt-4">ЗАКРЫТЬ</button>
-          </div>
-        </div>
-      )}
-
-      {/* RESULTS */}
-      {resultsFor && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4"
-          style={{ background: 'rgba(0,0,0,0.65)' }} onClick={() => setResultsFor(null)}>
-          <div className="glass-frost rounded-2xl p-5 w-full max-w-lg max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-mono text-sm font-bold" style={{ color: 'var(--color-primary)' }}>
-                ИТОГИ · {resultsFor.title}
-              </h3>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={async () => {
-                    try {
-                      const token = localStorage.getItem('nexus_token') || sessionStorage.getItem('nexus_token') || '';
-                      const res = await fetch(`/api/quizzes/${resultsFor.id}/results/pdf`, {
-                        headers: { Authorization: `Bearer ${token}` },
-                      });
-                      const html = await res.text();
-                      const w = window.open('', '_blank');
-                      if (w) { w.document.write(html); w.document.close(); }
-                    } catch {
-                      showToast('Ошибка PDF', 'error');
-                    }
-                  }}
-                  className="btn-ghost px-2.5 py-1.5 text-[10px]"
-                >PDF</button>
-                <button onClick={() => setResultsFor(null)}><X className="w-5 h-5 text-gray-400" /></button>
-              </div>
-            </div>
-            {results.length === 0 ? (
-              <p className="text-xs font-mono text-gray-500 text-center py-6">// ПОКА НИКТО НЕ ПРОШЁЛ</p>
-            ) : (
-              <table className="w-full text-xs font-mono">
-                <thead>
-                  <tr className="text-gray-500 text-left">
-                    <th className="pb-2">#</th>
-                    <th className="pb-2">УЧАСТНИК</th>
-                    <th className="pb-2">БАЛЛ</th>
-                    <th className="pb-2">НАЧАЛ</th>
-                    <th className="pb-2">ВРЕМЯ</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {results.map((r, i) => (
-                    <tr key={r.id} className="border-t border-white/5">
-                      <td className="py-1.5" style={{ color: i < 3 ? 'var(--color-primary)' : '#8b9bbb' }}>{i + 1}</td>
-                      <td className="py-1.5 text-gray-200 truncate">{r.lastName} {r.firstName}</td>
-                      <td className="py-1.5" style={{ color: '#7dffb2' }}>{r.score}/{r.totalPoints}</td>
-                      <td className="py-1.5 text-gray-400">{r.startedAt ? new Date(r.startedAt).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—'}</td>
-                      <td className="py-1.5 text-gray-400">{Math.round((r.durationMs || 0) / 1000)}с</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
           </div>
         </div>
       )}

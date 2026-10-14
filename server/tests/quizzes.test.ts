@@ -2,9 +2,9 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import request from 'supertest';
 import express from 'express';
 import { setupTestDb, adminTokenPayload, TEST_ADMIN_ID } from './helpers/testDb';
-import { run } from '../db/database';
+import { run, get } from '../db/database';
 import {
-  getPublicQuiz, startQuiz, submitQuiz, createQuiz,
+  getPublicQuiz, startQuiz, submitQuiz, createQuiz, listResults, deleteResult,
 } from '../controllers/quizController';
 
 const app = express();
@@ -16,6 +16,14 @@ app.post('/api/quizzes', (req, res, next) => {
 app.get('/api/quizzes/public/:slug', getPublicQuiz as any);
 app.post('/api/quizzes/public/:slug/start', startQuiz as any);
 app.post('/api/quizzes/public/:slug/submit', submitQuiz as any);
+app.get('/api/quizzes/:id/results', (req, res, next) => {
+  (req as any).user = adminTokenPayload();
+  next();
+}, listResults as any);
+app.delete('/api/quizzes/:id/results/:participantId', (req, res, next) => {
+  (req as any).user = adminTokenPayload();
+  next();
+}, deleteResult as any);
 
 const JWT_SECRET = process.env.JWT_SECRET || 'test-secret';
 
@@ -124,5 +132,45 @@ describe('One attempt per device', () => {
         answers: [{ questionId: 'q-once4', answerText: 'ок', selectedOptionIds: [] }],
       });
     expect(done.status).toBe(201);
+  });
+});
+
+describe('Delete participant (admin)', () => {
+  it('removes participant + answers; device can pass again', async () => {
+    seedQuiz('del1', 'scheduled', null, null);
+    const start = await request(app)
+      .post('/api/quizzes/public/slug-del1/start')
+      .send({ lastName: 'Тест', firstName: 'Тест', consent: true, deviceId: 'dev-del' });
+    const pid = start.body.data.participantId;
+
+    await request(app)
+      .post('/api/quizzes/public/slug-del1/submit')
+      .send({
+        participantId: pid,
+        lastName: 'Тест', firstName: 'Тест', consent: true, deviceId: 'dev-del',
+        answers: [{ questionId: 'q-del1', answerText: 'тест', selectedOptionIds: [] }],
+      });
+
+    const list1 = await request(app).get('/api/quizzes/del1/results');
+    expect(list1.body.data).toHaveLength(1);
+
+    const del = await request(app).delete(`/api/quizzes/del1/results/${pid}`);
+    expect(del.status).toBe(200);
+
+    const list2 = await request(app).get('/api/quizzes/del1/results');
+    expect(list2.body.data).toHaveLength(0);
+    expect(get('SELECT id FROM quiz_answers WHERE participantId = ?', [pid])).toBeFalsy();
+
+    // после удаления тестовой позиции можно пройти заново
+    const again = await request(app)
+      .post('/api/quizzes/public/slug-del1/start')
+      .send({ lastName: 'Тест2', firstName: 'Тест2', consent: true, deviceId: 'dev-del' });
+    expect(again.status).toBe(201);
+  });
+
+  it('404 for unknown participant', async () => {
+    seedQuiz('del2', 'scheduled', null, null);
+    const del = await request(app).delete('/api/quizzes/del2/results/nope');
+    expect(del.status).toBe(404);
   });
 });
