@@ -174,6 +174,19 @@ export const contentApi = {
     api.delete(`/content/comments/${id}`).then((res) => res.data),
 };
 
+// Quizzes API
+export const quizzesApi = {
+  getAll: (): Promise<ApiResponse<any[]>> => api.get('/quizzes').then((res) => res.data),
+  get: (id: string): Promise<ApiResponse<any>> => api.get(`/quizzes/${id}`).then((res) => res.data),
+  create: (data: any): Promise<ApiResponse<any>> => api.post('/quizzes', data).then((res) => res.data),
+  update: (id: string, data: any): Promise<ApiResponse<any>> => api.put(`/quizzes/${id}`, data).then((res) => res.data),
+  delete: (id: string): Promise<ApiResponse<void>> => api.delete(`/quizzes/${id}`).then((res) => res.data),
+  duplicate: (id: string): Promise<ApiResponse<any>> => api.post(`/quizzes/${id}/duplicate`).then((res) => res.data),
+  saveQuestions: (id: string, questions: any[]): Promise<ApiResponse<any>> =>
+    api.put(`/quizzes/${id}/questions`, { questions }).then((res) => res.data),
+  getResults: (id: string): Promise<ApiResponse<any[]>> => api.get(`/quizzes/${id}/results`).then((res) => res.data),
+};
+
 // Materials API
 export const materialsApi = {
   getAll: (params?: { folder?: string; type?: string }): Promise<ApiResponse<Material[]>> =>

@@ -119,6 +119,61 @@ export interface Material {
   updatedAt: string;
 }
 
+// ── Quizzes ──
+export type QuizStatus = 'draft' | 'scheduled' | 'conducted';
+export type QuizQuestionType = 'open' | 'choice';
+
+export interface QuizOption {
+  id?: string;
+  text: string;
+  imageUrl?: string | null;
+  isCorrect?: boolean;
+  position?: number;
+}
+
+export interface QuizQuestion {
+  id?: string;
+  type: QuizQuestionType;
+  text: string;
+  imageUrl?: string | null;
+  points?: number;
+  position?: number;
+  options?: QuizOption[];
+}
+
+export interface Quiz {
+  id: string;
+  title: string;
+  description?: string;
+  organizer?: string;
+  imageUrl?: string | null;
+  publicSlug?: string;
+  status: QuizStatus;
+  startsAt?: string | null;
+  endsAt?: string | null;
+  afterEndText?: string;
+  createdBy?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  questions?: QuizQuestion[];
+  participantCount?: number;
+}
+
+export interface QuizParticipant {
+  id: string;
+  quizId: string;
+  lastName: string;
+  firstName: string;
+  patronymic?: string;
+  phone?: string;
+  email?: string;
+  startedAt?: string;
+  finishedAt?: string;
+  score: number;
+  totalPoints: number;
+  durationMs: number;
+}
+
 // API Response types
 export interface ApiResponse<T> {
   success: boolean;

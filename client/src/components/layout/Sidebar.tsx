@@ -119,6 +119,7 @@ const navGroups: NavGroup[] = [
       { to: '/registrations', label: 'Регистрация', roles: ALL },
       { to: '/widgets', label: 'Виджеты', roles: ALL },
       { to: '/lists', label: 'Списки', roles: ALL },
+      { to: '/quizzes', label: 'Квизы', roles: ['super_admin', 'руководитель', 'информационный', 'туризм', 'редактор', 'smm', 'документовед'] },
       { to: '/surveys', label: 'Опросы', roles: ALL },
       { to: '/materials', label: 'Материалы (файлы)', roles: ALL },
     ],

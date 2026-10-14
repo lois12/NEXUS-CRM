@@ -59,6 +59,8 @@ const Surveys = lazyPage(() => import('./pages/Surveys'));
 const PublicSurvey = lazyPage(() => import('./pages/PublicSurvey'));
 const PublicSurveyStats = lazyPage(() => import('./pages/PublicSurveyStats'));
 const PublicPdRequest = lazyPage(() => import('./pages/PublicPdRequest'));
+const Quizzes = lazyPage(() => import('./pages/Quizzes'));
+const PublicQuiz = lazyPage(() => import('./pages/PublicQuiz'));
 
 function PageWrapper({ children }: { children: ReactNode }) {
   return <ErrorBoundary><Suspense fallback={<LoadingScreen />}>{children}</Suspense></ErrorBoundary>;
@@ -118,6 +120,8 @@ function AppRoutes() {
       <Route path="/survey/:slug/stats" element={<PageWrapper><PublicSurveyStats /></PageWrapper>} />
       <Route path="/opros/:slug/stats" element={<PageWrapper><PublicSurveyStats /></PageWrapper>} />
       <Route path="/pd-request" element={<PageWrapper><PublicPdRequest /></PageWrapper>} />
+      <Route path="/quiz/:slug" element={<PageWrapper><PublicQuiz /></PageWrapper>} />
+      <Route path="/kviz/:slug" element={<PageWrapper><PublicQuiz /></PageWrapper>} />
       <Route
         path="/"
         element={
@@ -160,6 +164,7 @@ function AppRoutes() {
         <Route path="widgets" element={<PageWrapper><Widgets /></PageWrapper>} />
         <Route path="lists" element={<PageWrapper><Lists /></PageWrapper>} />
         <Route path="surveys" element={<PageWrapper><Surveys /></PageWrapper>} />
+        <Route path="quizzes" element={<PageWrapper><Quizzes /></PageWrapper>} />
         <Route path="checkin-scanner" element={<PageWrapper><CheckinScanner /></PageWrapper>} />
         <Route path="registrations/:id/participants" element={<PageWrapper><ParticipantsList /></PageWrapper>} />
         <Route path="profile" element={<PageWrapper><Profile /></PageWrapper>} />
