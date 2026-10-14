@@ -247,19 +247,38 @@ export const exportResultsPdf = (req: AuthRequest, res: Response) => {
 
 /* ── Public API ── */
 
+function publicPhase(quiz: any): 'upcoming' | 'open' | 'finished' {
+  const now = Date.now();
+  const starts = quiz.startsAt ? new Date(quiz.startsAt).getTime() : null;
+  const ends = quiz.endsAt ? new Date(quiz.endsAt).getTime() : null;
+  // Проведён — всегда завершено
+  if (quiz.status === 'conducted') return 'finished';
+  if (ends && now > ends) return 'finished';
+  // Запланирован с датой старта в будущем — таймер
+  if (starts && now + 2000 < starts) return 'upcoming';
+  return 'open';
+}
+
 export const getPublicQuiz = (req: AuthRequest, res: Response) => {
   try {
     const slug = req.params.slug;
     const row = get('SELECT * FROM quizzes WHERE publicSlug = ?', [slug]) || get('SELECT * FROM quizzes WHERE id = ?', [slug]);
-    if (!row) return res.status(404).json({ success: false, error: 'Квиз не найден' });
+    if (!row) return res.status(404).json({ success: false, error: 'Мероприятие не найдено' });
+    // черновик — страница недоступна
+    if (row.status === 'draft') return res.status(404).json({ success: false, error: 'Мероприятие не найдено' });
 
-    const now = new Date();
-    const starts = row.startsAt ? new Date(row.startsAt) : null;
-    const ends = row.endsAt ? new Date(row.endsAt) : null;
-    let phase: 'upcoming' | 'open' | 'finished' = 'open';
-    if (starts && now.getTime() + 2000 < starts.getTime()) phase = 'upcoming';
-    if (ends && now.getTime() > ends.getTime()) phase = 'finished';
-    if (row.status === 'draft') phase = 'upcoming';
+    const phase = publicPhase(row);
+
+    const deviceId = String(req.query.deviceId || req.body?.deviceId || '').trim().slice(0, 64);
+    let alreadyParticipated = false;
+    let existingParticipantId = '';
+    if (deviceId) {
+      const prev = get('SELECT id FROM quiz_participants WHERE quizId = ? AND deviceId = ?', [row.id, deviceId]);
+      if (prev) {
+        alreadyParticipated = true;
+        existingParticipantId = prev.id;
+      }
+    }
 
     const questions = query('SELECT id, type, text, imageUrl, points, position FROM quiz_questions WHERE quizId = ? ORDER BY position', [row.id]) as any[];
     const shaped = questions.map((q) => ({
@@ -279,8 +298,11 @@ export const getPublicQuiz = (req: AuthRequest, res: Response) => {
         startsAt: row.startsAt,
         endsAt: row.endsAt,
         afterEndText: row.afterEndText,
+        status: row.status,
         phase,
-        questions: phase === 'finished' ? [] : shaped,
+        alreadyParticipated,
+        existingParticipantId,
+        questions: phase === 'finished' || alreadyParticipated ? [] : shaped,
         questionCount: questions.length,
       },
     });
@@ -315,15 +337,12 @@ export const submitQuiz = (req: AuthRequest, res: Response) => {
   try {
     const { slug } = req.params;
     const quiz = get('SELECT * FROM quizzes WHERE publicSlug = ?', [slug]) || get('SELECT * FROM quizzes WHERE id = ?', [slug]);
-    if (!quiz) return res.status(404).json({ success: false, error: 'Квиз не найден' });
+    if (!quiz) return res.status(404).json({ success: false, error: 'Мероприятие не найдено' });
+    if (quiz.status === 'draft') return res.status(404).json({ success: false, error: 'Мероприятие не найдено' });
 
-    const now = Date.now();
-    if (quiz.startsAt && now + 2000 < new Date(quiz.startsAt).getTime()) {
-      return res.status(400).json({ success: false, error: 'Квиз ещё не начался' });
-    }
-    if (quiz.endsAt && now > new Date(quiz.endsAt).getTime()) {
-      return res.status(400).json({ success: false, error: 'Квиз завершён' });
-    }
+    const phase = publicPhase(quiz);
+    if (phase === 'finished') return res.status(400).json({ success: false, error: 'Мероприятие завершено' });
+    if (phase === 'upcoming') return res.status(400).json({ success: false, error: 'Мероприятие ещё не началось' });
 
     const {
       participantId, lastName, firstName, patronymic = '', phone = '', email = '',
@@ -333,11 +352,17 @@ export const submitQuiz = (req: AuthRequest, res: Response) => {
     if (!lastName || !firstName) return res.status(400).json({ success: false, error: 'Фамилия и имя обязательны' });
 
     const dev = String(deviceId || '').trim().slice(0, 64);
-    // only block a *different* attempt from same device
-    if (dev && !participantId) {
-      const dup = get('SELECT id FROM quiz_participants WHERE quizId = ? AND deviceId = ?', [quiz.id, dev]);
-      if (dup) {
-        return res.status(400).json({ success: false, error: 'Вы уже проходили этот квиз', participantId: dup.id });
+    if (!dev) return res.status(400).json({ success: false, error: 'Не передан идентификатор устройства' });
+
+    // одна попытка с устройства: повторный submit / новая сессия — отказ
+    const existing = get('SELECT id, finishedAt FROM quiz_participants WHERE quizId = ? AND deviceId = ?', [quiz.id, dev]);
+    if (existing) {
+      if (existing.finishedAt) {
+        return res.status(403).json({ success: false, error: 'Вы уже приняли участие в этом мероприятии', participantId: existing.id });
+      }
+      // стартовали, но не завершили — дописываем ту же запись
+      if (!participantId || participantId !== existing.id) {
+        return res.status(403).json({ success: false, error: 'Вы уже приняли участие в этом мероприятии', participantId: existing.id });
       }
     }
 
@@ -355,7 +380,12 @@ export const submitQuiz = (req: AuthRequest, res: Response) => {
 
     const consentIp = (req.ip || req.socket?.remoteAddress || '').toString().slice(0, 64);
     let pid = participantId;
-    let participant = pid ? get('SELECT * FROM quiz_participants WHERE id = ?', [pid]) : null;
+    let participant = pid ? get('SELECT * FROM quiz_participants WHERE id = ? AND quizId = ?', [pid, quiz.id]) : null;
+
+    // чужой / чужой deviceId — не даём перезаписать запись
+    if (participant && dev && participant.deviceId && participant.deviceId !== dev) {
+      return res.status(403).json({ success: false, error: 'Вы уже приняли участие в этом мероприятии' });
+    }
 
     if (!participant) {
       pid = uuidv4();
@@ -399,17 +429,22 @@ export const startQuiz = (req: AuthRequest, res: Response) => {
   try {
     const { slug } = req.params;
     const quiz = get('SELECT * FROM quizzes WHERE publicSlug = ?', [slug]) || get('SELECT * FROM quizzes WHERE id = ?', [slug]);
-    if (!quiz) return res.status(404).json({ success: false, error: 'Квиз не найден' });
+    if (!quiz) return res.status(404).json({ success: false, error: 'Мероприятие не найдено' });
+    if (quiz.status === 'draft') return res.status(404).json({ success: false, error: 'Мероприятие не найдено' });
+
+    const phase = publicPhase(quiz);
+    if (phase === 'finished') return res.status(400).json({ success: false, error: 'Мероприятие завершено' });
+    if (phase === 'upcoming') return res.status(400).json({ success: false, error: 'Мероприятие ещё не началось' });
+
     const { lastName, firstName, patronymic = '', phone = '', email = '', consent = true, deviceId = '' } = req.body || {};
     if (!consent) return res.status(400).json({ success: false, error: 'Нужно согласие' });
     if (!lastName || !firstName) return res.status(400).json({ success: false, error: 'Фамилия и имя обязательны' });
 
     const dev = String(deviceId || '').trim().slice(0, 64);
-    if (dev) {
-      const dup = get('SELECT id, startedAt FROM quiz_participants WHERE quizId = ? AND deviceId = ?', [quiz.id, dev]);
-      if (dup) {
-        return res.json({ success: true, data: { participantId: dup.id, startedAt: dup.startedAt, resumed: true } });
-      }
+    if (!dev) return res.status(400).json({ success: false, error: 'Не передан идентификатор устройства' });
+    const dup = get('SELECT id, startedAt FROM quiz_participants WHERE quizId = ? AND deviceId = ?', [quiz.id, dev]);
+    if (dup) {
+      return res.status(403).json({ success: false, error: 'Вы уже приняли участие в этом мероприятии', participantId: dup.id });
     }
 
     const id = uuidv4();

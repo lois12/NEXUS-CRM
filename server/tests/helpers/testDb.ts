@@ -44,6 +44,70 @@ export function setupTestDb(): void {
     updatedAt TEXT DEFAULT (datetime('now'))
   )`, [], true);
 
+  // Quizzes (public forms)
+  run(`CREATE TABLE IF NOT EXISTS quizzes (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    description TEXT DEFAULT '',
+    organizer TEXT DEFAULT '',
+    imageUrl TEXT,
+    publicSlug TEXT UNIQUE,
+    status TEXT DEFAULT 'draft',
+    startsAt TEXT,
+    endsAt TEXT,
+    afterEndText TEXT DEFAULT '',
+    createdBy TEXT,
+    createdAt TEXT DEFAULT (datetime('now')),
+    updatedAt TEXT DEFAULT (datetime('now'))
+  )`, [], true);
+  run(`CREATE TABLE IF NOT EXISTS quiz_questions (
+    id TEXT PRIMARY KEY,
+    quizId TEXT NOT NULL,
+    type TEXT DEFAULT 'choice',
+    text TEXT DEFAULT '',
+    imageUrl TEXT,
+    points INTEGER DEFAULT 1,
+    position INTEGER DEFAULT 0,
+    correctText TEXT DEFAULT ''
+  )`, [], true);
+  run(`CREATE TABLE IF NOT EXISTS quiz_options (
+    id TEXT PRIMARY KEY,
+    questionId TEXT NOT NULL,
+    text TEXT DEFAULT '',
+    imageUrl TEXT,
+    isCorrect INTEGER DEFAULT 0,
+    position INTEGER DEFAULT 0
+  )`, [], true);
+  run(`CREATE TABLE IF NOT EXISTS quiz_participants (
+    id TEXT PRIMARY KEY,
+    quizId TEXT NOT NULL,
+    lastName TEXT DEFAULT '',
+    firstName TEXT DEFAULT '',
+    patronymic TEXT DEFAULT '',
+    phone TEXT DEFAULT '',
+    email TEXT DEFAULT '',
+    consent INTEGER DEFAULT 0,
+    consentAt TEXT,
+    consentIp TEXT,
+    startedAt TEXT,
+    finishedAt TEXT,
+    score INTEGER DEFAULT 0,
+    totalPoints INTEGER DEFAULT 0,
+    durationMs INTEGER DEFAULT 0,
+    deviceId TEXT
+  )`, [], true);
+  run('CREATE UNIQUE INDEX IF NOT EXISTS idx_quiz_device ON quiz_participants(quizId, deviceId)', [], true);
+  run(`CREATE TABLE IF NOT EXISTS quiz_answers (
+    id TEXT PRIMARY KEY,
+    participantId TEXT NOT NULL,
+    questionId TEXT NOT NULL,
+    answerText TEXT DEFAULT '',
+    selectedOptionIds TEXT DEFAULT '[]',
+    isCorrect INTEGER DEFAULT 0,
+    points INTEGER DEFAULT 0,
+    answeredAt TEXT
+  )`, [], true);
+
   seedTestUsers();
 }
 

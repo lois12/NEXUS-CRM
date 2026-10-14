@@ -48,7 +48,7 @@ export default function PublicQuiz() {
   const startRef = useRef<number>(0);
 
   useEffect(() => {
-    api.get(slug).then((d) => {
+    api.get(`${slug}?deviceId=${encodeURIComponent(deviceId())}`).then((d) => {
       if (d.success) setQuiz(d.data);
       else setError(d.error || 'Квиз не найден');
     }).catch(() => setError('Ошибка сети')).finally(() => setLoading(false));
@@ -84,8 +84,10 @@ export default function PublicQuiz() {
       setParticipantId(d.data.participantId);
       startRef.current = Date.now();
       setPhase('quiz');
+    } else if (d.error && /уже приняли участие/i.test(d.error)) {
+      setQuiz((q: any) => (q ? { ...q, alreadyParticipated: true } : q));
     } else {
-      setError(d.error || 'Не удалось начать');
+      showToast(d.error || 'Не удалось начать', 'error');
     }
   };
 
@@ -105,8 +107,11 @@ export default function PublicQuiz() {
       setResult(d.data);
       setPhase('done');
       api.results(slug).then((r) => { if (r.success) setResults(r.data || []); });
+    } else if (d.error && /уже приняли участие/i.test(d.error)) {
+      setQuiz((q: any) => (q ? { ...q, alreadyParticipated: true } : q));
+      setPhase('intro');
     } else {
-      showToast(d.error || 'Ошибка отправки');
+      showToast(d.error || 'Ошибка отправки', 'error');
     }
   };
 
@@ -129,7 +134,25 @@ export default function PublicQuiz() {
         {quiz?.organizer && <p className="text-xs font-mono text-gray-500 mt-1">ОРГАНИЗАТОР · {quiz.organizer}</p>}
         {quiz?.description && <p className="text-sm text-gray-300 mt-3">{quiz.description}</p>}
 
-        {upcoming && (
+        {finished && (
+          <div className="glass rounded-2xl p-5 mt-5">
+            <p className="font-mono text-sm text-gray-200 mb-2">МЕРОПРИЯТИЕ ЗАВЕРШЕНО</p>
+            {quiz.afterEndText && <p className="text-sm text-gray-300">{quiz.afterEndText}</p>}
+            {!quiz?.alreadyParticipated && <ResultsTable results={results} />}
+          </div>
+        )}
+
+        {!finished && quiz?.alreadyParticipated && (
+          <div className="glass rounded-2xl p-8 mt-5 text-center">
+            <div className="font-mono text-lg font-bold mb-2" style={{ color: 'var(--color-primary)' }}>
+              ВЫ УЖЕ ПРИНЯЛИ УЧАСТИЕ В ЭТОМ МЕРОПРИЯТИИ
+            </div>
+            <p className="text-sm text-gray-400">Повторное прохождение недоступно.</p>
+            {quiz.afterEndText && <p className="text-sm text-gray-400 mt-3">{quiz.afterEndText}</p>}
+          </div>
+        )}
+
+        {!quiz?.alreadyParticipated && !finished && upcoming && (
           <div className="glass rounded-2xl p-6 mt-5 text-center">
             <p className="text-[10px] font-mono tracking-[0.25em] text-gray-500">ДО СТАРТА</p>
             <div className="font-mono text-4xl font-bold my-3" style={{ color: 'var(--color-primary)' }}>{fmtLeft(left)}</div>
@@ -137,15 +160,7 @@ export default function PublicQuiz() {
           </div>
         )}
 
-        {finished && (
-          <div className="glass rounded-2xl p-5 mt-5">
-            <p className="font-mono text-sm text-gray-200 mb-2">КВИЗ ЗАВЕРШЁН</p>
-            {quiz.afterEndText && <p className="text-sm text-gray-300">{quiz.afterEndText}</p>}
-            <ResultsTable results={results} />
-          </div>
-        )}
-
-        {!upcoming && !finished && phase === 'intro' && (
+        {!quiz?.alreadyParticipated && !upcoming && !finished && phase === 'intro' && (
           <div className="glass rounded-2xl p-5 mt-5">
             <h2 className="font-mono text-sm font-bold mb-3" style={{ color: 'var(--color-primary)' }}>АНКЕТА УЧАСТНИКА</h2>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -175,7 +190,7 @@ export default function PublicQuiz() {
           </div>
         )}
 
-        {phase === 'quiz' && quiz?.questions?.length > 0 && (
+        {!quiz?.alreadyParticipated && phase === 'quiz' && quiz?.questions?.length > 0 && (
           <div className="mt-5 space-y-4">
             {(() => {
               const total = quiz.questions.length;
@@ -255,7 +270,7 @@ export default function PublicQuiz() {
           </div>
         )}
 
-        {phase === 'done' && result && (
+        {!quiz?.alreadyParticipated && phase === 'done' && result && (
           <div className="glass rounded-2xl p-6 mt-5 text-center">
             <p className="font-mono text-[10px] tracking-[0.25em] text-gray-500">ЗАВЕРШЕНО</p>
             <div className="font-mono text-2xl font-bold my-3" style={{ color: 'var(--color-primary)' }}>
