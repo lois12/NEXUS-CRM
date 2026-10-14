@@ -43,6 +43,7 @@ export default function PublicQuiz() {
   const [result, setResult] = useState<any>(null);
   const [left, setLeft] = useState(0);
   const [results, setResults] = useState<any[]>([]);
+  const [zoom, setZoom] = useState<string | null>(null);
   const startRef = useRef<number>(0);
 
   useEffect(() => {
@@ -113,8 +114,6 @@ export default function PublicQuiz() {
 
   const upcoming = quiz?.phase === 'upcoming';
   const finished = quiz?.phase === 'finished';
-
-  const [zoom, setZoom] = useState<string | null>(null);
 
   return (
     <div className="min-h-screen p-4 md:p-8">
