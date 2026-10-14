@@ -26,8 +26,10 @@ register('027', 'quizzes', () => {
     text TEXT NOT NULL,
     imageUrl TEXT,
     points INTEGER DEFAULT 1,
-    position INTEGER DEFAULT 0
+    position INTEGER DEFAULT 0,
+    correctText TEXT DEFAULT ''
   )`, [], true);
+  run('ALTER TABLE quiz_questions ADD COLUMN correctText TEXT DEFAULT \'\'', [], true);
 
   run(`CREATE TABLE IF NOT EXISTS quiz_options (
     id TEXT PRIMARY KEY,

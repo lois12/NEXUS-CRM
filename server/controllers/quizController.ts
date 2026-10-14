@@ -164,8 +164,8 @@ export const saveQuestions = (req: AuthRequest, res: Response) => {
       run('DELETE FROM quiz_questions WHERE quizId = ?', [id]);
       questions.forEach((q: any, qi: number) => {
         const qid = uuidv4();
-        run('INSERT INTO quiz_questions (id, quizId, type, text, imageUrl, points, position) VALUES (?, ?, ?, ?, ?, ?, ?)',
-          [qid, id, q.type === 'open' ? 'open' : 'choice', String(q.text || ''), q.imageUrl || null, Number(q.points) || 1, qi]);
+        run('INSERT INTO quiz_questions (id, quizId, type, text, imageUrl, points, position, correctText) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+          [qid, id, q.type === 'open' ? 'open' : 'choice', String(q.text || ''), q.imageUrl || null, Number(q.points) || 1, qi, String(q.correctText || '')]);
         (q.options || []).forEach((o: any, oi: number) => {
           run('INSERT INTO quiz_options (id, questionId, text, imageUrl, isCorrect, position) VALUES (?, ?, ?, ?, ?, ?)',
             [uuidv4(), qid, String(o.text || ''), o.imageUrl || null, o.isCorrect ? 1 : 0, oi]);

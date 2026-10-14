@@ -430,6 +430,18 @@ export default function Quizzes() {
                         />
                       </div>
 
+                      {q.type === 'open' && (
+                        <div className="mb-2">
+                          <label className="text-[10px] font-mono text-gray-500 tracking-wider">ПРАВИЛЬНЫЙ ОТВЕТ (можно несколько через |)</label>
+                          <input
+                            value={(q as any).correctText || ''}
+                            onChange={(e) => setQuestions((p) => p.map((x, i) => (i === qi ? { ...x, correctText: e.target.value } : x)))}
+                            placeholder="например: 42 | сорок два"
+                            className="w-full px-3 py-2 rounded-lg text-sm bg-white/5 border border-white/10 text-gray-200"
+                          />
+                        </div>
+                      )}
+
                       {q.type === 'choice' && (
                         <div className="space-y-1.5">
                           {(q.options || []).map((o, oi) => (
