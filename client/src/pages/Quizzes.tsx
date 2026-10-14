@@ -85,7 +85,8 @@ export default function Quizzes() {
       });
       setQuestions((d.questions || []).map((q) => ({
         ...q,
-        options: q.options?.length ? q.options : [{ text: '', isCorrect: true }],
+        correctText: (q as any).correctText || '',
+        options: (q.options?.length ? q.options : [{ text: '', isCorrect: true }]).map((o) => ({ ...o, isCorrect: !!o.isCorrect })),
       })));
       setShowForm(true);
     } catch {
@@ -446,21 +447,27 @@ export default function Quizzes() {
                         <div className="space-y-1.5">
                           {(q.options || []).map((o, oi) => (
                             <div key={oi} className="flex items-center gap-1.5">
-                              <input
-                                type="checkbox"
-                                checked={!!o.isCorrect}
-                                onChange={(e) =>
+                              <button
+                                type="button"
+                                onClick={() =>
                                   setQuestions((p) =>
                                     p.map((x, i) =>
                                       i === qi
-                                        ? { ...x, options: (x.options || []).map((op, j) => j === oi ? { ...op, isCorrect: e.target.checked } : op) }
+                                        ? { ...x, options: (x.options || []).map((op, j) => j === oi ? { ...op, isCorrect: !op.isCorrect } : op) }
                                         : x
                                     )
                                   )
                                 }
-                                className="accent-[var(--color-primary)]"
-                                title="Правильный"
-                              />
+                                className="px-2 py-1.5 rounded-lg text-[9px] font-mono font-bold flex-shrink-0 min-w-[52px]"
+                                style={{
+                                  background: o.isCorrect ? 'var(--color-primary)' : 'rgba(255,255,255,0.06)',
+                                  color: o.isCorrect ? '#000' : '#9ca3af',
+                                  border: o.isCorrect ? '1px solid transparent' : '1px solid rgba(255,255,255,0.12)',
+                                }}
+                                title="Переключить: правильный / нет"
+                              >
+                                {o.isCorrect ? '✓ ВЕРНО' : 'ВЕРНО?'}
+                              </button>
                               <input
                                 value={o.text}
                                 onChange={(e) =>
@@ -506,7 +513,7 @@ export default function Quizzes() {
                             }
                             className="text-[10px] font-mono text-gray-400 hover:text-gray-200"
                           >+ вариант</button>
-                          <p className="text-[9px] text-gray-600">✓ — правильный ответ (можно несколько)</p>
+                          <p className="text-[9px] text-gray-600">Кнопка «ВЕРНО» — правильный ответ (можно несколько)</p>
                         </div>
                       )}
                     </div>
