@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import PrivacyFooter from '../components/common/PrivacyFooter';
+import { showToast } from '../components/ui/NexusModal';
 
 const api = {
   get: (slug: string) => fetch(`/api/quizzes/public/${slug}`).then((r) => r.json()),
@@ -43,6 +44,7 @@ export default function PublicQuiz() {
   const [result, setResult] = useState<any>(null);
   const [left, setLeft] = useState(0);
   const [results, setResults] = useState<any[]>([]);
+  const [step, setStep] = useState(0);
   const [zoom, setZoom] = useState<string | null>(null);
   const startRef = useRef<number>(0);
 
@@ -90,7 +92,7 @@ export default function PublicQuiz() {
 
   const submit = async () => {
     const d = await api.submit(slug, {
-      participantId,
+      participantId: participantId || undefined,
       deviceId: deviceId(),
       ...form,
       consent: true,
@@ -105,7 +107,7 @@ export default function PublicQuiz() {
       setPhase('done');
       api.results(slug).then((r) => { if (r.success) setResults(r.data || []); });
     } else {
-      setError(d.error || 'Ошибка отправки');
+      showToast(d.error || 'Ошибка отправки');
     }
   };
 
@@ -174,66 +176,83 @@ export default function PublicQuiz() {
           </div>
         )}
 
-        {phase === 'quiz' && quiz?.questions && (
+        {phase === 'quiz' && quiz?.questions?.length > 0 && (
           <div className="mt-5 space-y-4">
-            <div className="glass rounded-xl px-4 py-2 font-mono text-xs text-gray-400">
-              ВОПРОСОВ: {quiz.questions.length} · УЧАСТНИК: {form.lastName} {form.firstName}
-            </div>
-            {quiz.questions.map((q: any, qi: number) => (
-              <div key={q.id} className="glass rounded-2xl p-4">
-                <div className="flex items-start gap-2 mb-2">
-                  <span className="font-mono text-[10px] text-gray-500 mt-1">{qi + 1}</span>
-                  <div className="flex-1">
-                    <p className="text-sm text-gray-200">{q.text}</p>
-                    {q.imageUrl && (
-                      <img src={q.imageUrl} alt="" className="mt-2 rounded-lg max-h-48 object-contain cursor-zoom-in"
-                        onClick={() => setZoom(q.imageUrl)} />
+            {(() => {
+              const total = quiz.questions.length;
+              const qi = Math.min(step, total - 1);
+              const q = quiz.questions[qi];
+              return (
+                <>
+                  <div className="glass rounded-xl px-4 py-2 font-mono text-xs text-gray-400 flex items-center justify-between">
+                    <span>ВОПРОС {qi + 1} / {total}</span>
+                    <span>{form.lastName} {form.firstName}</span>
+                  </div>
+                  <div className="glass rounded-2xl p-4">
+                    <div className="flex items-start gap-2 mb-2">
+                      <span className="font-mono text-[10px] text-gray-500 mt-1">{qi + 1}</span>
+                      <div className="flex-1">
+                        <p className="text-sm text-gray-200">{q.text}</p>
+                        {q.imageUrl && (
+                          <img src={q.imageUrl} alt="" className="mt-2 rounded-lg max-h-56 object-contain cursor-zoom-in"
+                            onClick={() => setZoom(q.imageUrl)} />
+                        )}
+                      </div>
+                    </div>
+                    {q.type === 'open' ? (
+                      <textarea
+                        value={answers[q.id]?.answerText || ''}
+                        onChange={(e) => setAnswers({ ...answers, [q.id]: { ...answers[q.id], answerText: e.target.value } })}
+                        rows={3}
+                        placeholder="Ваш ответ…"
+                        className="w-full px-3 py-2 rounded-xl text-sm bg-white/5 border border-white/10 text-gray-200"
+                      />
+                    ) : (
+                      <div className="space-y-1.5">
+                        {(q.options || []).map((o: any) => {
+                          const sel = answers[q.id]?.selectedOptionIds || [];
+                          const on = sel.includes(o.id);
+                          return (
+                            <button
+                              key={o.id}
+                              onClick={() => {
+                                const next = on ? sel.filter((x) => x !== o.id) : [...sel, o.id];
+                                setAnswers({ ...answers, [q.id]: { ...answers[q.id], selectedOptionIds: next } });
+                              }}
+                              className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-left text-sm transition-all"
+                              style={{
+                                background: on ? 'rgba(0,255,136,0.12)' : 'rgba(255,255,255,0.04)',
+                                border: on ? '1px solid rgba(0,255,136,0.45)' : '1px solid rgba(255,255,255,0.08)',
+                              }}
+                            >
+                              <span className="w-5 h-5 rounded-full border flex items-center justify-center text-[11px] flex-shrink-0"
+                                style={{ borderColor: on ? 'var(--color-primary)' : '#666', color: 'var(--color-primary)', background: on ? 'rgba(0,255,136,0.15)' : 'transparent' }}>
+                                {on ? '✓' : ''}
+                              </span>
+                              <span className="flex-1 text-gray-200">{o.text}</span>
+                              {o.imageUrl && (
+                                <img src={o.imageUrl} alt="" className="w-12 h-12 rounded object-cover cursor-zoom-in"
+                                  onClick={(e) => { e.stopPropagation(); setZoom(o.imageUrl); }} />
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
                     )}
                   </div>
-                </div>
-                {q.type === 'open' ? (
-                  <textarea
-                    value={answers[q.id]?.answerText || ''}
-                    onChange={(e) => setAnswers({ ...answers, [q.id]: { ...answers[q.id], answerText: e.target.value } })}
-                    rows={2}
-                    placeholder="Ваш ответ…"
-                    className="w-full px-3 py-2 rounded-xl text-sm bg-white/5 border border-white/10 text-gray-200"
-                  />
-                ) : (
-                  <div className="space-y-1.5">
-                    {(q.options || []).map((o: any) => {
-                      const sel = answers[q.id]?.selectedOptionIds || [];
-                      const on = sel.includes(o.id);
-                      return (
-                        <button
-                          key={o.id}
-                          onClick={() => {
-                            const next = on ? sel.filter((x) => x !== o.id) : [...sel, o.id];
-                            setAnswers({ ...answers, [q.id]: { ...answers[q.id], selectedOptionIds: next } });
-                          }}
-                          className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left text-sm transition-all"
-                          style={{
-                            background: on ? 'rgba(0,255,136,0.12)' : 'rgba(255,255,255,0.04)',
-                            border: on ? '1px solid rgba(0,255,136,0.4)' : '1px solid rgba(255,255,255,0.08)',
-                          }}
-                        >
-                          <span className="w-4 h-4 rounded border flex items-center justify-center text-[10px]"
-                            style={{ borderColor: on ? 'var(--color-primary)' : '#666', color: 'var(--color-primary)' }}>
-                            {on ? '✓' : ''}
-                          </span>
-                          <span className="flex-1 text-gray-200">{o.text}</span>
-                          {o.imageUrl && (
-                            <img src={o.imageUrl} alt="" className="w-10 h-10 rounded object-cover cursor-zoom-in"
-                              onClick={(e) => { e.stopPropagation(); setZoom(o.imageUrl); }} />
-                          )}
-                        </button>
-                      );
-                    })}
+                  <div className="flex gap-2">
+                    {qi > 0 && (
+                      <button onClick={() => setStep((s) => Math.max(0, s - 1))} className="btn-ghost flex-1">← НАЗАД</button>
+                    )}
+                    {qi < total - 1 ? (
+                      <button onClick={() => setStep((s) => Math.min(total - 1, s + 1))} className="btn-primary flex-1">ДАЛЕЕ →</button>
+                    ) : (
+                      <button onClick={submit} className="btn-primary flex-1">ЗАВЕРШИТЬ</button>
+                    )}
                   </div>
-                )}
-              </div>
-            ))}
-            <button onClick={submit} className="btn-primary w-full py-3">ЗАВЕРШИТЬ</button>
+                </>
+              );
+            })()}
           </div>
         )}
 

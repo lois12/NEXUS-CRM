@@ -333,11 +333,11 @@ export const submitQuiz = (req: AuthRequest, res: Response) => {
     if (!lastName || !firstName) return res.status(400).json({ success: false, error: 'Фамилия и имя обязательны' });
 
     const dev = String(deviceId || '').trim().slice(0, 64);
-    if (dev) {
+    // only block a *different* attempt from same device
+    if (dev && !participantId) {
       const dup = get('SELECT id FROM quiz_participants WHERE quizId = ? AND deviceId = ?', [quiz.id, dev]);
-      // allow the same participant to finish their own attempt
-      if (dup && dup.id !== participantId) {
-        return res.status(400).json({ success: false, error: 'Вы уже проходили этот квиз' });
+      if (dup) {
+        return res.status(400).json({ success: false, error: 'Вы уже проходили этот квиз', participantId: dup.id });
       }
     }
 
@@ -361,14 +361,14 @@ export const submitQuiz = (req: AuthRequest, res: Response) => {
       pid = uuidv4();
       run(`INSERT INTO quiz_participants
         (id, quizId, lastName, firstName, patronymic, phone, email, consent, consentAt, consentIp, startedAt, finishedAt, score, totalPoints, durationMs, deviceId)
-        VALUES (?, ?, ?, ?, ?, ?, ?, 1, datetime('now'), ?, datetime('now'), datetime('now'), ?, ?, 0, ?)`,
-        [pid, quiz.id, lastName, firstName, patronymic, phone, email, consentIp, score, totalPoints, dev || null]);
+        VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [pid, quiz.id, lastName, firstName, patronymic, phone, email, new Date().toISOString(), consentIp,
+          new Date().toISOString(), new Date().toISOString(), score, totalPoints, 0, dev || null]);
     } else {
-      const durationMs = participant.startedAt
-        ? Date.now() - new Date(participant.startedAt).getTime()
-        : 0;
-      run(`UPDATE quiz_participants SET finishedAt = datetime('now'), score = ?, totalPoints = ?, durationMs = ? WHERE id = ?`,
-        [score, totalPoints, durationMs, pid]);
+      const startedAt = participant.startedAt ? new Date(participant.startedAt).getTime() : Date.now();
+      const durationMs = Math.max(0, Date.now() - startedAt);
+      run(`UPDATE quiz_participants SET finishedAt = ?, score = ?, totalPoints = ?, durationMs = ? WHERE id = ?`,
+        [new Date().toISOString(), score, totalPoints, durationMs, pid]);
     }
 
     for (const g of graded) {
@@ -413,10 +413,11 @@ export const startQuiz = (req: AuthRequest, res: Response) => {
 
     const id = uuidv4();
     const consentIp = (req.ip || req.socket?.remoteAddress || '').toString().slice(0, 64);
+    const nowIso = new Date().toISOString();
     run(`INSERT INTO quiz_participants (id, quizId, lastName, firstName, patronymic, phone, email, consent, consentAt, consentIp, startedAt, deviceId)
-         VALUES (?, ?, ?, ?, ?, ?, ?, 1, datetime('now'), ?, datetime('now'), ?)`,
-      [id, quiz.id, lastName, firstName, patronymic, phone, email, consentIp, dev || null]);
-    res.status(201).json({ success: true, data: { participantId: id, startedAt: new Date().toISOString() } });
+         VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?)`,
+      [id, quiz.id, lastName, firstName, patronymic, phone, email, nowIso, consentIp, nowIso, dev || null]);
+    res.status(201).json({ success: true, data: { participantId: id, startedAt: nowIso } });
   } catch (e) {
     console.error('StartQuiz', e);
     res.status(500).json({ success: false, error: 'Ошибка сервера' });
