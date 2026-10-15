@@ -207,6 +207,9 @@ export default function PublicQuiz() {
                       <span className="font-mono text-[10px] text-gray-500 mt-1">{qi + 1}</span>
                       <div className="flex-1">
                         <p className="text-sm text-gray-200">{q.text}</p>
+                        {q.comment && (
+                          <p className="text-[11px] text-gray-500 mt-1 leading-relaxed">{q.comment}</p>
+                        )}
                         {q.imageUrl && (
                           <img src={q.imageUrl} alt="" className="mt-2 rounded-lg max-h-56 object-contain cursor-zoom-in"
                             onClick={() => setZoom(q.imageUrl)} />

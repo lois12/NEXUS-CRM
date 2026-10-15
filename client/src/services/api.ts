@@ -194,12 +194,15 @@ export const materialsApi = {
   getAll: (params?: { folder?: string; type?: string }): Promise<ApiResponse<Material[]>> =>
     api.get('/materials', { params }).then((res) => res.data),
   
-  upload: (file: File, folder?: string): Promise<ApiResponse<Material>> => {
+  upload: (file: File, folder?: string, onProgress?: (pct: number) => void): Promise<ApiResponse<Material>> => {
     const formData = new FormData();
     formData.append('file', file);
     if (folder) formData.append('folder', folder);
     return api.post('/materials/upload', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
+      onUploadProgress: (e) => {
+        if (onProgress && e.total) onProgress(Math.min(99, Math.round((e.loaded / e.total) * 100)));
+      },
     }).then((res) => res.data);
   },
   

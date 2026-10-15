@@ -65,6 +65,7 @@ export function setupTestDb(): void {
     quizId TEXT NOT NULL,
     type TEXT DEFAULT 'choice',
     text TEXT DEFAULT '',
+    comment TEXT DEFAULT '',
     imageUrl TEXT,
     points INTEGER DEFAULT 1,
     position INTEGER DEFAULT 0,

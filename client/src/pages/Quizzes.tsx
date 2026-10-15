@@ -1,8 +1,8 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus, Search, Edit3, Trash2, Copy, QrCode, Calendar, Play, FolderOpen,
-  X, Save, Image as ImageIcon, Link2, Users, ArrowLeft,
+  X, Save, Image as ImageIcon, Link2, Users, ArrowLeft, ChevronDown, ChevronRight,
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { quizzesApi, materialsApi } from '../services/api';
@@ -19,12 +19,33 @@ const STATUS: Record<QuizStatus, { label: string; color: string }> = {
 const emptyQ = (): QuizQuestion => ({
   type: 'choice',
   text: '',
+  comment: '',
   points: 1,
   options: [
     { text: '', isCorrect: true },
     { text: '', isCorrect: false },
   ],
 });
+
+const DRAFT_KEY = 'nexus_quiz_draft_v1';
+
+type UploadKey = string;
+
+function UploadSkeleton({ pct, label }: { pct: number; label?: string }) {
+  return (
+    <div
+      className="w-12 h-12 rounded-lg flex flex-col items-center justify-center flex-shrink-0"
+      style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)' }}
+      title={label || 'Загрузка'}
+    >
+      <div
+        className="w-5 h-5 rounded-full border-2 border-transparent animate-spin"
+        style={{ borderTopColor: 'var(--color-primary)', borderRightColor: 'var(--color-primary)' }}
+      />
+      <span className="text-[8px] font-mono text-gray-400 mt-0.5">{pct}%</span>
+    </div>
+  );
+}
 
 export default function Quizzes() {
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
@@ -38,6 +59,8 @@ export default function Quizzes() {
     startsAt: '', endsAt: '', afterEndText: '', status: 'draft' as QuizStatus,
   });
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
+  const [collapsed, setCollapsed] = useState<Record<number, boolean>>({});
+  const [uploads, setUploads] = useState<Record<UploadKey, number>>({});
   const [qrFor, setQrFor] = useState<Quiz | null>(null);
   const [view, setView] = useState<'list' | 'results'>('list');
   const [resultsFor, setResultsFor] = useState<Quiz | null>(null);
@@ -45,6 +68,34 @@ export default function Quizzes() {
   const fileRef = useRef<HTMLInputElement>(null);
   const qFileRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const { confirmState, showConfirm, closeConfirm } = useNexusConfirm();
+
+  // ── черновик в localStorage, чтобы прогресс не слетал ──
+  const saveDraft = useCallback((f: any, qs: QuizQuestion[], editingId: string | null) => {
+    try {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({ form: f, questions: qs, editingId, ts: Date.now() }));
+    } catch { /* quota */ }
+  }, []);
+
+  const clearDraft = () => {
+    try { localStorage.removeItem(DRAFT_KEY); } catch { /* */ }
+  };
+
+  const readDraft = (): { form: any; questions: QuizQuestion[]; editingId: string | null } | null => {
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      if (!raw) return null;
+      const d = JSON.parse(raw);
+      if (!d?.form || !Array.isArray(d?.questions)) return null;
+      return d;
+    } catch { return null; }
+  };
+
+  // автосейв пока форма открыта
+  useEffect(() => {
+    if (!showForm) return;
+    const t = setTimeout(() => saveDraft(form, questions, editing?.id || null), 400);
+    return () => clearTimeout(t);
+  }, [form, questions, showForm, editing, saveDraft]);
 
   const load = async () => {
     setLoading(true);
@@ -63,9 +114,20 @@ export default function Quizzes() {
   });
 
   const openCreate = () => {
+    const draft = readDraft();
+    if (draft && !draft.editingId) {
+      setEditing(null);
+      setForm(draft.form);
+      setQuestions(draft.questions.length ? draft.questions : [emptyQ()]);
+      setCollapsed({});
+      setShowForm(true);
+      showToast('Восстановлен черновик', 'info');
+      return;
+    }
     setEditing(null);
     setForm({ title: '', description: '', organizer: '', imageUrl: '', startsAt: '', endsAt: '', afterEndText: '', status: 'draft' });
     setQuestions([emptyQ()]);
+    setCollapsed({});
     setShowForm(true);
   };
 
@@ -86,13 +148,29 @@ export default function Quizzes() {
       });
       setQuestions((d.questions || []).map((q) => ({
         ...q,
+        comment: (q as any).comment || '',
         correctText: (q as any).correctText || '',
         options: (q.options?.length ? q.options : [{ text: '', isCorrect: true }]).map((o) => ({ ...o, isCorrect: !!o.isCorrect })),
       })));
+      setCollapsed({});
       setShowForm(true);
     } catch {
       showToast('Ошибка открытия', 'error');
     }
+  };
+
+  /** Закрыть форму ТОЛЬКО кнопками ОТМЕНА / СОХРАНИТЬ */
+  const closeForm = () => {
+    clearDraft();
+    setShowForm(false);
+    setEditing(null);
+    setUploads({});
+  };
+
+  const cancelForm = () => {
+    showConfirm('ВЫЙТИ БЕЗ СОХРАНЕНИЯ?', 'Черновик будет удалён', () => {
+      closeForm();
+    }, 'danger');
   };
 
   const save = async () => {
@@ -115,52 +193,57 @@ export default function Quizzes() {
         await quizzesApi.saveQuestions(id, questions.filter((q) => q.text.trim() || q.options?.some((o) => o.text.trim())));
       }
       showToast('Квиз сохранён', 'success');
-      setShowForm(false);
+      closeForm();
       load();
     } catch {
       showToast('Ошибка сохранения', 'error');
     }
   };
 
-  const uploadQuizImage = async (file: File) => {
+  const changeStatus = async (q: Quiz, status: QuizStatus) => {
     try {
-      const res = await materialsApi.upload(file, 'quizzes');
+      await quizzesApi.update(q.id, { status });
+      setQuizzes((prev) => prev.map((x) => (x.id === q.id ? { ...x, status } : x)));
+      showToast('Статус обновлён', 'success');
+    } catch {
+      showToast('Ошибка смены статуса', 'error');
+    }
+  };
+
+  const runUpload = async (key: UploadKey, file: File, onDone: (url: string) => void) => {
+    setUploads((u) => ({ ...u, [key]: 0 }));
+    try {
+      const res = await materialsApi.upload(file, 'quizzes', (pct) => {
+        setUploads((u) => ({ ...u, [key]: pct }));
+      });
       const url = res.data?.url || res.data?.thumbnailUrl;
-      if (url) setForm((f) => ({ ...f, imageUrl: url }));
+      setUploads((u) => { const n = { ...u }; delete n[key]; return n; });
+      if (url) onDone(url);
+      else showToast('Сервер не вернул ссылку', 'error');
     } catch {
+      setUploads((u) => { const n = { ...u }; delete n[key]; return n; });
       showToast('Ошибка загрузки', 'error');
     }
   };
 
-  const uploadQuestionImage = async (qi: number, file: File) => {
-    try {
-      const res = await materialsApi.upload(file, 'quizzes');
-      const url = res.data?.url;
-      if (url) {
-        setQuestions((prev) => prev.map((q, i) => (i === qi ? { ...q, imageUrl: url } : q)));
-      }
-    } catch {
-      showToast('Ошибка загрузки', 'error');
-    }
-  };
+  const uploadQuizImage = (file: File) =>
+    runUpload('quiz', file, (url) => setForm((f) => ({ ...f, imageUrl: url })));
 
-  const uploadOptionImage = async (qi: number, oi: number, file: File) => {
-    try {
-      const res = await materialsApi.upload(file, 'quizzes');
-      const url = res.data?.url;
-      if (url) {
-        setQuestions((prev) =>
-          prev.map((q, i) =>
-            i === qi
-              ? { ...q, options: (q.options || []).map((o, j) => (j === oi ? { ...o, imageUrl: url } : o)) }
-              : q
-          )
-        );
-      }
-    } catch {
-      showToast('Ошибка загрузки', 'error');
-    }
-  };
+  const uploadQuestionImage = (qi: number, file: File) =>
+    runUpload(`q${qi}`, file, (url) => {
+      setQuestions((prev) => prev.map((q, i) => (i === qi ? { ...q, imageUrl: url } : q)));
+    });
+
+  const uploadOptionImage = (qi: number, oi: number, file: File) =>
+    runUpload(`o${qi}_${oi}`, file, (url) => {
+      setQuestions((prev) =>
+        prev.map((q, i) =>
+          i === qi
+            ? { ...q, options: (q.options || []).map((o, j) => (j === oi ? { ...o, imageUrl: url } : o)) }
+            : q
+        )
+      );
+    });
 
   const openResults = async (q: Quiz) => {
     setResultsFor(q);
@@ -403,10 +486,25 @@ export default function Quizzes() {
                   <h3 className="font-bold text-gray-200 truncate">{q.title}</h3>
                   <p className="text-[10px] font-mono text-gray-500 truncate">{q.organizer || '—'}</p>
                   <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-                    <span className="text-[9px] font-mono px-1.5 py-0.5 rounded"
-                      style={{ background: `${STATUS[q.status]?.color || '#6b7280'}20`, color: STATUS[q.status]?.color }}>
-                      {STATUS[q.status]?.label || q.status}
-                    </span>
+                    <select
+                      value={q.status}
+                      onChange={(e) => changeStatus(q, e.target.value as QuizStatus)}
+                      onClick={(e) => e.stopPropagation()}
+                      className="text-[9px] font-mono px-1.5 py-0.5 rounded cursor-pointer appearance-none pr-5"
+                      style={{
+                        background: `${STATUS[q.status]?.color || '#6b7280'}20`,
+                        color: STATUS[q.status]?.color,
+                        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'%3E%3Cpath fill='${encodeURIComponent(STATUS[q.status]?.color || '#6b7280')}' d='M0 0l4 5 4-5z'/%3E%3C/svg%3E")`,
+                        backgroundRepeat: 'no-repeat',
+                        backgroundPosition: 'right 6px center',
+                        border: 'none',
+                      }}
+                      title="Сменить статус"
+                    >
+                      <option value="draft">ЧЕРНОВИК</option>
+                      <option value="scheduled">ЗАПЛАНИРОВАН</option>
+                      <option value="conducted">ПРОВЕДЁН</option>
+                    </select>
                     <span className="text-[9px] font-mono text-gray-500 flex items-center gap-1">
                       <Users className="w-3 h-3" /> {q.participantCount || 0}
                     </span>
@@ -440,25 +538,23 @@ export default function Quizzes() {
         </div>
       )}
 
-      {/* EDITOR */}
+      {/* EDITOR — закрывается ТОЛЬКО кнопками ОТМЕНА / СОХРАНИТЬ */}
       <AnimatePresence>
         {showForm && (
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 z-[100] flex items-start justify-center p-3 overflow-y-auto"
             style={{ background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(6px)' }}
-            onClick={() => setShowForm(false)}
           >
             <motion.div
               initial={{ scale: 0.95, y: 16 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0 }}
               className="glass-frost rounded-2xl p-5 w-full max-w-2xl my-6"
-              onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between mb-4">
                 <h2 className="font-mono text-lg font-bold" style={{ color: 'var(--color-primary)' }}>
                   {editing ? 'РЕДАКТИРОВАТЬ КВИЗ' : 'НОВЫЙ КВИЗ'}
                 </h2>
-                <button onClick={() => setShowForm(false)}><X className="w-5 h-5 text-gray-400" /></button>
+                <span className="text-[10px] font-mono text-gray-500">черновик сохраняется</span>
               </div>
 
               <div className="space-y-3">
@@ -476,7 +572,7 @@ export default function Quizzes() {
                   <div>
                     <label className="text-[10px] font-mono text-gray-500 tracking-wider">СТАТУС / ПАПКА</label>
                     <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as QuizStatus })}
-                      className="w-full px-3 py-2.5 rounded-xl text-sm bg-white/5 border border-white/10 text-gray-200">
+                      className="w-full px-3 py-2.5 rounded-xl text-sm bg-white/5 border border-white/10 text-gray-200 appearance-none">
                       <option value="draft">Черновик</option>
                       <option value="scheduled">Запланирован</option>
                       <option value="conducted">Проведён</option>
@@ -491,13 +587,17 @@ export default function Quizzes() {
 
                 <div>
                   <label className="text-[10px] font-mono text-gray-500 tracking-wider">КАРТИНКА КВИЗА</label>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 min-h-[48px]">
                     <input ref={fileRef} type="file" accept="image/*" className="hidden"
                       onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadQuizImage(f); e.target.value = ''; }} />
                     <button onClick={() => fileRef.current?.click()} className="btn-ghost px-3 py-2 text-[10px]">
                       <ImageIcon className="w-3.5 h-3.5 inline mr-1" /> ЗАГРУЗИТЬ
                     </button>
-                    {form.imageUrl && <img src={form.imageUrl} alt="" className="w-12 h-12 rounded-lg object-cover" />}
+                    {uploads['quiz'] !== undefined ? (
+                      <UploadSkeleton pct={uploads['quiz']} />
+                    ) : form.imageUrl ? (
+                      <img src={form.imageUrl} alt="" className="w-12 h-12 rounded-lg object-cover" />
+                    ) : null}
                   </div>
                 </div>
 
@@ -527,150 +627,203 @@ export default function Quizzes() {
               <div className="mt-5">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="font-mono text-xs font-bold tracking-wider text-gray-400">ВОПРОСЫ ({questions.length})</h3>
-                  <button
-                    onClick={() => setQuestions((p) => [...p, emptyQ()])}
-                    className="btn-primary px-3 py-1.5 text-[10px]"
-                  >
-                    <Plus className="w-3 h-3 inline mr-1" /> ДОБАВИТЬ
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setCollapsed(Object.fromEntries(questions.map((_, i) => [i, true])))}
+                      className="btn-ghost px-2.5 py-1.5 text-[10px]"
+                    >СВЕРНУТЬ ВСЕ</button>
+                    <button
+                      onClick={() => setCollapsed({})}
+                      className="btn-ghost px-2.5 py-1.5 text-[10px]"
+                    >РАЗВЕРНУТЬ</button>
+                    <button
+                      onClick={() => setQuestions((p) => [...p, emptyQ()])}
+                      className="btn-primary px-3 py-1.5 text-[10px]"
+                    >
+                      <Plus className="w-3 h-3 inline mr-1" /> ДОБАВИТЬ
+                    </button>
+                  </div>
                 </div>
 
                 <div className="space-y-3">
-                  {questions.map((q, qi) => (
-                    <div key={qi} className="rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="font-mono text-[10px] text-gray-500">ВОПРОС {qi + 1}</span>
-                        <div className="flex items-center gap-1">
-                          <select
-                            value={q.type}
-                            onChange={(e) => setQuestions((p) => p.map((x, i) => i === qi ? { ...x, type: e.target.value as any } : x))}
-                            className="px-2 py-1 rounded text-[10px] bg-white/5 border border-white/10 text-gray-300"
-                          >
-                            <option value="choice">Закрытый</option>
-                            <option value="open">Открытый</option>
-                          </select>
-                          <button onClick={() => setQuestions((p) => p.filter((_, i) => i !== qi))} className="p-1 text-red-400">
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                      <input
-                        value={q.text}
-                        onChange={(e) => setQuestions((p) => p.map((x, i) => i === qi ? { ...x, text: e.target.value } : x))}
-                        placeholder="Текст вопроса…"
-                        className="w-full px-3 py-2 rounded-lg text-sm bg-white/5 border border-white/10 text-gray-200 mb-2"
-                      />
-                      <div className="flex items-center gap-2 mb-2">
-                        <input
-                          ref={(el) => { qFileRefs.current[`q${qi}`] = el; }}
-                          type="file" accept="image/*" className="hidden"
-                          onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadQuestionImage(qi, f); e.target.value = ''; }}
-                        />
-                        <button onClick={() => qFileRefs.current[`q${qi}`]?.click()} className="btn-ghost px-2 py-1 text-[10px]">
-                          <ImageIcon className="w-3 h-3 inline mr-1" /> КАРТИНКА
-                        </button>
-                        {q.imageUrl && <img src={q.imageUrl} alt="" className="w-10 h-10 rounded object-cover" />}
-                        <span className="text-[10px] text-gray-500 ml-auto">Баллы:</span>
-                        <input
-                          type="number" min={1} value={q.points || 1}
-                          onChange={(e) => setQuestions((p) => p.map((x, i) => i === qi ? { ...x, points: Number(e.target.value) || 1 } : x))}
-                          className="w-16 px-2 py-1 rounded text-xs bg-white/5 border border-white/10 text-gray-200"
-                        />
-                      </div>
-
-                      {q.type === 'open' && (
-                        <div className="mb-2">
-                          <label className="text-[10px] font-mono text-gray-500 tracking-wider">ПРАВИЛЬНЫЙ ОТВЕТ (можно несколько через |)</label>
-                          <input
-                            value={(q as any).correctText || ''}
-                            onChange={(e) => setQuestions((p) => p.map((x, i) => (i === qi ? { ...x, correctText: e.target.value } : x)))}
-                            placeholder="например: 42 | сорок два"
-                            className="w-full px-3 py-2 rounded-lg text-sm bg-white/5 border border-white/10 text-gray-200"
-                          />
-                        </div>
-                      )}
-
-                      {q.type === 'choice' && (
-                        <div className="space-y-1.5">
-                          {(q.options || []).map((o, oi) => (
-                            <div key={oi} className="flex items-center gap-1.5">
+                  {questions.map((q, qi) => {
+                    const isCollapsed = !!collapsed[qi];
+                    return (
+                      <div key={qi} className="rounded-xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                        {/* header — свернуть / развернуть */}
+                        <div
+                          className="flex items-center gap-2 px-3 py-2 cursor-pointer select-none hover:bg-white/[0.03]"
+                          onClick={() => setCollapsed((c) => ({ ...c, [qi]: !c[qi] }))}
+                        >
+                          {isCollapsed ? <ChevronRight className="w-4 h-4 text-gray-500" /> : <ChevronDown className="w-4 h-4 text-gray-500" />}
+                          <span className="font-mono text-[10px] text-gray-500">ВОПРОС {qi + 1}</span>
+                          <span className="text-[11px] text-gray-300 truncate flex-1">
+                            {q.text || (isCollapsed ? '—' : '')}
+                          </span>
+                          <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                            {/* тип — кнопки, без «плывущего» select */}
+                            <div className="flex rounded-lg overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.12)' }}>
                               <button
                                 type="button"
-                                onClick={() =>
-                                  setQuestions((p) =>
-                                    p.map((x, i) =>
-                                      i === qi
-                                        ? { ...x, options: (x.options || []).map((op, j) => j === oi ? { ...op, isCorrect: !op.isCorrect } : op) }
-                                        : x
-                                    )
-                                  )
-                                }
-                                className="px-2 py-1.5 rounded-lg text-[9px] font-mono font-bold flex-shrink-0 min-w-[52px]"
-                                style={{
-                                  background: o.isCorrect ? 'var(--color-primary)' : 'rgba(255,255,255,0.06)',
-                                  color: o.isCorrect ? '#000' : '#9ca3af',
-                                  border: o.isCorrect ? '1px solid transparent' : '1px solid rgba(255,255,255,0.12)',
-                                }}
-                                title="Переключить: правильный / нет"
-                              >
-                                {o.isCorrect ? '✓ ВЕРНО' : 'ВЕРНО?'}
-                              </button>
-                              <input
-                                value={o.text}
-                                onChange={(e) =>
-                                  setQuestions((p) =>
-                                    p.map((x, i) =>
-                                      i === qi
-                                        ? { ...x, options: (x.options || []).map((op, j) => j === oi ? { ...op, text: e.target.value } : op) }
-                                        : x
-                                    )
-                                  )
-                                }
-                                placeholder={`Вариант ${oi + 1}`}
-                                className="flex-1 px-2.5 py-1.5 rounded-lg text-xs bg-white/5 border border-white/10 text-gray-200"
-                              />
-                              <input
-                                ref={(el) => { qFileRefs.current[`o${qi}_${oi}`] = el; }}
-                                type="file" accept="image/*" className="hidden"
-                                onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadOptionImage(qi, oi, f); e.target.value = ''; }}
-                              />
-                              <button onClick={() => qFileRefs.current[`o${qi}_${oi}`]?.click()} className="p-1.5 text-gray-500 hover:text-gray-300" title="Картинка варианта">
-                                <ImageIcon className="w-3.5 h-3.5" />
-                              </button>
-                              {o.imageUrl && <img src={o.imageUrl} alt="" className="w-8 h-8 rounded object-cover" />}
+                                onClick={() => setQuestions((p) => p.map((x, i) => i === qi ? { ...x, type: 'choice' } : x))}
+                                className="px-2 py-1 text-[9px] font-mono"
+                                style={q.type === 'choice'
+                                  ? { background: 'var(--color-primary)', color: '#000' }
+                                  : { background: 'transparent', color: '#8b9bbb' }}
+                              >ЗАКРЫТЫЙ</button>
                               <button
-                                onClick={() =>
-                                  setQuestions((p) =>
-                                    p.map((x, i) =>
-                                      i === qi ? { ...x, options: (x.options || []).filter((_, j) => j !== oi) } : x
-                                    )
-                                  )
-                                }
-                                className="p-1 text-red-400"
-                              ><X className="w-3.5 h-3.5" /></button>
+                                type="button"
+                                onClick={() => setQuestions((p) => p.map((x, i) => i === qi ? { ...x, type: 'open' } : x))}
+                                className="px-2 py-1 text-[9px] font-mono"
+                                style={q.type === 'open'
+                                  ? { background: 'var(--color-primary)', color: '#000' }
+                                  : { background: 'transparent', color: '#8b9bbb' }}
+                              >ОТКРЫТЫЙ</button>
                             </div>
-                          ))}
-                          <button
-                            onClick={() =>
-                              setQuestions((p) =>
-                                p.map((x, i) =>
-                                  i === qi ? { ...x, options: [...(x.options || []), { text: '', isCorrect: false }] } : x
-                                )
-                              )
-                            }
-                            className="text-[10px] font-mono text-gray-400 hover:text-gray-200"
-                          >+ вариант</button>
-                          <p className="text-[9px] text-gray-600">Кнопка «ВЕРНО» — правильный ответ (можно несколько)</p>
+                            <button onClick={() => setQuestions((p) => p.filter((_, i) => i !== qi))} className="p-1 text-red-400">
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </div>
-                      )}
-                    </div>
-                  ))}
+
+                        {!isCollapsed && (
+                          <div className="px-3 pb-3">
+                            <input
+                              value={q.text}
+                              onChange={(e) => setQuestions((p) => p.map((x, i) => i === qi ? { ...x, text: e.target.value } : x))}
+                              placeholder="Текст вопроса…"
+                              className="w-full px-3 py-2 rounded-lg text-sm bg-white/5 border border-white/10 text-gray-200 mb-2"
+                            />
+                            {/* комментарий мелким шрифтом — сразу под вопросом */}
+                            <input
+                              value={q.comment || ''}
+                              onChange={(e) => setQuestions((p) => p.map((x, i) => i === qi ? { ...x, comment: e.target.value } : x))}
+                              placeholder="Комментарий к вопросу (мелким шрифтом под вопросом)"
+                              className="w-full px-3 py-1.5 rounded-lg text-[11px] bg-white/5 border border-white/10 text-gray-400 mb-2"
+                            />
+                            <div className="flex items-center gap-2 mb-2 min-h-[40px]">
+                              <input
+                                ref={(el) => { qFileRefs.current[`q${qi}`] = el; }}
+                                type="file" accept="image/*" className="hidden"
+                                onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadQuestionImage(qi, f); e.target.value = ''; }}
+                              />
+                              <button onClick={() => qFileRefs.current[`q${qi}`]?.click()} className="btn-ghost px-2 py-1 text-[10px]">
+                                <ImageIcon className="w-3 h-3 inline mr-1" /> КАРТИНКА
+                              </button>
+                              {uploads[`q${qi}`] !== undefined ? (
+                                <UploadSkeleton pct={uploads[`q${qi}`]} />
+                              ) : q.imageUrl ? (
+                                <img src={q.imageUrl} alt="" className="w-10 h-10 rounded object-cover" />
+                              ) : null}
+                              <span className="text-[10px] text-gray-500 ml-auto">Баллы:</span>
+                              <input
+                                type="number" min={1} value={q.points || 1}
+                                onChange={(e) => setQuestions((p) => p.map((x, i) => i === qi ? { ...x, points: Number(e.target.value) || 1 } : x))}
+                                className="w-16 px-2 py-1 rounded text-xs bg-white/5 border border-white/10 text-gray-200"
+                              />
+                            </div>
+
+                            {q.type === 'open' && (
+                              <div className="mb-2">
+                                <label className="text-[10px] font-mono text-gray-500 tracking-wider">ПРАВИЛЬНЫЙ ОТВЕТ (можно несколько через |)</label>
+                                <input
+                                  value={(q as any).correctText || ''}
+                                  onChange={(e) => setQuestions((p) => p.map((x, i) => (i === qi ? { ...x, correctText: e.target.value } : x)))}
+                                  placeholder="например: 42 | сорок два"
+                                  className="w-full px-3 py-2 rounded-lg text-sm bg-white/5 border border-white/10 text-gray-200"
+                                />
+                              </div>
+                            )}
+
+                            {q.type === 'choice' && (
+                              <div className="space-y-1.5">
+                                {(q.options || []).map((o, oi) => (
+                                  <div key={oi} className="flex items-center gap-1.5">
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setQuestions((p) =>
+                                          p.map((x, i) =>
+                                            i === qi
+                                              ? { ...x, options: (x.options || []).map((op, j) => j === oi ? { ...op, isCorrect: !op.isCorrect } : op) }
+                                              : x
+                                          )
+                                        )
+                                      }
+                                      className="px-2 py-1.5 rounded-lg text-[9px] font-mono font-bold flex-shrink-0 min-w-[52px]"
+                                      style={{
+                                        background: o.isCorrect ? 'var(--color-primary)' : 'rgba(255,255,255,0.06)',
+                                        color: o.isCorrect ? '#000' : '#9ca3af',
+                                        border: o.isCorrect ? '1px solid transparent' : '1px solid rgba(255,255,255,0.12)',
+                                      }}
+                                      title="Переключить: правильный / нет"
+                                    >
+                                      {o.isCorrect ? '✓ ВЕРНО' : 'ВЕРНО?'}
+                                    </button>
+                                    <input
+                                      value={o.text}
+                                      onChange={(e) =>
+                                        setQuestions((p) =>
+                                          p.map((x, i) =>
+                                            i === qi
+                                              ? { ...x, options: (x.options || []).map((op, j) => j === oi ? { ...op, text: e.target.value } : op) }
+                                              : x
+                                          )
+                                        )
+                                      }
+                                      placeholder={`Вариант ${oi + 1}`}
+                                      className="flex-1 px-2.5 py-1.5 rounded-lg text-xs bg-white/5 border border-white/10 text-gray-200"
+                                    />
+                                    <input
+                                      ref={(el) => { qFileRefs.current[`o${qi}_${oi}`] = el; }}
+                                      type="file" accept="image/*" className="hidden"
+                                      onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadOptionImage(qi, oi, f); e.target.value = ''; }}
+                                    />
+                                    <button onClick={() => qFileRefs.current[`o${qi}_${oi}`]?.click()} className="p-1.5 text-gray-500 hover:text-gray-300" title="Картинка варианта">
+                                      <ImageIcon className="w-3.5 h-3.5" />
+                                    </button>
+                                    {uploads[`o${qi}_${oi}`] !== undefined ? (
+                                      <UploadSkeleton pct={uploads[`o${qi}_${oi}`]} />
+                                    ) : o.imageUrl ? (
+                                      <img src={o.imageUrl} alt="" className="w-8 h-8 rounded object-cover" />
+                                    ) : null}
+                                    <button
+                                      onClick={() =>
+                                        setQuestions((p) =>
+                                          p.map((x, i) =>
+                                            i === qi ? { ...x, options: (x.options || []).filter((_, j) => j !== oi) } : x
+                                          )
+                                        )
+                                      }
+                                      className="p-1 text-red-400"
+                                    ><X className="w-3.5 h-3.5" /></button>
+                                  </div>
+                                ))}
+                                <button
+                                  onClick={() =>
+                                    setQuestions((p) =>
+                                      p.map((x, i) =>
+                                        i === qi ? { ...x, options: [...(x.options || []), { text: '', isCorrect: false }] } : x
+                                      )
+                                    )
+                                  }
+                                  className="text-[10px] font-mono text-gray-400 hover:text-gray-200"
+                                >+ вариант</button>
+                                <p className="text-[9px] text-gray-600">Кнопка «ВЕРНО» — правильный ответ (можно несколько)</p>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
-              <div className="flex justify-end gap-2 mt-5">
-                <button onClick={() => setShowForm(false)} className="btn-ghost">ОТМЕНА</button>
-                <button onClick={save} className="btn-primary"><Save className="w-4 h-4 inline mr-1" />СОХРАНИТЬ</button>
+              {/* только эти две кнопки закрывают форму */}
+              <div className="flex justify-end gap-2 mt-5 sticky bottom-0 pt-3" style={{ background: 'linear-gradient(transparent, rgba(10,10,15,0.9) 30%)' }}>
+                <button onClick={cancelForm} className="btn-ghost px-5 py-2.5">ОТМЕНА</button>
+                <button onClick={save} className="btn-primary px-5 py-2.5"><Save className="w-4 h-4 inline mr-1" />СОХРАНИТЬ</button>
               </div>
             </motion.div>
           </motion.div>

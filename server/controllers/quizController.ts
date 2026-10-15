@@ -19,6 +19,7 @@ function shapeQuiz(row: any) {
     const options = query('SELECT * FROM quiz_options WHERE questionId = ? ORDER BY position ASC', [q.id]);
     return {
       ...q,
+      comment: (q as any).comment || '',
       correctText: (q as any).correctText || '',
       isCorrect: !!q.isCorrect,
       options: options.map((o) => ({ ...o, isCorrect: !!o.isCorrect })),
@@ -132,8 +133,8 @@ export const duplicateQuiz = (req: AuthRequest, res: Response) => {
       const qs = query('SELECT * FROM quiz_questions WHERE quizId = ? ORDER BY position', [src.id]) as any[];
       for (const q of qs) {
         const nq = uuidv4();
-        run('INSERT INTO quiz_questions (id, quizId, type, text, imageUrl, points, position, correctText) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-          [nq, newId, q.type, q.text, q.imageUrl, q.points, q.position, (q as any).correctText || '']);
+        run('INSERT INTO quiz_questions (id, quizId, type, text, comment, imageUrl, points, position, correctText) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          [nq, newId, q.type, q.text, (q as any).comment || '', q.imageUrl, q.points, q.position, (q as any).correctText || '']);
         const opts = query('SELECT * FROM quiz_options WHERE questionId = ? ORDER BY position', [q.id]) as any[];
         for (const o of opts) {
           run('INSERT INTO quiz_options (id, questionId, text, imageUrl, isCorrect, position) VALUES (?, ?, ?, ?, ?, ?)',
@@ -165,8 +166,8 @@ export const saveQuestions = (req: AuthRequest, res: Response) => {
       run('DELETE FROM quiz_questions WHERE quizId = ?', [id]);
       questions.forEach((q: any, qi: number) => {
         const qid = uuidv4();
-        run('INSERT INTO quiz_questions (id, quizId, type, text, imageUrl, points, position, correctText) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-          [qid, id, q.type === 'open' ? 'open' : 'choice', String(q.text || ''), q.imageUrl || null, Number(q.points) || 1, qi, String(q.correctText || '')]);
+        run('INSERT INTO quiz_questions (id, quizId, type, text, comment, imageUrl, points, position, correctText) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          [qid, id, q.type === 'open' ? 'open' : 'choice', String(q.text || ''), String(q.comment || ''), q.imageUrl || null, Number(q.points) || 1, qi, String(q.correctText || '')]);
         (q.options || []).forEach((o: any, oi: number) => {
           run('INSERT INTO quiz_options (id, questionId, text, imageUrl, isCorrect, position) VALUES (?, ?, ?, ?, ?, ?)',
             [uuidv4(), qid, String(o.text || ''), o.imageUrl || null, o.isCorrect ? 1 : 0, oi]);
@@ -299,7 +300,7 @@ export const getPublicQuiz = (req: AuthRequest, res: Response) => {
       }
     }
 
-    const questions = query('SELECT id, type, text, imageUrl, points, position FROM quiz_questions WHERE quizId = ? ORDER BY position', [row.id]) as any[];
+    const questions = query('SELECT id, type, text, comment, imageUrl, points, position FROM quiz_questions WHERE quizId = ? ORDER BY position', [row.id]) as any[];
     const shaped = questions.map((q) => ({
       ...q,
       options: query('SELECT id, text, imageUrl, position FROM quiz_options WHERE questionId = ? ORDER BY position', [q.id]),

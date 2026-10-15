@@ -135,10 +135,13 @@ export interface QuizQuestion {
   id?: string;
   type: QuizQuestionType;
   text: string;
+  /** Подпись/комментарий мелким шрифтом сразу под вопросом */
+  comment?: string;
   imageUrl?: string | null;
   points?: number;
   position?: number;
   options?: QuizOption[];
+  correctText?: string;
 }
 
 export interface Quiz {
