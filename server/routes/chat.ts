@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getConversations, getOrCreateConversation, createGroup, updateGroup, addGroupMember, removeGroupMember, getGroupMembers, joinByInvite, getMessages, sendMessage, editMessage, deleteMessage, addReaction, removeReaction, pinMessage, unpinMessage, getPinnedMessages, getReadReceipts, setTyping, getTyping, uploadChatFile, markConversationRead, getChatUnreadCount, archiveConversation, unarchiveConversation, pinConversation, unpinConversation, addFavorite, removeFavorite, getFavorites, createPoll, getPollResults, votePoll, muteMember, unmuteMember, muteConversation, unmuteConversation, hideConversation, unhideConversation, deleteGroup, leaveGroup } from '../controllers/chatController';
+import { getConversations, getOrCreateConversation, createGroup, updateGroup, addGroupMember, removeGroupMember, setGroupMemberRole, getGroupMembers, joinByInvite, getMessages, sendMessage, editMessage, deleteMessage, addReaction, removeReaction, pinMessage, unpinMessage, getPinnedMessages, getReadReceipts, setTyping, getTyping, uploadChatFile, markConversationRead, getChatUnreadCount, archiveConversation, unarchiveConversation, pinConversation, unpinConversation, addFavorite, removeFavorite, getFavorites, createPoll, getPollResults, votePoll, muteMember, unmuteMember, muteConversation, unmuteConversation, hideConversation, unhideConversation, deleteGroup, leaveGroup } from '../controllers/chatController';
 import { authenticateToken } from '../middleware/auth';
 import { upload } from '../middleware/upload';
 
@@ -17,6 +17,7 @@ router.delete('/groups/:id', deleteGroup);
 router.post('/groups/:id/leave', leaveGroup);
 router.get('/groups/:id/members', getGroupMembers);
 router.post('/groups/:id/members', addGroupMember);
+router.put('/groups/:id/members/:userId/role', setGroupMemberRole);
 router.delete('/groups/:id/members/:userId', removeGroupMember);
 router.post('/invite/:link', joinByInvite);
 

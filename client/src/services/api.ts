@@ -567,6 +567,9 @@ export const chatApi = {
   removeGroupMember: (id: string, userId: string): Promise<ApiResponse<void>> =>
     api.delete(`/chat/groups/${id}/members/${userId}`).then((res) => res.data),
 
+  setMemberRole: (id: string, userId: string, role: 'admin' | 'member'): Promise<ApiResponse<void>> =>
+    api.put(`/chat/groups/${id}/members/${userId}/role`, { role }).then((res) => res.data),
+
   joinByInvite: (link: string): Promise<ApiResponse<ChatConversation>> =>
     api.post(`/chat/invite/${link}`).then((res) => res.data),
 

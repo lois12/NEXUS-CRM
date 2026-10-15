@@ -128,7 +128,7 @@ export const createGroup = (req: AuthRequest, res: Response) => {
     }
 
     const conv = get('SELECT * FROM chat_conversations WHERE id = ?', [id]);
-    res.status(201).json({ success: true, data: conv });
+    res.status(201).json({ success: true, data: { ...conv, isGroup: true, otherName: conv?.name, otherAvatar: conv?.avatar, memberCount: uniqueMembers.length + 1 } });
   } catch (error) {
     console.error('CreateGroup error:', error);
     res.status(500).json({ success: false, error: 'Ошибка сервера' });
@@ -181,6 +181,27 @@ export const removeGroupMember = (req: AuthRequest, res: Response) => {
     run('DELETE FROM chat_group_members WHERE conversationId = ? AND userId = ?', [id, targetUserId]);
     res.json({ success: true });
   } catch (error) { console.error('RemoveGroupMember error:', error); res.status(500).json({ success: false, error: 'Ошибка сервера' }); }
+};
+
+/** Смена роли участника (admin / member) */
+export const setGroupMemberRole = (req: AuthRequest, res: Response) => {
+  try {
+    const { id, userId: targetUserId } = req.params;
+    const { role } = req.body || {};
+    if (role !== 'admin' && role !== 'member') {
+      return res.status(400).json({ success: false, error: 'Роль: admin или member' });
+    }
+    const callerMembership = get('SELECT role FROM chat_group_members WHERE conversationId = ? AND userId = ?', [id, req.user!.id]);
+    const rolesArr = Array.isArray(req.user!.roles) ? req.user!.roles : [req.user!.role].filter(Boolean);
+    const isSuperAdmin = rolesArr.includes('super_admin') || req.user!.role === 'super_admin';
+    if ((!callerMembership || callerMembership.role !== 'admin') && !isSuperAdmin) {
+      return res.status(403).json({ success: false, error: 'Только админ группы может менять роли' });
+    }
+    const target = get('SELECT id FROM chat_group_members WHERE conversationId = ? AND userId = ?', [id, targetUserId]);
+    if (!target) return res.status(404).json({ success: false, error: 'Участник не найден' });
+    run('UPDATE chat_group_members SET role = ? WHERE conversationId = ? AND userId = ?', [role, id, targetUserId]);
+    res.json({ success: true });
+  } catch (error) { console.error('SetGroupMemberRole error:', error); res.status(500).json({ success: false, error: 'Ошибка сервера' }); }
 };
 
 export const getGroupMembers = (req: AuthRequest, res: Response) => {
@@ -563,25 +584,33 @@ export const deleteGroup = (req: AuthRequest, res: Response) => {
     if (!conv) return res.status(404).json({ success: false, error: 'Группа не найдена' });
 
     const membership = get('SELECT role FROM chat_group_members WHERE conversationId = ? AND userId = ?', [id, userId]);
-    const isSuperAdmin = (req.user!.roles || [req.user!.role]).includes('super_admin');
-    if ((!membership || membership.role !== 'admin') && !isSuperAdmin) {
+    const rolesArr = Array.isArray(req.user!.roles) ? req.user!.roles : [req.user!.role].filter(Boolean);
+    const isSuperAdmin = rolesArr.includes('super_admin') || req.user!.role === 'super_admin';
+    const isGroupAdmin = membership?.role === 'admin';
+    // создатель группы (user1Id) тоже может удалить
+    const isCreator = conv.user1Id === userId;
+    if (!isGroupAdmin && !isSuperAdmin && !isCreator) {
       return res.status(403).json({ success: false, error: 'Только админ группы может удалить её' });
     }
 
+    // FK ON — чистим всё, что ссылается на conversationId / messageId
     transaction(() => {
-      run('DELETE FROM chat_reactions WHERE messageId IN (SELECT id FROM chat_messages WHERE conversationId = ?)', [id]);
-      run('DELETE FROM chat_pinned WHERE messageId IN (SELECT id FROM chat_messages WHERE conversationId = ?)', [id]);
-      run('DELETE FROM chat_favorites WHERE messageId IN (SELECT id FROM chat_messages WHERE conversationId = ?)', [id]);
-      run('DELETE FROM chat_attachments WHERE messageId IN (SELECT id FROM chat_messages WHERE conversationId = ?)', [id]);
-      run('DELETE FROM chat_poll_votes WHERE pollId IN (SELECT id FROM chat_polls WHERE conversationId = ?)', [id]);
-      run('DELETE FROM chat_poll_options WHERE pollId IN (SELECT id FROM chat_polls WHERE conversationId = ?)', [id]);
-      run('DELETE FROM chat_polls WHERE conversationId = ?', [id]);
+      const mids = query('SELECT id FROM chat_messages WHERE conversationId = ?', [id]) as any[];
+      for (const m of mids) {
+        run('DELETE FROM chat_reactions WHERE messageId = ?', [m.id], true);
+        run('DELETE FROM chat_pinned WHERE messageId = ?', [m.id], true);
+        run('DELETE FROM chat_favorites WHERE messageId = ?', [m.id], true);
+        run('DELETE FROM chat_attachments WHERE messageId = ?', [m.id], true);
+      }
+      run('DELETE FROM chat_poll_votes WHERE pollId IN (SELECT id FROM chat_polls WHERE conversationId = ?)', [id], true);
+      run('DELETE FROM chat_poll_options WHERE pollId IN (SELECT id FROM chat_polls WHERE conversationId = ?)', [id], true);
+      run('DELETE FROM chat_polls WHERE conversationId = ?', [id], true);
       run('DELETE FROM chat_messages WHERE conversationId = ?', [id]);
-      run('DELETE FROM chat_reads WHERE conversationId = ?', [id]);
-      run('DELETE FROM chat_muted WHERE conversationId = ?', [id]);
-      run('DELETE FROM chat_user_mutes WHERE conversationId = ?', [id]);
+      run('DELETE FROM chat_reads WHERE conversationId = ?', [id], true);
+      run('DELETE FROM chat_muted WHERE conversationId = ?', [id], true);
+      run('DELETE FROM chat_user_mutes WHERE conversationId = ?', [id], true);
       run('DELETE FROM chat_group_members WHERE conversationId = ?', [id]);
-      run('DELETE FROM chat_hidden WHERE conversationId = ?', [id]);
+      run('DELETE FROM chat_hidden WHERE conversationId = ?', [id], true);
       run('DELETE FROM chat_conversations WHERE id = ?', [id]);
     });
 
@@ -591,7 +620,7 @@ export const deleteGroup = (req: AuthRequest, res: Response) => {
     res.json({ success: true, message: 'Группа удалена' });
   } catch (error) {
     console.error('DeleteGroup error:', error);
-    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+    res.status(500).json({ success: false, error: 'Не удалось удалить группу' });
   }
 };
 

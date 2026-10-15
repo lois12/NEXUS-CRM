@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { X, ImageIcon, FileText, Mic, File as FileIcon, UserPlus, Trash2, Copy } from 'lucide-react';
 import { ChatGroupMember, ChatPinnedMessage, ChatMessage, ChatConversation, User } from '../../types';
@@ -55,13 +55,21 @@ export function MembersPanel({ groupMembers, users, user, activeConv, onClose, o
   onClose: () => void; onProfileClick: (u: User) => void;
 }) {
   const [members, setMembers] = useState(groupMembers);
+  // подхватываем, когда участники догрузились после открытия панели
+  useEffect(() => { setMembers(groupMembers); }, [groupMembers]);
   const isAdmin = members.find(m => m.userId === user?.id)?.role === 'admin';
 
   const handleRemove = async (userId: string) => {
     try { await chatApi.removeGroupMember(activeConv.id, userId); setMembers(prev => prev.filter(m => m.userId !== userId)); showToast('Участник удалён', 'success'); } catch { showToast('Ошибка', 'error'); }
   };
   const handlePromote = async (userId: string) => {
-    try { await chatApi.addGroupMember(activeConv.id, userId); showToast('Назначен админом', 'success'); } catch { showToast('Ошибка', 'error'); }
+    try {
+      await chatApi.setMemberRole(activeConv.id, userId, 'admin');
+      setMembers(prev => prev.map(m => m.userId === userId ? { ...m, role: 'admin' as const } : m));
+      showToast('Назначен админом', 'success');
+    } catch (e: any) {
+      showToast(e?.response?.data?.error || 'Ошибка', 'error');
+    }
   };
 
   return (

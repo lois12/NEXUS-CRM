@@ -301,13 +301,24 @@ export default function ChatWidget() {
     // Save current draft
     if (activeConv && newMessage.trim()) draftsRef.current[activeConv.id] = newMessage;
     else if (activeConv) delete draftsRef.current[activeConv.id];
-    setActiveConv(conv); activeConvRef.current = conv; setMessages([]); setReplyTo(null); setShowMedia(false); setShowMembers(false); setShowPinned(false); setShowGroupInfo(false); setEditingMsg(null); setForwardMsg(null); setShowMessageSearch(false); setMessageSearch(''); setAttachedFiles([]);
+    // нормализуем isGroup — после createGroup в ответе может не быть флага
+    const normalized: ChatConversation = {
+      ...conv,
+      isGroup: conv.isGroup || (conv as any).type === 'group',
+      otherName: conv.otherName || (conv as any).name,
+      otherAvatar: conv.otherAvatar ?? (conv as any).avatar,
+    };
+    setActiveConv(normalized); activeConvRef.current = normalized; setMessages([]); setReplyTo(null); setShowMedia(false); setShowMembers(false); setShowPinned(false); setShowGroupInfo(false); setEditingMsg(null); setForwardMsg(null); setShowMessageSearch(false); setMessageSearch(''); setAttachedFiles([]);
     setFirstUnreadId(null);
     // Restore draft
-    setNewMessage(draftsRef.current[conv.id] || '');
+    setNewMessage(draftsRef.current[normalized.id] || '');
     // Find first unread for divider
-    try { const res = await chatApi.getMessages(conv.id, { limit: 50 }); if (res.success && res.data) { setMessages(res.data); const firstUnread = res.data.find((m: ChatMessage) => !m.isRead && m.senderId !== user?.id); setFirstUnreadId(firstUnread?.id || null); } } catch {}
-    if (conv.isGroup) { try { const res = await chatApi.getGroupMembers(conv.id); if (res.success && res.data) setGroupMembers(res.data); } catch {} }
+    try { const res = await chatApi.getMessages(normalized.id, { limit: 50 }); if (res.success && res.data) { setMessages(res.data); const firstUnread = res.data.find((m: ChatMessage) => !m.isRead && m.senderId !== user?.id); setFirstUnreadId(firstUnread?.id || null); } } catch {}
+    if (normalized.isGroup) {
+      try { const res = await chatApi.getGroupMembers(normalized.id); if (res.success && res.data) setGroupMembers(res.data); } catch {}
+      // users нужны для профилей в панели участников
+      if (!users.length) usersApi.getAll().then(r => { if (r.success && r.data) setUsers(r.data); }).catch(() => {});
+    }
   };
 
   // Lazy loading placeholder (requires backend 'before' param)
@@ -863,6 +874,9 @@ export default function ChatWidget() {
 
   // SidePanels + SoundSettings → imported from ChatSidePanels.tsx / SoundSettingsPanel.tsx
   // Handlers for group management
+  const apiError = (e: any, fallback = 'Ошибка') =>
+    e?.response?.data?.error || e?.message || fallback;
+
   const handleDeleteGroup = async () => {
     if (!activeConv) return;
     try {
@@ -872,7 +886,7 @@ export default function ChatWidget() {
       setShowGroupInfo(false);
       fetchConversations();
       fetchUnreadCount();
-    } catch { showToast('Ошибка', 'error'); }
+    } catch (e) { showToast(apiError(e, 'Не удалось удалить группу'), 'error'); }
   };
 
   const handleLeaveGroup = async () => {
@@ -883,7 +897,7 @@ export default function ChatWidget() {
       setActiveConv(null); activeConvRef.current = null; setMessages([]);
       fetchConversations();
       fetchUnreadCount();
-    } catch { showToast('Ошибка', 'error'); }
+    } catch (e) { showToast(apiError(e, 'Не удалось выйти из группы'), 'error'); }
   };
 
   const handleDeleteChat = async (conv: ChatConversation) => {
@@ -893,7 +907,7 @@ export default function ChatWidget() {
       if (activeConv?.id === conv.id) { setActiveConv(null); activeConvRef.current = null; setMessages([]); }
       fetchConversations();
       fetchUnreadCount();
-    } catch { showToast('Ошибка', 'error'); }
+    } catch (e) { showToast(apiError(e, 'Не удалось удалить чат'), 'error'); }
     setDeleteConfirm(null);
     setConvMenu(null);
   };
@@ -941,7 +955,9 @@ export default function ChatWidget() {
   );
 
   const ChatHeader = ({ conv }: { conv: ChatConversation }) => (
-    <div className="relative flex items-center gap-2 sm:gap-3 px-3 sm:px-5 py-3 sm:py-3.5" style={{ background: glassBg, borderBottom: glassBorder, backdropFilter: glassBlur }}>
+    // z-30 обязателен: backdrop-filter делает stacking context, без z-index
+    // дропдаун поиска (top-full) перекрывается блоком сообщений и «съедает» клики
+    <div className="relative z-30 flex items-center gap-2 sm:gap-3 px-3 sm:px-5 py-3 sm:py-3.5" style={{ background: glassBg, borderBottom: glassBorder, backdropFilter: glassBlur }}>
       <button
         onClick={() => {
           // mobile: always back to list first; second back closes overlay
@@ -991,7 +1007,7 @@ export default function ChatWidget() {
       </div>
       <div className="flex items-center gap-1 flex-shrink-0">
         {showMessageSearch ? (
-          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="absolute top-full left-0 right-0 mt-1 mx-2 rounded-xl overflow-hidden z-50" style={{ background: 'linear-gradient(135deg, rgba(20,20,35,0.98) 0%, rgba(10,10,20,0.99) 100%)', border: '1px solid rgba(255,255,255,0.08)', backdropFilter: 'blur(24px)', boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}>
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="absolute top-full left-0 right-0 mt-1 mx-2 rounded-xl overflow-hidden" style={{ zIndex: 80, background: 'linear-gradient(135deg, rgba(20,20,35,0.98) 0%, rgba(10,10,20,0.99) 100%)', border: '1px solid rgba(255,255,255,0.08)', backdropFilter: 'blur(24px)', boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}>
             <div className="flex items-center gap-2 px-3 py-2.5" style={{ borderBottom: glassBorder }}>
               <Search className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--color-primary)' }} />
               <input value={messageSearch} onChange={e => setMessageSearch(e.target.value)} autoFocus placeholder="Поиск сообщений..." className="flex-1 bg-transparent text-sm outline-none font-mono" style={{ color: '#e0e0e0' }} />
@@ -1183,7 +1199,9 @@ export default function ChatWidget() {
                     if (activeConv?.id === conv.id) { setActiveConv(null); activeConvRef.current = null; setMessages([]); }
                     fetchConversations();
                     fetchUnreadCount();
-                  } catch { showToast('Ошибка', 'error'); }
+                  } catch (e) {
+                    showToast((e as any)?.response?.data?.error || 'Не удалось удалить группу', 'error');
+                  }
                 } else {
                   await handleDeleteChat(conv);
                 }
