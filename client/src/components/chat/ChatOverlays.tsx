@@ -127,8 +127,11 @@ export function ProfileModalOverlay({ profileModal, onClose, onStartChat, user }
 
 // ── Poll Message ──
 export function PollMessage({ msg }: { msg: ChatMessage }) {
-  const [pd, setPd] = useState<any>(null);
-  useEffect(() => { chatApi.getPollResults(msg.content).then(r => { if (r.success && r.data) setPd(r.data); }).catch(() => {}); }, [msg.content]);
+  const [pd, setPd] = useState<any>((msg as any).pollData || null);
+  useEffect(() => {
+    if ((msg as any).pollData) { setPd((msg as any).pollData); return; }
+    chatApi.getPollResults(msg.content).then(r => { if (r.success && r.data) setPd(r.data); }).catch(() => {});
+  }, [msg.content, (msg as any).pollData]);
   if (!pd) return <div className="text-[10px] font-mono text-gray-500 py-2">Загрузка...</div>;
   return (
     <div className="space-y-1.5 py-1">

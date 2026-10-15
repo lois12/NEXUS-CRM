@@ -35,6 +35,8 @@ import './migrations/019_quizzes';
 import './migrations/020_quiz_correct_text';
 import './migrations/021_quiz_device';
 import './migrations/022_quiz_question_comment';
+import './migrations/023_chat_user_flags';
+import './migrations/024_chat_general_row';
 
 export function runMigrations(): void {
   run(`CREATE TABLE IF NOT EXISTS schema_migrations (

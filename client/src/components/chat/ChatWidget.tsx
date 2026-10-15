@@ -270,6 +270,13 @@ export default function ChatWidget() {
         ? { ...c, memberCount: c.memberCount - 1 } : c));
     };
 
+    const handlePollVote = ({ pollId }: { pollId: string }) => {
+      chatApi.getPollResults(pollId).then(r => {
+        if (!r.success || !r.data) return;
+        setMessages(prev => prev.map(m => m.type === 'poll' && m.content === pollId ? { ...m, pollData: r.data } : m));
+      }).catch(() => {});
+    };
+
     socket.on('chat:message', handleMessage);
     socket.on('chat:message-edit', handleEdit);
     socket.on('chat:message-delete', handleDelete);
@@ -277,6 +284,7 @@ export default function ChatWidget() {
     socket.on('chat:typing', handleTyping);
     socket.on('chat:conversation-deleted', handleConvDeleted);
     socket.on('chat:member-left', handleMemberLeft);
+    socket.on('chat:poll-vote', handlePollVote);
     return () => {
       socket.off('chat:message', handleMessage);
       socket.off('chat:message-edit', handleEdit);
@@ -285,6 +293,7 @@ export default function ChatWidget() {
       socket.off('chat:typing', handleTyping);
       socket.off('chat:conversation-deleted', handleConvDeleted);
       socket.off('chat:member-left', handleMemberLeft);
+      socket.off('chat:poll-vote', handlePollVote);
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     };
   }, [user?.id, soundEnabled, isOpen, soundPrivate, soundGroup, fetchUnreadCount, fetchConversations]);
@@ -362,18 +371,21 @@ export default function ChatWidget() {
           const f = attachedFiles[i];
           const isLast = i === attachedFiles.length - 1;
           const caption = isLast && hasText ? msgContent.trim() : undefined;
-          await chatApi.sendMessage(activeConv.id, { content: f.url, type: f.type, ...baseOpts, caption });
+          const res = await chatApi.sendMessage(activeConv.id, { content: f.url, type: f.type, ...baseOpts, caption });
+          // оптимистично: если сокет молчит — сообщение всё равно появится
+          const msg = res.success ? res.data : undefined;
+          if (msg) setMessages(prev => (prev.some(m => m.id === msg.id) ? prev : [...prev, msg]));
         }
       } else if (hasText) {
-        // Text only, no files
-        await chatApi.sendMessage(activeConv.id, { content: msgContent, type: 'text', ...baseOpts });
+        const res = await chatApi.sendMessage(activeConv.id, { content: msgContent, type: 'text', ...baseOpts });
+        const msg = res.success ? res.data : undefined;
+        if (msg) setMessages(prev => (prev.some(m => m.id === msg.id) ? prev : [...prev, msg]));
       }
-      // Message will be added via socket 'chat:message' event
       setNewMessage('');
       if (activeConv) delete draftsRef.current[activeConv.id];
       setReplyTo(null);
       setAttachedFiles([]);
-    } catch { showToast('Ошибка отправки', 'error'); }
+    } catch (e: any) { showToast(e?.response?.data?.error || 'Ошибка отправки', 'error'); }
   };
 
   const handleDeleteMessage = async (msg: ChatMessage) => { try { await chatApi.deleteMessage(msg.id); setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, deleted: 1, content: 'Сообщение удалено' } : m)); } catch { showToast('Ошибка', 'error'); } setContextMenu(null); };

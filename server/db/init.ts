@@ -552,6 +552,26 @@ export function initializeDatabase() {
     )
   `);
 
+  // Per-user pin/archive (chat_conversations.pinned/archived были общими)
+  run(`
+    CREATE TABLE IF NOT EXISTS chat_user_flags (
+      id TEXT PRIMARY KEY,
+      conversationId TEXT NOT NULL,
+      userId TEXT NOT NULL,
+      pinned INTEGER DEFAULT 0,
+      archived INTEGER DEFAULT 0,
+      createdAt TEXT DEFAULT (datetime('now')),
+      UNIQUE(conversationId, userId)
+    )
+  `);
+
+  // Строка «Общий чат» — FK для chat_messages / reads / mutes
+  // user1Id/user2Id NOT NULL + FK на users → нужен system-пользователь
+  run(`INSERT OR IGNORE INTO users (id, username, password, email, fullName, role, roles)
+       VALUES ('system', 'system', '!', 'system@nexus.local', 'Система', 'super_admin', 'super_admin')`, [], true);
+  run(`INSERT OR IGNORE INTO chat_conversations (id, type, name, user1Id, user2Id, lastMessagePreview)
+       VALUES ('general', 'general', 'Общий чат', 'system', 'system', '')`, [], true);
+
   // Image generation tracking table
   run(`
     CREATE TABLE IF NOT EXISTS image_gen_log (

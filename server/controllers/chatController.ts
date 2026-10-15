@@ -9,6 +9,47 @@ const GENERAL_CHAT_ID = 'general';
 
 // ─── Conversations ─────────────────────────────────────────────
 
+function isSuperUser(req: AuthRequest): boolean {
+  const rolesArr = Array.isArray(req.user!.roles) ? req.user!.roles : [req.user!.role].filter(Boolean);
+  return rolesArr.includes('super_admin') || req.user!.role === 'super_admin';
+}
+
+/** Участник ли текущий юзер в чате (private / group). General — да. */
+function isChatMember(conv: any, userId: string): boolean {
+  if (!conv) return false;
+  if (conv.id === GENERAL_CHAT_ID || conv.type === 'general') return true;
+  if (conv.type === 'private') return conv.user1Id === userId || conv.user2Id === userId;
+  return !!get('SELECT 1 FROM chat_group_members WHERE conversationId = ? AND userId = ?', [conv.id, userId]);
+}
+
+/** Cascade-очистка всех дочерних таблиц чата (FK ON). */
+function purgeConversation(id: string) {
+  // chat_polls не имеет conversationId — идём через messageId
+  run(`DELETE FROM chat_poll_votes WHERE pollId IN (
+         SELECT p.id FROM chat_polls p JOIN chat_messages m ON p.messageId = m.id WHERE m.conversationId = ?
+       )`, [id], true);
+  run(`DELETE FROM chat_poll_options WHERE pollId IN (
+         SELECT p.id FROM chat_polls p JOIN chat_messages m ON p.messageId = m.id WHERE m.conversationId = ?
+       )`, [id], true);
+  run(`DELETE FROM chat_polls WHERE messageId IN (SELECT id FROM chat_messages WHERE conversationId = ?)`, [id], true);
+
+  const mids = query('SELECT id FROM chat_messages WHERE conversationId = ?', [id]) as any[];
+  for (const m of mids) {
+    run('DELETE FROM chat_reactions WHERE messageId = ?', [m.id], true);
+    run('DELETE FROM chat_pinned WHERE messageId = ?', [m.id], true);
+    run('DELETE FROM chat_favorites WHERE messageId = ?', [m.id], true);
+    run('DELETE FROM chat_attachments WHERE messageId = ?', [m.id], true);
+  }
+  run('DELETE FROM chat_messages WHERE conversationId = ?', [id]);
+  run('DELETE FROM chat_reads WHERE conversationId = ?', [id], true);
+  run('DELETE FROM chat_muted WHERE conversationId = ?', [id], true);
+  run('DELETE FROM chat_user_mutes WHERE conversationId = ?', [id], true);
+  run('DELETE FROM chat_group_members WHERE conversationId = ?', [id], true);
+  run('DELETE FROM chat_hidden WHERE conversationId = ?', [id], true);
+  run('DELETE FROM chat_user_flags WHERE conversationId = ?', [id], true);
+  run('DELETE FROM chat_conversations WHERE id = ?', [id]);
+}
+
 export const getConversations = (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
@@ -21,31 +62,36 @@ export const getConversations = (req: AuthRequest, res: Response) => {
         CASE WHEN c.user1Id = ? THEN u2.lastSeen ELSE u1.lastSeen END as otherLastSeen,
         CASE WHEN c.user1Id = ? THEN u2.id ELSE u1.id END as otherId,
         (SELECT COUNT(*) FROM chat_messages m WHERE m.conversationId = c.id AND m.senderId != ? AND m.isRead = 0 AND m.deleted = 0) as unreadCount,
-        (SELECT COUNT(*) FROM chat_user_mutes um WHERE um.conversationId = c.id AND um.userId = ?) as isMuted
+        (SELECT COUNT(*) FROM chat_user_mutes um WHERE um.conversationId = c.id AND um.userId = ?) as isMuted,
+        COALESCE((SELECT uf.pinned FROM chat_user_flags uf WHERE uf.conversationId = c.id AND uf.userId = ?), 0) as pinned,
+        COALESCE((SELECT uf.archived FROM chat_user_flags uf WHERE uf.conversationId = c.id AND uf.userId = ?), 0) as archived
       FROM chat_conversations c
       LEFT JOIN users u1 ON c.user1Id = u1.id
       LEFT JOIN users u2 ON c.user2Id = u2.id
       WHERE (c.user1Id = ? OR c.user2Id = ?) AND c.type = 'private'
         AND NOT EXISTS (SELECT 1 FROM chat_hidden h WHERE h.conversationId = c.id AND h.userId = ?)
       ORDER BY c.lastMessageAt DESC
-    `, [userId, userId, userId, userId, userId, userId, userId, userId, userId, userId]);
+    `, [userId, userId, userId, userId, userId, userId, userId, userId, userId, userId, userId, userId]);
 
     const groupConvs = query(`
       SELECT c.*,
         (SELECT COUNT(*) FROM chat_messages m WHERE m.conversationId = c.id AND m.senderId != ? AND m.isRead = 0 AND m.deleted = 0) as unreadCount,
         (SELECT COUNT(*) FROM chat_group_members gm WHERE gm.conversationId = c.id) as memberCount,
         (SELECT COUNT(*) FROM chat_user_mutes um WHERE um.conversationId = c.id AND um.userId = ?) as isMuted,
-        (SELECT gm.role FROM chat_group_members gm WHERE gm.conversationId = c.id AND gm.userId = ?) as myRole
+        (SELECT gm.role FROM chat_group_members gm WHERE gm.conversationId = c.id AND gm.userId = ?) as myRole,
+        COALESCE((SELECT uf.pinned FROM chat_user_flags uf WHERE uf.conversationId = c.id AND uf.userId = ?), 0) as pinned,
+        COALESCE((SELECT uf.archived FROM chat_user_flags uf WHERE uf.conversationId = c.id AND uf.userId = ?), 0) as archived
       FROM chat_conversations c
       JOIN chat_group_members gm ON c.id = gm.conversationId AND gm.userId = ?
       WHERE c.type = 'group'
         AND NOT EXISTS (SELECT 1 FROM chat_hidden h WHERE h.conversationId = c.id AND h.userId = ?)
       ORDER BY c.lastMessageAt DESC
-    `, [userId, userId, userId, userId, userId]);
+    `, [userId, userId, userId, userId, userId, userId, userId]);
 
     const generalLast = get(`SELECT content, createdAt FROM chat_messages WHERE conversationId = ? AND deleted = 0 ORDER BY createdAt DESC LIMIT 1`, [GENERAL_CHAT_ID]);
     const generalUnread = get(`SELECT COUNT(*) as count FROM chat_messages WHERE conversationId = ? AND senderId != ? AND isRead = 0 AND deleted = 0`, [GENERAL_CHAT_ID, userId]);
     const generalMuted = get(`SELECT COUNT(*) as count FROM chat_user_mutes WHERE conversationId = ? AND userId = ?`, [GENERAL_CHAT_ID, userId]);
+    const generalFlags = get('SELECT pinned, archived FROM chat_user_flags WHERE conversationId = ? AND userId = ?', [GENERAL_CHAT_ID, userId]);
 
     const generalConv = {
       id: GENERAL_CHAT_ID, type: 'general', name: 'Общий чат', avatar: '', description: '', inviteLink: '',
@@ -55,6 +101,8 @@ export const getConversations = (req: AuthRequest, res: Response) => {
       lastMessagePreview: generalLast?.content?.substring(0, 100) || 'Нет сообщений',
       unreadCount: generalUnread?.count || 0, isGeneral: true, createdAt: '',
       isMuted: generalMuted?.count || 0,
+      pinned: generalFlags?.pinned || 0,
+      archived: generalFlags?.archived || 0,
     };
 
     const allConvs = [
@@ -142,7 +190,7 @@ export const updateGroup = (req: AuthRequest, res: Response) => {
     const conv = get('SELECT * FROM chat_conversations WHERE id = ? AND type = ?', [id, 'group']);
     if (!conv) return res.status(404).json({ success: false, error: 'Группа не найдена' });
     const callerMembership = get('SELECT role FROM chat_group_members WHERE conversationId = ? AND userId = ?', [id, req.user!.id]);
-    if (!callerMembership || callerMembership.role !== 'admin') return res.status(403).json({ success: false, error: 'Только админ группы может изменять настройки' });
+    if (callerMembership?.role !== 'admin' && !isSuperUser(req)) return res.status(403).json({ success: false, error: 'Только админ группы может изменять настройки' });
 
     const updates: string[] = []; const params: any[] = [];
     if (name) { updates.push('name = ?'); params.push(name); }
@@ -162,7 +210,7 @@ export const addGroupMember = (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params; const { userId: newMemberId } = req.body;
     const callerMembership = get('SELECT role FROM chat_group_members WHERE conversationId = ? AND userId = ?', [id, req.user!.id]);
-    if (!callerMembership || callerMembership.role !== 'admin') return res.status(403).json({ success: false, error: 'Только админ группы может добавлять участников' });
+    if (callerMembership?.role !== 'admin' && !isSuperUser(req)) return res.status(403).json({ success: false, error: 'Только админ группы может добавлять участников' });
     const existing = get('SELECT * FROM chat_group_members WHERE conversationId = ? AND userId = ?', [id, newMemberId]);
     if (existing) return res.status(400).json({ success: false, error: 'Уже в группе' });
     run('INSERT INTO chat_group_members (id, conversationId, userId) VALUES (?, ?, ?)', [uuidv4(), id, newMemberId]);
@@ -177,7 +225,15 @@ export const removeGroupMember = (req: AuthRequest, res: Response) => {
     const { id, userId: targetUserId } = req.params;
     const callerMembership = get('SELECT role FROM chat_group_members WHERE conversationId = ? AND userId = ?', [id, req.user!.id]);
     if (!callerMembership) return res.status(403).json({ success: false, error: 'Вы не участник группы' });
-    if (targetUserId !== req.user!.id && callerMembership.role !== 'admin') return res.status(403).json({ success: false, error: 'Только админ группы может удалять других участников' });
+    if (targetUserId !== req.user!.id && callerMembership.role !== 'admin' && !isSuperUser(req)) {
+      return res.status(403).json({ success: false, error: 'Только админ группы может удалять других участников' });
+    }
+    // нельзя удалить последнего админа
+    const target = get('SELECT role FROM chat_group_members WHERE conversationId = ? AND userId = ?', [id, targetUserId]);
+    if (target?.role === 'admin') {
+      const adminCount = get("SELECT COUNT(*) as c FROM chat_group_members WHERE conversationId = ? AND role = 'admin'", [id])?.c || 0;
+      if (adminCount <= 1) return res.status(400).json({ success: false, error: 'Нельзя удалить последнего админа' });
+    }
     run('DELETE FROM chat_group_members WHERE conversationId = ? AND userId = ?', [id, targetUserId]);
     res.json({ success: true });
   } catch (error) { console.error('RemoveGroupMember error:', error); res.status(500).json({ success: false, error: 'Ошибка сервера' }); }
@@ -192,13 +248,16 @@ export const setGroupMemberRole = (req: AuthRequest, res: Response) => {
       return res.status(400).json({ success: false, error: 'Роль: admin или member' });
     }
     const callerMembership = get('SELECT role FROM chat_group_members WHERE conversationId = ? AND userId = ?', [id, req.user!.id]);
-    const rolesArr = Array.isArray(req.user!.roles) ? req.user!.roles : [req.user!.role].filter(Boolean);
-    const isSuperAdmin = rolesArr.includes('super_admin') || req.user!.role === 'super_admin';
-    if ((!callerMembership || callerMembership.role !== 'admin') && !isSuperAdmin) {
+    if (callerMembership?.role !== 'admin' && !isSuperUser(req)) {
       return res.status(403).json({ success: false, error: 'Только админ группы может менять роли' });
     }
-    const target = get('SELECT id FROM chat_group_members WHERE conversationId = ? AND userId = ?', [id, targetUserId]);
+    const target = get('SELECT role FROM chat_group_members WHERE conversationId = ? AND userId = ?', [id, targetUserId]);
     if (!target) return res.status(404).json({ success: false, error: 'Участник не найден' });
+    // нельзя понизить последнего админа
+    if (target.role === 'admin' && role === 'member') {
+      const adminCount = get("SELECT COUNT(*) as c FROM chat_group_members WHERE conversationId = ? AND role = 'admin'", [id])?.c || 0;
+      if (adminCount <= 1) return res.status(400).json({ success: false, error: 'Нельзя понизить последнего админа' });
+    }
     run('UPDATE chat_group_members SET role = ? WHERE conversationId = ? AND userId = ?', [role, id, targetUserId]);
     res.json({ success: true });
   } catch (error) { console.error('SetGroupMemberRole error:', error); res.status(500).json({ success: false, error: 'Ошибка сервера' }); }
@@ -217,9 +276,10 @@ export const joinByInvite = (req: AuthRequest, res: Response) => {
     const conv = get('SELECT * FROM chat_conversations WHERE inviteLink = ?', [link]);
     if (!conv) return res.status(404).json({ success: false, error: 'Ссылка недействительна' });
     const existing = get('SELECT * FROM chat_group_members WHERE conversationId = ? AND userId = ?', [conv.id, req.user!.id]);
-    if (existing) return res.json({ success: true, data: conv });
-    run('INSERT INTO chat_group_members (id, conversationId, userId) VALUES (?, ?, ?)', [uuidv4(), conv.id, req.user!.id]);
-    res.json({ success: true, data: conv });
+    if (!existing) run('INSERT INTO chat_group_members (id, conversationId, userId) VALUES (?, ?, ?)', [uuidv4(), conv.id, req.user!.id]);
+    // повторный вход по инвайту — группа снова видна
+    run('DELETE FROM chat_hidden WHERE conversationId = ? AND userId = ?', [conv.id, req.user!.id]);
+    res.json({ success: true, data: { ...conv, isGroup: conv.type === 'group', otherName: conv.name, otherAvatar: conv.avatar } });
   } catch (error) { console.error('JoinByInvite error:', error); res.status(500).json({ success: false, error: 'Ошибка сервера' }); }
 };
 
@@ -290,12 +350,16 @@ export const sendMessage = (req: AuthRequest, res: Response) => {
     if (!content && !caption) return res.status(400).json({ success: false, error: 'content обязателен' });
 
     const isGeneral = conversationId === GENERAL_CHAT_ID;
+    let conv: any = null;
 
     if (!isGeneral) {
-      const conv = get('SELECT * FROM chat_conversations WHERE id = ?', [conversationId]);
+      conv = get('SELECT * FROM chat_conversations WHERE id = ?', [conversationId]);
       if (!conv) return res.status(404).json({ success: false, error: 'Диалог не найден' });
       if (conv.type === 'private' && conv.user1Id !== senderId && conv.user2Id !== senderId) return res.status(403).json({ success: false, error: 'Нет доступа' });
       if (conv.type === 'group' && !get('SELECT id FROM chat_group_members WHERE conversationId = ? AND userId = ?', [conversationId, senderId])) return res.status(403).json({ success: false, error: 'Нет доступа к группе' });
+      // mute: замученный участник не может писать
+      const muted = get("SELECT id FROM chat_muted WHERE conversationId = ? AND userId = ? AND (mutedUntil IS NULL OR mutedUntil > datetime('now'))", [conversationId, senderId]);
+      if (muted) return res.status(403).json({ success: false, error: 'Вы замучены в этом чате' });
     }
 
     let replyToContent = '', replyToSenderName = '';
@@ -307,9 +371,9 @@ export const sendMessage = (req: AuthRequest, res: Response) => {
     const msgId = uuidv4();
     run(`INSERT INTO chat_messages (id, conversationId, senderId, type, content, replyToId, replyToContent, replyToSenderName, mentionedUserIds, forwardedFrom, caption)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [msgId, conversationId, senderId, type, content, replyToId || null, replyToContent, replyToSenderName, mentionedUserIds || '', forwardedFrom || '', caption || '']);
+      [msgId, conversationId, senderId, type, content || '', replyToId || null, replyToContent, replyToSenderName, mentionedUserIds || '', forwardedFrom || '', caption || '']);
 
-    const preview = type === 'text' ? content.substring(0, 100) : (caption ? caption.substring(0, 100) : `[${type}]`);
+    const preview = type === 'text' ? (content || '').substring(0, 100) : ((caption || '').substring(0, 100) || `[${type}]`);
     if (!isGeneral) {
       run("UPDATE chat_conversations SET lastMessageAt = datetime('now'), lastMessagePreview = ? WHERE id = ?", [preview, conversationId]);
       // H6 fix: for private chats a new message bumps the chat back (Telegram-like).
@@ -327,31 +391,46 @@ export const sendMessage = (req: AuthRequest, res: Response) => {
     if (io) {
       const fullMsg = get(`SELECT m.*, u.fullName as senderName, u.avatar as senderAvatar, u.position as senderPosition FROM chat_messages m LEFT JOIN users u ON m.senderId = u.id WHERE m.id = ?`, [msgId]);
       if (isGeneral) io.emit('chat:message', fullMsg);
-      else io.to(`conv:${conversationId}`).emit('chat:message', fullMsg);
+      else {
+        io.to(`conv:${conversationId}`).emit('chat:message', fullMsg);
+        // участникам, кто чат не открыл — чтобы список/бейдж обновились
+        const recipients = conv.type === 'private'
+          ? [conv.user1Id === senderId ? conv.user2Id : conv.user1Id]
+          : query('SELECT userId FROM chat_group_members WHERE conversationId = ? AND userId != ?', [conversationId, senderId]).map((m: any) => m.userId);
+        for (const uid of recipients) io.to(`user:${uid}`).emit('chat:message', fullMsg);
+      }
     }
 
     res.json({ success: true, data: get(`SELECT m.*, u.fullName as senderName, u.avatar as senderAvatar, u.position as senderPosition FROM chat_messages m LEFT JOIN users u ON m.senderId = u.id WHERE m.id = ?`, [msgId]) });
 
     // Notifications — fire and forget (don't block response)
     try {
+      // не слать тем, кто замутил чат или скрыл его
+      const skipUser = (uid: string) =>
+        !!get('SELECT 1 FROM chat_user_mutes WHERE conversationId = ? AND userId = ?', [conversationId, uid]) ||
+        !!get('SELECT 1 FROM chat_hidden WHERE conversationId = ? AND userId = ?', [conversationId, uid]);
+
       if (isGeneral) {
-      const allUsers = query('SELECT id FROM users WHERE id != ?', [senderId]);
-      const batch = allUsers.map((u: any) => ({ userId: u.id, type: 'chat_message', title: `Общий чат: ${sender?.fullName}`, body: preview, link: `/chat?conv=general`, relatedId: msgId, senderId }));
-      createNotificationsBatch(batch);
-      sendPushBatch(allUsers.map((u: any) => u.id), { title: `Общий чат: ${sender?.fullName}`, body: preview, tag: 'nexus-chat-general', link: `/chat?conv=general` }).catch(() => {});
-    } else {
-      const conv = get('SELECT * FROM chat_conversations WHERE id = ?', [conversationId]);
-      if (conv.type === 'private') {
-        const recipientId = conv.user1Id === senderId ? conv.user2Id : conv.user1Id;
-        createNotification({ userId: recipientId, type: 'chat_message', title: `Сообщение от ${sender?.fullName}`, body: preview, link: `/chat?conv=${conversationId}`, relatedId: msgId, senderId });
-        sendPushNotification(recipientId, { title: `Сообщение от ${sender?.fullName}`, body: preview, tag: `nexus-chat-${conversationId}`, link: `/chat?conv=${conversationId}` }).catch(() => {});
-      } else if (conv.type === 'group') {
-        const members = query('SELECT userId FROM chat_group_members WHERE conversationId = ? AND userId != ?', [conversationId, senderId]);
-        const batch = members.map((m: any) => ({ userId: m.userId, type: 'chat_message', title: `${conv.name}: ${sender?.fullName}`, body: preview, link: `/chat?conv=${conversationId}`, relatedId: msgId, senderId }));
+        const allUsers = query('SELECT id FROM users WHERE id != ?', [senderId]).filter((u: any) => !skipUser(u.id));
+        const batch = allUsers.map((u: any) => ({ userId: u.id, type: 'chat_message', title: `Общий чат: ${sender?.fullName}`, body: preview, link: `/chat?conv=general`, relatedId: msgId, senderId }));
         createNotificationsBatch(batch);
-        sendPushBatch(members.map((m: any) => m.userId), { title: `${conv.name}: ${sender?.fullName}`, body: preview, tag: `nexus-chat-${conversationId}`, link: `/chat?conv=${conversationId}` }).catch(() => {});
+        sendPushBatch(allUsers.map((u: any) => u.id), { title: `Общий чат: ${sender?.fullName}`, body: preview, tag: 'nexus-chat-general', link: `/chat?conv=general` }).catch(() => {});
+      } else {
+        const c = conv || get('SELECT * FROM chat_conversations WHERE id = ?', [conversationId]);
+        if (c?.type === 'private') {
+          const recipientId = c.user1Id === senderId ? c.user2Id : c.user1Id;
+          if (!skipUser(recipientId)) {
+            createNotification({ userId: recipientId, type: 'chat_message', title: `Сообщение от ${sender?.fullName}`, body: preview, link: `/chat?conv=${conversationId}`, relatedId: msgId, senderId });
+            sendPushNotification(recipientId, { title: `Сообщение от ${sender?.fullName}`, body: preview, tag: `nexus-chat-${conversationId}`, link: `/chat?conv=${conversationId}` }).catch(() => {});
+          }
+        } else if (c?.type === 'group') {
+          const members = query('SELECT userId FROM chat_group_members WHERE conversationId = ? AND userId != ?', [conversationId, senderId])
+            .filter((m: any) => !skipUser(m.userId));
+          const batch = members.map((m: any) => ({ userId: m.userId, type: 'chat_message', title: `${c.name}: ${sender?.fullName}`, body: preview, link: `/chat?conv=${conversationId}`, relatedId: msgId, senderId }));
+          createNotificationsBatch(batch);
+          sendPushBatch(members.map((m: any) => m.userId), { title: `${c.name}: ${sender?.fullName}`, body: preview, tag: `nexus-chat-${conversationId}`, link: `/chat?conv=${conversationId}` }).catch(() => {});
+        }
       }
-    }
 
     if (mentionedUserIds) {
       const ids = mentionedUserIds.split(',').filter((id: string) => id && id !== senderId);
@@ -378,7 +457,11 @@ export const editMessage = (req: AuthRequest, res: Response) => {
     const updated = get(`SELECT m.*, u.fullName as senderName, u.avatar as senderAvatar, u.position as senderPosition FROM chat_messages m LEFT JOIN users u ON m.senderId = u.id WHERE m.id = ?`, [id]);
     res.json({ success: true, data: updated });
     const io = req.app.get('io');
-    if (io) io.to(`conv:${msg.conversationId}`).emit('chat:message-edit', { id, content, editedAt: updated.editedAt });
+    if (io) {
+      const payload = { id, content, editedAt: updated.editedAt };
+      if (msg.conversationId === GENERAL_CHAT_ID) io.emit('chat:message-edit', payload);
+      else io.to(`conv:${msg.conversationId}`).emit('chat:message-edit', payload);
+    }
   } catch (error) { console.error('EditMessage error:', error); res.status(500).json({ success: false, error: 'Ошибка сервера' }); }
 };
 
@@ -387,14 +470,17 @@ export const deleteMessage = (req: AuthRequest, res: Response) => {
     const { id } = req.params;
     const msg = get('SELECT * FROM chat_messages WHERE id = ?', [id]);
     if (!msg) return res.status(404).json({ success: false, error: 'Сообщение не найдено' });
-    if (msg.senderId !== req.user!.id && !(req.user!.roles || [req.user!.role]).includes('super_admin')) return res.status(403).json({ success: false, error: 'Нет прав' });
+    if (msg.senderId !== req.user!.id && !isSuperUser(req)) return res.status(403).json({ success: false, error: 'Нет прав' });
     run('UPDATE chat_messages SET deleted = 1 WHERE id = ?', [id]);
     // Update conversation preview
     const lastMsg = get('SELECT content FROM chat_messages WHERE conversationId = ? AND deleted = 0 ORDER BY createdAt DESC LIMIT 1', [msg.conversationId]);
     run("UPDATE chat_conversations SET lastMessagePreview = ? WHERE id = ?", [lastMsg ? lastMsg.content.substring(0, 100) : '', msg.conversationId]);
     res.json({ success: true });
     const io = req.app.get('io');
-    if (io) io.to(`conv:${msg.conversationId}`).emit('chat:message-delete', { id });
+    if (io) {
+      if (msg.conversationId === GENERAL_CHAT_ID) io.emit('chat:message-delete', { id });
+      else io.to(`conv:${msg.conversationId}`).emit('chat:message-delete', { id });
+    }
   } catch (error) { console.error('DeleteMessage error:', error); res.status(500).json({ success: false, error: 'Ошибка сервера' }); }
 };
 
@@ -405,6 +491,10 @@ export const addReaction = (req: AuthRequest, res: Response) => {
     const { id: messageId } = req.params;
     const { emoji } = req.body;
     const userId = req.user!.id;
+    const msg0 = get('SELECT * FROM chat_messages WHERE id = ?', [messageId]);
+    if (!msg0) return res.status(404).json({ success: false, error: 'Сообщение не найдено' });
+    const conv0 = get('SELECT * FROM chat_conversations WHERE id = ?', [msg0.conversationId]);
+    if (!isChatMember(conv0, userId)) return res.status(403).json({ success: false, error: 'Нет доступа' });
     // Remove existing reaction from this user on this message
     run('DELETE FROM chat_reactions WHERE messageId = ? AND userId = ?', [messageId, userId]);
     run('INSERT INTO chat_reactions (id, messageId, userId, emoji) VALUES (?, ?, ?, ?)', [uuidv4(), messageId, userId, emoji]);
@@ -412,7 +502,10 @@ export const addReaction = (req: AuthRequest, res: Response) => {
     res.json({ success: true, data: reactions });
     const convRow = get('SELECT conversationId FROM chat_messages WHERE id = ?', [messageId]);
     const io = req.app.get('io');
-    if (io && convRow) io.to(`conv:${convRow.conversationId}`).emit('chat:reaction', { messageId, reactions });
+    if (io && convRow) {
+      if (convRow.conversationId === GENERAL_CHAT_ID) io.emit('chat:reaction', { messageId, reactions });
+      else io.to(`conv:${convRow.conversationId}`).emit('chat:reaction', { messageId, reactions });
+    }
   } catch (error) { console.error('AddReaction error:', error); res.status(500).json({ success: false, error: 'Ошибка сервера' }); }
 };
 
@@ -424,7 +517,10 @@ export const removeReaction = (req: AuthRequest, res: Response) => {
     res.json({ success: true, data: reactions });
     const convRow = get('SELECT conversationId FROM chat_messages WHERE id = ?', [messageId]);
     const io = req.app.get('io');
-    if (io && convRow) io.to(`conv:${convRow.conversationId}`).emit('chat:reaction', { messageId, reactions });
+    if (io && convRow) {
+      if (convRow.conversationId === GENERAL_CHAT_ID) io.emit('chat:reaction', { messageId, reactions });
+      else io.to(`conv:${convRow.conversationId}`).emit('chat:reaction', { messageId, reactions });
+    }
   } catch (error) { console.error('RemoveReaction error:', error); res.status(500).json({ success: false, error: 'Ошибка сервера' }); }
 };
 
@@ -435,6 +531,8 @@ export const pinMessage = (req: AuthRequest, res: Response) => {
     const { id: messageId } = req.params;
     const msg = get('SELECT * FROM chat_messages WHERE id = ?', [messageId]);
     if (!msg) return res.status(404).json({ success: false, error: 'Сообщение не найдено' });
+    const conv = get('SELECT * FROM chat_conversations WHERE id = ?', [msg.conversationId]);
+    if (!isChatMember(conv, req.user!.id)) return res.status(403).json({ success: false, error: 'Нет доступа' });
     const existing = get('SELECT * FROM chat_pinned WHERE conversationId = ? AND messageId = ?', [msg.conversationId, messageId]);
     if (existing) return res.json({ success: true });
     run('INSERT INTO chat_pinned (id, conversationId, messageId, pinnedBy) VALUES (?, ?, ?, ?)', [uuidv4(), msg.conversationId, messageId, req.user!.id]);
@@ -470,6 +568,8 @@ export const markConversationRead = (req: AuthRequest, res: Response) => {
   try {
     const convId = req.params.id;
     const userId = req.user!.id;
+    const conv = get('SELECT * FROM chat_conversations WHERE id = ?', [convId]);
+    if (conv && !isChatMember(conv, userId)) return res.status(403).json({ success: false, error: 'Нет доступа' });
     run('UPDATE chat_messages SET isRead = 1 WHERE conversationId = ? AND senderId != ? AND isRead = 0 AND deleted = 0', [convId, userId]);
     // Upsert read receipt
     const existing = get('SELECT * FROM chat_reads WHERE conversationId = ? AND userId = ?', [convId, userId]);
@@ -497,7 +597,11 @@ export const setTyping = (req: AuthRequest, res: Response) => {
   typingUsers.set(key, { userId: req.user!.id, name: req.user!.username, until: Date.now() + 3000 });
   const user = get('SELECT fullName FROM users WHERE id = ?', [req.user!.id]);
   const io = req.app.get('io');
-  if (io) io.to(`conv:${conversationId}`).emit('chat:typing', { userId: req.user!.id, name: user?.fullName || req.user!.username });
+  if (io) {
+    const payload = { userId: req.user!.id, name: user?.fullName || req.user!.username };
+    if (conversationId === GENERAL_CHAT_ID) io.emit('chat:typing', payload);
+    else io.to(`conv:${conversationId}`).emit('chat:typing', payload);
+  }
   res.json({ success: true });
 };
 
@@ -584,35 +688,14 @@ export const deleteGroup = (req: AuthRequest, res: Response) => {
     if (!conv) return res.status(404).json({ success: false, error: 'Группа не найдена' });
 
     const membership = get('SELECT role FROM chat_group_members WHERE conversationId = ? AND userId = ?', [id, userId]);
-    const rolesArr = Array.isArray(req.user!.roles) ? req.user!.roles : [req.user!.role].filter(Boolean);
-    const isSuperAdmin = rolesArr.includes('super_admin') || req.user!.role === 'super_admin';
     const isGroupAdmin = membership?.role === 'admin';
     // создатель группы (user1Id) тоже может удалить
     const isCreator = conv.user1Id === userId;
-    if (!isGroupAdmin && !isSuperAdmin && !isCreator) {
+    if (!isGroupAdmin && !isSuperUser(req) && !isCreator) {
       return res.status(403).json({ success: false, error: 'Только админ группы может удалить её' });
     }
 
-    // FK ON — чистим всё, что ссылается на conversationId / messageId
-    transaction(() => {
-      const mids = query('SELECT id FROM chat_messages WHERE conversationId = ?', [id]) as any[];
-      for (const m of mids) {
-        run('DELETE FROM chat_reactions WHERE messageId = ?', [m.id], true);
-        run('DELETE FROM chat_pinned WHERE messageId = ?', [m.id], true);
-        run('DELETE FROM chat_favorites WHERE messageId = ?', [m.id], true);
-        run('DELETE FROM chat_attachments WHERE messageId = ?', [m.id], true);
-      }
-      run('DELETE FROM chat_poll_votes WHERE pollId IN (SELECT id FROM chat_polls WHERE conversationId = ?)', [id], true);
-      run('DELETE FROM chat_poll_options WHERE pollId IN (SELECT id FROM chat_polls WHERE conversationId = ?)', [id], true);
-      run('DELETE FROM chat_polls WHERE conversationId = ?', [id], true);
-      run('DELETE FROM chat_messages WHERE conversationId = ?', [id]);
-      run('DELETE FROM chat_reads WHERE conversationId = ?', [id], true);
-      run('DELETE FROM chat_muted WHERE conversationId = ?', [id], true);
-      run('DELETE FROM chat_user_mutes WHERE conversationId = ?', [id], true);
-      run('DELETE FROM chat_group_members WHERE conversationId = ?', [id]);
-      run('DELETE FROM chat_hidden WHERE conversationId = ?', [id], true);
-      run('DELETE FROM chat_conversations WHERE id = ?', [id]);
-    });
+    transaction(() => purgeConversation(id));
 
     const io = req.app.get('io');
     if (io) io.emit('chat:conversation-deleted', { conversationId: id });
@@ -644,22 +727,7 @@ export const leaveGroup = (req: AuthRequest, res: Response) => {
         run("UPDATE chat_group_members SET role = 'admin' WHERE conversationId = ? AND userId = ?", [id, other.userId]);
       } else {
         // Last member leaving — delete group entirely (full cascade)
-        transaction(() => {
-          run('DELETE FROM chat_reactions WHERE messageId IN (SELECT id FROM chat_messages WHERE conversationId = ?)', [id]);
-          run('DELETE FROM chat_pinned WHERE messageId IN (SELECT id FROM chat_messages WHERE conversationId = ?)', [id]);
-          run('DELETE FROM chat_favorites WHERE messageId IN (SELECT id FROM chat_messages WHERE conversationId = ?)', [id]);
-          run('DELETE FROM chat_attachments WHERE messageId IN (SELECT id FROM chat_messages WHERE conversationId = ?)', [id]);
-          run('DELETE FROM chat_poll_votes WHERE pollId IN (SELECT id FROM chat_polls WHERE conversationId = ?)', [id]);
-          run('DELETE FROM chat_poll_options WHERE pollId IN (SELECT id FROM chat_polls WHERE conversationId = ?)', [id]);
-          run('DELETE FROM chat_polls WHERE conversationId = ?', [id]);
-          run('DELETE FROM chat_messages WHERE conversationId = ?', [id]);
-          run('DELETE FROM chat_reads WHERE conversationId = ?', [id]);
-          run('DELETE FROM chat_muted WHERE conversationId = ?', [id]);
-          run('DELETE FROM chat_user_mutes WHERE conversationId = ?', [id]);
-          run('DELETE FROM chat_group_members WHERE conversationId = ?', [id]);
-          run('DELETE FROM chat_hidden WHERE conversationId = ?', [id]);
-          run('DELETE FROM chat_conversations WHERE id = ?', [id]);
-        });
+        transaction(() => purgeConversation(id));
         const io = req.app.get('io');
         if (io) io.emit('chat:conversation-deleted', { conversationId: id });
         return res.json({ success: true, message: 'Группа удалена' });
@@ -684,7 +752,7 @@ export const leaveGroup = (req: AuthRequest, res: Response) => {
 export const archiveConversation = (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    run("UPDATE chat_conversations SET archived = 1 WHERE id = ?", [id]);
+    upsertUserFlag(id, req.user!.id, 'archived', 1);
     res.json({ success: true });
   } catch (error) { console.error('ArchiveConversation error:', error); res.status(500).json({ success: false, error: 'Ошибка сервера' }); }
 };
@@ -692,17 +760,24 @@ export const archiveConversation = (req: AuthRequest, res: Response) => {
 export const unarchiveConversation = (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    run("UPDATE chat_conversations SET archived = 0 WHERE id = ?", [id]);
+    upsertUserFlag(id, req.user!.id, 'archived', 0);
     res.json({ success: true });
   } catch (error) { console.error('UnarchiveConversation error:', error); res.status(500).json({ success: false, error: 'Ошибка сервера' }); }
 };
 
-// ── Pin / Unpin conversation ──
+// ── Pin / Unpin conversation (per-user) ──
+
+function upsertUserFlag(conversationId: string, userId: string, field: 'pinned' | 'archived', value: number) {
+  const existing = get('SELECT id FROM chat_user_flags WHERE conversationId = ? AND userId = ?', [conversationId, userId]);
+  if (existing) run(`UPDATE chat_user_flags SET ${field} = ? WHERE conversationId = ? AND userId = ?`, [value, conversationId, userId]);
+  else run(`INSERT INTO chat_user_flags (id, conversationId, userId, pinned, archived) VALUES (?, ?, ?, ?, ?)`,
+    [uuidv4(), conversationId, userId, field === 'pinned' ? value : 0, field === 'archived' ? value : 0]);
+}
 
 export const pinConversation = (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    run("UPDATE chat_conversations SET pinned = 1 WHERE id = ?", [id]);
+    upsertUserFlag(id, req.user!.id, 'pinned', 1);
     res.json({ success: true });
   } catch (error) { console.error('PinConversation error:', error); res.status(500).json({ success: false, error: 'Ошибка сервера' }); }
 };
@@ -710,7 +785,7 @@ export const pinConversation = (req: AuthRequest, res: Response) => {
 export const unpinConversation = (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    run("UPDATE chat_conversations SET pinned = 0 WHERE id = ?", [id]);
+    upsertUserFlag(id, req.user!.id, 'pinned', 0);
     res.json({ success: true });
   } catch (error) { console.error('UnpinConversation error:', error); res.status(500).json({ success: false, error: 'Ошибка сервера' }); }
 };
@@ -763,10 +838,12 @@ export const createPoll = (req: AuthRequest, res: Response) => {
 
     const conv = get('SELECT id FROM chat_conversations WHERE id = ?', [id]);
     if (!conv && id !== GENERAL_CHAT_ID) return res.status(404).json({ success: false, error: 'Чат не найден' });
+    const senderId = req.user!.id;
+    const convFull = get('SELECT * FROM chat_conversations WHERE id = ?', [id]);
+    if (convFull && !isChatMember(convFull, senderId)) return res.status(403).json({ success: false, error: 'Нет доступа' });
 
     const messageId = uuidv4();
     const pollId = uuidv4();
-    const senderId = req.user!.id;
 
     // Create message of type 'poll' — content = pollId (used by frontend to fetch results)
     run('INSERT INTO chat_messages (id, conversationId, senderId, type, content) VALUES (?, ?, ?, ?, ?)',
@@ -841,7 +918,11 @@ export const votePoll = (req: AuthRequest, res: Response) => {
     // Emit socket
     const msg = get('SELECT conversationId FROM chat_messages WHERE id = ?', [poll.messageId]);
     const io = (req as any).app?.get('io');
-    if (io && msg) io.to(`conv:${msg.conversationId}`).emit('chat:poll-vote', { pollId, results });
+    if (io && msg) {
+      const payload = { pollId, results };
+      if (msg.conversationId === GENERAL_CHAT_ID) io.emit('chat:poll-vote', payload);
+      else io.to(`conv:${msg.conversationId}`).emit('chat:poll-vote', payload);
+    }
 
     res.json({ success: true, data: results });
   } catch (error) { console.error('VotePoll error:', error); res.status(500).json({ success: false, error: 'Ошибка сервера' }); }
@@ -857,7 +938,7 @@ export const muteMember = (req: AuthRequest, res: Response) => {
 
     // Check admin
     const membership = get('SELECT role FROM chat_group_members WHERE conversationId = ? AND userId = ?', [id, mutedBy]);
-    if (!membership || membership.role !== 'admin') return res.status(403).json({ success: false, error: 'Только админ может мутить' });
+    if (membership?.role !== 'admin' && !isSuperUser(req)) return res.status(403).json({ success: false, error: 'Только админ может мутить' });
 
     run('DELETE FROM chat_muted WHERE conversationId = ? AND userId = ?', [id, userId]);
     run('INSERT INTO chat_muted (id, conversationId, userId, mutedBy, mutedUntil) VALUES (?, ?, ?, ?, ?)', [uuidv4(), id, userId, mutedBy, until || null]);
@@ -870,7 +951,7 @@ export const unmuteMember = (req: AuthRequest, res: Response) => {
   try {
     const { id, userId } = req.params;
     const membership = get('SELECT role FROM chat_group_members WHERE conversationId = ? AND userId = ?', [id, req.user!.id]);
-    if (!membership || membership.role !== 'admin') return res.status(403).json({ success: false, error: 'Только админ может размутить' });
+    if (membership?.role !== 'admin' && !isSuperUser(req)) return res.status(403).json({ success: false, error: 'Только админ может размутить' });
     run('DELETE FROM chat_muted WHERE conversationId = ? AND userId = ?', [id, userId]);
     res.json({ success: true });
   } catch (error) { console.error('UnmuteMember error:', error); res.status(500).json({ success: false, error: 'Ошибка сервера' }); }
