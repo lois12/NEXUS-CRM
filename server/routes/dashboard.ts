@@ -325,4 +325,50 @@ router.get('/health', requireRole('super_admin'), (req: AuthRequest, res: Respon
   }
 });
 
+// ── Team Pulse — who is online / recently active ──────────────────────
+// Uses users.lastSeen (throttled to once/min by auth middleware).
+// lastSeen is stored as UTC `datetime('now')` → consumers append 'Z' (chat does the same).
+const ONLINE_WINDOW_MS = 5 * 60 * 1000;    // "сейчас онлайн"
+const RECENT_WINDOW_MS = 60 * 60 * 1000;   // "активен за последний час"
+
+router.get('/online', requireRole('super_admin'), (req: AuthRequest, res: Response) => {
+  try {
+    const now = Date.now();
+    const rows = query<{
+      id: string; username: string; fullName: string; avatar: string | null;
+      position: string | null; role: string; roles: string | null; lastSeen: string;
+    }>(`
+      SELECT id, username, fullName, avatar, position, role, roles, lastSeen
+      FROM users
+      WHERE lastSeen IS NOT NULL AND lastSeen != ''
+      ORDER BY lastSeen DESC
+      LIMIT 300
+    `);
+
+    const online: any[] = [];
+    const recent: any[] = [];
+    for (const r of rows) {
+      const ts = new Date(`${r.lastSeen.replace(' ', 'T')}Z`).getTime();
+      if (!isFinite(ts)) continue;
+      const entry = {
+        id: r.id,
+        fullName: r.fullName || r.username,
+        avatar: r.avatar,
+        position: r.position || '',
+        role: r.role,
+        lastSeen: r.lastSeen,
+      };
+      const diff = now - ts;
+      if (diff <= ONLINE_WINDOW_MS) online.push(entry);
+      else if (diff <= RECENT_WINDOW_MS) recent.push(entry);
+    }
+
+    const totalUsers = get('SELECT COUNT(*) as count FROM users')?.count || 0;
+    res.json({ success: true, data: { online, recent, totalUsers, checkedAt: now } });
+  } catch (error) {
+    console.error('GetOnline error:', error);
+    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+  }
+});
+
 export default router;

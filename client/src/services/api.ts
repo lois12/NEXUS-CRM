@@ -221,6 +221,15 @@ export const dashboardApi = {
   getHealth: (): Promise<ApiResponse<any>> =>
     api.get('/dashboard/health').then((res) => res.data),
 
+  /** Team Pulse — who is online now / recently active (super_admin only) */
+  getOnline: (): Promise<ApiResponse<{
+    online: { id: string; fullName: string; avatar?: string; position?: string; role: string; lastSeen: string }[];
+    recent: { id: string; fullName: string; avatar?: string; position?: string; role: string; lastSeen: string }[];
+    totalUsers: number;
+    checkedAt: number;
+  }>> =>
+    api.get('/dashboard/online').then((res) => res.data),
+
   getMaintenance: (): Promise<ApiResponse<{ pages: string[] }>> =>
     api.get('/dashboard/maintenance').then((res) => res.data),
 

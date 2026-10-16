@@ -4,10 +4,12 @@ import {
   Server, Cpu, HardDrive, Database, Clock, Activity,
   RefreshCw, MemoryStick, Globe, Zap, Wrench, AlertTriangle,
   CheckSquare, Square, Save, Download, Archive,
+  Signal,
 } from 'lucide-react';
 import { dashboardApi } from '../services/api';
 import { MAINT_PAGES } from '../config/maintPages';
 import { showToast } from '../components/ui/NexusModal';
+import { formatLastSeenKR } from '../utils/timezone';
 import { FeedbackInbox, RoleMatrixEditor } from '../components/admin/RoleFeedbackPanels';
 
 function formatBytes(bytes: number): string {
@@ -107,6 +109,97 @@ function ProjectGradeCard() {
   );
 }
 
+/** Live presence — who is online now / active in the last hour (Team Pulse) */
+function TeamPulseCard({ pulse }: {
+  pulse: { online: { id: string; fullName: string; avatar?: string; position?: string; role: string; lastSeen: string }[];
+           recent: { id: string; fullName: string; avatar?: string; position?: string; role: string; lastSeen: string }[];
+           totalUsers: number } | null;
+}) {
+  const online = pulse?.online || [];
+  const recent = pulse?.recent || [];
+  const total = pulse?.totalUsers || 0;
+
+  return (
+    <div className="glass rounded-xl p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <h3 className="font-mono text-xs font-bold tracking-wider flex items-center gap-2" style={{ color: '#00ff88' }}>
+          <Signal className="w-4 h-4" /> ПУЛЬС КОМАНДЫ
+        </h3>
+        <div className="flex items-center gap-2 font-mono text-[10px]" style={{ color: '#6b7280' }}>
+          <span className="flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full online-pulse" style={{ background: '#00ff88', boxShadow: '0 0 6px rgba(0,255,136,0.6)' }} />
+            {online.length} СЕЙЧАС
+          </span>
+          <span>·</span>
+          <span>{recent.length} ЗА ЧАС</span>
+          {total > 0 && (<><span>·</span><span>{total} ВСЕГО</span></>)}
+        </div>
+      </div>
+
+      {online.length === 0 && recent.length === 0 ? (
+        <p className="font-mono text-[10px]" style={{ color: '#4a4a60' }}>
+          // никто не был активен за последний час
+        </p>
+      ) : (
+        <>
+          {/* Онлайн сейчас — glowing avatars */}
+          {online.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {online.map((u) => (
+                <motion.div
+                  key={u.id}
+                  initial={{ opacity: 0, scale: 0.85 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.25 }}
+                  className="flex items-center gap-2 pl-1.5 pr-2.5 py-1.5 rounded-full"
+                  style={{
+                    background: 'rgba(0,255,136,0.08)',
+                    border: '1px solid rgba(0,255,136,0.25)',
+                    boxShadow: '0 0 12px rgba(0,255,136,0.12)',
+                  }}
+                  title={`${u.position ? u.position + ' · ' : ''}онлайн`}
+                >
+                  <div className="relative w-6 h-6 rounded-full overflow-hidden flex-shrink-0 flex items-center justify-center"
+                    style={{ border: '1px solid rgba(0,255,136,0.4)', background: 'rgba(255,255,255,0.05)' }}>
+                    {u.avatar
+                      ? <img loading="lazy" decoding="async" src={u.avatar} alt="" className="w-full h-full object-cover" />
+                      : <span className="text-[10px] font-mono font-bold" style={{ color: '#00ff88' }}>{u.fullName?.charAt(0) || '?'}</span>}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="font-mono text-[11px] leading-tight truncate max-w-32" style={{ color: '#e8e8ec' }}>{u.fullName}</div>
+                    <div className="font-mono text-[8px] leading-tight truncate max-w-32" style={{ color: '#00ff88' }}>
+                      {u.position || 'онлайн'}
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          )}
+
+          {/* Активен за час — dimmer list */}
+          {recent.length > 0 && (
+            <div className="space-y-1 max-h-40 overflow-y-auto pr-1">
+              {recent.map((u) => (
+                <div key={u.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg"
+                  style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  <div className="w-5 h-5 rounded-full overflow-hidden flex-shrink-0 flex items-center justify-center"
+                    style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                    {u.avatar
+                      ? <img loading="lazy" decoding="async" src={u.avatar} alt="" className="w-full h-full object-cover" />
+                      : <span className="text-[8px] font-mono font-bold" style={{ color: '#5a5a70' }}>{u.fullName?.charAt(0) || '?'}</span>}
+                  </div>
+                  <span className="font-mono text-[11px] truncate flex-1" style={{ color: '#9ca3af' }}>{u.fullName}</span>
+                  <span className="font-mono text-[9px] flex-shrink-0" style={{ color: '#5a5a70' }}>{formatLastSeenKR(u.lastSeen)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function AdminMonitoring() {
   const [health, setHealth] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -119,6 +212,11 @@ export default function AdminMonitoring() {
   const [backupDir, setBackupDir] = useState('');
   const [backingUp, setBackingUp] = useState(false);
   const [autoInfo, setAutoInfo] = useState<{ lastDay: string | null; nextAt: string } | null>(null);
+  const [pulse, setPulse] = useState<{
+    online: { id: string; fullName: string; avatar?: string; position?: string; role: string; lastSeen: string }[];
+    recent: { id: string; fullName: string; avatar?: string; position?: string; role: string; lastSeen: string }[];
+    totalUsers: number;
+  } | null>(null);
 
   const fetchHealth = async () => {
     try {
@@ -134,13 +232,19 @@ export default function AdminMonitoring() {
         setMaintSaved(maintRes.data.pages || []);
       }
       try {
-        const b = await dashboardApi.listBackups();
+        const [b, p] = await Promise.all([
+          dashboardApi.listBackups(),
+          dashboardApi.getOnline(),
+        ]);
         if (b.success && b.data) {
           setBackups(b.data.files || []);
           setBackupDir(b.data.dir || '');
           if (b.data.auto) setAutoInfo(b.data.auto);
         }
-      } catch { /* backup list is optional */ }
+        if (p.success && p.data) {
+          setPulse({ online: p.data.online || [], recent: p.data.recent || [], totalUsers: p.data.totalUsers || 0 });
+        }
+      } catch { /* backup list + pulse are optional */ }
     } catch {
       setError('Нет доступа или сервер недоступен');
     } finally {
@@ -246,6 +350,9 @@ export default function AdminMonitoring() {
           </button>
         </div>
       </div>
+
+      {/* Team Pulse — live presence */}
+      <TeamPulseCard pulse={pulse} />
 
       {/* Per-page maintenance */}
       <div className="glass rounded-xl p-4 space-y-3">
