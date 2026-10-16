@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus, Search, Edit3, Trash2, Copy, QrCode, Calendar, Play, FolderOpen,
   X, Save, Image as ImageIcon, Link2, Users, ArrowLeft, ChevronDown, ChevronRight,
+  Film, Music, BarChart3,
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { quizzesApi, materialsApi } from '../services/api';
@@ -65,6 +66,7 @@ export default function Quizzes() {
   const [view, setView] = useState<'list' | 'results'>('list');
   const [resultsFor, setResultsFor] = useState<Quiz | null>(null);
   const [results, setResults] = useState<any[]>([]);
+  const [qStats, setQStats] = useState<{ totalAnswered: number; stats: any[] } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const qFileRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const { confirmState, showConfirm, closeConfirm } = useNexusConfirm();
@@ -234,6 +236,16 @@ export default function Quizzes() {
       setQuestions((prev) => prev.map((q, i) => (i === qi ? { ...q, imageUrl: url } : q)));
     });
 
+  const uploadQuestionVideo = (qi: number, file: File) =>
+    runUpload(`qv${qi}`, file, (url) => {
+      setQuestions((prev) => prev.map((q, i) => (i === qi ? { ...q, videoUrl: url } : q)));
+    });
+
+  const uploadQuestionAudio = (qi: number, file: File) =>
+    runUpload(`qa${qi}`, file, (url) => {
+      setQuestions((prev) => prev.map((q, i) => (i === qi ? { ...q, audioUrl: url } : q)));
+    });
+
   const uploadOptionImage = (qi: number, oi: number, file: File) =>
     runUpload(`o${qi}_${oi}`, file, (url) => {
       setQuestions((prev) =>
@@ -248,10 +260,15 @@ export default function Quizzes() {
   const openResults = async (q: Quiz) => {
     setResultsFor(q);
     setView('results');
+    setQStats(null);
     try {
       const res = await quizzesApi.getResults(q.id);
       if (res.success && res.data) setResults(res.data);
     } catch { setResults([]); }
+    try {
+      const st = await quizzesApi.getQuestionStats(q.id);
+      if (st.success && st.data) setQStats(st.data);
+    } catch { setQStats(null); }
   };
 
   const deleteParticipant = (participantId: string, name: string) => {
@@ -385,9 +402,6 @@ export default function Quizzes() {
                 {results.map((r, i) => (
                   <tr key={r.id} className="border-t border-white/5 hover:bg-white/[0.03]">
                     <td className="p-3" style={{ color: i < 3 ? 'var(--color-primary)' : '#8b9bbb' }}>{i + 1}</td>
-            <div className="mt-3 text-[9px] font-mono text-gray-500">
-              <div className="flex items-center justify-between"><span>Всего ответов: {qStats ? qStats.totalAnswered : 0}</span><span className="font-mono text-xs text-gray-300">ср% = {qStats && qStats.stats.length > 0 ? Math.round((qStats.stats.reduce((a, x) => a + (x.pct || 0), 0) / qStats.stats.length) * 100) : 0}%</span></div>
-            </div>
                     <td className="p-3 text-gray-200 truncate">
                       {r.lastName} {r.firstName} {r.patronymic || ''}
                     </td>
@@ -414,6 +428,57 @@ export default function Quizzes() {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {qStats && qStats.stats.length > 0 && (
+          <div className="glass rounded-2xl p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <BarChart3 className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />
+                <h2 className="font-mono text-xs tracking-wider text-gray-300">СТАТИСТИКА ПО ВОПРОСАМ</h2>
+              </div>
+              <div className="flex items-center gap-3 text-[10px] font-mono text-gray-500">
+                <span>ответов: <span className="text-gray-200">{qStats.totalAnswered}</span></span>
+                <span>
+                  ср% ={' '}
+                  <span className="text-gray-200">
+                    {Math.round((qStats.stats.reduce((a, x) => a + (x.pct || 0), 0) / qStats.stats.length) * 100)}%
+                  </span>
+                </span>
+              </div>
+            </div>
+            <div className="space-y-2.5">
+              {qStats.stats.map((s: any, i: number) => {
+                const pct = s.pct == null ? 0 : Math.round(s.pct * 100);
+                return (
+                  <div key={s.questionId || i}>
+                    <div className="flex items-center gap-2 text-[11px] font-mono mb-1">
+                      <span className="text-gray-500 w-6">Q{i + 1}</span>
+                      <span className="text-gray-300 truncate flex-1">{s.text || '—'}</span>
+                      <span className="text-gray-500 flex-shrink-0">
+                        {s.correct}/{s.answered}
+                      </span>
+                      <span
+                        className="w-12 text-right flex-shrink-0"
+                        style={{ color: pct >= 60 ? '#7dffb2' : pct >= 30 ? '#eab308' : '#ff6b6b' }}
+                      >
+                        {s.pct == null ? '—' : `${pct}%`}
+                      </span>
+                    </div>
+                    <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                      <div
+                        className="h-full rounded-full transition-all"
+                        style={{
+                          width: `${pct}%`,
+                          background: pct >= 60 ? '#7dffb2' : pct >= 30 ? '#eab308' : '#ff6b6b',
+                        }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
 
@@ -713,11 +778,36 @@ export default function Quizzes() {
                               <button onClick={() => qFileRefs.current[`q${qi}`]?.click()} className="btn-ghost px-2 py-1 text-[10px]">
                                 <ImageIcon className="w-3 h-3 inline mr-1" /> КАРТИНКА
                               </button>
+                              <input
+                                ref={(el) => { qFileRefs.current[`qv${qi}`] = el; }}
+                                type="file" accept="video/mp4,video/webm" className="hidden"
+                                onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadQuestionVideo(qi, f); e.target.value = ''; }}
+                              />
+                              <button onClick={() => qFileRefs.current[`qv${qi}`]?.click()} className="btn-ghost px-2 py-1 text-[10px]"
+                                title="Видео к вопросу (MP4/WebM)">
+                                <Film className="w-3 h-3 inline mr-1" /> ВИДЕО
+                              </button>
+                              <input
+                                ref={(el) => { qFileRefs.current[`qa${qi}`] = el; }}
+                                type="file" accept="audio/mpeg,audio/wav,audio/ogg,audio/mp4,audio/webm" className="hidden"
+                                onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadQuestionAudio(qi, f); e.target.value = ''; }}
+                              />
+                              <button onClick={() => qFileRefs.current[`qa${qi}`]?.click()} className="btn-ghost px-2 py-1 text-[10px]"
+                                title="Аудио к вопросу (MP3/WAV/OGG)">
+                                <Music className="w-3 h-3 inline mr-1" /> АУДИО
+                              </button>
                               {uploads[`q${qi}`] !== undefined ? (
                                 <UploadSkeleton pct={uploads[`q${qi}`]} />
                               ) : q.imageUrl ? (
                                 <img src={q.imageUrl} alt="" className="w-10 h-10 rounded object-cover" />
                               ) : null}
+                              {uploads[`qv${qi}`] !== undefined && <UploadSkeleton pct={uploads[`qv${qi}`]} />}
+                              {uploads[`qa${qi}`] !== undefined && <UploadSkeleton pct={uploads[`qa${qi}`]} />}
+                              {(q.videoUrl || q.audioUrl) && (
+                                <span className="text-[9px] font-mono px-1.5 py-0.5 rounded" style={{ background: 'rgba(0,255,136,0.12)', color: 'var(--color-primary)' }}>
+                                  {q.videoUrl ? '🎬' : '🎵'} есть
+                                </span>
+                              )}
                               <span className="text-[10px] text-gray-500 ml-auto">Баллы:</span>
                               <input
                                 type="number" min={1} value={q.points || 1}
