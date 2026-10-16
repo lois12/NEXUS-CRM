@@ -185,6 +185,8 @@ export const quizzesApi = {
   saveQuestions: (id: string, questions: any[]): Promise<ApiResponse<any>> =>
     api.put(`/quizzes/${id}/questions`, { questions }).then((res) => res.data),
   getResults: (id: string): Promise<ApiResponse<any[]>> => api.get(`/quizzes/${id}/results`).then((res) => res.data),
+  getQuestionStats: (id: string): Promise<ApiResponse<{ totalAnswered: number; stats: { questionId: string; text: string; type: string; points: number; answered: number; correct: number; wrong: number; pct: number | null }[] }>> =>
+    api.get(`/quizzes/${id}/question-stats`).then((res) => res.data),
   deleteResult: (id: string, participantId: string): Promise<ApiResponse<void>> =>
     api.delete(`/quizzes/${id}/results/${participantId}`).then((res) => res.data),
 };

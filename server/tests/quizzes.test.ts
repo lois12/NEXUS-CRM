@@ -5,6 +5,7 @@ import { setupTestDb, adminTokenPayload, TEST_ADMIN_ID } from './helpers/testDb'
 import { run, get } from '../db/database';
 import {
   getPublicQuiz, startQuiz, submitQuiz, createQuiz, listResults, deleteResult,
+  getQuestionStats,
 } from '../controllers/quizController';
 
 const app = express();
@@ -20,6 +21,10 @@ app.get('/api/quizzes/:id/results', (req, res, next) => {
   (req as any).user = adminTokenPayload();
   next();
 }, listResults as any);
+app.get('/api/quizzes/:id/question-stats', (req, res, next) => {
+  (req as any).user = adminTokenPayload();
+  next();
+}, getQuestionStats as any);
 app.delete('/api/quizzes/:id/results/:participantId', (req, res, next) => {
   (req as any).user = adminTokenPayload();
   next();
@@ -172,5 +177,49 @@ describe('Delete participant (admin)', () => {
     seedQuiz('del2', 'scheduled', null, null);
     const del = await request(app).delete('/api/quizzes/del2/results/nope');
     expect(del.status).toBe(404);
+  });
+});
+
+describe('Question stats (feature 18)', () => {
+  it('computes % correct per question from submitted answers', async () => {
+    seedQuiz('stat1', 'scheduled', null, null);
+
+    // два участника отвечают на один и тот же открытый вопрос
+    const s1 = await request(app)
+      .post('/api/quizzes/public/slug-stat1/start')
+      .send({ lastName: 'А', firstName: 'А', consent: true, deviceId: 'dev-s1' });
+    await request(app)
+      .post('/api/quizzes/public/slug-stat1/submit')
+      .send({ participantId: s1.body.data.participantId, lastName: 'А', firstName: 'А', consent: true, deviceId: 'dev-s1', answers: [{ questionId: 'q-stat1', answerText: 'ответ', selectedOptionIds: [] }] });
+
+    const s2 = await request(app)
+      .post('/api/quizzes/public/slug-stat1/start')
+      .send({ lastName: 'Б', firstName: 'Б', consent: true, deviceId: 'dev-s2' });
+    await request(app)
+      .post('/api/quizzes/public/slug-stat1/submit')
+      .send({ participantId: s2.body.data.participantId, lastName: 'Б', firstName: 'Б', consent: true, deviceId: 'dev-s2', answers: [{ questionId: 'q-stat1', answerText: 'ответ', selectedOptionIds: [] }] });
+
+    const res = await request(app).get('/api/quizzes/stat1/question-stats');
+    expect(res.status).toBe(200);
+    expect(res.body.data.totalAnswered).toBe(2);
+    const q = res.body.data.stats.find((s: any) => s.questionId === 'q-stat1');
+    expect(q.answered).toBe(2);
+    // открытый вопрос без correctText + непустой ответ → засчитано → 100%
+    expect(q.pct).toBe(100);
+    expect(q.wrong).toBe(0);
+  });
+
+  it('returns stats with pct=null when nobody answered', async () => {
+    seedQuiz('stat2', 'scheduled', null, null);
+    const res = await request(app).get('/api/quizzes/stat2/question-stats');
+    expect(res.status).toBe(200);
+    const q = res.body.data.stats.find((s: any) => s.questionId === 'q-stat2');
+    expect(q.answered).toBe(0);
+    expect(q.pct).toBeNull();
+  });
+
+  it('404 for unknown quiz', async () => {
+    const res = await request(app).get('/api/quizzes/nope/question-stats');
+    expect(res.status).toBe(404);
   });
 });

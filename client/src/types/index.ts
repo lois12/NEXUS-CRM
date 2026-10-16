@@ -138,6 +138,8 @@ export interface QuizQuestion {
   /** Подпись/комментарий мелким шрифтом сразу под вопросом */
   comment?: string;
   imageUrl?: string | null;
+  videoUrl?: string | null;
+  audioUrl?: string | null;
   points?: number;
   position?: number;
   options?: QuizOption[];

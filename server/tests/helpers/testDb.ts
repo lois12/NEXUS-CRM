@@ -67,6 +67,8 @@ export function setupTestDb(): void {
     text TEXT DEFAULT '',
     comment TEXT DEFAULT '',
     imageUrl TEXT,
+    videoUrl TEXT,
+    audioUrl TEXT,
     points INTEGER DEFAULT 1,
     position INTEGER DEFAULT 0,
     correctText TEXT DEFAULT ''

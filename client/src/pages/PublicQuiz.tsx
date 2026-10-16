@@ -214,6 +214,12 @@ export default function PublicQuiz() {
                           <img src={q.imageUrl} alt="" className="mt-2 rounded-lg max-h-56 object-contain cursor-zoom-in"
                             onClick={() => setZoom(q.imageUrl)} />
                         )}
+                        {q.videoUrl && (
+                          <video src={q.videoUrl} controls className="mt-2 rounded-lg max-h-64 w-full" playsInline />
+                        )}
+                        {q.audioUrl && (
+                          <audio src={q.audioUrl} controls className="mt-2 w-full" />
+                        )}
                       </div>
                     </div>
                     {q.type === 'open' ? (

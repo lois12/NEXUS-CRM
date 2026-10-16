@@ -385,6 +385,9 @@ export default function Quizzes() {
                 {results.map((r, i) => (
                   <tr key={r.id} className="border-t border-white/5 hover:bg-white/[0.03]">
                     <td className="p-3" style={{ color: i < 3 ? 'var(--color-primary)' : '#8b9bbb' }}>{i + 1}</td>
+            <div className="mt-3 text-[9px] font-mono text-gray-500">
+              <div className="flex items-center justify-between"><span>Всего ответов: {qStats ? qStats.totalAnswered : 0}</span><span className="font-mono text-xs text-gray-300">ср% = {qStats && qStats.stats.length > 0 ? Math.round((qStats.stats.reduce((a, x) => a + (x.pct || 0), 0) / qStats.stats.length) * 100) : 0}%</span></div>
+            </div>
                     <td className="p-3 text-gray-200 truncate">
                       {r.lastName} {r.firstName} {r.patronymic || ''}
                     </td>

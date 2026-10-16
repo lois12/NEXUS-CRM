@@ -133,8 +133,8 @@ export const duplicateQuiz = (req: AuthRequest, res: Response) => {
       const qs = query('SELECT * FROM quiz_questions WHERE quizId = ? ORDER BY position', [src.id]) as any[];
       for (const q of qs) {
         const nq = uuidv4();
-        run('INSERT INTO quiz_questions (id, quizId, type, text, comment, imageUrl, points, position, correctText) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-          [nq, newId, q.type, q.text, (q as any).comment || '', q.imageUrl, q.points, q.position, (q as any).correctText || '']);
+        run('INSERT INTO quiz_questions (id, quizId, type, text, comment, imageUrl, videoUrl, audioUrl, points, position, correctText) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          [nq, newId, q.type, q.text, (q as any).comment || '', q.imageUrl, (q as any).videoUrl || null, (q as any).audioUrl || null, q.points, q.position, (q as any).correctText || '']);
         const opts = query('SELECT * FROM quiz_options WHERE questionId = ? ORDER BY position', [q.id]) as any[];
         for (const o of opts) {
           run('INSERT INTO quiz_options (id, questionId, text, imageUrl, isCorrect, position) VALUES (?, ?, ?, ?, ?, ?)',
@@ -166,8 +166,8 @@ export const saveQuestions = (req: AuthRequest, res: Response) => {
       run('DELETE FROM quiz_questions WHERE quizId = ?', [id]);
       questions.forEach((q: any, qi: number) => {
         const qid = uuidv4();
-        run('INSERT INTO quiz_questions (id, quizId, type, text, comment, imageUrl, points, position, correctText) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-          [qid, id, q.type === 'open' ? 'open' : 'choice', String(q.text || ''), String(q.comment || ''), q.imageUrl || null, Number(q.points) || 1, qi, String(q.correctText || '')]);
+        run('INSERT INTO quiz_questions (id, quizId, type, text, comment, imageUrl, videoUrl, audioUrl, points, position, correctText) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          [qid, id, q.type === 'open' ? 'open' : 'choice', String(q.text || ''), String(q.comment || ''), q.imageUrl || null, q.videoUrl || null, q.audioUrl || null, Number(q.points) || 1, qi, String(q.correctText || '')]);
         (q.options || []).forEach((o: any, oi: number) => {
           run('INSERT INTO quiz_options (id, questionId, text, imageUrl, isCorrect, position) VALUES (?, ?, ?, ?, ?, ?)',
             [uuidv4(), qid, String(o.text || ''), o.imageUrl || null, o.isCorrect ? 1 : 0, oi]);
@@ -300,7 +300,7 @@ export const getPublicQuiz = (req: AuthRequest, res: Response) => {
       }
     }
 
-    const questions = query('SELECT id, type, text, comment, imageUrl, points, position FROM quiz_questions WHERE quizId = ? ORDER BY position', [row.id]) as any[];
+    const questions = query('SELECT id, type, text, comment, imageUrl, videoUrl, audioUrl, points, position FROM quiz_questions WHERE quizId = ? ORDER BY position', [row.id]) as any[];
     const shaped = questions.map((q) => ({
       ...q,
       options: query('SELECT id, text, imageUrl, position FROM quiz_options WHERE questionId = ? ORDER BY position', [q.id]),
@@ -493,6 +493,43 @@ export const getPublicResults = (req: AuthRequest, res: Response) => {
     res.json({ success: true, data: rows });
   } catch (e) {
     console.error('GetPublicResults', e);
+    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+  }
+};
+
+/**
+ * Статистика по вопросам — сколько участников ответили верно на каждый вопрос.
+ * Показывает «провальные» вопросы (малый % верных) для разбора после квиза.
+ */
+export const getQuestionStats = (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const quiz = get('SELECT id FROM quizzes WHERE id = ?', [id]);
+    if (!quiz) return res.status(404).json({ success: false, error: 'Квиз не найден' });
+
+    const questions = query('SELECT id, type, text, position, points FROM quiz_questions WHERE quizId = ? ORDER BY position', [id]) as any[];
+    const totalAnswered = get('SELECT COUNT(*) as c FROM quiz_answers a JOIN quiz_participants p ON a.participantId = p.id WHERE p.quizId = ?', [id])?.c || 0;
+
+    const stats = questions.map((q) => {
+      const rows = query('SELECT isCorrect, points FROM quiz_answers WHERE questionId = ?', [q.id]) as any[];
+      const answered = rows.length;
+      const correct = rows.filter((r) => r.isCorrect).length;
+      const pct = answered > 0 ? Math.round((correct / answered) * 100) : null;
+      return {
+        questionId: q.id,
+        text: q.text,
+        type: q.type,
+        points: q.points,
+        answered,
+        correct,
+        wrong: answered - correct,
+        pct,
+      };
+    });
+
+    res.json({ success: true, data: { totalAnswered, stats } });
+  } catch (e) {
+    console.error('GetQuestionStats', e);
     res.status(500).json({ success: false, error: 'Ошибка сервера' });
   }
 };
