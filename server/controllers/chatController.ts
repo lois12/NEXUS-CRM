@@ -50,6 +50,19 @@ function purgeConversation(id: string) {
   run('DELETE FROM chat_conversations WHERE id = ?', [id]);
 }
 
+/** Непрочитанные — строго per-user через chat_reads.lastReadAt (не global isRead). */
+function unreadCountSql(alias = 'm'): string {
+  return `(SELECT COUNT(*) FROM chat_messages ${alias}
+           WHERE ${alias}.conversationId = c.id AND ${alias}.senderId != ?
+             AND ${alias}.deleted = 0
+             AND ${alias}.createdAt > COALESCE(
+               (SELECT r.lastReadAt FROM chat_reads r WHERE r.conversationId = c.id AND r.userId = ?), ''))`;
+}
+
+function lastReadAt(conversationId: string, userId: string): string {
+  return get('SELECT lastReadAt FROM chat_reads WHERE conversationId = ? AND userId = ?', [conversationId, userId])?.lastReadAt || '';
+}
+
 export const getConversations = (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
@@ -61,7 +74,7 @@ export const getConversations = (req: AuthRequest, res: Response) => {
         CASE WHEN c.user1Id = ? THEN u2.position ELSE u1.position END as otherPosition,
         CASE WHEN c.user1Id = ? THEN u2.lastSeen ELSE u1.lastSeen END as otherLastSeen,
         CASE WHEN c.user1Id = ? THEN u2.id ELSE u1.id END as otherId,
-        (SELECT COUNT(*) FROM chat_messages m WHERE m.conversationId = c.id AND m.senderId != ? AND m.isRead = 0 AND m.deleted = 0) as unreadCount,
+        ${unreadCountSql()} as unreadCount,
         (SELECT COUNT(*) FROM chat_user_mutes um WHERE um.conversationId = c.id AND um.userId = ?) as isMuted,
         COALESCE((SELECT uf.pinned FROM chat_user_flags uf WHERE uf.conversationId = c.id AND uf.userId = ?), 0) as pinned,
         COALESCE((SELECT uf.archived FROM chat_user_flags uf WHERE uf.conversationId = c.id AND uf.userId = ?), 0) as archived
@@ -71,11 +84,11 @@ export const getConversations = (req: AuthRequest, res: Response) => {
       WHERE (c.user1Id = ? OR c.user2Id = ?) AND c.type = 'private'
         AND NOT EXISTS (SELECT 1 FROM chat_hidden h WHERE h.conversationId = c.id AND h.userId = ?)
       ORDER BY c.lastMessageAt DESC
-    `, [userId, userId, userId, userId, userId, userId, userId, userId, userId, userId, userId, userId]);
+    `, [userId, userId, userId, userId, userId, userId, userId, userId, userId, userId, userId, userId, userId]);
 
     const groupConvs = query(`
       SELECT c.*,
-        (SELECT COUNT(*) FROM chat_messages m WHERE m.conversationId = c.id AND m.senderId != ? AND m.isRead = 0 AND m.deleted = 0) as unreadCount,
+        ${unreadCountSql()} as unreadCount,
         (SELECT COUNT(*) FROM chat_group_members gm WHERE gm.conversationId = c.id) as memberCount,
         (SELECT COUNT(*) FROM chat_user_mutes um WHERE um.conversationId = c.id AND um.userId = ?) as isMuted,
         (SELECT gm.role FROM chat_group_members gm WHERE gm.conversationId = c.id AND gm.userId = ?) as myRole,
@@ -86,10 +99,12 @@ export const getConversations = (req: AuthRequest, res: Response) => {
       WHERE c.type = 'group'
         AND NOT EXISTS (SELECT 1 FROM chat_hidden h WHERE h.conversationId = c.id AND h.userId = ?)
       ORDER BY c.lastMessageAt DESC
-    `, [userId, userId, userId, userId, userId, userId, userId]);
+    `, [userId, userId, userId, userId, userId, userId, userId, userId]);
 
     const generalLast = get(`SELECT content, createdAt FROM chat_messages WHERE conversationId = ? AND deleted = 0 ORDER BY createdAt DESC LIMIT 1`, [GENERAL_CHAT_ID]);
-    const generalUnread = get(`SELECT COUNT(*) as count FROM chat_messages WHERE conversationId = ? AND senderId != ? AND isRead = 0 AND deleted = 0`, [GENERAL_CHAT_ID, userId]);
+    const generalUnread = get(`SELECT COUNT(*) as count FROM chat_messages m WHERE m.conversationId = ? AND m.senderId != ? AND m.deleted = 0
+      AND m.createdAt > COALESCE((SELECT r.lastReadAt FROM chat_reads r WHERE r.conversationId = ? AND r.userId = ?), '')`,
+      [GENERAL_CHAT_ID, userId, GENERAL_CHAT_ID, userId]);
     const generalMuted = get(`SELECT COUNT(*) as count FROM chat_user_mutes WHERE conversationId = ? AND userId = ?`, [GENERAL_CHAT_ID, userId]);
     const generalFlags = get('SELECT pinned, archived FROM chat_user_flags WHERE conversationId = ? AND userId = ?', [GENERAL_CHAT_ID, userId]);
 
@@ -292,15 +307,9 @@ export const getMessages = (req: AuthRequest, res: Response) => {
     const after = req.query.after as string;
     const limit = parseInt(req.query.limit as string) || 50;
 
-    // General chat has no DB row — skip membership lookup for it
-    if (conversationId !== GENERAL_CHAT_ID) {
-      const conv = get('SELECT * FROM chat_conversations WHERE id = ?', [conversationId]);
-      if (!conv) return res.status(404).json({ success: false, error: 'Чат не найден' });
-
-      const isMember = conv.user1Id === userId || conv.user2Id === userId ||
-        (conv.type === 'group' && !!get('SELECT 1 FROM chat_group_members WHERE conversationId = ? AND userId = ?', [conversationId, userId]));
-      if (!isMember) return res.status(403).json({ success: false, error: 'Нет доступа' });
-    }
+    const conv = get('SELECT * FROM chat_conversations WHERE id = ?', [conversationId]);
+    if (!conv && conversationId !== GENERAL_CHAT_ID) return res.status(404).json({ success: false, error: 'Чат не найден' });
+    if (conv && userId && !isChatMember(conv, userId)) return res.status(403).json({ success: false, error: 'Нет доступа' });
 
     let sql: string;
     const params: any[] = [];
@@ -331,6 +340,15 @@ export const getMessages = (req: AuthRequest, res: Response) => {
       const reactions = query(`SELECT r.*, u.fullName as userName FROM chat_reactions r LEFT JOIN users u ON r.userId = u.id WHERE r.messageId IN (${placeholders})`, msgIds);
       for (const msg of messages) {
         (msg as any).reactions = reactions.filter(r => r.messageId === msg.id);
+      }
+    }
+
+    // isRead — per-user (курсор в chat_reads), чтобы разделитель «непрочитанные» был честным
+    if (userId) {
+      const lr = lastReadAt(conversationId, userId);
+      for (const msg of messages) {
+        if (msg.senderId === userId) continue;
+        (msg as any).isRead = lr && msg.createdAt <= lr ? 1 : 0;
       }
     }
 
@@ -570,11 +588,14 @@ export const markConversationRead = (req: AuthRequest, res: Response) => {
     const userId = req.user!.id;
     const conv = get('SELECT * FROM chat_conversations WHERE id = ?', [convId]);
     if (conv && !isChatMember(conv, userId)) return res.status(403).json({ success: false, error: 'Нет доступа' });
-    run('UPDATE chat_messages SET isRead = 1 WHERE conversationId = ? AND senderId != ? AND isRead = 0 AND deleted = 0', [convId, userId]);
-    // Upsert read receipt
+    // per-user курсор прочтения — единственный источник истины для unread
     const existing = get('SELECT * FROM chat_reads WHERE conversationId = ? AND userId = ?', [convId, userId]);
     if (existing) run("UPDATE chat_reads SET lastReadAt = datetime('now') WHERE conversationId = ? AND userId = ?", [convId, userId]);
     else run("INSERT INTO chat_reads (id, conversationId, userId, lastReadAt) VALUES (?, ?, ?, datetime('now'))", [uuidv4(), convId, userId]);
+    // ✓✓ для private: собеседник открыл — мои сообщения «прочитаны»
+    if (conv?.type === 'private') {
+      run('UPDATE chat_messages SET isRead = 1 WHERE conversationId = ? AND senderId != ? AND isRead = 0 AND deleted = 0', [convId, userId]);
+    }
     res.json({ success: true });
   } catch (error) { console.error('MarkConversationRead error:', error); res.status(500).json({ success: false, error: 'Ошибка сервера' }); }
 };
@@ -630,11 +651,23 @@ export const uploadChatFile = (req: AuthRequest, res: Response) => {
 export const getChatUnreadCount = (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
-    // H5 fix: exclude conversations the user has hidden (badge must match the list)
-    const privateUnread = get(`SELECT COUNT(*) as count FROM chat_messages m JOIN chat_conversations c ON m.conversationId = c.id WHERE (c.user1Id = ? OR c.user2Id = ?) AND c.type = 'private' AND m.senderId != ? AND m.isRead = 0 AND m.deleted = 0 AND NOT EXISTS (SELECT 1 FROM chat_hidden h WHERE h.conversationId = c.id AND h.userId = ?)`, [userId, userId, userId, userId]);
-    const groupUnread = get(`SELECT COUNT(*) as count FROM chat_messages m JOIN chat_conversations c ON m.conversationId = c.id JOIN chat_group_members gm ON c.id = gm.conversationId AND gm.userId = ? WHERE c.type = 'group' AND m.senderId != ? AND m.isRead = 0 AND m.deleted = 0 AND NOT EXISTS (SELECT 1 FROM chat_hidden h WHERE h.conversationId = c.id AND h.userId = ?)`, [userId, userId, userId]);
-    const generalUnread = get(`SELECT COUNT(*) as count FROM chat_messages WHERE conversationId = ? AND senderId != ? AND isRead = 0 AND deleted = 0`, [GENERAL_CHAT_ID, userId]);
-    res.json({ success: true, data: { count: (privateUnread?.count || 0) + (groupUnread?.count || 0) + (generalUnread?.count || 0) } });
+    const unreadFor = (extraWhere: string, extraJoins: string, extraParams: any[]) => {
+      const rows = query(`
+        SELECT c.id FROM chat_conversations c ${extraJoins}
+        WHERE ${extraWhere}
+          AND NOT EXISTS (SELECT 1 FROM chat_hidden h WHERE h.conversationId = c.id AND h.userId = ?)
+          AND EXISTS (
+            SELECT 1 FROM chat_messages m
+            WHERE m.conversationId = c.id AND m.senderId != ? AND m.deleted = 0
+              AND m.createdAt > COALESCE((SELECT r.lastReadAt FROM chat_reads r WHERE r.conversationId = c.id AND r.userId = ?), '')
+          )
+      `, [...extraParams, userId, userId, userId]);
+      return rows.length;
+    };
+    const privateCount = unreadFor('(c.user1Id = ? OR c.user2Id = ?) AND c.type = \'private\'', '', [userId, userId]);
+    const groupCount = unreadFor("c.type = 'group'", 'JOIN chat_group_members gm ON c.id = gm.conversationId AND gm.userId = ?', [userId]);
+    const generalCount = unreadFor("c.id = ?", '', [GENERAL_CHAT_ID]);
+    res.json({ success: true, data: { count: privateCount + groupCount + generalCount } });
   } catch (error) { console.error('GetChatUnreadCount error:', error); res.status(500).json({ success: false, error: 'Ошибка сервера' }); }
 };
 
