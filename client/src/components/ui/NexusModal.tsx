@@ -28,11 +28,11 @@ interface SpinnerProps {
 }
 
 const typeConfig = {
-  info: { icon: Info, color: '#00d4ff', bg: 'rgba(0, 212, 255, 0.1)', border: 'rgba(0, 212, 255, 0.3)' },
-  success: { icon: CheckCircle, color: '#00ff88', bg: 'rgba(0, 255, 136, 0.1)', border: 'rgba(0, 255, 136, 0.3)' },
-  warning: { icon: AlertTriangle, color: '#eab308', bg: 'rgba(234, 179, 8, 0.1)', border: 'rgba(234, 179, 8, 0.3)' },
-  error: { icon: AlertTriangle, color: '#ff3b30', bg: 'rgba(255, 59, 48, 0.1)', border: 'rgba(255, 59, 48, 0.3)' },
-  danger: { icon: AlertTriangle, color: '#ff3b30', bg: 'rgba(255, 59, 48, 0.1)', border: 'rgba(255, 59, 48, 0.3)' },
+  info: { icon: Info, color: '#00d4ff', bg: 'rgba(0, 212, 255, 0.1)', border: 'rgba(0, 212, 255, 0.3)', kicker: 'ИНФО' },
+  success: { icon: CheckCircle, color: '#00ff88', bg: 'rgba(0, 255, 136, 0.1)', border: 'rgba(0, 255, 136, 0.3)', kicker: 'УСПЕХ' },
+  warning: { icon: AlertTriangle, color: '#eab308', bg: 'rgba(234, 179, 8, 0.1)', border: 'rgba(234, 179, 8, 0.3)', kicker: 'ВНИМАНИЕ' },
+  error: { icon: AlertTriangle, color: '#ff3b30', bg: 'rgba(255, 59, 48, 0.1)', border: 'rgba(255, 59, 48, 0.3)', kicker: 'ОШИБКА' },
+  danger: { icon: AlertTriangle, color: '#ff3b30', bg: 'rgba(255, 59, 48, 0.1)', border: 'rgba(255, 59, 48, 0.3)', kicker: 'ОПАСНО' },
 };
 
 export function AlertModal({ isOpen, onClose, title, message, type = 'info' }: AlertModalProps) {
@@ -58,45 +58,64 @@ export function AlertModal({ isOpen, onClose, title, message, type = 'info' }: A
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           className="fixed inset-0 flex items-center justify-center z-[200] p-4"
-          style={{ backgroundColor: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(4px)' }}
+          style={{
+            backgroundColor: 'rgba(0, 0, 0, 0.55)',
+            backgroundImage: 'radial-gradient(120% 100% at 50% 50%, transparent 30%, rgba(0, 0, 0, 0.45) 100%)',
+            backdropFilter: 'blur(12px) saturate(1.15)',
+            WebkitBackdropFilter: 'blur(12px) saturate(1.15)',
+          }}
           onClick={onClose}
           role="presentation"
         >
           <motion.div
-            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+            initial={{ scale: 0.92, opacity: 0, y: 24 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.9, opacity: 0, y: 20 }}
-            className="glass-frost rounded-2xl p-6 w-full max-w-sm"
+            exit={{ scale: 0.92, opacity: 0, y: 24 }}
+            transition={{ duration: 0.34, ease: [0.32, 0.72, 0, 1] }}
+            className="nx-bezel w-full max-w-sm"
             style={{ border: `1px solid ${config.border}` }}
             onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"
             aria-labelledby="alert-title"
           >
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: config.bg, border: `1px solid ${config.border}` }}>
-                <Icon className="w-6 h-6" style={{ color: config.color }} />
+            <div className="nx-core p-6">
+              <div className="nx-rise flex items-start gap-4">
+                <div
+                  className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
+                  style={{ backgroundColor: config.bg, border: `1px solid ${config.border}`, boxShadow: `0 10px 24px -8px ${config.border}, var(--depth-rim-top)` }}
+                >
+                  <Icon className="w-6 h-6" style={{ color: config.color }} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="mb-2">
+                    <span
+                      className="nx-eyebrow"
+                      style={{ color: config.color, background: config.bg, borderColor: config.border, boxShadow: `0 0 16px ${config.border}` }}
+                    >
+                      {config.kicker}
+                    </span>
+                  </div>
+                  <h3 id="alert-title" className="text-lg font-bold font-mono text-gray-200 mb-1">{title}</h3>
+                  <p className="text-sm text-gray-400">{message}</p>
+                </div>
+                <button
+                  ref={closeRef}
+                  onClick={onClose}
+                  className="nx-press p-1.5 rounded-lg hover:bg-white/10 text-gray-400 hover:text-gray-200 flex-shrink-0"
+                >
+                  <X className="w-4 h-4" />
+                </button>
               </div>
-              <div className="flex-1 min-w-0">
-                <h3 id="alert-title" className="text-lg font-bold font-mono text-gray-200 mb-1">{title}</h3>
-                <p className="text-sm text-gray-400">{message}</p>
+              <div className="nx-divider nx-rise nx-rise-1 mt-4" />
+              <div className="nx-rise nx-rise-2 mt-4 flex justify-end">
+                <button
+                  onClick={onClose}
+                  className="btn-primary nx-press px-6 py-2.5 rounded-xl font-mono text-sm font-bold"
+                >
+                  OK
+                </button>
               </div>
-              <button
-                ref={closeRef}
-                onClick={onClose}
-                className="p-1.5 rounded-lg hover:bg-white/10 text-gray-400 hover:text-gray-200 transition-colors flex-shrink-0"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="mt-6 flex justify-end">
-              <button
-                onClick={onClose}
-                className="btn-primary px-6 py-2.5 rounded-xl font-mono text-sm font-bold transition-all"
-                
-              >
-                OK
-              </button>
             </div>
           </motion.div>
         </motion.div>
@@ -128,48 +147,71 @@ export function ConfirmModal({ isOpen, onConfirm, onCancel, title, message, conf
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           className="fixed inset-0 flex items-center justify-center z-[200] p-4"
-          style={{ backgroundColor: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(4px)' }}
+          style={{
+            backgroundColor: 'rgba(0, 0, 0, 0.55)',
+            backgroundImage: 'radial-gradient(120% 100% at 50% 50%, transparent 30%, rgba(0, 0, 0, 0.45) 100%)',
+            backdropFilter: 'blur(12px) saturate(1.15)',
+            WebkitBackdropFilter: 'blur(12px) saturate(1.15)',
+          }}
           onClick={onCancel}
           role="presentation"
         >
           <motion.div
-            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+            initial={{ scale: 0.92, opacity: 0, y: 24 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.9, opacity: 0, y: 20 }}
-            className="glass-frost rounded-2xl p-6 w-full max-w-sm"
+            exit={{ scale: 0.92, opacity: 0, y: 24 }}
+            transition={{ duration: 0.34, ease: [0.32, 0.72, 0, 1] }}
+            className="nx-bezel w-full max-w-sm"
             style={{ border: `1px solid ${config.border}` }}
             onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"
             aria-labelledby="confirm-title"
           >
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: config.bg, border: `1px solid ${config.border}` }}>
-                <Icon className="w-6 h-6" style={{ color: config.color }} />
+            <div className="nx-core p-6">
+              <div className="nx-rise flex items-start gap-4">
+                <div
+                  className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
+                  style={{ backgroundColor: config.bg, border: `1px solid ${config.border}`, boxShadow: `0 10px 24px -8px ${config.border}, var(--depth-rim-top)` }}
+                >
+                  <Icon className="w-6 h-6" style={{ color: config.color }} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="mb-2">
+                    <span
+                      className="nx-eyebrow"
+                      style={{ color: config.color, background: config.bg, borderColor: config.border, boxShadow: `0 0 16px ${config.border}` }}
+                    >
+                      {config.kicker}
+                    </span>
+                  </div>
+                  <h3 id="confirm-title" className="text-lg font-bold font-mono text-gray-200 mb-1">{title}</h3>
+                  <p className="text-sm text-gray-400">{message}</p>
+                </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <h3 id="confirm-title" className="text-lg font-bold font-mono text-gray-200 mb-1">{title}</h3>
-                <p className="text-sm text-gray-400">{message}</p>
+              <div className="nx-divider nx-rise nx-rise-1 mt-4" />
+              <div className="nx-rise nx-rise-2 mt-4 flex gap-3 justify-end">
+                <button
+                  onClick={onCancel}
+                  className="glass nx-press px-5 py-2.5 rounded-xl font-mono text-sm text-gray-400 hover:text-gray-200"
+                >
+                  {cancelText}
+                </button>
+                <button
+                  ref={confirmRef}
+                  onClick={onConfirm}
+                  className="nx-press px-5 py-2.5 rounded-xl font-mono text-sm font-bold"
+                  style={{
+                    backgroundColor: type === 'danger' ? 'var(--color-danger)' : 'var(--color-primary)',
+                    color: type === 'danger' ? '#fff' : '#000',
+                    boxShadow: type === 'danger'
+                      ? `0 0 0 1px color-mix(in srgb, var(--color-danger) 65%, transparent), 0 12px 28px -8px color-mix(in srgb, var(--color-danger) 55%, transparent), var(--depth-rim-top)`
+                      : `0 0 18px var(--color-glow), var(--depth-rim-top)`,
+                  }}
+                >
+                  {confirmText}
+                </button>
               </div>
-            </div>
-            <div className="mt-6 flex gap-3 justify-end">
-              <button
-                onClick={onCancel}
-                className="px-5 py-2.5 rounded-xl glass font-mono text-sm text-gray-400 hover:text-gray-200 transition-colors"
-              >
-                {cancelText}
-              </button>
-              <button
-                ref={confirmRef}
-                onClick={onConfirm}
-                className="px-5 py-2.5 rounded-xl font-mono text-sm font-bold transition-all"
-                style={{
-                  backgroundColor: type === 'danger' ? '#ff3b30' : 'var(--color-primary)',
-                  color: type === 'danger' ? '#fff' : '#000'
-                }}
-              >
-                {confirmText}
-              </button>
             </div>
           </motion.div>
         </motion.div>
@@ -187,7 +229,12 @@ export function NexusSpinner({ isVisible, text = 'ЗАГРУЗКА...' }: Spinne
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           className="fixed inset-0 flex items-center justify-center z-[200]"
-          style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)', backdropFilter: 'blur(4px)' }}
+          style={{
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            backgroundImage: 'radial-gradient(120% 100% at 50% 50%, transparent 35%, rgba(0, 0, 0, 0.4) 100%)',
+            backdropFilter: 'blur(12px) saturate(1.15)',
+            WebkitBackdropFilter: 'blur(12px) saturate(1.15)',
+          }}
         >
           <motion.div
             initial={{ scale: 0.8, opacity: 0 }}

@@ -66,7 +66,7 @@ export function NeonBorder({ children, color = '#00ff88', className = '' }: { ch
       className={`relative ${className}`}
       style={{
         border: `1px solid ${color}30`,
-        boxShadow: `0 0 15px ${color}15, inset 0 0 15px ${color}05`,
+        boxShadow: `var(--depth-contact), 0 0 15px ${color}15, inset 0 0 15px ${color}05, var(--depth-rim-top)`,
       }}
     >
       {children}
@@ -99,7 +99,11 @@ export function CyberCard({ children, className = '', glow = false }: { children
   return (
     <div
       className={`glass-card rounded-2xl p-4 ${className}`}
-      style={glow ? { boxShadow: '0 0 30px rgba(0, 255, 136, 0.1)' } : undefined}
+      style={{
+        boxShadow: glow
+          ? 'var(--depth-ambient), var(--depth-contact), var(--depth-rim-top), var(--depth-rim-bottom), 0 0 30px var(--color-glow)'
+          : 'var(--depth-ambient), var(--depth-contact), var(--depth-rim-top), var(--depth-rim-bottom)',
+      }}
     >
       {children}
     </div>

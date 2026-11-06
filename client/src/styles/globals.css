@@ -1907,3 +1907,174 @@ input[type="file"]::file-selector-button:hover {
   from { opacity: 0; transform: translateY(12px) scale(0.985); }
   to { opacity: 1; transform: none; }
 }
+
+/* ===== DEPTH SYSTEM Ч против плоскости ===== */
+/* —лои тени: ambient (дальн€€) + contact (близка€) + rim (внутренний блик) */
+:root {
+  --depth-ambient: 0 24px 48px -12px rgba(0, 0, 0, 0.45);
+  --depth-contact: 0 2px 6px -1px rgba(0, 0, 0, 0.35);
+  --depth-rim-top: inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  --depth-rim-bottom: inset 0 -1px 0 rgba(0, 0, 0, 0.25);
+  --depth-float: 0 32px 64px -16px rgba(0, 0, 0, 0.55), 0 8px 20px -8px rgba(0, 0, 0, 0.4);
+  --ease-out-expo: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+.theme-light {
+  --depth-ambient: 0 20px 40px -12px rgba(15, 23, 42, 0.12);
+  --depth-contact: 0 2px 6px -1px rgba(15, 23, 42, 0.08);
+  --depth-rim-top: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  --depth-rim-bottom: inset 0 -1px 0 rgba(15, 23, 42, 0.06);
+  --depth-float: 0 24px 48px -16px rgba(15, 23, 42, 0.18), 0 8px 20px -8px rgba(15, 23, 42, 0.1);
+}
+
+/* ƒвойна€ рамка (double-bezel): внешн€€ обечайка + внутреннее €дро */
+.nx-bezel {
+  padding: 6px;
+  border-radius: 22px;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.015) 45%, rgba(0, 0, 0, 0.12));
+  box-shadow: var(--depth-ambient), var(--depth-rim-top);
+}
+.nx-bezel > .nx-core {
+  border-radius: 16px;
+  background: linear-gradient(155deg, rgba(28, 28, 48, 0.85), rgba(16, 16, 30, 0.92));
+  box-shadow: var(--depth-contact), var(--depth-rim-top), var(--depth-rim-bottom);
+}
+.theme-light .nx-bezel {
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.95), rgba(226, 232, 240, 0.6));
+}
+.theme-light .nx-bezel > .nx-core {
+  background: linear-gradient(155deg, #ffffff, #f1f5f9);
+}
+
+/* ѕанель с объЄмом Ч готова€ замена плоским .glass-блокам */
+.nx-panel {
+  position: relative;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.055) 0%, rgba(255, 255, 255, 0.012) 42%, rgba(0, 0, 0, 0.16) 100%);
+  box-shadow: var(--depth-ambient), var(--depth-contact), var(--depth-rim-top), var(--depth-rim-bottom);
+  transition: transform 0.25s var(--ease-out-expo), box-shadow 0.25s var(--ease-out-expo), border-color 0.2s ease;
+}
+.nx-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(120% 80% at 12% -10%, rgba(255, 255, 255, 0.09), transparent 55%);
+  pointer-events: none;
+}
+.nx-panel:hover {
+  transform: translateY(-3px);
+  border-color: var(--color-border);
+  box-shadow: var(--depth-float), 0 0 28px var(--color-glow);
+}
+.theme-light .nx-panel {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  border-color: rgba(15, 23, 42, 0.08);
+}
+
+/* ѕлавающа€ карточка дл€ повтор€ющихс€ сущностей */
+.nx-tile {
+  position: relative;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.012) 50%, rgba(0, 0, 0, 0.12));
+  box-shadow: var(--depth-contact), var(--depth-rim-top), var(--depth-rim-bottom);
+  transition: transform 0.25s var(--ease-out-expo), box-shadow 0.25s var(--ease-out-expo), border-color 0.2s ease;
+}
+.nx-tile:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--depth-ambient), var(--depth-contact), var(--depth-rim-top);
+  border-color: var(--color-border);
+}
+.theme-light .nx-tile {
+  background: #ffffff;
+  border-color: rgba(15, 23, 42, 0.08);
+}
+
+/*  нопка-Ђорехї с физикой нажати€ */
+.nx-press {
+  transition: transform 0.18s var(--ease-spring), box-shadow 0.18s ease, filter 0.18s ease;
+}
+.nx-press:hover { transform: translateY(-1px); filter: brightness(1.06); }
+.nx-press:active { transform: translateY(1px) scale(0.975); }
+
+/* «аголовок раздела с Ђнадзаголовкомї-€рлыком */
+.nx-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-primary) 28%, transparent);
+  box-shadow: 0 0 16px var(--color-glow);
+}
+
+/* –азделитель-ЂжЄлобї между секци€ми */
+.nx-divider {
+  height: 1px;
+  border: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.12) 18%, rgba(255, 255, 255, 0.12) 82%, transparent);
+}
+.theme-light .nx-divider {
+  background: linear-gradient(90deg, transparent, rgba(15, 23, 42, 0.12) 18%, rgba(15, 23, 42, 0.12) 82%, transparent);
+}
+
+/* —квозной фон сайта: градиентные сферы + сетка */
+.nx-stage {
+  position: relative;
+}
+.nx-stage::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  background:
+    radial-gradient(900px 520px at 12% -8%, color-mix(in srgb, var(--color-primary) 12%, transparent), transparent 60%),
+    radial-gradient(760px 460px at 96% 8%, color-mix(in srgb, var(--color-accent) 10%, transparent), transparent 62%),
+    linear-gradient(180deg, var(--color-bg) 0%, color-mix(in srgb, var(--color-bg) 82%, #000) 100%);
+  pointer-events: none;
+}
+.nx-stage::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.018) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: radial-gradient(120% 90% at 50% 0%, #000 20%, transparent 85%);
+  pointer-events: none;
+}
+.theme-light .nx-stage::before {
+  background:
+    radial-gradient(900px 520px at 12% -8%, color-mix(in srgb, var(--color-primary) 10%, transparent), transparent 60%),
+    radial-gradient(760px 460px at 96% 8%, color-mix(in srgb, var(--color-accent) 8%, transparent), transparent 62%),
+    linear-gradient(180deg, #f4f6f8 0%, #e8edf2 100%);
+}
+.theme-light .nx-stage::after {
+  background-image:
+    linear-gradient(rgba(15, 23, 42, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15, 23, 42, 0.03) 1px, transparent 1px);
+}
+
+/* —тупенчатое по€вление элементов списка */
+@keyframes nx-rise {
+  from { opacity: 0; transform: translateY(14px) scale(0.985); }
+  to   { opacity: 1; transform: none; }
+}
+.nx-rise { animation: nx-rise 0.42s var(--ease-out-expo) both; }
+.nx-rise-1 { animation-delay: 40ms; }
+.nx-rise-2 { animation-delay: 90ms; }
+.nx-rise-3 { animation-delay: 140ms; }
+.nx-rise-4 { animation-delay: 190ms; }
+.nx-rise-5 { animation-delay: 240ms; }

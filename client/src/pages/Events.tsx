@@ -7,6 +7,7 @@ import { NexusInput, NexusTextarea, NexusSelect } from '../components/common/Nex
 import NexusFormModal from '../components/common/NexusFormModal';
 import { useCrudPage } from '../hooks/useCrudPage';
 import { SkeletonGrid, SkeletonHeader } from '../components/ui/Skeleton';
+import EmptyState from '../components/ui/EmptyState';
 import { formatDateTimeKR } from '../utils/timezone';
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
@@ -95,7 +96,7 @@ export default function Events() {
     const sc = STATUS_CONFIG[viewing.status] || STATUS_CONFIG.planned;
     return (
       <div className="max-w-3xl mx-auto">
-        <button onClick={() => setViewing(null)} className="mb-4 flex items-center gap-2 font-mono text-sm text-gray-400 hover:text-gray-200 transition-colors">
+        <button onClick={() => setViewing(null)} className="mb-4 flex items-center gap-2 font-mono text-sm text-gray-400 hover:text-gray-200 transition-colors nx-press">
           <ArrowLeft className="w-4 h-4" /> НАЗАД
         </button>
         <div className="glass rounded-2xl overflow-hidden">
@@ -112,8 +113,8 @@ export default function Events() {
               <h1 className="text-2xl font-bold font-mono text-gray-200">{viewing.title}</h1>
             </div>
             <div className="flex gap-2">
-              <button onClick={() => { setViewing(null); openEdit(viewing); }} className="p-2 rounded-lg hover:bg-white/10" aria-label="Редактировать"><Edit3 className="w-4 h-4 text-gray-400" /></button>
-              <button onClick={() => onDeleteEvent(viewing)} className="p-2 rounded-lg hover:bg-red-500/20" aria-label="Удалить"><Trash2 className="w-4 h-4 text-red-400" /></button>
+              <button onClick={() => { setViewing(null); openEdit(viewing); }} className="p-2 rounded-lg hover:bg-white/10 nx-press" aria-label="Редактировать"><Edit3 className="w-4 h-4 text-gray-400" /></button>
+              <button onClick={() => onDeleteEvent(viewing)} className="p-2 rounded-lg hover:bg-red-500/20 nx-press" aria-label="Удалить"><Trash2 className="w-4 h-4 text-red-400" /></button>
             </div>
           </div>
 
@@ -152,7 +153,7 @@ export default function Events() {
           <div className="mt-6 pt-4 border-t border-white/5">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-mono font-bold" style={{ color: 'var(--color-primary)' }}>// БЛОКИ ({blocks.length})</h3>
-              <button onClick={() => setShowBlockForm(!showBlockForm)} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono transition-colors hover:bg-white/5" style={{ color: 'var(--color-primary)', border: '1px solid rgba(255,255,255,0.1)' }}>
+              <button onClick={() => setShowBlockForm(!showBlockForm)} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono transition-colors hover:bg-white/5 nx-press" style={{ color: 'var(--color-primary)', border: '1px solid rgba(255,255,255,0.1)' }}>
                 <Plus className="w-3 h-3" /> Добавить
               </button>
             </div>
@@ -172,8 +173,8 @@ export default function Events() {
                       className="px-3 py-2 rounded-lg bg-black/30 border border-gray-700 text-sm text-gray-200 font-mono" />
                   </div>
                   <div className="flex gap-2">
-                    <button onClick={() => setShowBlockForm(false)} className="flex-1 py-2 rounded-lg text-xs font-mono text-gray-400 hover:bg-white/5 border border-gray-700">Отмена</button>
-                    <button onClick={handleAddBlock} className="btn-primary flex-1 py-2 rounded-lg text-xs font-mono font-bold" >Добавить</button>
+                    <button onClick={() => setShowBlockForm(false)} className="flex-1 py-2 rounded-lg text-xs font-mono text-gray-400 hover:bg-white/5 border border-gray-700 nx-press">Отмена</button>
+                    <button onClick={handleAddBlock} className="btn-primary nx-press flex-1 py-2 rounded-lg text-xs font-mono font-bold" >Добавить</button>
                   </div>
                 </motion.div>
               )}
@@ -225,6 +226,7 @@ export default function Events() {
     <div className="h-dvh-minus-header flex flex-col gap-3">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
+          <div className="nx-eyebrow mb-2">ЖУРНАЛ</div>
           <h1 className="text-2xl md:text-3xl font-bold font-mono neon-text flex items-center gap-3" style={{ color: 'var(--color-primary)' }}>
             <Calendar className="w-7 h-7 md:w-8 md:h-8" /> МЕРОПРИЯТИЯ
           </h1>
@@ -241,7 +243,7 @@ export default function Events() {
             <option value="">ВСЕ СТАТУСЫ</option>
             {Object.entries(STATUS_CONFIG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
           </select>
-          <button onClick={openCreate} className="btn-primary flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-sm font-bold"
+          <button onClick={openCreate} className="btn-primary nx-press flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-sm font-bold"
             >
             <Plus className="w-4 h-4" /> ДОБАВИТЬ
           </button>
@@ -253,7 +255,7 @@ export default function Events() {
           const sc = STATUS_CONFIG[e.status] || STATUS_CONFIG.planned;
           return (
             <motion.div key={e.id} layout
-              className="glass-card rounded-xl overflow-hidden group cursor-pointer hover:border-[var(--color-primary)]/20 transition-all"
+              className="nx-tile overflow-hidden group cursor-pointer hover:border-[var(--color-primary)]/20 transition-all"
               onClick={() => setViewing(e)}>
               {e.imageUrl && (
                 <div className="h-32 overflow-hidden">
@@ -268,8 +270,8 @@ export default function Events() {
                       style={{ backgroundColor: `${sc.color}20`, color: sc.color }}>{sc.label}</span>
                   </div>
                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={ev => ev.stopPropagation()}>
-                    <button onClick={() => openEdit(e)} className="p-1 rounded hover:bg-white/10" aria-label="Редактировать"><Edit3 className="w-3.5 h-3.5 text-gray-400" /></button>
-                    <button onClick={() => onDeleteEvent(e)} className="p-1 rounded hover:bg-red-500/20" aria-label="Удалить"><Trash2 className="w-3.5 h-3.5 text-red-400" /></button>
+                    <button onClick={() => openEdit(e)} className="p-1 rounded hover:bg-white/10 nx-press" aria-label="Редактировать"><Edit3 className="w-3.5 h-3.5 text-gray-400" /></button>
+                    <button onClick={() => onDeleteEvent(e)} className="p-1 rounded hover:bg-red-500/20 nx-press" aria-label="Удалить"><Trash2 className="w-3.5 h-3.5 text-red-400" /></button>
                   </div>
                 </div>
                 {e.description && <p className="font-mono text-xs text-gray-500 mb-2 line-clamp-2">{e.description}</p>}
@@ -283,10 +285,13 @@ export default function Events() {
           );
         })}
         {filtered.length === 0 && (
-          <div className="col-span-full text-center py-12">
-            <Calendar className="w-16 h-16 mx-auto mb-4 opacity-30 text-gray-500" />
-            <p className="font-mono text-gray-500 mb-4">// МЕРОПРИЯТИЙ НЕТ</p>
-            <button onClick={openCreate} className="px-5 py-2.5 rounded-xl font-mono text-xs font-bold transition-all" style={{ background: 'rgba(0,255,136,0.15)', color: 'var(--color-primary)', border: '1px solid rgba(0,255,136,0.3)' }}>СОЗДАТЬ ПЕРВОЕ</button>
+          <div className="col-span-full">
+            <EmptyState
+              icon={<Calendar className="w-7 h-7" style={{ color: 'var(--color-primary)' }} />}
+              title="МЕРОПРИЯТИЙ НЕТ"
+              actionLabel="СОЗДАТЬ ПЕРВОЕ"
+              onAction={openCreate}
+            />
           </div>
         )}
       </div>

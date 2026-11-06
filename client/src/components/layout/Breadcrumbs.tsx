@@ -68,23 +68,28 @@ export default function Breadcrumbs() {
   ];
 
   return (
-    <nav className="flex items-center gap-1 mb-4 font-mono text-xs">
-      {crumbs.map((crumb, i) => (
-        <div key={crumb.path} className="flex items-center gap-1">
-          {i > 0 && <ChevronRight className="w-3 h-3" style={{ color: '#3a3a50' }} />}
-          {i === crumbs.length - 1 ? (
-            <span style={{ color: 'var(--color-primary)', opacity: 0.8 }}>{crumb.label}</span>
-          ) : (
-            <Link
-              to={crumb.path}
-              className="hover:opacity-100 transition-opacity"
-              style={{ color: '#4a4a60', opacity: 0.7 }}
-            >
-              {i === 0 ? <Home className="w-3 h-3" /> : crumb.label}
-            </Link>
-          )}
-        </div>
-      ))}
+    <nav className="flex items-center gap-1.5 mb-4 font-mono text-xs">
+      {crumbs.map((crumb, i) => {
+        const isLast = i === crumbs.length - 1;
+        return (
+          <div key={crumb.path} className="flex items-center gap-1.5">
+            {i > 0 && (
+              <ChevronRight className="w-3 h-3" style={{ color: 'var(--color-text-tertiary)', opacity: 0.5 }} />
+            )}
+            {isLast ? (
+              <span className="nx-eyebrow">{crumb.label}</span>
+            ) : (
+              <Link
+                to={crumb.path}
+                className="hover:opacity-100 transition-opacity"
+                style={{ color: 'var(--color-text-tertiary)', opacity: 0.6 }}
+              >
+                {i === 0 ? <Home className="w-3 h-3" /> : crumb.label}
+              </Link>
+            )}
+          </div>
+        );
+      })}
     </nav>
   );
 }

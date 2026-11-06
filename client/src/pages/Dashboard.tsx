@@ -482,10 +482,11 @@ export default function Dashboard() {
 
   return (
     <>
-      <div
-        className="h-[calc(100vh-11rem)] md:h-[calc(100vh-12rem)] min-h-[360px] relative rounded-xl md:rounded-2xl overflow-hidden"
-        style={isLight ? { background: '#f4f6f8' } : undefined}
-      >
+      <div className="nx-bezel h-[calc(100vh-11rem)] md:h-[calc(100vh-12rem)] min-h-[360px]">
+        <div
+          className="nx-core relative w-full h-full overflow-hidden"
+          style={isLight ? { background: '#f4f6f8' } : undefined}
+        >
         {/* 3D Model (dark themes) / soft light hero */}
         <motion.div
           initial={{ opacity: 0 }}
@@ -511,6 +512,7 @@ export default function Dashboard() {
           transition={{ duration: 1, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
           className="text-center"
         >
+          <div className="nx-eyebrow nx-rise mb-3">SYSTEM · ONLINE</div>
           <div className="relative">
             <motion.h1
               initial={{ opacity: 0 }}
@@ -524,12 +526,13 @@ export default function Dashboard() {
               <motion.span initial={{ opacity: 0 }} animate={{ opacity: [0, 0.7, 0] }} transition={{ duration: 0.3, delay: 0.65 }} className="absolute inset-0" style={{ color: '#00d4ff', clipPath: 'inset(50% 0 20% 0)', transform: 'translate(3px, 0)' }}>NEXUS CRM</motion.span>
             </motion.h1>
           </div>
-          <motion.div initial={{ width: 0 }} animate={{ width: '100%' }} transition={{ duration: 0.8, delay: 0.8, ease: 'easeOut' }} className="h-[1px] mx-auto mt-2 mb-3 md:mt-3 md:mb-4" style={{ background: 'linear-gradient(90deg, transparent, var(--color-primary), transparent)', boxShadow: '0 0 10px var(--color-primary)', maxWidth: '300px' }} />
+          <motion.div initial={{ width: 0 }} animate={{ width: '100%' }} transition={{ duration: 0.8, delay: 0.8, ease: 'easeOut' }} className="nx-divider mx-auto mt-2 mb-3 md:mt-3 md:mb-4" style={{ maxWidth: '300px' }} />
           <TypingLine />
         </motion.div>
       </div>
 
       <FloatingBadges />
+        </div>
       </div>
       <MyDay />
     </>

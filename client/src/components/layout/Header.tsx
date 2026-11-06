@@ -83,12 +83,15 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
 
   return (
     <>
-    <header className="h-14 md:h-16 glass-frost flex items-center justify-between px-3 md:px-6 border-b border-white/5 relative z-40">
+    <header
+      className="h-14 md:h-16 glass-frost flex items-center justify-between px-3 md:px-6 sticky top-0 z-40"
+      style={{ boxShadow: 'var(--depth-ambient), var(--depth-rim-top)' }}
+    >
       {/* Left: hamburger + search */}
       <div className="flex items-center gap-2 flex-1">
         <button
           onClick={onToggleSidebar}
-          className="p-2 rounded-xl hover:bg-white/5 transition-colors md:hidden"
+          className="nx-press p-2 rounded-xl hover:bg-white/5 md:hidden"
           aria-label="Открыть меню"
         >
           <Menu className="w-5 h-5 text-gray-400" />
@@ -97,7 +100,7 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
         {/* Mobile search button */}
         <button
           onClick={() => setShowMobileSearch(true)}
-          className="p-2 rounded-xl hover:bg-white/5 transition-colors sm:hidden"
+          className="nx-press p-2 rounded-xl hover:bg-white/5 sm:hidden"
           aria-label="Поиск"
         >
           <Search className="w-5 h-5 text-gray-400" />
@@ -158,7 +161,7 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
         <div className="relative" ref={dropdownRef}>
           <button
             onClick={() => setShowThemes(!showThemes)}
-            className="relative p-2 md:p-2.5 rounded-xl hover:bg-white/5 transition-colors group"
+            className="nx-press relative p-2 md:p-2.5 rounded-xl hover:bg-white/5 group"
             aria-label="Сменить тему"
             title="Сменить тему"
           >
@@ -221,7 +224,7 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
 
         <div className="h-8 w-px bg-white/10 mx-1 hidden md:block"></div>
 
-        <Link to="/profile" className="flex items-center gap-2 md:gap-3 p-1.5 md:p-2 rounded-xl hover:bg-white/5 transition-colors">
+        <Link to="/profile" className="nx-press flex items-center gap-2 md:gap-3 p-1.5 md:p-2 rounded-xl hover:bg-white/5">
           <div className="relative">
             <div className="w-9 h-9 md:w-10 md:h-10 rounded-xl flex items-center justify-center overflow-hidden"
               style={{ border: '2px solid var(--color-primary)', boxShadow: '0 0 12px var(--color-glow)' }}>
@@ -251,6 +254,9 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
           </div>
         </Link>
       </div>
+
+      {/* Gradient hairline replaces the flat bottom border */}
+      <div className="nx-divider absolute inset-x-0 bottom-0 pointer-events-none" />
     </header>
 
     {/* Mobile search overlay */}

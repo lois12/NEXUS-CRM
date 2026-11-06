@@ -152,6 +152,11 @@ const navGroups: NavGroup[] = [
   },
 ];
 
+const activeLift = {
+  color: 'var(--color-primary)',
+  boxShadow: 'var(--depth-contact), var(--depth-rim-top), inset 0 0 14px -2px var(--color-glow), 0 0 16px -6px var(--color-glow)',
+};
+
 interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
@@ -211,26 +216,33 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           transform transition-all duration-300 ease-in-out
           ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
         `}
-        style={{ borderRight: '1px solid rgba(0,255,136,0.06)', background: 'linear-gradient(180deg, rgba(15,15,25,0.85) 0%, rgba(10,10,18,0.95) 100%)' }}
+        style={{
+          boxShadow: 'var(--depth-ambient), var(--depth-rim-top)',
+          borderRight: '1px solid color-mix(in srgb, var(--color-border) 45%, transparent)',
+        }}
       >
         {/* Logo */}
-        <div className="p-4 md:p-6 border-b border-white/5 flex items-center justify-between">
+        <div className={`${collapsed ? 'p-2 flex-col justify-center gap-2' : 'p-4 md:p-6 justify-between'} border-b border-white/5 flex items-center`}>
           {!collapsed && (
-            <div>
-              <h1 className="text-xl font-bold font-mono neon-text" style={{ color: 'var(--color-primary)' }}>NEXUS</h1>
-              <p className="text-xs text-gray-500 font-mono">CRM // v2.12</p>
+            <div className="nx-bezel">
+              <div className="nx-core px-4 py-2">
+                <h1 className="text-xl font-bold font-mono neon-text" style={{ color: 'var(--color-primary)' }}>NEXUS</h1>
+                <p className="text-xs text-gray-500 font-mono">CRM // v2.12</p>
+              </div>
             </div>
           )}
           {collapsed && (
-            <div className="w-10 h-10 rounded-lg flex items-center justify-center mx-auto">
-              <span className="text-lg font-bold font-mono" style={{ color: 'var(--color-primary)' }}>N</span>
+            <div className="nx-bezel">
+              <div className="nx-core w-9 h-9 flex items-center justify-center">
+                <span className="text-lg font-bold font-mono" style={{ color: 'var(--color-primary)' }}>N</span>
+              </div>
             </div>
           )}
           <div className="flex items-center gap-1">
-            <button onClick={toggleCollapsed} className="p-2 rounded-xl hover:bg-white/5 transition-colors hidden md:flex" aria-label={collapsed ? 'Развернуть боковое меню' : 'Свернуть боковое меню'} title={collapsed ? 'Развернуть' : 'Свернуть'}>
+            <button onClick={toggleCollapsed} className="nx-press p-2 rounded-xl hover:bg-white/5 hidden md:flex" aria-label={collapsed ? 'Развернуть боковое меню' : 'Свернуть боковое меню'} title={collapsed ? 'Развернуть' : 'Свернуть'}>
               {collapsed ? <PanelLeftOpen className="w-4 h-4 text-gray-400" /> : <PanelLeftClose className="w-4 h-4 text-gray-400" />}
             </button>
-            <button onClick={onClose} className="p-2 rounded-xl hover:bg-white/5 transition-colors md:hidden" aria-label="Закрыть меню">
+            <button onClick={onClose} className="nx-press p-2 rounded-xl hover:bg-white/5 md:hidden" aria-label="Закрыть меню">
               <X className="w-5 h-5 text-gray-400" />
             </button>
           </div>
@@ -250,8 +262,8 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                 if (isSingle) {
                   return (
                     <NavLink key={group.id} to={target.to} end={target.to === '/'} onClick={onClose}
-                      className="flex items-center justify-center w-full h-10 rounded-xl transition-all duration-200"
-                      style={isGroupActive ? { background: 'color-mix(in srgb, var(--color-primary) 10%, transparent)', color: 'var(--color-primary)' } : { color: '#6b7280' }}
+                      className="nx-press flex items-center justify-center w-full h-10 rounded-xl"
+                      style={isGroupActive ? { background: 'color-mix(in srgb, var(--color-primary) 10%, transparent)', ...activeLift } : { color: 'var(--color-text-secondary)' }}
                       aria-label={group.label}
                       title={group.label}>
                       <group.icon className="w-5 h-5" />
@@ -263,8 +275,8 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                 return (
                   <button key={group.id}
                     onClick={() => { setCollapsed(false); localStorage.setItem('nexus_sidebar_collapsed', 'false'); setActiveGroup(group.id); }}
-                    className="flex items-center justify-center w-full h-10 rounded-xl transition-all duration-200"
-                    style={isGroupActive ? { background: 'color-mix(in srgb, var(--color-primary) 10%, transparent)', color: 'var(--color-primary)' } : { color: '#6b7280' }}
+                    className="nx-press flex items-center justify-center w-full h-10 rounded-xl"
+                    style={isGroupActive ? { background: 'color-mix(in srgb, var(--color-primary) 10%, transparent)', ...activeLift } : { color: 'var(--color-text-secondary)' }}
                     aria-label={group.label}
                     title={group.label}>
                     <group.icon className="w-5 h-5" />
@@ -293,11 +305,11 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                     return (
                       <NavLink key={group.id} to={child.to} end={child.to === '/'} onClick={onClose}
                         className={({ isActive }) =>
-                          `flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
+                          `nx-press flex items-center gap-3 px-4 py-3 rounded-xl ${
                             isActive ? 'glass-accent nav-link-active' : 'text-gray-400 hover:bg-white/5 hover:text-gray-200'
                           }`
                         }
-                        style={({ isActive }) => isActive ? { color: 'var(--color-primary)', boxShadow: 'inset -2px 0 12px -4px rgba(0,255,136,0.15)' } : {}}>
+                        style={({ isActive }) => isActive ? activeLift : {}}>
                         <group.icon className="w-5 h-5 flex-shrink-0" />
                         <span className={`text-sm flex-1 ${true ? 'font-medium' : ''}`}>{group.label}</span>
                       </NavLink>
@@ -306,7 +318,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
                   return (
                     <button key={group.id} onClick={() => handleGroupClick(group)}
-                      className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
+                      className={`nx-press w-full flex items-center gap-3 px-4 py-3 rounded-xl ${
                         isGroupActive ? 'text-gray-200 bg-white/5' : 'text-gray-400 hover:bg-white/5 hover:text-gray-200'
                       }`}>
                       <group.icon className="w-5 h-5 flex-shrink-0" />
@@ -327,7 +339,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                 className="space-y-1"
               >
                 <button onClick={() => setActiveGroup(null)}
-                  className="w-full flex items-center gap-2 px-4 py-2.5 rounded-xl text-gray-400 hover:text-gray-200 hover:bg-white/5 transition-all mb-2">
+                  className="nx-press w-full flex items-center gap-2 px-4 py-2.5 rounded-xl text-gray-400 hover:text-gray-200 hover:bg-white/5 mb-2">
                   <ArrowLeft className="w-4 h-4" />
                   <span className="text-sm font-mono">НАЗАД</span>
                 </button>
@@ -343,11 +355,11 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                   >
                     <NavLink to={child.to} end={child.to === '/'} onClick={onClose}
                       className={({ isActive }) =>
-                        `flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
+                        `nx-press flex items-center gap-3 px-4 py-3 rounded-xl ${
                           isActive ? 'glass-accent nav-link-active' : 'text-gray-400 hover:bg-white/5 hover:text-gray-200'
                         }`
                       }
-                      style={({ isActive }) => isActive ? { color: 'var(--color-primary)', boxShadow: 'inset -2px 0 12px -4px rgba(0,255,136,0.15)' } : {}}>
+                      style={({ isActive }) => isActive ? activeLift : {}}>
                       <span className="text-sm font-medium">{child.label}</span>
                     </NavLink>
                   </motion.div>
@@ -361,7 +373,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         {/* User Info */}
         <div className={`${collapsed ? 'p-2' : 'p-3 md:p-4'} border-t border-white/5`}>
           <button onClick={logout}
-            className={`${collapsed ? 'flex items-center justify-center w-full h-10' : 'w-full flex items-center gap-3 px-4 py-2.5'} rounded-xl text-gray-400 hover:bg-red-500/10 hover:text-red-400 transition-colors`}
+            className={`nx-press ${collapsed ? 'flex items-center justify-center w-full h-10' : 'w-full flex items-center gap-3 px-4 py-2.5'} rounded-xl text-gray-400 hover:bg-red-500/10 hover:text-red-400`}
             title="Выйти">
             <LogOut className="w-5 h-5" />
             {!collapsed && <span className="text-sm font-mono">ВЫЙТИ</span>}

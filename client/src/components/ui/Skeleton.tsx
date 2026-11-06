@@ -2,14 +2,25 @@ import { motion } from 'framer-motion';
 
 export function SkeletonBlock({ height = 'h-4', className = '' }: { height?: string; className?: string }) {
   return (
-    <div className={`${height} rounded-lg overflow-hidden ${className}`} style={{ background: 'rgba(255,255,255,0.04)' }}>
+    <div
+      className={`${height} rounded-lg overflow-hidden relative ${className}`}
+      style={{
+        background: 'color-mix(in srgb, var(--color-text-primary) 6%, transparent)',
+        boxShadow: 'var(--depth-contact)',
+      }}
+    >
       <motion.div
         className="h-full w-full"
         style={{
-          background: 'linear-gradient(90deg, transparent 0%, rgba(0,255,136,0.04) 40%, rgba(0,255,136,0.08) 50%, rgba(0,255,136,0.04) 60%, transparent 100%)',
+          background:
+            'linear-gradient(90deg, transparent 0%, color-mix(in srgb, var(--color-primary) 3%, transparent) 28%, color-mix(in srgb, var(--color-primary) 10%, transparent) 50%, color-mix(in srgb, var(--color-primary) 3%, transparent) 72%, transparent 100%)',
         }}
         animate={{ x: ['-100%', '100%'] }}
         transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}
+      />
+      <div
+        className="absolute inset-0 rounded-lg pointer-events-none"
+        style={{ boxShadow: 'var(--depth-rim-top), var(--depth-rim-bottom)' }}
       />
     </div>
   );
@@ -17,7 +28,10 @@ export function SkeletonBlock({ height = 'h-4', className = '' }: { height?: str
 
 export function SkeletonCard({ className = '' }: { className?: string }) {
   return (
-    <div className={`glass rounded-2xl p-6 space-y-4 ${className}`}>
+    <div
+      className={`glass rounded-2xl p-6 space-y-4 ${className}`}
+      style={{ boxShadow: 'var(--depth-ambient), var(--depth-contact), var(--depth-rim-top), var(--depth-rim-bottom)' }}
+    >
       <SkeletonBlock height="h-6" className="w-2/3" />
       <SkeletonBlock height="h-4" className="w-full" />
       <SkeletonBlock height="h-4" className="w-4/5" />
@@ -72,7 +86,11 @@ export function SkeletonGauge() {
     <div className="flex flex-col items-center gap-4">
       <motion.div
         className="w-32 h-32 rounded-full"
-        style={{ background: 'rgba(255,255,255,0.03)', border: '2px solid rgba(255,255,255,0.06)' }}
+        style={{
+          background: 'color-mix(in srgb, var(--color-text-primary) 5%, transparent)',
+          boxShadow:
+            '0 0 0 1px color-mix(in srgb, var(--color-text-primary) 10%, transparent), var(--depth-contact), var(--depth-rim-top), var(--depth-rim-bottom)',
+        }}
         animate={{ opacity: [0.3, 0.6, 0.3] }}
         transition={{ duration: 2, repeat: Infinity }}
       />

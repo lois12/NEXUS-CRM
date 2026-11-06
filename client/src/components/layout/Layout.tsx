@@ -35,13 +35,11 @@ export default function Layout() {
   return (
     <div className="flex h-dvh overflow-hidden">
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      <div className="flex-1 flex flex-col overflow-hidden min-w-0" style={{
-        background: 'linear-gradient(105deg, rgba(0,255,136,0.015) 0%, rgba(10,10,15,0) 15%)',
-      }}>
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0 nx-stage">
         <div className="flex-shrink-0" style={{ height: 'env(safe-area-inset-top, 0px)' }} />
         <Header onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
-        <main className="flex-1 overflow-y-auto p-3 md:p-6">
-          <div className="max-w-[1600px] mx-auto">
+        <main className="flex-1 overflow-y-auto px-3 md:px-6">
+          <div className="max-w-[1600px] mx-auto py-6 md:py-8">
             <Breadcrumbs />
             <AnimatePresence mode="wait">
               <motion.div

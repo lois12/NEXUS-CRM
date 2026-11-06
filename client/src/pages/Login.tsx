@@ -47,7 +47,7 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
+    <div className="min-h-screen flex items-center justify-center p-4 nx-stage">
       <GlitchTransition active={glitchActive} onComplete={handleGlitchComplete} duration={800} />
 
 
@@ -95,7 +95,7 @@ export default function Login() {
             animate={{ opacity: 1 }}
             transition={{ delay: 0.7 }}
             className="font-mono text-xs tracking-widest"
-            style={{ color: '#4a4a60' }}
+            style={{ color: 'var(--color-text-tertiary)' }}
           >
             CRM SYSTEM v2.0
           </motion.p>
@@ -116,14 +116,17 @@ export default function Login() {
             }}
           />
 
-          <div className="glass-frost rounded-2xl p-6 md:p-8 relative">
+          <div className="nx-bezel">
+            <div className="nx-core p-6 md:p-8 relative">
             {/* Header */}
             <div className="mb-6">
-              <div className="flex items-center gap-2 mb-1">
-                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--color-primary)', boxShadow: '0 0 6px var(--color-primary)' }} />
-                <span className="font-mono text-xs" style={{ color: 'var(--color-primary)' }}>SECURE CONNECTION</span>
+              <div className="mb-2">
+                <span className="nx-eyebrow">
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: 'var(--color-primary)', boxShadow: '0 0 6px var(--color-primary)' }} />
+                  SECURE CONNECTION
+                </span>
               </div>
-              <h2 className="text-lg font-semibold font-mono" style={{ color: '#e8e8ec' }}>
+              <h2 className="text-lg font-semibold font-mono" style={{ color: 'var(--color-text-primary)' }}>
                 Авторизация
               </h2>
             </div>
@@ -136,27 +139,27 @@ export default function Login() {
                 className="mb-4 p-3 rounded-lg"
                 style={{ backgroundColor: 'rgba(255,59,48,0.1)', border: '1px solid rgba(255,59,48,0.3)' }}
               >
-                <p className="text-sm font-mono" style={{ color: '#ff3b30' }}>{error}</p>
+                <p className="text-sm font-mono" style={{ color: 'var(--color-danger)' }}>{error}</p>
               </motion.div>
             )}
 
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Username */}
               <div>
-                <label className="block text-xs font-mono mb-2 tracking-wider" style={{ color: '#4a4a60' }}>
+                <label className="block text-xs font-mono mb-2 tracking-wider" style={{ color: 'var(--color-text-tertiary)' }}>
                   ЛОГИН
                 </label>
                 <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: '#4a4a60' }} />
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--color-text-tertiary)' }} />
                   <input
                     type="text"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 rounded-xl font-mono text-sm outline-none"
+                    className="w-full pl-10 pr-4 py-3 rounded-xl font-mono text-sm outline-none [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]"
                     style={{
                       backgroundColor: 'rgba(0,0,0,0.4)',
                       border: '1px solid rgba(255,255,255,0.06)',
-                      color: '#e8e8ec',
+                      color: 'var(--color-text-primary)',
                     }}
                     placeholder="Liberty"
                     required
@@ -166,20 +169,20 @@ export default function Login() {
 
               {/* Password */}
               <div>
-                <label className="block text-xs font-mono mb-2 tracking-wider" style={{ color: '#4a4a60' }}>
+                <label className="block text-xs font-mono mb-2 tracking-wider" style={{ color: 'var(--color-text-tertiary)' }}>
                   ПАРОЛЬ
                 </label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: '#4a4a60' }} />
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--color-text-tertiary)' }} />
                   <input
                     type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full pl-10 pr-12 py-3 rounded-xl font-mono text-sm outline-none"
+                    className="w-full pl-10 pr-12 py-3 rounded-xl font-mono text-sm outline-none [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]"
                     style={{
                       backgroundColor: 'rgba(0,0,0,0.4)',
                       border: '1px solid rgba(255,255,255,0.06)',
-                      color: '#e8e8ec',
+                      color: 'var(--color-text-primary)',
                     }}
                     placeholder="••••••••"
                     required
@@ -188,7 +191,7 @@ export default function Login() {
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-3 top-1/2 -translate-y-1/2"
-                    style={{ color: '#4a4a60' }}
+                    style={{ color: 'var(--color-text-tertiary)' }}
                   >
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
@@ -219,22 +222,20 @@ export default function Login() {
                     )}
                   </div>
                 </div>
-                <span className="font-mono text-xs tracking-wider transition-colors" style={{ color: rememberMe ? '#6b7280' : '#4a4a60' }}>
+                <span className="font-mono text-xs tracking-wider transition-colors" style={{ color: rememberMe ? 'var(--color-text-secondary)' : 'var(--color-text-tertiary)' }}>
                   ЗАПОМНИТЬ МЕНЯ
                 </span>
               </label>
 
               {/* Submit */}
               <motion.button
-                whileHover={{ scale: 1.01 }}
-                whileTap={{ scale: 0.98 }}
                 type="submit"
                 disabled={isLoading}
-                className="w-full py-3.5 px-4 rounded-xl font-bold font-mono text-sm flex items-center justify-center gap-2 disabled:opacity-50"
+                className="w-full py-3.5 px-4 rounded-xl font-bold font-mono text-sm flex items-center justify-center gap-2 disabled:opacity-50 nx-press"
                 style={{
                   background: 'linear-gradient(135deg, var(--color-primary), var(--color-secondary))',
                   color: '#000',
-                  boxShadow: '0 0 20px var(--color-glow)',
+                  boxShadow: '0 0 20px var(--color-glow), var(--depth-contact), var(--depth-rim-top)',
                 }}
               >
                 {isLoading ? (
@@ -257,8 +258,8 @@ export default function Login() {
             {/* Login mode toggle */}
             <div className="mt-5 pt-4" style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}>
               <button onClick={() => setLoginMode(loginMode === 'password' ? 'qr' : 'password')}
-                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-mono transition-all hover:bg-white/5"
-                style={{ color: '#8a8aa0', border: '1px solid rgba(255,255,255,0.06)' }}>
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-mono transition-all hover:bg-white/5 nx-press"
+                style={{ color: 'var(--color-text-secondary)', border: '1px solid rgba(255,255,255,0.06)' }}>
                 {loginMode === 'password' ? (
                   <><Smartphone className="w-4 h-4" /> Войти через QR-код</>
                 ) : (
@@ -277,10 +278,11 @@ export default function Login() {
 
             {/* Hint */}
             <div className="mt-4">
-              <p className="text-xs font-mono text-center" style={{ color: '#3a3a50' }}>
+              <p className="text-xs font-mono text-center" style={{ color: 'var(--color-text-tertiary)' }}>
                 NEXUS CRM // авторизуйтесь для продолжения
               </p>
             </div>
+          </div>
           </div>
         </motion.div>
 
@@ -291,7 +293,7 @@ export default function Login() {
           transition={{ delay: 1 }}
           className="mt-6 text-center"
         >
-          <p className="font-mono text-xs" style={{ color: '#2a2a3a' }}>
+          <p className="font-mono text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
             NEXUS CRM &copy; {new Date().getFullYear()}
           </p>
         </motion.div>
