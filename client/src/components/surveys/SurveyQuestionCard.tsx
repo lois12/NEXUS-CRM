@@ -22,7 +22,7 @@ export default function SurveyQuestionCard({
       onDragStart={onDragStart}
       onDragOver={(e) => e.preventDefault()}
       onDrop={onDrop}
-      className="glass rounded-xl p-3 space-y-2"
+      className="glass rounded-xl p-3 space-y-2 [box-shadow:var(--depth-contact),var(--depth-rim-top),var(--depth-rim-bottom)]"
     >
       <div className="flex items-start gap-2">
         <span className="mt-1 text-gray-600 cursor-grab" title="Перетащить">
@@ -33,30 +33,30 @@ export default function SurveyQuestionCard({
           value={q.title}
           onChange={(e) => onChange({ title: e.target.value })}
           placeholder="Текст вопроса"
-          className="flex-1 px-2 py-1.5 rounded font-mono text-xs bg-black/30 border border-gray-700 text-gray-200 focus:outline-none"
+          className="flex-1 px-2 py-1.5 rounded font-mono text-xs bg-black/30 border border-gray-700 text-gray-200 focus:outline-none [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]"
         />
         <select
           value={q.type}
           onChange={(e) => onChange({ type: e.target.value as SurveyQuestion['type'] })}
-          className="px-2 py-1.5 rounded font-mono text-[10px] bg-black/30 border border-gray-700 text-gray-200"
+          className="px-2 py-1.5 rounded font-mono text-[10px] bg-black/30 border border-gray-700 text-gray-200 [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]"
         >
           <option value="choice">Один из списка</option>
           <option value="open">Открытый</option>
         </select>
         <button
           onClick={() => onChange({ required: !q.required })}
-          className="p-1.5 rounded hover:bg-white/10 text-gray-500"
+          className="p-1.5 rounded hover:bg-white/10 text-gray-500 nx-press"
           title={q.required ? 'Обязательный' : 'Необязательный'}
         >
           {q.required ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
         </button>
-        <button onClick={() => onMove(-1)} disabled={index === 0} className="p-1.5 rounded hover:bg-white/10 text-gray-500 disabled:opacity-30">
+        <button onClick={() => onMove(-1)} disabled={index === 0} className="p-1.5 rounded hover:bg-white/10 text-gray-500 disabled:opacity-30 nx-press">
           <ChevronUp className="w-3.5 h-3.5" />
         </button>
-        <button onClick={() => onMove(1)} disabled={index === total - 1} className="p-1.5 rounded hover:bg-white/10 text-gray-500 disabled:opacity-30">
+        <button onClick={() => onMove(1)} disabled={index === total - 1} className="p-1.5 rounded hover:bg-white/10 text-gray-500 disabled:opacity-30 nx-press">
           <ChevronDown className="w-3.5 h-3.5" />
         </button>
-        <button onClick={onRemove} className="p-1.5 rounded hover:bg-red-500/20 text-gray-500 hover:text-red-400">
+        <button onClick={onRemove} className="p-1.5 rounded hover:bg-red-500/20 text-gray-500 hover:text-red-400 nx-press">
           <Trash2 className="w-3.5 h-3.5" />
         </button>
       </div>
@@ -73,11 +73,11 @@ export default function SurveyQuestionCard({
                   onChange({ options });
                 }}
                 placeholder={`Вариант ${i + 1}`}
-                className="flex-1 px-2 py-1 rounded font-mono text-[10px] bg-black/30 border border-gray-700 text-gray-200 focus:outline-none"
+                className="flex-1 px-2 py-1 rounded font-mono text-[10px] bg-black/30 border border-gray-700 text-gray-200 focus:outline-none [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]"
               />
               <button
                 onClick={() => onChange({ options: q.options.filter((_, j) => j !== i) })}
-                className="p-1 rounded hover:bg-red-500/20 text-gray-500"
+                className="p-1 rounded hover:bg-red-500/20 text-gray-500 nx-press"
               >
                 <X className="w-3 h-3" />
               </button>
@@ -85,7 +85,7 @@ export default function SurveyQuestionCard({
           ))}
           <button
             onClick={() => onChange({ options: [...q.options, ''] })}
-            className="flex items-center gap-1 px-2 py-1 rounded font-mono text-[10px] hover:bg-white/10 text-gray-400"
+            className="flex items-center gap-1 px-2 py-1 rounded font-mono text-[10px] hover:bg-white/10 text-gray-400 nx-press"
           >
             <Plus className="w-3 h-3" /> вариант
           </button>

@@ -249,7 +249,7 @@ export default function SubmissionsTable({ registrationId, fields, submissions, 
             style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}>
             <UserPlus className="w-3.5 h-3.5" /> ДОБАВИТЬ
           </button>
-          <button onClick={handleExportCSV} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-mono text-xs glass hover:bg-white/10 transition-colors">
+          <button onClick={handleExportCSV} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-mono text-xs glass hover:bg-white/10 transition-colors nx-press">
             <Download className="w-3.5 h-3.5" /> CSV
           </button>
           <button onClick={async () => {
@@ -261,7 +261,7 @@ export default function SubmissionsTable({ registrationId, fields, submissions, 
               const win = window.open('', '_blank');
               if (win) { win.document.write(html); win.document.close(); }
             } catch { showToast('Ошибка', 'error'); }
-          }} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-mono text-xs glass hover:bg-white/10 transition-colors">
+          }} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-mono text-xs glass hover:bg-white/10 transition-colors nx-press">
             <FileText className="w-3.5 h-3.5" /> PDF
           </button>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10" aria-label="Закрыть"><X className="w-4 h-4 text-gray-400" /></button>
@@ -317,7 +317,7 @@ export default function SubmissionsTable({ registrationId, fields, submissions, 
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto rounded-xl glass">
+      <div className="overflow-x-auto rounded-xl nx-panel">
         <table className="w-full text-left">
           <thead>
             <tr className="border-b border-white/5">

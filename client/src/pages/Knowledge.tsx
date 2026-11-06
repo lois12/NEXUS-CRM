@@ -214,11 +214,11 @@ export default function Knowledge() {
   if (viewing) {
     return (
       <div className="max-w-4xl mx-auto space-y-4">
-        <button onClick={() => { setViewing(null); setAttachments([]); }} className="font-mono text-sm text-gray-400 hover:text-gray-200 transition-colors">
+        <button onClick={() => { setViewing(null); setAttachments([]); }} className="font-mono text-sm text-gray-400 hover:text-gray-200 transition-colors nx-press">
           ← НАЗАД
         </button>
 
-        <div className="glass rounded-2xl p-6 md:p-8">
+        <div className="nx-panel p-6 md:p-8">
           <div className="flex items-start justify-between mb-4">
             <div className="flex-1 min-w-0">
               {viewing.category && (
@@ -233,11 +233,11 @@ export default function Knowledge() {
               </button>
             </div>
             <div className="flex gap-2 flex-shrink-0 ml-3">
-              <button onClick={() => { setViewing(null); openEdit(viewing); }} className="p-2 rounded hover:bg-white/10" aria-label="Редактировать">
+              <button onClick={() => { setViewing(null); openEdit(viewing); }} className="p-2 rounded hover:bg-white/10 nx-press" aria-label="Редактировать">
                 <Edit3 className="w-4 h-4 text-gray-400" />
               </button>
               {canDeleteArticle(viewing) && (
-                <button onClick={() => { setViewing(null); handleDelete(viewing); }} className="p-2 rounded hover:bg-red-500/20" aria-label="Удалить">
+                <button onClick={() => { setViewing(null); handleDelete(viewing); }} className="p-2 rounded hover:bg-red-500/20 nx-press" aria-label="Удалить">
                   <Trash2 className="w-4 h-4 text-red-400" />
                 </button>
               )}
@@ -280,7 +280,7 @@ export default function Knowledge() {
 
         {/* ── Image Gallery ── */}
         {images.length > 0 && (
-          <div className="glass rounded-2xl p-6">
+          <div className="nx-panel p-6">
             <h2 className="font-mono text-sm font-bold mb-4" style={{ color: 'var(--color-primary)' }}>
               <ImageIcon className="w-4 h-4 inline mr-2" />ГАЛЕРЕЯ ({images.length})
             </h2>
@@ -314,7 +314,7 @@ export default function Knowledge() {
 
         {/* ── Documents ── */}
         {documents.length > 0 && (
-          <div className="glass rounded-2xl p-6">
+          <div className="nx-panel p-6">
             <h2 className="font-mono text-sm font-bold mb-4" style={{ color: 'var(--color-primary)' }}>
               <FileText className="w-4 h-4 inline mr-2" />ДОКУМЕНТЫ ({documents.length})
             </h2>
@@ -323,7 +323,7 @@ export default function Knowledge() {
                 const Icon = FileText;
                 const ext = getFileExt(att.originalName).toUpperCase();
                 return (
-                  <div key={att.id} className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/[0.03] border border-white/[0.06] hover:border-white/[0.12] transition-colors group">
+                  <div key={att.id} className="flex items-center gap-3 px-4 py-3 rounded-xl [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)] border border-white/[0.06] hover:border-white/[0.12] transition-colors group">
                     <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
                       style={{ background: 'rgba(0,212,255,0.1)', border: '1px solid rgba(0,212,255,0.2)' }}>
                       <Icon className="w-5 h-5 text-[#00d4ff]" />
@@ -350,7 +350,7 @@ export default function Knowledge() {
         )}
 
         {/* ── Upload zone ── */}
-        <div className="glass rounded-2xl p-6">
+        <div className="nx-panel p-6">
           <label
             onDragOver={e => { e.preventDefault(); e.currentTarget.style.borderColor = 'var(--color-primary)'; }}
             onDragLeave={e => { e.currentTarget.style.borderColor = ''; }}
@@ -466,19 +466,19 @@ export default function Knowledge() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="ПОИСК..."
-              className={`pl-9 pr-4 py-2 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)] w-44 transition-all ${!search ? 'search-cursor' : ''}`} />
+              className={`pl-9 pr-4 py-2 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)] w-44 transition-all ${!search ? 'search-cursor' : ''}`} />
           </div>
           <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)}
-            className="px-3 py-2 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none">
+            className="px-3 py-2 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]">
             <option value="">ВСЕ КАТЕГОРИИ</option>
             {categories.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
           <select value={filterTag} onChange={e => setFilterTag(e.target.value)}
-            className="px-3 py-2 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none">
+            className="px-3 py-2 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]">
             <option value="">ВСЕ ТЕГИ</option>
             {allTags.map(t => <option key={t} value={t}>#{t}</option>)}
           </select>
-          <button onClick={openCreate} className="btn-primary flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-sm font-bold"
+          <button onClick={openCreate} className="btn-primary nx-press flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-sm font-bold"
             >
             <Plus className="w-4 h-4" /> СТАТЬЯ
           </button>
@@ -488,7 +488,7 @@ export default function Knowledge() {
       <div className="flex-1 overflow-y-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 content-start">
         {filtered.map(a => (
           <motion.div key={a.id} layout
-            className="glass-card rounded-xl p-4 group cursor-pointer hover:border-[var(--color-primary)]/20 transition-all"
+            className="nx-tile p-4 group cursor-pointer hover:border-[var(--color-primary)]/20"
             onClick={() => openView(a)}>
             <div className="flex items-start justify-between mb-2">
               <div className="flex-1 min-w-0">

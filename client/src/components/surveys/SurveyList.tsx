@@ -54,8 +54,8 @@ export default function SurveyList({
         </div>
         <button
           onClick={onCreate}
-          className="btn-primary px-4 py-2.5 rounded-xl font-mono text-sm font-bold flex items-center gap-2"
-          
+          className="btn-primary nx-press px-4 py-2.5 rounded-xl font-mono text-sm font-bold flex items-center gap-2"
+
         >
           <Plus className="w-4 h-4" /> НОВЫЙ ОПРОС
         </button>
@@ -70,7 +70,7 @@ export default function SurveyList({
             <button
               key={t.key}
               onClick={() => setTab(t.key)}
-              className="px-3 py-2 rounded-xl font-mono text-[11px] transition-all duration-200 hover:scale-105 flex items-center gap-1.5"
+              className="px-3 py-2 rounded-xl font-mono text-[11px] transition-all duration-200 hover:scale-105 flex items-center gap-1.5 nx-press"
               style={active
                 ? {
                     background: meta ? meta.bg : 'var(--color-primary)',
@@ -88,7 +88,7 @@ export default function SurveyList({
       </div>
 
       {visible.length === 0 ? (
-        <div className="glass rounded-xl p-10 text-center">
+        <div className="nx-tile p-10 text-center">
           <ClipboardList className="w-10 h-10 mx-auto text-gray-600 mb-3" />
           <p className="font-mono text-sm text-gray-400">
             {tab === 'all' ? 'Пока нет опросов' : `Нет опросов: ${TABS.find(t => t.key === tab)?.label.toLowerCase()}`}

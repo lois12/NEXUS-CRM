@@ -124,8 +124,8 @@ export default function QRGenerator() {
         {/* Generator */}
         <div className="space-y-4">
           {/* Type Selection */}
-          <div className="glass rounded-xl p-4">
-            <h2 className="text-sm font-medium text-gray-300 mb-3">Тип контента</h2>
+          <div className="nx-panel p-4">
+            <h2 className="nx-eyebrow mb-3">Тип контента</h2>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {(Object.keys(typeIcons) as QRType[]).map((type) => {
                 const Icon = typeIcons[type];
@@ -133,7 +133,7 @@ export default function QRGenerator() {
                   <button
                     key={type}
                     onClick={() => setQrType(type)}
-                    className="flex flex-col items-center gap-2 p-3 rounded-lg transition-colors"
+                    className="flex flex-col items-center gap-2 p-3 rounded-lg transition-colors nx-press"
                     style={qrType === type
                       ? { backgroundColor: 'var(--color-primary)', color: '#000', border: '1px solid var(--color-primary)' }
                       : { backgroundColor: 'rgba(255,255,255,0.05)', color: '#9ca3af' }
@@ -148,15 +148,15 @@ export default function QRGenerator() {
           </div>
 
           {/* Content Input */}
-          <div className="glass rounded-xl p-4">
-            <h2 className="text-sm font-medium text-gray-300 mb-3">Содержание</h2>
+          <div className="nx-panel p-4">
+            <h2 className="nx-eyebrow mb-3">Содержание</h2>
             <div className="relative">
               <input
                 type="text"
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
                 placeholder={getPlaceholder()}
-                className="w-full px-4 py-3 bg-white/5 border border-cyber-border rounded-lg text-gray-200 placeholder-gray-500 pr-10"
+                className="w-full px-4 py-3 bg-white/5 border border-cyber-border rounded-lg text-gray-200 placeholder-gray-500 pr-10 [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]"
               />
               <button
                 onClick={copyToClipboard}
@@ -168,8 +168,8 @@ export default function QRGenerator() {
           </div>
 
           {/* Customization */}
-          <div className="glass rounded-xl p-4">
-            <h2 className="text-sm font-medium text-gray-300 mb-3">Настройки</h2>
+          <div className="nx-panel p-4">
+            <h2 className="nx-eyebrow mb-3">Настройки</h2>
             <div className="space-y-3">
               <div className="flex items-center gap-4">
                 <label className="text-sm text-gray-400 w-24">Цвет</label>
@@ -177,7 +177,7 @@ export default function QRGenerator() {
                   type="color"
                   value={fgColor}
                   onChange={(e) => setFgColor(e.target.value)}
-                  className="w-10 h-10 rounded-lg cursor-pointer"
+                  className="w-10 h-10 rounded-lg cursor-pointer [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]"
                 />
                 <span className="text-sm text-gray-400">{fgColor}</span>
               </div>
@@ -187,7 +187,7 @@ export default function QRGenerator() {
                   type="color"
                   value={bgColor}
                   onChange={(e) => setBgColor(e.target.value)}
-                  className="w-10 h-10 rounded-lg cursor-pointer"
+                  className="w-10 h-10 rounded-lg cursor-pointer [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]"
                 />
                 <span className="text-sm text-gray-400">{bgColor}</span>
               </div>
@@ -200,7 +200,7 @@ export default function QRGenerator() {
                   step="32"
                   value={size}
                   onChange={(e) => setSize(Number(e.target.value))}
-                  className="flex-1"
+                  className="flex-1 [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]"
                   style={{ accentColor: 'var(--color-primary)' }}
                 />
                 <span className="text-sm text-gray-400 w-12">{size}px</span>
@@ -210,11 +210,9 @@ export default function QRGenerator() {
 
           {/* Generate Button */}
           <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
             onClick={generateQR}
             disabled={!content.trim()}
-            className="w-full py-3 px-4 rounded-xl font-mono font-bold transition-all neon-glow-pulse btn-scanline disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full py-3 px-4 rounded-xl font-mono font-bold transition-all neon-glow-pulse btn-scanline disabled:opacity-50 disabled:cursor-not-allowed nx-press"
             style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}
           >
             <QrCode className="w-5 h-5 inline mr-2" />
@@ -224,8 +222,8 @@ export default function QRGenerator() {
 
         {/* Preview */}
         <div className="space-y-4">
-          <div className="glass rounded-xl p-6">
-            <h2 className="text-sm font-medium text-gray-300 mb-4">Предпросмотр</h2>
+          <div className="nx-panel p-6">
+            <h2 className="nx-eyebrow mb-4">Предпросмотр</h2>
             <div
               ref={canvasRef}
               className="flex items-center justify-center p-8 rounded-lg bg-white/5 min-h-[300px]"
@@ -263,19 +261,15 @@ export default function QRGenerator() {
           {content.trim() && (
             <div className="flex gap-3">
               <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
                 onClick={() => downloadQR('png')}
-                className="flex-1 py-2 px-4 rounded-xl glass text-gray-300 hover:text-gray-100 transition-colors font-mono text-sm"
+                className="flex-1 py-2 px-4 rounded-xl glass text-gray-300 hover:text-gray-100 transition-colors font-mono text-sm nx-press"
               >
                 <Download className="w-4 h-4 inline mr-2" />
                 PNG
               </motion.button>
               <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
                 onClick={() => downloadQR('svg')}
-                className="flex-1 py-2 px-4 rounded-xl font-mono text-sm transition-all"
+                className="flex-1 py-2 px-4 rounded-xl font-mono text-sm transition-all nx-press"
                 style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}
               >
                 <Download className="w-4 h-4 inline mr-2" />
@@ -286,15 +280,15 @@ export default function QRGenerator() {
 
           {/* History */}
           {history.length > 0 && (
-            <div className="glass rounded-xl p-4">
+            <div className="nx-panel p-4">
               <div className="flex items-center justify-between mb-3">
-                <h2 className="text-sm font-medium text-gray-300 flex items-center gap-2">
-                  <History className="w-4 h-4" />
+                <h2 className="nx-eyebrow flex items-center gap-2">
+                  <History className="w-3.5 h-3.5" />
                   История
                 </h2>
                 <button
                   onClick={clearHistory}
-                  className="text-xs text-gray-400 hover:text-red-400"
+                  className="text-xs text-gray-400 hover:text-red-400 nx-press"
                 >
                   <Trash className="w-3 h-3 inline mr-1" />
                   Очистить
@@ -310,7 +304,7 @@ export default function QRGenerator() {
                         setContent(item.content);
                         setQrType(item.type);
                       }}
-                      className="w-full flex items-center gap-3 p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors text-left"
+                      className="nx-tile w-full flex items-center gap-3 p-2 text-left"
                     >
                       <Icon className="w-4 h-4 text-gray-400 flex-shrink-0" />
                       <span className="text-sm text-gray-200 truncate flex-1">{item.content}</span>

@@ -222,32 +222,32 @@ export default function Inventory() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="ПОИСК..."
-              className="pl-9 pr-4 py-2 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)] w-44" />
+              className="pl-9 pr-4 py-2 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)] w-44" />
           </div>
           <select value={filterType} onChange={e => setFilterType(e.target.value as any)}
-            className="px-3 py-2 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none">
+            className="px-3 py-2 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]">
             <option value="">ВСЕ ТИПЫ</option>
             {Object.entries(TYPE_CONFIG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
           </select>
           <select value={filterStatus} onChange={e => setFilterStatus(e.target.value as any)}
-            className="px-3 py-2 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none">
+            className="px-3 py-2 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]">
             <option value="">ВСЕ СТАТУСЫ</option>
             {Object.entries(STATUS_CONFIG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
           </select>
           <div className="flex rounded-lg overflow-hidden border border-gray-700">
-            <button onClick={() => setView('table')} className={`p-2 transition-all ${view === 'table' ? 'bg-white/10 text-white' : 'text-gray-500 hover:text-gray-300'}`} aria-label="Таблица">
+            <button onClick={() => setView('table')} className={`p-2 transition-all nx-press ${view === 'table' ? 'bg-white/10 text-white' : 'text-gray-500 hover:text-gray-300'}`} aria-label="Таблица">
               <List className="w-4 h-4" />
             </button>
-            <button onClick={() => setView('kanban')} className={`p-2 transition-all ${view === 'kanban' ? 'bg-white/10 text-white' : 'text-gray-500 hover:text-gray-300'}`} aria-label="Канбан">
+            <button onClick={() => setView('kanban')} className={`p-2 transition-all nx-press ${view === 'kanban' ? 'bg-white/10 text-white' : 'text-gray-500 hover:text-gray-300'}`} aria-label="Канбан">
               <LayoutGrid className="w-4 h-4" />
             </button>
           </div>
           {view === 'kanban' && (
-            <button onClick={() => setShowLocModal(true)} className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-xs font-bold glass hover:bg-white/10">
+            <button onClick={() => setShowLocModal(true)} className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-xs font-bold glass hover:bg-white/10 nx-press">
               <FolderPlus className="w-4 h-4" /> МЕСТО
             </button>
           )}
-          <button onClick={openCreate} className="btn-primary flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-sm font-bold"
+          <button onClick={openCreate} className="btn-primary nx-press flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-sm font-bold"
             >
             <Plus className="w-4 h-4" /> ДОБАВИТЬ
           </button>
@@ -272,29 +272,29 @@ export default function Inventory() {
               </thead>
               <tbody>
                 {sortedFiltered.map(i => (
-                  <tr key={i.id} className="border-b border-gray-800/50 hover:bg-white/5 group transition-colors">
-                    <td className="px-3 py-2.5">
+                  <tr key={i.id} className="border-b border-gray-800/50 group">
+                    <td className="px-3 py-2.5 group-hover:[box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]">
                       <div className="font-mono text-sm text-gray-200">{i.name}</div>
                       {i.serialNumber && <div className="font-mono text-[10px] text-gray-500">SN: {i.serialNumber}</div>}
                       {i.description && <div className="font-mono text-[10px] text-gray-500 truncate max-w-[200px]">{i.description}</div>}
                     </td>
-                    <td className="px-3 py-2.5">
+                    <td className="px-3 py-2.5 group-hover:[box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]">
                       <span className="text-[10px] font-mono px-2 py-0.5 rounded"
                         style={{ backgroundColor: `${TYPE_CONFIG[i.type].color}20`, color: TYPE_CONFIG[i.type].color }}>{TYPE_CONFIG[i.type].label}</span>
                     </td>
-                    <td className="px-3 py-2.5 font-mono text-sm text-gray-200 text-center">{i.quantity} {i.unit}</td>
-                    <td className="px-3 py-2.5 font-mono text-xs text-gray-300">
+                    <td className="px-3 py-2.5 font-mono text-sm text-gray-200 text-center group-hover:[box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]">{i.quantity} {i.unit}</td>
+                    <td className="px-3 py-2.5 font-mono text-xs text-gray-300 group-hover:[box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]">
                       {i.location ? <span className="flex items-center gap-1"><MapPin className="w-3 h-3 text-gray-500" />{i.location}</span> : '—'}
                     </td>
-                    <td className="px-3 py-2.5 font-mono text-xs text-gray-400">{i.responsiblePerson || '—'}</td>
-                    <td className="px-3 py-2.5">
+                    <td className="px-3 py-2.5 font-mono text-xs text-gray-400 group-hover:[box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]">{i.responsiblePerson || '—'}</td>
+                    <td className="px-3 py-2.5 group-hover:[box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]">
                       <span className="text-[10px] font-mono px-2 py-0.5 rounded"
                         style={{ backgroundColor: `${STATUS_CONFIG[i.status].color}20`, color: STATUS_CONFIG[i.status].color }}>{STATUS_CONFIG[i.status].label}</span>
                     </td>
-                    <td className="px-3 py-2.5">
+                    <td className="px-3 py-2.5 group-hover:[box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]">
                       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => openEdit(i)} className="p-1 rounded hover:bg-white/10" aria-label="Редактировать"><Edit3 className="w-3.5 h-3.5 text-gray-400" /></button>
-                        <button onClick={() => handleDelete(i)} className="p-1 rounded hover:bg-red-500/20" aria-label="Удалить"><Trash2 className="w-3.5 h-3.5 text-red-400" /></button>
+                        <button onClick={() => openEdit(i)} className="p-1 rounded hover:bg-white/10 nx-press" aria-label="Редактировать"><Edit3 className="w-3.5 h-3.5 text-gray-400" /></button>
+                        <button onClick={() => handleDelete(i)} className="p-1 rounded hover:bg-red-500/20 nx-press" aria-label="Удалить"><Trash2 className="w-3.5 h-3.5 text-red-400" /></button>
                       </div>
                     </td>
                   </tr>
@@ -355,12 +355,8 @@ export default function Inventory() {
                         draggable
                         onDragStart={(e) => handleDragStart(e, item.id, loc)}
                         onDragEnd={handleDragEnd}
-                        className="p-3 rounded-lg cursor-grab active:cursor-grabbing group/item hover:brightness-110 transition-all"
-                        style={{
-                          background: 'linear-gradient(145deg, rgba(30,30,50,0.7), rgba(20,20,35,0.9))',
-                          border: '1px solid rgba(255,255,255,0.06)',
-                          borderLeft: `3px solid ${TYPE_CONFIG[item.type].color}`,
-                        }}>
+                        className="nx-tile p-3 cursor-grab active:cursor-grabbing group/item"
+                        style={{ borderLeft: `3px solid ${TYPE_CONFIG[item.type].color}` }}>
                         <div className="flex items-start gap-2">
                           <div className="flex-1 min-w-0">
                             <p className="font-mono text-sm text-gray-200 truncate">{item.name}</p>

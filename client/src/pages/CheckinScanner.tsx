@@ -292,12 +292,12 @@ export default function CheckinScanner() {
         <div className="flex items-center gap-2">
           {pwdStatus === 'set' ? (
             <button onClick={clearControlPassword} disabled={pwdBusy}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg font-mono text-xs glass hover:bg-white/10 transition-all text-yellow-400">
+              className="flex items-center gap-2 px-3 py-2 rounded-lg font-mono text-xs glass hover:bg-white/10 transition-all text-yellow-400 nx-press">
               <Trash2 className="w-3.5 h-3.5" /> ПАРОЛЬ CONTROL: ВКЛ
             </button>
           ) : (
             <button onClick={() => setShowPwdForm(v => !v)}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg font-mono text-xs glass hover:bg-white/10 transition-all">
+              className="flex items-center gap-2 px-3 py-2 rounded-lg font-mono text-xs glass hover:bg-white/10 transition-all nx-press">
               <Lock className="w-3.5 h-3.5" /> ПАРОЛЬ CONTROL
             </button>
           )}
@@ -306,7 +306,7 @@ export default function CheckinScanner() {
 
       {/* CONTROL password form */}
       {showPwdForm && (
-        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="glass rounded-xl p-4">
+        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="nx-tile p-4">
           <label className="font-mono text-xs text-gray-500 mb-2 block">ПАРОЛЬ ДЛЯ ВХОДА В /control</label>
           <div className="flex gap-2">
             <div className="relative flex-1">
@@ -316,7 +316,7 @@ export default function CheckinScanner() {
                 onChange={e => setPwdInput(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && saveControlPassword()}
                 placeholder="// пароль для публичной страницы CONTROL"
-                className="w-full px-3 py-2 pr-10 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)]"
+                className="w-full px-3 py-2 pr-10 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]"
               />
               <button type="button" onClick={() => setPwdShow(!pwdShow)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
@@ -325,7 +325,7 @@ export default function CheckinScanner() {
               </button>
             </div>
             <button onClick={saveControlPassword} disabled={pwdBusy || !pwdInput.trim()}
-              className="btn-primary px-4 py-2 rounded-lg font-mono text-xs font-bold disabled:opacity-50"
+              className="btn-primary px-4 py-2 rounded-lg font-mono text-xs font-bold disabled:opacity-50 nx-press"
               >
               {pwdBusy ? '...' : 'СОХРАНИТЬ'}
             </button>
@@ -335,13 +335,13 @@ export default function CheckinScanner() {
       )}
 
       {/* Registration selector */}
-      <div className="glass rounded-xl p-4">
+      <div className="nx-tile p-4">
         <label className="font-mono text-xs text-gray-500 mb-2 block">МЕРОПРИЯТИЕ</label>
         <select value={selectedReg?.id || ''} onChange={e => {
           const reg = registrations.find(r => r.id === e.target.value);
           setSelectedReg(reg || null);
         }}
-          className="w-full px-4 py-2.5 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)]">
+          className="w-full px-4 py-2.5 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]">
           <option value="">-- Выберите мероприятие --</option>
           {registrations.map(r => (
             <option key={r.id} value={r.id}>{r.title} {r.eventDate ? `(${r.eventDate})` : ''}</option>
@@ -351,68 +351,70 @@ export default function CheckinScanner() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Scanner */}
-        <div className="glass rounded-2xl p-6 space-y-4">
-          <h2 className="font-mono text-sm font-bold" style={{ color: 'var(--color-primary)' }}>КАМЕРА</h2>
+        <div className="nx-bezel">
+          <div className="nx-core p-6 space-y-4">
+            <h2 className="nx-eyebrow mb-2">КАМЕРА</h2>
 
-          {/* Camera container */}
-          <div id="checkin-scanner" ref={containerRef} className="rounded-xl overflow-hidden" style={{ minHeight: scanning ? 280 : 0 }} />
+            {/* Camera container */}
+            <div id="checkin-scanner" ref={containerRef} className="rounded-xl overflow-hidden" style={{ minHeight: scanning ? 280 : 0 }} />
 
-          {/* Camera error */}
-          {cameraError && (
-            <div className="rounded-lg px-3 py-2 text-center" style={{ background: 'rgba(255,59,48,0.08)', border: '1px solid rgba(255,59,48,0.2)' }}>
-              <p className="font-mono text-xs text-red-400">{cameraError}</p>
-            </div>
-          )}
-
-          {/* Camera buttons */}
-          <div className="flex gap-2">
-            {!scanning ? (
-              <button onClick={startScanner}
-                className="btn-primary flex-1 py-3 rounded-xl font-mono text-sm font-bold transition-all"
-                >
-                <Camera className="w-4 h-4 inline mr-2" /> ЗАПУСТИТЬ КАМЕРУ
-              </button>
-            ) : (
-              <button onClick={stopScanner}
-                className="flex-1 py-3 rounded-xl font-mono text-sm font-bold glass transition-all text-red-400">
-                <X className="w-4 h-4 inline mr-2" /> ОСТАНОВИТЬ
-              </button>
+            {/* Camera error */}
+            {cameraError && (
+              <div className="rounded-lg px-3 py-2 text-center" style={{ background: 'rgba(255,59,48,0.08)', border: '1px solid rgba(255,59,48,0.2)' }}>
+                <p className="font-mono text-xs text-red-400">{cameraError}</p>
+              </div>
             )}
-          </div>
 
-          {/* File upload fallback */}
-          <div className="border-t border-white/5 pt-3">
-            <p className="font-mono text-[10px] text-gray-500 mb-2">ИЛИ ЗАГРУЗИТЕ ФОТО QR-КОДА:</p>
-            <label className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-dashed border-gray-700 hover:border-gray-500 cursor-pointer transition-colors">
-              <Upload className="w-4 h-4 text-gray-400" />
-              <span className="font-mono text-xs text-gray-400">ЗАГРУЗИТЬ ИЗОБРАЖЕНИЕ</span>
-              <input type="file" accept="image/*" className="hidden" onChange={e => {
-                const file = e.target.files?.[0];
-                if (file) handleFileScan(file);
-                e.target.value = '';
-              }} />
-            </label>
-          </div>
-
-          {/* Manual input */}
-          <div className="border-t border-white/5 pt-3">
-            <p className="font-mono text-[10px] text-gray-500 mb-2">ВВЕДИТЕ 4-ЗНАЧНЫЙ КОД ИЛИ QR-ТОКЕН:</p>
+            {/* Camera buttons */}
             <div className="flex gap-2">
-              <input value={manualToken} onChange={e => setManualToken(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleManualSubmit()}
-                placeholder="// код или токен"
-                className="flex-1 px-3 py-2 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)]" />
-              <button onClick={handleManualSubmit}
-                className="btn-primary px-4 py-2 rounded-lg font-mono text-xs font-bold"
-                >
-                <Type className="w-3.5 h-3.5 inline mr-1" /> OK
-              </button>
+              {!scanning ? (
+                <button onClick={startScanner}
+                  className="btn-primary flex-1 py-3 rounded-xl font-mono text-sm font-bold transition-all nx-press"
+                  >
+                  <Camera className="w-4 h-4 inline mr-2" /> ЗАПУСТИТЬ КАМЕРУ
+                </button>
+              ) : (
+                <button onClick={stopScanner}
+                  className="flex-1 py-3 rounded-xl font-mono text-sm font-bold glass transition-all text-red-400 nx-press">
+                  <X className="w-4 h-4 inline mr-2" /> ОСТАНОВИТЬ
+                </button>
+              )}
+            </div>
+
+            {/* File upload fallback */}
+            <div className="border-t border-white/5 pt-3">
+              <p className="font-mono text-[10px] text-gray-500 mb-2">ИЛИ ЗАГРУЗИТЕ ФОТО QR-КОДА:</p>
+              <label className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-dashed border-gray-700 hover:border-gray-500 cursor-pointer transition-colors">
+                <Upload className="w-4 h-4 text-gray-400" />
+                <span className="font-mono text-xs text-gray-400">ЗАГРУЗИТЬ ИЗОБРАЖЕНИЕ</span>
+                <input type="file" accept="image/*" className="hidden" onChange={e => {
+                  const file = e.target.files?.[0];
+                  if (file) handleFileScan(file);
+                  e.target.value = '';
+                }} />
+              </label>
+            </div>
+
+            {/* Manual input */}
+            <div className="border-t border-white/5 pt-3">
+              <p className="font-mono text-[10px] text-gray-500 mb-2">ВВЕДИТЕ 4-ЗНАЧНЫЙ КОД ИЛИ QR-ТОКЕН:</p>
+              <div className="flex gap-2">
+                <input value={manualToken} onChange={e => setManualToken(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleManualSubmit()}
+                  placeholder="// код или токен"
+                  className="flex-1 px-3 py-2 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]" />
+                <button onClick={handleManualSubmit}
+                  className="btn-primary px-4 py-2 rounded-lg font-mono text-xs font-bold nx-press"
+                  >
+                  <Type className="w-3.5 h-3.5 inline mr-1" /> OK
+                </button>
+              </div>
             </div>
           </div>
         </div>
 
         {/* Result */}
-        <div className="glass rounded-2xl p-6 flex flex-col items-center justify-center min-h-[300px]">
+        <div className="nx-tile p-6 flex flex-col items-center justify-center min-h-[300px]">
           <AnimatePresence mode="wait">
             {!result ? (
               <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center">
@@ -450,7 +452,7 @@ export default function CheckinScanner() {
                   );
                 })()}
                 <button onClick={() => { setResult(null); setCameraError(''); }}
-                  className="mt-4 px-4 py-2 rounded-lg font-mono text-xs glass hover:bg-white/10 transition-colors">
+                  className="mt-4 px-4 py-2 rounded-lg font-mono text-xs glass hover:bg-white/10 transition-colors nx-press">
                   СКАНИРОВАТЬ ЕЩЁ
                 </button>
               </motion.div>
@@ -463,7 +465,7 @@ export default function CheckinScanner() {
       {selectedReg && (
         <div className="text-center">
           <a href={`/registrations/${selectedReg.id}/participants`}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-xs glass hover:bg-white/10 transition-colors">
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-xs glass hover:bg-white/10 transition-colors nx-press">
             <Users className="w-3.5 h-3.5" /> ВСЕ УЧАСТНИКИ ({selectedReg.confirmedCount || 0})
           </a>
         </div>

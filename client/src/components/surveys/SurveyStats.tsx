@@ -52,7 +52,7 @@ export default function SurveyStats({ surveyId, onBack }: Props) {
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2 flex-wrap">
-        <button onClick={onBack} className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-xs glass hover:bg-white/10">
+        <button onClick={onBack} className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-xs glass hover:bg-white/10 nx-press">
           <ArrowLeft className="w-3.5 h-3.5" /> НАЗАД
         </button>
         <h2 className="font-mono text-base sm:text-lg font-bold flex-1 min-w-0 truncate" style={{ color: 'var(--color-primary)' }}>
@@ -62,7 +62,7 @@ export default function SurveyStats({ surveyId, onBack }: Props) {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div className="glass rounded-xl p-3 flex items-center gap-2">
+        <div className="nx-tile p-3 flex items-center gap-2 nx-rise nx-rise-1">
           <Users className="w-5 h-5 shrink-0" style={{ color: 'var(--color-primary)' }} />
           <div>
             <div className="font-mono text-[10px] text-gray-500">ПРОГОЛОСОВАЛО</div>
@@ -71,7 +71,7 @@ export default function SurveyStats({ surveyId, onBack }: Props) {
             </div>
           </div>
         </div>
-        <div className="glass rounded-xl p-3 flex items-center gap-2">
+        <div className="nx-tile p-3 flex items-center gap-2 nx-rise nx-rise-2">
           <Clock className="w-5 h-5 shrink-0" style={{ color: '#3b82f6' }} />
           <div className="min-w-0">
             <div className="font-mono text-[10px] text-gray-500">ПОСЛЕДНИЙ ОТВЕТ</div>
@@ -86,7 +86,7 @@ export default function SurveyStats({ surveyId, onBack }: Props) {
 
       {/* global chart view */}
       <div className="glass rounded-xl px-3 py-2.5 flex items-center gap-3 flex-wrap">
-        <span className="font-mono text-[10px] text-gray-500 uppercase tracking-wider">ВИД</span>
+        <span className="nx-eyebrow">ВИД</span>
         {([
           ['bars', 'Гистограмма'],
           ['pie3d', 'Круговая 3D'],
@@ -94,7 +94,7 @@ export default function SurveyStats({ surveyId, onBack }: Props) {
           <button
             key={v}
             onClick={() => setChartView(v)}
-            className="px-3 py-1.5 rounded-lg font-mono text-[11px] transition-all duration-200 hover:scale-105"
+            className="px-3 py-1.5 rounded-lg font-mono text-[11px] transition-all duration-200 hover:scale-105 nx-press"
             style={chartView === v
               ? { background: 'var(--color-primary)', color: '#000', boxShadow: '0 0 16px rgba(0,255,136,0.35)' }
               : { background: 'rgba(255,255,255,0.05)', color: '#888' }}
@@ -112,7 +112,7 @@ export default function SurveyStats({ surveyId, onBack }: Props) {
             <div key={q.id || q.title}>
               {q.type === 'choice' ? (
                 q.total === 0 ? (
-                  <div className="glass rounded-2xl p-4">
+                  <div className="nx-panel p-4">
                     <h3 className="font-mono text-sm font-semibold text-gray-200 mb-2 leading-snug" style={{ wordBreak: 'break-word' }}>{q.title}</h3>
                     <p className="font-mono text-[10px] text-gray-600">нет ответов</p>
                   </div>
@@ -125,7 +125,7 @@ export default function SurveyStats({ surveyId, onBack }: Props) {
                   />
                 )
               ) : (
-                <div className="glass rounded-2xl p-4 space-y-3">
+                <div className="nx-panel p-4 space-y-3">
                   <h3 className="font-mono text-sm font-semibold text-gray-200 leading-snug" style={{ wordBreak: 'break-word' }}>{q.title}</h3>
                   <div className="space-y-1.5">
                     {q.openAnswers.length === 0 && (

@@ -231,7 +231,7 @@ export default function BrandBank() {
               const CatIcon = cat.icon;
               return (
                 <motion.div key={a.id} layout
-                  className="glass-card rounded-xl overflow-hidden group relative">
+                  className="nx-tile overflow-hidden group relative">
                   {/* Preview */}
                   <div className={`flex items-center justify-center ${preset.imgH} bg-white/5 overflow-hidden`}>
                     {isImage(a.mimeType) ? (

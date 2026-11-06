@@ -466,7 +466,7 @@ export default function Weather() {
           <p className="text-gray-400 mt-1 font-mono text-sm">// ПРОГНОЗ ПО ГОРОДАМ РОССИИ</p>
         </div>
         <button onClick={fetchWeather} disabled={isLoading}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl glass font-mono text-sm text-gray-400 hover:text-gray-200 transition-colors disabled:opacity-50">
+          className="flex items-center gap-2 px-4 py-2 rounded-xl glass font-mono text-sm text-gray-400 hover:text-gray-200 transition-colors disabled:opacity-50 nx-press">
           {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
           ОБНОВИТЬ
         </button>
@@ -476,8 +476,7 @@ export default function Weather() {
       <div className="flex gap-2 flex-wrap relative z-10">
         {CITIES.map(city => (
           <motion.button key={city.name} onClick={() => setSelectedCity(city)}
-            whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-xs transition-all"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-xs transition-all nx-press"
             style={selectedCity.name === city.name
               ? { backgroundColor: 'var(--color-primary)', color: '#000', fontWeight: 'bold' }
               : { backgroundColor: 'rgba(255,255,255,0.05)', color: '#9ca3af' }
@@ -515,13 +514,13 @@ export default function Weather() {
       </AnimatePresence>
 
       {error && (
-        <div className="glass rounded-xl p-4 text-center relative z-10">
+        <div className="nx-panel p-4 text-center relative z-10">
           <p className="font-mono text-sm text-red-400">{error}</p>
         </div>
       )}
 
       {isLoading && !currentWeather ? (
-        <div className="glass rounded-xl p-12 text-center relative z-10">
+        <div className="nx-panel p-12 text-center relative z-10">
           <Loader2 className="w-12 h-12 mx-auto mb-4 animate-spin" style={{ color: 'var(--color-primary)' }} />
           <p className="font-mono text-sm text-gray-400">Загрузка данных...</p>
         </div>
@@ -535,7 +534,7 @@ export default function Weather() {
             className="space-y-6 relative z-10">
 
             {/* Current weather */}
-            <div className="glass rounded-2xl p-6 md:p-8">
+            <div className="nx-panel p-6 md:p-8">
               <div className="flex flex-col md:flex-row md:items-center gap-6">
                 {/* Main info */}
                 <div className="flex-1">
@@ -634,8 +633,8 @@ export default function Weather() {
             </div>
 
             {/* Hourly forecast - grid */}
-            <div className="glass rounded-2xl p-6">
-              <h2 className="text-sm font-mono font-bold mb-4" style={{ color: 'var(--color-primary)' }}>
+            <div className="nx-panel p-6">
+              <h2 className="nx-eyebrow mb-4">
                 ПОЧАСОВОЙ ПРОГНОЗ — {selectedDayName.toUpperCase()}
               </h2>
               <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
@@ -647,10 +646,10 @@ export default function Weather() {
                       initial={{ opacity: 0, scale: 0.9 }}
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ delay: i * 0.02 }}
-                      className="text-center p-2 rounded-lg transition-all"
+                      className="nx-tile text-center p-2"
                       style={isNow
                         ? { background: 'rgba(0,255,136,0.15)', border: '1px solid rgba(0,255,136,0.3)' }
-                        : { background: 'rgba(255,255,255,0.03)' }
+                        : {}
                       }>
                       <div className="font-mono text-[10px] text-gray-500 mb-1">
                         {isNow ? 'СЕЙЧАС' : formatHour(hour.time)}
@@ -673,8 +672,8 @@ export default function Weather() {
             </div>
 
             {/* 7-day forecast */}
-            <div className="glass rounded-2xl p-6">
-              <h2 className="text-sm font-mono font-bold mb-4" style={{ color: 'var(--color-primary)' }}>
+            <div className="nx-panel p-6">
+              <h2 className="nx-eyebrow mb-4">
                 ПРОГНОЗ НА {forecast.length} {forecast.length === 1 ? 'ДЕНЬ' : forecast.length < 5 ? 'ДНЯ' : 'ДНЕЙ'} <span className="font-normal text-gray-500">(кликни для почасового)</span>
               </h2>
               <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
@@ -688,12 +687,12 @@ export default function Weather() {
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: i * 0.05 }}
                       onClick={() => setSelectedDayIndex(i)}
-                      className="text-center p-3 rounded-xl transition-all cursor-pointer hover:scale-105"
+                      className="nx-tile text-center p-3 cursor-pointer"
                       style={isSelected
                         ? { background: 'rgba(0,255,136,0.15)', border: '2px solid rgba(0,255,136,0.5)', boxShadow: '0 0 15px rgba(0,255,136,0.2)' }
                         : today
                           ? { background: 'rgba(0,255,136,0.05)', border: '1px solid rgba(0,255,136,0.2)' }
-                          : { background: 'rgba(255,255,255,0.02)', border: '1px solid transparent' }
+                          : {}
                       }>
                       <div className="font-mono text-[10px] text-gray-500 mb-2">
                         {today ? 'СЕГОДНЯ' : formatDate(day.date).split(',')[0]}

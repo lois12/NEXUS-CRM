@@ -23,8 +23,7 @@ export default function SurveyCard({
 
   return (
     <motion.div
-      whileHover={{ scale: 1.01 }}
-      className="glass rounded-xl overflow-hidden cursor-pointer"
+      className="nx-tile overflow-hidden cursor-pointer"
       onClick={onOpen}
     >
       <div className="h-24 bg-black/40 relative">
@@ -67,21 +66,21 @@ export default function SurveyCard({
         </div>
 
         <div className="flex flex-wrap gap-1.5" onClick={(e) => e.stopPropagation()}>
-          <button onClick={onEdit} className="flex-1 py-1.5 rounded-lg font-mono text-[10px] glass hover:bg-white/10">
+          <button onClick={onEdit} className="flex-1 py-1.5 rounded-lg font-mono text-[10px] glass hover:bg-white/10 nx-press">
             РЕДАКТОР
           </button>
-          <button onClick={onStats} className="flex-1 py-1.5 rounded-lg font-mono text-[10px] glass hover:bg-white/10">
+          <button onClick={onStats} className="flex-1 py-1.5 rounded-lg font-mono text-[10px] glass hover:bg-white/10 nx-press">
             СТАТИСТИКА
           </button>
           {(status === 'published' || status === 'completed') && survey.publicSlug && (
-            <button onClick={onCopyLink} className="px-2 py-1.5 rounded-lg font-mono text-[10px] glass hover:bg-white/10" title="Ссылка">
+            <button onClick={onCopyLink} className="px-2 py-1.5 rounded-lg font-mono text-[10px] glass hover:bg-white/10 nx-press" title="Ссылка">
               <Link2 className="w-3 h-3" />
             </button>
           )}
-          <button onClick={onDuplicate} className="px-2 py-1.5 rounded-lg font-mono text-[10px] glass hover:bg-white/10" title="Дублировать">
+          <button onClick={onDuplicate} className="px-2 py-1.5 rounded-lg font-mono text-[10px] glass hover:bg-white/10 nx-press" title="Дублировать">
             <Copy className="w-3 h-3" />
           </button>
-          <button onClick={onDelete} className="px-2 py-1.5 rounded-lg font-mono text-[10px] hover:bg-red-500/15 text-red-400" title="Удалить">
+          <button onClick={onDelete} className="px-2 py-1.5 rounded-lg font-mono text-[10px] hover:bg-red-500/15 text-red-400 nx-press" title="Удалить">
             <Trash2 className="w-3 h-3" />
           </button>
         </div>

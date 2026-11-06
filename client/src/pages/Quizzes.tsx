@@ -326,7 +326,7 @@ export default function Quizzes() {
           <div>
             <button
               onClick={() => { setView('list'); setResultsFor(null); }}
-              className="flex items-center gap-2 font-mono text-sm text-gray-400 hover:text-gray-200 transition-colors mb-2"
+              className="flex items-center gap-2 font-mono text-sm text-gray-400 hover:text-gray-200 transition-colors mb-2 nx-press"
             >
               <ArrowLeft className="w-4 h-4" /> Назад к квизам
             </button>
@@ -351,25 +351,25 @@ export default function Quizzes() {
                 showToast('Ошибка PDF', 'error');
               }
             }}
-            className="btn-primary px-4 py-2.5 rounded-xl font-mono text-xs"
+            className="btn-primary nx-press px-4 py-2.5 rounded-xl font-mono text-xs"
           >PDF</button>
         </div>
 
         {results.length > 0 && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="glass rounded-xl p-3">
+            <div className="nx-tile p-3 nx-rise nx-rise-1">
               <p className="text-[9px] font-mono text-gray-500 tracking-wider">УЧАСТНИКОВ</p>
               <p className="font-mono text-xl font-bold mt-1" style={{ color: 'var(--color-primary)' }}>{results.length}</p>
             </div>
-            <div className="glass rounded-xl p-3">
+            <div className="nx-tile p-3 nx-rise nx-rise-2">
               <p className="text-[9px] font-mono text-gray-500 tracking-wider">СРЕДНИЙ БАЛЛ</p>
               <p className="font-mono text-xl font-bold mt-1" style={{ color: '#7dffb2' }}>{avgScore}</p>
             </div>
-            <div className="glass rounded-xl p-3">
+            <div className="nx-tile p-3 nx-rise nx-rise-3">
               <p className="text-[9px] font-mono text-gray-500 tracking-wider">СРЕДНЕЕ ВРЕМЯ</p>
               <p className="font-mono text-xl font-bold mt-1 text-gray-200">{avgTime}с</p>
             </div>
-            <div className="glass rounded-xl p-3">
+            <div className="nx-tile p-3 nx-rise nx-rise-4">
               <p className="text-[9px] font-mono text-gray-500 tracking-wider">ВЫПОЛНИЛИ</p>
               <p className="font-mono text-xl font-bold mt-1 text-gray-200">
                 {results.filter((r) => r.finishedAt).length}/{results.length}
@@ -384,7 +384,7 @@ export default function Quizzes() {
             description="Результаты появятся здесь после прохождения квиза."
           />
         ) : (
-          <div className="glass rounded-2xl overflow-x-auto">
+          <div className="nx-panel overflow-x-auto">
             <table className="w-full text-xs font-mono">
               <thead>
                 <tr className="text-gray-500 text-left">
@@ -417,7 +417,7 @@ export default function Quizzes() {
                     <td className="p-3 text-right">
                       <button
                         onClick={() => deleteParticipant(r.id, `${r.lastName} ${r.firstName}`)}
-                        className="p-1.5 rounded-lg hover:bg-red-500/20 transition-colors"
+                        className="p-1.5 rounded-lg hover:bg-red-500/20 transition-colors nx-press"
                         title="Удалить позицию"
                         aria-label="Удалить позицию"
                       >
@@ -432,7 +432,7 @@ export default function Quizzes() {
         )}
 
         {qStats && qStats.stats.length > 0 && (
-          <div className="glass rounded-2xl p-4">
+          <div className="nx-panel p-4">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <BarChart3 className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />
@@ -501,7 +501,7 @@ export default function Quizzes() {
           <h1 className="text-2xl md:text-3xl font-bold font-mono neon-text" style={{ color: 'var(--color-primary)' }}>КВИЗЫ</h1>
           <p className="text-gray-400 mt-1 font-mono text-sm">// СОРЕВНОВАНИЯ · ВИКТОРИНЫ · ЧЕЛЛЕНДЖИ</p>
         </div>
-        <button onClick={openCreate} className="btn-primary flex items-center gap-2 px-4 py-2.5 rounded-xl font-mono text-xs">
+        <button onClick={openCreate} className="btn-primary nx-press flex items-center gap-2 px-4 py-2.5 rounded-xl font-mono text-xs">
           <Plus className="w-4 h-4" /> НОВЫЙ КВИЗ
         </button>
       </div>
@@ -512,7 +512,7 @@ export default function Quizzes() {
           <button
             key={k}
             onClick={() => setFolder(k as any)}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-mono transition-all ${
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-mono transition-all nx-press ${
               folder === k ? 'glass-accent' : 'bg-white/5 text-gray-400 hover:text-gray-200'
             }`}
             style={folder === k ? { color: 'var(--color-primary)' } : {}}
@@ -526,7 +526,7 @@ export default function Quizzes() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Поиск квиза…"
-            className="w-full pl-9 pr-3 py-2 rounded-lg text-sm bg-white/5 border border-white/10 text-gray-200"
+            className="w-full pl-9 pr-3 py-2 rounded-lg text-sm bg-white/5 border border-white/10 text-gray-200 [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]"
           />
         </div>
       </div>
@@ -541,7 +541,7 @@ export default function Quizzes() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {filtered.map((q) => (
-            <div key={q.id} className="glass rounded-2xl p-4 hover:bg-white/5 transition-all">
+            <div key={q.id} className="nx-tile p-4">
               <div className="flex items-start gap-3">
                 {q.imageUrl ? (
                   <img src={q.imageUrl} alt="" className="w-14 h-14 rounded-xl object-cover flex-shrink-0" />
@@ -585,19 +585,19 @@ export default function Quizzes() {
                 </div>
               </div>
               <div className="flex flex-wrap gap-1.5 mt-3">
-                <button onClick={() => openEdit(q)} className="btn-ghost px-2.5 py-1.5 text-[10px]"><Edit3 className="w-3 h-3 inline mr-1" />ПРАВИТЬ</button>
-                <button onClick={() => { setQrFor(q); }} className="btn-ghost px-2.5 py-1.5 text-[10px]"><QrCode className="w-3 h-3 inline mr-1" />QR</button>
-                <button onClick={() => copyLink(q)} className="btn-ghost px-2.5 py-1.5 text-[10px]"><Link2 className="w-3 h-3 inline mr-1" />ССЫЛКА</button>
-                <button onClick={() => openResults(q)} className="btn-ghost px-2.5 py-1.5 text-[10px]"><Play className="w-3 h-3 inline mr-1" />ИТОГИ</button>
+                <button onClick={() => openEdit(q)} className="btn-ghost nx-press px-2.5 py-1.5 text-[10px]"><Edit3 className="w-3 h-3 inline mr-1" />ПРАВИТЬ</button>
+                <button onClick={() => { setQrFor(q); }} className="btn-ghost nx-press px-2.5 py-1.5 text-[10px]"><QrCode className="w-3 h-3 inline mr-1" />QR</button>
+                <button onClick={() => copyLink(q)} className="btn-ghost nx-press px-2.5 py-1.5 text-[10px]"><Link2 className="w-3 h-3 inline mr-1" />ССЫЛКА</button>
+                <button onClick={() => openResults(q)} className="btn-ghost nx-press px-2.5 py-1.5 text-[10px]"><Play className="w-3 h-3 inline mr-1" />ИТОГИ</button>
                 <button
                   onClick={async () => {
                     await quizzesApi.duplicate(q.id);
                     showToast('Копия создана', 'success');
                     load();
                   }}
-                  className="btn-ghost px-2.5 py-1.5 text-[10px]"
+                  className="btn-ghost nx-press px-2.5 py-1.5 text-[10px]"
                 ><Copy className="w-3 h-3 inline mr-1" />КОПИЯ</button>
-                <button onClick={() => del(q)} className="btn-ghost px-2.5 py-1.5 text-[10px]" style={{ color: '#ff6b6b' }}>
+                <button onClick={() => del(q)} className="btn-ghost nx-press px-2.5 py-1.5 text-[10px]" style={{ color: '#ff6b6b' }}>
                   <Trash2 className="w-3 h-3 inline" />
                 </button>
               </div>
@@ -616,8 +616,9 @@ export default function Quizzes() {
           >
             <motion.div
               initial={{ scale: 0.95, y: 16 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0 }}
-              className="glass-frost rounded-2xl p-5 w-full max-w-2xl my-6"
+              className="nx-bezel w-full max-w-2xl my-6"
             >
+              <div className="nx-core p-5">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="font-mono text-lg font-bold" style={{ color: 'var(--color-primary)' }}>
                   {editing ? 'РЕДАКТИРОВАТЬ КВИЗ' : 'НОВЫЙ КВИЗ'}
@@ -629,18 +630,18 @@ export default function Quizzes() {
                 <div>
                   <label className="text-[10px] font-mono text-gray-500 tracking-wider">НАЗВАНИЕ *</label>
                   <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-xl text-sm bg-white/5 border border-white/10 text-gray-200" />
+                    className="w-full px-3 py-2.5 rounded-xl text-sm bg-white/5 border border-white/10 text-gray-200 [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]" />
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="text-[10px] font-mono text-gray-500 tracking-wider">ОРГАНИЗАТОР</label>
                     <input value={form.organizer} onChange={(e) => setForm({ ...form, organizer: e.target.value })}
-                      className="w-full px-3 py-2.5 rounded-xl text-sm bg-white/5 border border-white/10 text-gray-200" />
+                      className="w-full px-3 py-2.5 rounded-xl text-sm bg-white/5 border border-white/10 text-gray-200 [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]" />
                   </div>
                   <div>
                     <label className="text-[10px] font-mono text-gray-500 tracking-wider">СТАТУС / ПАПКА</label>
                     <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as QuizStatus })}
-                      className="w-full px-3 py-2.5 rounded-xl text-sm bg-white/5 border border-white/10 text-gray-200 appearance-none">
+                      className="w-full px-3 py-2.5 rounded-xl text-sm bg-white/5 border border-white/10 text-gray-200 appearance-none [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]">
                       <option value="draft">Черновик</option>
                       <option value="scheduled">Запланирован</option>
                       <option value="conducted">Проведён</option>
@@ -650,7 +651,7 @@ export default function Quizzes() {
                 <div>
                   <label className="text-[10px] font-mono text-gray-500 tracking-wider">ОПИСАНИЕ</label>
                   <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
-                    rows={2} className="w-full px-3 py-2.5 rounded-xl text-sm bg-white/5 border border-white/10 text-gray-200" />
+                    rows={2} className="w-full px-3 py-2.5 rounded-xl text-sm bg-white/5 border border-white/10 text-gray-200 [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]" />
                 </div>
 
                 <div>
@@ -658,7 +659,7 @@ export default function Quizzes() {
                   <div className="flex items-center gap-2 min-h-[48px]">
                     <input ref={fileRef} type="file" accept="image/*" className="hidden"
                       onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadQuizImage(f); e.target.value = ''; }} />
-                    <button onClick={() => fileRef.current?.click()} className="btn-ghost px-3 py-2 text-[10px]">
+                    <button onClick={() => fileRef.current?.click()} className="btn-ghost nx-press px-3 py-2 text-[10px]">
                       <ImageIcon className="w-3.5 h-3.5 inline mr-1" /> ЗАГРУЗИТЬ
                     </button>
                     {uploads['quiz'] !== undefined ? (
@@ -674,20 +675,20 @@ export default function Quizzes() {
                     <label className="text-[10px] font-mono text-gray-500 tracking-wider">СТАРТ (обратный отсчёт)</label>
                     <input type="datetime-local" value={form.startsAt}
                       onChange={(e) => setForm({ ...form, startsAt: e.target.value })}
-                      className="w-full px-3 py-2.5 rounded-xl text-sm bg-white/5 border border-white/10 text-gray-200" />
+                      className="w-full px-3 py-2.5 rounded-xl text-sm bg-white/5 border border-white/10 text-gray-200 [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]" />
                   </div>
                   <div>
                     <label className="text-[10px] font-mono text-gray-500 tracking-wider">ФИНИШ</label>
                     <input type="datetime-local" value={form.endsAt}
                       onChange={(e) => setForm({ ...form, endsAt: e.target.value })}
-                      className="w-full px-3 py-2.5 rounded-xl text-sm bg-white/5 border border-white/10 text-gray-200" />
+                      className="w-full px-3 py-2.5 rounded-xl text-sm bg-white/5 border border-white/10 text-gray-200 [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]" />
                   </div>
                 </div>
                 <div>
                   <label className="text-[10px] font-mono text-gray-500 tracking-wider">ТЕКСТ ПОСЛЕ ОКОНЧАНИЯ</label>
                   <textarea value={form.afterEndText} onChange={(e) => setForm({ ...form, afterEndText: e.target.value })}
                     rows={2} placeholder="Благодарим за участие…"
-                    className="w-full px-3 py-2.5 rounded-xl text-sm bg-white/5 border border-white/10 text-gray-200" />
+                    className="w-full px-3 py-2.5 rounded-xl text-sm bg-white/5 border border-white/10 text-gray-200 [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]" />
                 </div>
               </div>
 
@@ -698,15 +699,15 @@ export default function Quizzes() {
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => setCollapsed(Object.fromEntries(questions.map((_, i) => [i, true])))}
-                      className="btn-ghost px-2.5 py-1.5 text-[10px]"
+                      className="btn-ghost nx-press px-2.5 py-1.5 text-[10px]"
                     >СВЕРНУТЬ ВСЕ</button>
                     <button
                       onClick={() => setCollapsed({})}
-                      className="btn-ghost px-2.5 py-1.5 text-[10px]"
+                      className="btn-ghost nx-press px-2.5 py-1.5 text-[10px]"
                     >РАЗВЕРНУТЬ</button>
                     <button
                       onClick={() => setQuestions((p) => [...p, emptyQ()])}
-                      className="btn-primary px-3 py-1.5 text-[10px]"
+                      className="btn-primary nx-press px-3 py-1.5 text-[10px]"
                     >
                       <Plus className="w-3 h-3 inline mr-1" /> ДОБАВИТЬ
                     </button>
@@ -717,7 +718,7 @@ export default function Quizzes() {
                   {questions.map((q, qi) => {
                     const isCollapsed = !!collapsed[qi];
                     return (
-                      <div key={qi} className="rounded-xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                      <div key={qi} className="rounded-xl overflow-hidden [box-shadow:var(--depth-contact),var(--depth-rim-top),var(--depth-rim-bottom)]" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
                         {/* header — свернуть / развернуть */}
                         <div
                           className="flex items-center gap-2 px-3 py-2 cursor-pointer select-none hover:bg-white/[0.03]"
@@ -734,7 +735,7 @@ export default function Quizzes() {
                               <button
                                 type="button"
                                 onClick={() => setQuestions((p) => p.map((x, i) => i === qi ? { ...x, type: 'choice' } : x))}
-                                className="px-2 py-1 text-[9px] font-mono"
+                                className="px-2 py-1 text-[9px] font-mono nx-press"
                                 style={q.type === 'choice'
                                   ? { background: 'var(--color-primary)', color: '#000' }
                                   : { background: 'transparent', color: '#8b9bbb' }}
@@ -742,13 +743,13 @@ export default function Quizzes() {
                               <button
                                 type="button"
                                 onClick={() => setQuestions((p) => p.map((x, i) => i === qi ? { ...x, type: 'open' } : x))}
-                                className="px-2 py-1 text-[9px] font-mono"
+                                className="px-2 py-1 text-[9px] font-mono nx-press"
                                 style={q.type === 'open'
                                   ? { background: 'var(--color-primary)', color: '#000' }
                                   : { background: 'transparent', color: '#8b9bbb' }}
                               >ОТКРЫТЫЙ</button>
                             </div>
-                            <button onClick={() => setQuestions((p) => p.filter((_, i) => i !== qi))} className="p-1 text-red-400">
+                            <button onClick={() => setQuestions((p) => p.filter((_, i) => i !== qi))} className="p-1 text-red-400 nx-press">
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           </div>
@@ -760,14 +761,14 @@ export default function Quizzes() {
                               value={q.text}
                               onChange={(e) => setQuestions((p) => p.map((x, i) => i === qi ? { ...x, text: e.target.value } : x))}
                               placeholder="Текст вопроса…"
-                              className="w-full px-3 py-2 rounded-lg text-sm bg-white/5 border border-white/10 text-gray-200 mb-2"
+                              className="w-full px-3 py-2 rounded-lg text-sm bg-white/5 border border-white/10 text-gray-200 mb-2 [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]"
                             />
                             {/* комментарий мелким шрифтом — сразу под вопросом */}
                             <input
                               value={q.comment || ''}
                               onChange={(e) => setQuestions((p) => p.map((x, i) => i === qi ? { ...x, comment: e.target.value } : x))}
                               placeholder="Комментарий к вопросу (мелким шрифтом под вопросом)"
-                              className="w-full px-3 py-1.5 rounded-lg text-[11px] bg-white/5 border border-white/10 text-gray-400 mb-2"
+                              className="w-full px-3 py-1.5 rounded-lg text-[11px] bg-white/5 border border-white/10 text-gray-400 mb-2 [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]"
                             />
                             <div className="flex items-center gap-2 mb-2 min-h-[40px]">
                               <input
@@ -775,7 +776,7 @@ export default function Quizzes() {
                                 type="file" accept="image/*" className="hidden"
                                 onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadQuestionImage(qi, f); e.target.value = ''; }}
                               />
-                              <button onClick={() => qFileRefs.current[`q${qi}`]?.click()} className="btn-ghost px-2 py-1 text-[10px]">
+                              <button onClick={() => qFileRefs.current[`q${qi}`]?.click()} className="btn-ghost nx-press px-2 py-1 text-[10px]">
                                 <ImageIcon className="w-3 h-3 inline mr-1" /> КАРТИНКА
                               </button>
                               <input
@@ -783,7 +784,7 @@ export default function Quizzes() {
                                 type="file" accept="video/mp4,video/webm" className="hidden"
                                 onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadQuestionVideo(qi, f); e.target.value = ''; }}
                               />
-                              <button onClick={() => qFileRefs.current[`qv${qi}`]?.click()} className="btn-ghost px-2 py-1 text-[10px]"
+                              <button onClick={() => qFileRefs.current[`qv${qi}`]?.click()} className="btn-ghost nx-press px-2 py-1 text-[10px]"
                                 title="Видео к вопросу (MP4/WebM)">
                                 <Film className="w-3 h-3 inline mr-1" /> ВИДЕО
                               </button>
@@ -792,7 +793,7 @@ export default function Quizzes() {
                                 type="file" accept="audio/mpeg,audio/wav,audio/ogg,audio/mp4,audio/webm" className="hidden"
                                 onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadQuestionAudio(qi, f); e.target.value = ''; }}
                               />
-                              <button onClick={() => qFileRefs.current[`qa${qi}`]?.click()} className="btn-ghost px-2 py-1 text-[10px]"
+                              <button onClick={() => qFileRefs.current[`qa${qi}`]?.click()} className="btn-ghost nx-press px-2 py-1 text-[10px]"
                                 title="Аудио к вопросу (MP3/WAV/OGG)">
                                 <Music className="w-3 h-3 inline mr-1" /> АУДИО
                               </button>
@@ -812,7 +813,7 @@ export default function Quizzes() {
                               <input
                                 type="number" min={1} value={q.points || 1}
                                 onChange={(e) => setQuestions((p) => p.map((x, i) => i === qi ? { ...x, points: Number(e.target.value) || 1 } : x))}
-                                className="w-16 px-2 py-1 rounded text-xs bg-white/5 border border-white/10 text-gray-200"
+                                className="w-16 px-2 py-1 rounded text-xs bg-white/5 border border-white/10 text-gray-200 [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]"
                               />
                             </div>
 
@@ -823,7 +824,7 @@ export default function Quizzes() {
                                   value={(q as any).correctText || ''}
                                   onChange={(e) => setQuestions((p) => p.map((x, i) => (i === qi ? { ...x, correctText: e.target.value } : x)))}
                                   placeholder="например: 42 | сорок два"
-                                  className="w-full px-3 py-2 rounded-lg text-sm bg-white/5 border border-white/10 text-gray-200"
+                                  className="w-full px-3 py-2 rounded-lg text-sm bg-white/5 border border-white/10 text-gray-200 [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]"
                                 />
                               </div>
                             )}
@@ -843,7 +844,7 @@ export default function Quizzes() {
                                           )
                                         )
                                       }
-                                      className="px-2 py-1.5 rounded-lg text-[9px] font-mono font-bold flex-shrink-0 min-w-[52px]"
+                                      className="px-2 py-1.5 rounded-lg text-[9px] font-mono font-bold flex-shrink-0 min-w-[52px] nx-press"
                                       style={{
                                         background: o.isCorrect ? 'var(--color-primary)' : 'rgba(255,255,255,0.06)',
                                         color: o.isCorrect ? '#000' : '#9ca3af',
@@ -865,14 +866,14 @@ export default function Quizzes() {
                                         )
                                       }
                                       placeholder={`Вариант ${oi + 1}`}
-                                      className="flex-1 px-2.5 py-1.5 rounded-lg text-xs bg-white/5 border border-white/10 text-gray-200"
+                                      className="flex-1 px-2.5 py-1.5 rounded-lg text-xs bg-white/5 border border-white/10 text-gray-200 [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]"
                                     />
                                     <input
                                       ref={(el) => { qFileRefs.current[`o${qi}_${oi}`] = el; }}
                                       type="file" accept="image/*" className="hidden"
                                       onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadOptionImage(qi, oi, f); e.target.value = ''; }}
                                     />
-                                    <button onClick={() => qFileRefs.current[`o${qi}_${oi}`]?.click()} className="p-1.5 text-gray-500 hover:text-gray-300" title="Картинка варианта">
+                                    <button onClick={() => qFileRefs.current[`o${qi}_${oi}`]?.click()} className="p-1.5 text-gray-500 hover:text-gray-300 nx-press" title="Картинка варианта">
                                       <ImageIcon className="w-3.5 h-3.5" />
                                     </button>
                                     {uploads[`o${qi}_${oi}`] !== undefined ? (
@@ -888,7 +889,7 @@ export default function Quizzes() {
                                           )
                                         )
                                       }
-                                      className="p-1 text-red-400"
+                                      className="p-1 text-red-400 nx-press"
                                     ><X className="w-3.5 h-3.5" /></button>
                                   </div>
                                 ))}
@@ -915,8 +916,9 @@ export default function Quizzes() {
 
               {/* только эти две кнопки закрывают форму */}
               <div className="flex justify-end gap-2 mt-5 sticky bottom-0 pt-3" style={{ background: 'linear-gradient(transparent, rgba(10,10,15,0.9) 30%)' }}>
-                <button onClick={cancelForm} className="btn-ghost px-5 py-2.5">ОТМЕНА</button>
-                <button onClick={save} className="btn-primary px-5 py-2.5"><Save className="w-4 h-4 inline mr-1" />СОХРАНИТЬ</button>
+                <button onClick={cancelForm} className="btn-ghost nx-press px-5 py-2.5">ОТМЕНА</button>
+                <button onClick={save} className="btn-primary nx-press px-5 py-2.5"><Save className="w-4 h-4 inline mr-1" />СОХРАНИТЬ</button>
+              </div>
               </div>
             </motion.div>
           </motion.div>
@@ -927,7 +929,8 @@ export default function Quizzes() {
       {qrFor && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4"
           style={{ background: 'rgba(0,0,0,0.65)' }} onClick={() => setQrFor(null)}>
-          <div className="glass-frost rounded-2xl p-6 text-center" onClick={(e) => e.stopPropagation()}>
+          <div className="nx-bezel" onClick={(e) => e.stopPropagation()}>
+            <div className="nx-core p-6 text-center">
             <h3 className="font-mono text-sm font-bold mb-3" style={{ color: 'var(--color-primary)' }}>QR КВИЗА</h3>
             <div className="bg-white p-4 rounded-xl inline-block">
               <QRCodeSVG value={`${window.location.origin}/quiz/${qrFor.publicSlug || qrFor.id}`} size={200} id="quiz-qr-svg" />
@@ -945,7 +948,7 @@ export default function Quizzes() {
                   a.click();
                   URL.revokeObjectURL(a.href);
                 }}
-                className="btn-ghost px-3 py-1.5 text-[10px]"
+                className="btn-ghost nx-press px-3 py-1.5 text-[10px]"
               >СКАЧАТЬ SVG</button>
               <button
                 onClick={() => {
@@ -968,13 +971,14 @@ export default function Quizzes() {
                   };
                   img.src = url;
                 }}
-                className="btn-primary px-3 py-1.5 text-[10px]"
+                className="btn-primary nx-press px-3 py-1.5 text-[10px]"
               >СКАЧАТЬ PNG</button>
             </div>
             <p className="text-[10px] font-mono text-gray-500 mt-3 break-all px-4">
               {window.location.origin}/quiz/{qrFor.publicSlug || qrFor.id}
             </p>
-            <button onClick={() => setQrFor(null)} className="btn-primary mt-4">ЗАКРЫТЬ</button>
+            <button onClick={() => setQrFor(null)} className="btn-primary nx-press mt-4">ЗАКРЫТЬ</button>
+            </div>
           </div>
         </div>
       )}

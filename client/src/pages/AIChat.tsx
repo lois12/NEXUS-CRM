@@ -186,16 +186,17 @@ export default function AIChat() {
     <div className="flex h-dvh-minus-header cyber-grid gap-3 relative">
       {/* Mobile sidebar toggle */}
       <button onClick={() => setShowSidebar(!showSidebar)}
-        className="md:hidden fixed top-20 left-3 z-50 p-2 rounded-lg glass"
+        className="md:hidden fixed top-20 left-3 z-50 p-2 rounded-lg glass nx-press"
         style={{ border: '1px solid rgba(255,255,255,0.1)' }}>
         <Menu className="w-5 h-5 text-gray-400" />
       </button>
 
       {/* Chat list sidebar */}
-      <div className={`${showSidebar ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 absolute md:relative z-40 w-56 flex-shrink-0 glass rounded-xl flex flex-col overflow-hidden transition-transform h-full`}>
+      <div className={`${showSidebar ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 absolute md:relative z-40 w-56 flex-shrink-0 transition-transform h-full nx-bezel`}>
+        <div className="nx-core flex flex-col overflow-hidden h-full">
         <div className="p-3 border-b border-white/5">
           <button onClick={createNewChat}
-            className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg font-mono text-xs font-medium transition-all"
+            className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg font-mono text-xs font-medium transition-all nx-press"
             style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}>
             <Plus className="w-4 h-4" />
             НОВЫЙ ЧАТ
@@ -204,19 +205,20 @@ export default function AIChat() {
         <div className="flex-1 overflow-y-auto p-2 space-y-1">
           {chats.slice().reverse().map(chat => (
             <button key={chat.id} onClick={() => { setActiveChatId(chat.id); setShowSidebar(false); }}
-              className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-left text-xs transition-all group ${
+              className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-left text-xs transition-all group nx-press ${
                 chat.id === activeChatId ? 'bg-white/10 text-white' : 'text-gray-400 hover:bg-white/5 hover:text-gray-200'
               }`}>
               <MessageSquare className="w-3.5 h-3.5 flex-shrink-0" />
               <span className="flex-1 truncate font-mono">{chat.title}</span>
               {chats.length > 1 && (
                 <button onClick={(e) => deleteChat(chat.id, e)}
-                  className="opacity-0 group-hover:opacity-100 text-gray-500 hover:text-red-400 transition-all flex-shrink-0">
+                  className="opacity-0 group-hover:opacity-100 text-gray-500 hover:text-red-400 transition-all flex-shrink-0 nx-press">
                   <X className="w-3 h-3" />
                 </button>
               )}
             </button>
           ))}
+        </div>
         </div>
       </div>
 
@@ -234,7 +236,8 @@ export default function AIChat() {
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto glass rounded-xl p-4 space-y-4 min-h-0">
+        <div className="flex-1 min-h-0 nx-bezel">
+          <div className="nx-core h-full overflow-y-auto p-4 space-y-4">
           {!activeChat || activeChat.messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-gray-500">
               <Bot className="w-14 h-14 mb-4 opacity-30" />
@@ -243,7 +246,7 @@ export default function AIChat() {
               <div className="grid grid-cols-2 gap-2 max-w-md w-full">
                 {['Напиши пост про туризм', 'Придумай 5 идей для reels', 'Переведи на английский', 'Составь план мероприятия'].map((q) => (
                   <button key={q} onClick={() => { setInput(q); inputRef.current?.focus(); }}
-                    className="text-left text-xs font-mono p-3 rounded-lg bg-white/5 border border-white/5 hover:border-white/15 text-gray-400 hover:text-gray-200 transition-all">
+                    className="text-left text-xs font-mono p-3 rounded-lg bg-white/5 border border-white/5 hover:border-white/15 text-gray-400 hover:text-gray-200 transition-all nx-press">
                     {q}
                   </button>
                 ))}
@@ -261,7 +264,7 @@ export default function AIChat() {
                       </div>
                     )}
                     <div className={`max-w-[80%] group relative ${msg.role === 'user' ? 'order-1' : ''}`}>
-                      <div className={`px-4 py-2.5 rounded-2xl text-sm whitespace-pre-wrap ${
+                      <div className={`px-4 py-2.5 rounded-2xl text-sm whitespace-pre-wrap [box-shadow:var(--depth-contact),var(--depth-rim-top),var(--depth-rim-bottom)] ${
                         msg.role === 'user' ? 'rounded-br-md' : 'rounded-bl-md bg-white/5 border border-white/5'
                       }`} style={msg.role === 'user' ? { backgroundColor: 'var(--color-primary)', color: '#000' } : {}}>
                         {msg.content}
@@ -272,7 +275,7 @@ export default function AIChat() {
                         </span>
                         {msg.role === 'assistant' && (
                           <button onClick={() => copyText(msg.id, msg.content)}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-500 hover:text-gray-300">
+                            className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-500 hover:text-gray-300 nx-press">
                             {copiedId === msg.id ? <CheckCheck className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
                           </button>
                         )}
@@ -300,21 +303,24 @@ export default function AIChat() {
             </>
           )}
           <div ref={messagesEndRef} />
+          </div>
         </div>
 
         {/* Input */}
-        <div className="mt-3 glass rounded-xl p-3">
+        <div className="mt-3 nx-bezel">
+          <div className="nx-core p-3">
           <div className="flex gap-2">
             <textarea ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={handleKeyDown}
               placeholder="// ЗАДАЙТЕ ВОПРОС..." rows={1}
-              className="flex-1 bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-sm text-gray-200 placeholder-gray-600 resize-none focus:outline-none focus:border-white/20 font-mono"
+              className="flex-1 bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-sm text-gray-200 placeholder-gray-600 resize-none focus:outline-none focus:border-white/20 font-mono [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]"
               style={{ minHeight: '42px', maxHeight: '100px' }}
               onInput={(e) => { const t = e.currentTarget; t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 100) + 'px'; }} />
             <button onClick={sendMessage} disabled={!input.trim() || isLoading}
-              className="btn-primary px-4 py-2.5 rounded-lg font-bold transition-all disabled:opacity-30 disabled:cursor-not-allowed flex-shrink-0"
+              className="btn-primary nx-press px-4 py-2.5 rounded-lg font-bold transition-all disabled:opacity-30 disabled:cursor-not-allowed flex-shrink-0"
               >
               {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
             </button>
+          </div>
           </div>
         </div>
       </div>

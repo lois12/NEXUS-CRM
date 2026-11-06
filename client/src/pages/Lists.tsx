@@ -700,7 +700,7 @@ export default function Lists() {
 
         <h2 className="font-mono text-lg font-bold neon-text flex items-center gap-2" style={{ color: 'var(--color-primary)' }}>
           <ListIcon className="w-5 h-5" /> {editing.name}
-          <span className="text-sm text-gray-500 font-normal">// {filteredEntries.length} записей</span>
+          <span className="nx-eyebrow">// {filteredEntries.length} записей</span>
         </h2>
 
         {/* Filters */}
@@ -753,28 +753,28 @@ export default function Lists() {
                 {sortedEntries.map((e) => {
                   const answers = (() => { try { return JSON.parse(e.answers || '{}'); } catch { return {}; } })();
                   return (
-                    <tr key={e.id} className={`border-b border-gray-800/50 hover:bg-white/5 group transition-colors ${e.pinned ? 'bg-[var(--color-primary)]/[0.03]' : ''}`}>
-                      <td className="px-2 py-2.5 hidden md:table-cell"><input type="checkbox" checked={selectedIds.has(e.id)} onChange={() => toggleSelect(e.id)} className="accent-[var(--color-primary)]" /></td>
-                      <td className="px-2 py-2.5">
+                    <tr key={e.id} className={`border-b border-gray-800/50 group ${e.pinned ? 'bg-[var(--color-primary)]/[0.03]' : ''}`}>
+                      <td className="px-2 py-2.5 hidden md:table-cell group-hover:[box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]"><input type="checkbox" checked={selectedIds.has(e.id)} onChange={() => toggleSelect(e.id)} className="accent-[var(--color-primary)]" /></td>
+                      <td className="px-2 py-2.5 group-hover:[box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]">
                         <div className="flex items-center gap-0.5">
-                          <button onClick={() => handleToggle(e.id, 'starred')} className="p-0.5 rounded hover:bg-white/10" title={e.starred ? 'Убрать из избранного' : 'В избранное'}>
+                          <button onClick={() => handleToggle(e.id, 'starred')} className="p-0.5 rounded hover:bg-white/10 nx-press" title={e.starred ? 'Убрать из избранного' : 'В избранное'}>
                             <Star className="w-3.5 h-3.5" style={e.starred ? { color: '#ffd700', fill: '#ffd700' } : { color: '#555' }} />
                           </button>
-                          <button onClick={() => handleToggle(e.id, 'pinned')} className="p-0.5 rounded hover:bg-white/10" title={e.pinned ? 'Открепить' : 'Закрепить'}>
+                          <button onClick={() => handleToggle(e.id, 'pinned')} className="p-0.5 rounded hover:bg-white/10 nx-press" title={e.pinned ? 'Открепить' : 'Закрепить'}>
                             <Pin className="w-3 h-3" style={e.pinned ? { color: 'var(--color-primary)', fill: 'var(--color-primary)' } : { color: '#555' }} />
                           </button>
                         </div>
                       </td>
-                      <td className="px-3 py-2.5 font-mono text-sm text-gray-200 cursor-pointer hover:text-[var(--color-primary)] transition-colors" onClick={() => setContactModal(e)}>{e.lastName}</td>
-                      <td className="px-3 py-2.5 font-mono text-sm text-gray-200 cursor-pointer hover:text-[var(--color-primary)] transition-colors" onClick={() => setContactModal(e)}>{e.firstName}</td>
-                      <td className="px-3 py-2.5 font-mono text-sm text-gray-200">{e.patronymic}</td>
-                      <td className="px-3 py-2.5 font-mono text-sm text-gray-300">
+                      <td className="px-3 py-2.5 font-mono text-sm text-gray-200 cursor-pointer hover:text-[var(--color-primary)] transition-colors group-hover:[box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]" onClick={() => setContactModal(e)}>{e.lastName}</td>
+                      <td className="px-3 py-2.5 font-mono text-sm text-gray-200 cursor-pointer hover:text-[var(--color-primary)] transition-colors group-hover:[box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]" onClick={() => setContactModal(e)}>{e.firstName}</td>
+                      <td className="px-3 py-2.5 font-mono text-sm text-gray-200 group-hover:[box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]">{e.patronymic}</td>
+                      <td className="px-3 py-2.5 font-mono text-sm text-gray-300 group-hover:[box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]">
                         {e.phone ? <a href={`tel:${e.phone.replace(/[^\d+]/g, '')}`} className="flex items-center gap-1 hover:text-[var(--color-primary)] transition-colors"><Phone className="w-3 h-3 text-gray-500" />{e.phone}</a> : '—'}
                       </td>
-                      <td className="px-3 py-2.5 font-mono text-sm text-gray-300">{e.email}</td>
-                      <td className="px-3 py-2.5 font-mono text-xs text-gray-400 max-w-[150px] truncate">{e.comment}</td>
+                      <td className="px-3 py-2.5 font-mono text-sm text-gray-300 group-hover:[box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]">{e.email}</td>
+                      <td className="px-3 py-2.5 font-mono text-xs text-gray-400 max-w-[150px] truncate group-hover:[box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]">{e.comment}</td>
                       {hasCalled && (
-                        <td className="px-3 py-2.5 text-center">
+                        <td className="px-3 py-2.5 text-center group-hover:[box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]">
                           <button onClick={() => handleToggle(e.id, 'called')}
                             className="inline-flex items-center justify-center w-7 h-7 rounded-lg transition-all hover:scale-110"
                             style={e.called
@@ -785,7 +785,7 @@ export default function Lists() {
                         </td>
                       )}
                       {hasVisited && (
-                        <td className="px-3 py-2.5 text-center">
+                        <td className="px-3 py-2.5 text-center group-hover:[box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]">
                           <button onClick={() => handleToggle(e.id, 'visited')}
                             className="inline-flex items-center justify-center w-7 h-7 rounded-lg transition-all hover:scale-110"
                             style={e.visited
@@ -796,12 +796,12 @@ export default function Lists() {
                         </td>
                       )}
                       {listFields.filter(f => f.type !== 'toggle_called' && f.type !== 'toggle_visited').map(f => (
-                        <td key={f.id} className="px-3 py-2.5 font-mono text-xs text-gray-300 max-w-[120px] truncate">{answers[f.id] || '—'}</td>
+                        <td key={f.id} className="px-3 py-2.5 font-mono text-xs text-gray-300 max-w-[120px] truncate group-hover:[box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]">{answers[f.id] || '—'}</td>
                       ))}
-                      <td className="px-3 py-2.5">
+                      <td className="px-3 py-2.5 group-hover:[box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]">
                         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button onClick={() => openEditEntry(e)} className="p-1 rounded hover:bg-white/10"><Edit3 className="w-3.5 h-3.5 text-gray-400" /></button>
-                          <button onClick={() => handleDeleteEntry(e.id)} className="p-1 rounded hover:bg-red-500/20"><Trash2 className="w-3.5 h-3.5 text-red-400" /></button>
+                          <button onClick={() => openEditEntry(e)} className="p-1 rounded hover:bg-white/10 nx-press"><Edit3 className="w-3.5 h-3.5 text-gray-400" /></button>
+                          <button onClick={() => handleDeleteEntry(e.id)} className="p-1 rounded hover:bg-red-500/20 nx-press"><Trash2 className="w-3.5 h-3.5 text-red-400" /></button>
                         </div>
                       </td>
                     </tr>
@@ -1014,7 +1014,7 @@ export default function Lists() {
           <h1 className="text-2xl md:text-3xl font-bold font-mono neon-text flex items-center gap-3" style={{ color: 'var(--color-primary)' }}>
             <ListIcon className="w-7 h-7 md:w-8 md:h-8" /> СПИСКИ
           </h1>
-          <p className="text-gray-400 mt-1 font-mono text-sm">// {lists.length} СПИСКОВ</p>
+          <div className="nx-eyebrow mt-2">// {lists.length} СПИСКОВ</div>
         </div>
         <div className="flex gap-2">
           <button onClick={openCreate} className="btn-primary flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-sm font-bold"

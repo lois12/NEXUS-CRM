@@ -91,13 +91,8 @@ function SortableTask({
       {...listeners}
     >
       <div
-        className="rounded-lg p-3 transition-all"
-        style={{
-          background: 'linear-gradient(145deg, rgba(30,30,50,0.6), rgba(20,20,35,0.8))',
-          border: '1px solid rgba(255,255,255,0.06)',
-          borderLeft: `3px solid ${PRIORITY_CONFIG[task.priority].color}`,
-          boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
-        }}
+        className="nx-tile p-3"
+        style={{ borderLeft: `3px solid ${PRIORITY_CONFIG[task.priority].color}` }}
       >
         <div className="flex items-start gap-2">
           <div className="mt-0.5 flex-shrink-0 opacity-30 group-hover:opacity-60 transition-opacity">
@@ -119,12 +114,12 @@ function SortableTask({
           </div>
           <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
             {onArchive && (
-              <button onClick={(e) => { e.stopPropagation(); onArchive(); }} className="p-1 rounded hover:bg-blue-500/20" title="В архив" aria-label="В архив">
+              <button onClick={(e) => { e.stopPropagation(); onArchive(); }} className="p-1 rounded hover:bg-blue-500/20 nx-press" title="В архив" aria-label="В архив">
                 <Archive className="w-3.5 h-3.5 text-blue-400" />
               </button>
             )}
-            <button onClick={(e) => { e.stopPropagation(); onEdit(); }} className="p-1 rounded hover:bg-white/10" aria-label="Редактировать"><Edit3 className="w-3.5 h-3.5 text-gray-400" /></button>
-            <button onClick={(e) => { e.stopPropagation(); onDelete(); }} className="p-1 rounded hover:bg-red-500/20" aria-label="Удалить"><Trash2 className="w-3.5 h-3.5 text-red-400" /></button>
+            <button onClick={(e) => { e.stopPropagation(); onEdit(); }} className="p-1 rounded hover:bg-white/10 nx-press" aria-label="Редактировать"><Edit3 className="w-3.5 h-3.5 text-gray-400" /></button>
+            <button onClick={(e) => { e.stopPropagation(); onDelete(); }} className="p-1 rounded hover:bg-red-500/20 nx-press" aria-label="Удалить"><Trash2 className="w-3.5 h-3.5 text-red-400" /></button>
           </div>
         </div>
       </div>
@@ -150,22 +145,23 @@ function DroppableColumn({
       ref={setNodeRef}
       className={`flex flex-col min-h-0 w-[200px] sm:w-[240px] md:w-auto md:flex-1 flex-shrink-0 rounded-xl border-2 transition-colors duration-300 ${isOver ? 'border-dashed' : ''}`}
       style={{
-        backgroundColor: isOver ? `${column.color}15` : 'rgba(15,15,25,0.85)',
+        backgroundColor: isOver ? `${column.color}15` : 'var(--color-card)',
         borderColor: isOver ? column.color : 'rgba(255,255,255,0.08)',
         borderTopColor: column.color,
         borderTopWidth: '3px',
         boxShadow: isOver
-          ? `0 0 30px ${column.color}20, inset 0 0 20px ${column.color}05`
-          : `0 -4px 16px ${column.color}10`,
+          ? `0 0 30px ${column.color}20, inset 0 0 20px ${column.color}05, var(--depth-rim-top), var(--depth-rim-bottom)`
+          : `0 -4px 16px ${column.color}10, var(--depth-rim-top), var(--depth-rim-bottom)`,
       }}
     >
-      <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: column.color, boxShadow: `0 0 10px ${column.color}80` }} />
-          <span className="font-mono text-[10px] font-bold tracking-[0.2em] uppercase" style={{ color: column.color, opacity: 0.8 }}>{column.label}</span>
-        </div>
+      <div className="px-4 py-3 flex items-center justify-between">
+        <span className="nx-eyebrow">
+          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: column.color, boxShadow: `0 0 10px ${column.color}80` }} />
+          {column.label}
+        </span>
         <span className="font-mono text-[10px] px-1.5 py-0.5 rounded" style={{ backgroundColor: `${column.color}15`, color: column.color }}>{tasks.length}</span>
       </div>
+      <div className="nx-divider" />
       <div ref={listRef} className="flex-1 overflow-y-auto p-2 space-y-1 min-h-[100px]">
         {children}
         {isOver && tasks.length === 0 && (
@@ -182,12 +178,10 @@ function DroppableColumn({
 function DragOverlayCard({ task }: { task: KanbanTask }) {
   return (
     <div
-      className="p-3 rounded-lg shadow-2xl"
+      className="nx-tile p-3"
       style={{
-        background: 'linear-gradient(145deg, rgba(30,30,50,0.95), rgba(20,20,35,0.98))',
-        border: '1px solid rgba(0,255,136,0.3)',
         borderLeft: `3px solid ${PRIORITY_CONFIG[task.priority].color}`,
-        boxShadow: '0 12px 40px rgba(0,0,0,0.5), 0 0 20px var(--color-glow)',
+        boxShadow: 'var(--depth-float), 0 0 20px var(--color-glow)',
         transform: 'rotate(2deg)',
         maxWidth: 300,
       }}
@@ -419,13 +413,13 @@ export default function Kanban() {
         </div>
         <div className="flex flex-wrap gap-2">
           <div className="flex rounded-lg overflow-hidden border border-gray-700">
-            <button onClick={() => setTab('active')} className={`px-3 sm:px-4 py-2 font-mono text-[10px] sm:text-xs font-bold transition-all ${tab === 'active' ? 'text-black' : 'text-gray-400 hover:text-gray-200'}`} style={tab === 'active' ? { backgroundColor: 'var(--color-primary)' } : {}}>АКТИВНЫЕ</button>
-            <button onClick={() => setTab('archive')} className={`px-3 sm:px-4 py-2 font-mono text-[10px] sm:text-xs font-bold transition-all flex items-center gap-1 ${tab === 'archive' ? 'text-black' : 'text-gray-400 hover:text-gray-200'}`} style={tab === 'archive' ? { backgroundColor: 'var(--color-primary)' } : {}}>
+            <button onClick={() => setTab('active')} className={`px-3 sm:px-4 py-2 font-mono text-[10px] sm:text-xs font-bold transition-all nx-press ${tab === 'active' ? 'text-black' : 'text-gray-400 hover:text-gray-200'}`} style={tab === 'active' ? { backgroundColor: 'var(--color-primary)' } : {}}>АКТИВНЫЕ</button>
+            <button onClick={() => setTab('archive')} className={`px-3 sm:px-4 py-2 font-mono text-[10px] sm:text-xs font-bold transition-all flex items-center gap-1 nx-press ${tab === 'archive' ? 'text-black' : 'text-gray-400 hover:text-gray-200'}`} style={tab === 'archive' ? { backgroundColor: 'var(--color-primary)' } : {}}>
               <Archive className="w-3 h-3" /> АРХИВ ({archived.length})
             </button>
           </div>
           {tab === 'active' && (
-            <button onClick={openCreate} className="btn-primary flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg font-mono text-xs sm:text-sm font-bold" >
+            <button onClick={openCreate} className="btn-primary nx-press flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg font-mono text-xs sm:text-sm font-bold" >
               <Plus className="w-4 h-4" /> СОЗДАТЬ
             </button>
           )}
@@ -479,14 +473,14 @@ export default function Kanban() {
             </div>
           ) : (
             archived.map(task => (
-              <motion.div key={task.id} layout className="glass-card rounded-xl p-4 group flex items-center gap-4 opacity-70 hover:opacity-100 transition-opacity">
+              <motion.div key={task.id} layout className="nx-tile p-4 group flex items-center gap-4 opacity-70 hover:opacity-100 transition-opacity">
                 <div className="flex-1 min-w-0">
                   <p className="font-mono text-sm text-gray-200">{task.title}</p>
                   {task.description && <p className="font-mono text-xs text-gray-500 mt-1">{task.description}</p>}
                 </div>
                 <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button onClick={() => handleUnarchive(task.id)} className="p-1.5 rounded hover:bg-green-500/20" aria-label="Восстановить"><ArchiveRestore className="w-4 h-4 text-green-400" /></button>
-                  <button onClick={() => handleDelete(task.id)} className="p-1.5 rounded hover:bg-red-500/20" aria-label="Удалить"><Trash2 className="w-4 h-4 text-red-400" /></button>
+                  <button onClick={() => handleUnarchive(task.id)} className="p-1.5 rounded hover:bg-green-500/20 nx-press" aria-label="Восстановить"><ArchiveRestore className="w-4 h-4 text-green-400" /></button>
+                  <button onClick={() => handleDelete(task.id)} className="p-1.5 rounded hover:bg-red-500/20 nx-press" aria-label="Удалить"><Trash2 className="w-4 h-4 text-red-400" /></button>
                 </div>
               </motion.div>
             ))
@@ -505,25 +499,25 @@ export default function Kanban() {
                 <h2 className="font-mono text-lg font-bold neon-text" style={{ color: 'var(--color-primary)' }}>
                   {editingTask ? 'РЕДАКТИРОВАТЬ' : 'НОВАЯ ЗАДАЧА'}
                 </h2>
-                <button onClick={() => setShowModal(false)} className="p-1 rounded hover:bg-white/10" aria-label="Закрыть"><X className="w-5 h-5 text-gray-400" /></button>
+                <button onClick={() => setShowModal(false)} className="p-1 rounded hover:bg-white/10 nx-press" aria-label="Закрыть"><X className="w-5 h-5 text-gray-400" /></button>
               </div>
               <div className="space-y-3">
                 <input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="// ЗАГОЛОВОК"
-                  className="w-full px-4 py-2.5 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)]" />
+                  className="w-full px-4 py-2.5 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]" />
                 <textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} placeholder="// ОПИСАНИЕ" rows={3}
-                  className="w-full px-4 py-2.5 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)] resize-none" />
+                  className="w-full px-4 py-2.5 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)] resize-none [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]" />
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="font-mono text-xs text-gray-500 mb-1 block">ПРИОРИТЕТ</label>
                     <select value={form.priority} onChange={e => setForm({ ...form, priority: e.target.value as KanbanPriority })}
-                      className="w-full px-3 py-2 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none">
+                      className="w-full px-3 py-2 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]">
                       {Object.entries(PRIORITY_CONFIG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                     </select>
                   </div>
                   <div>
                     <label className="font-mono text-xs text-gray-500 mb-1 block">СРОК</label>
                     <input type="date" value={form.dueDate} onChange={e => setForm({ ...form, dueDate: e.target.value })}
-                      className="w-full px-3 py-2 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none" />
+                      className="w-full px-3 py-2 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]" />
                   </div>
                 </div>
 
@@ -534,7 +528,7 @@ export default function Kanban() {
                       <span className="font-mono text-xs text-gray-400 flex items-center gap-1.5">
                         <Paperclip className="w-3.5 h-3.5" /> ФАЙЛЫ ({attachments.length})
                       </span>
-                      <label className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-mono text-xs cursor-pointer transition-all ${uploading ? 'opacity-50' : 'hover:bg-white/10'}`} style={{ border: '1px solid rgba(255,255,255,0.1)' }}>
+                      <label className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-mono text-xs cursor-pointer transition-all nx-press ${uploading ? 'opacity-50' : 'hover:bg-white/10'}`} style={{ border: '1px solid rgba(255,255,255,0.1)' }}>
                         <Upload className="w-3.5 h-3.5" />
                         {uploading ? 'ЗАГРУЗКА...' : 'ЗАГРУЗИТЬ'}
                         <input ref={fileRef} type="file" className="hidden" onChange={handleFileUpload} disabled={uploading} />
@@ -560,10 +554,10 @@ export default function Kanban() {
                                 <p className="font-mono text-[10px] text-gray-600">{formatFileSize(att.fileSize)}</p>
                               </div>
                               <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <a href={`${att.filePath}`} target="_blank" rel="noopener" className="p-1 rounded hover:bg-white/10" title="Скачать" aria-label="Скачать">
+                                <a href={`${att.filePath}`} target="_blank" rel="noopener" className="p-1 rounded hover:bg-white/10 nx-press" title="Скачать" aria-label="Скачать">
                                   <Download className="w-3.5 h-3.5 text-gray-400" />
                                 </a>
-                                <button onClick={() => handleDeleteAttachment(att.id)} className="p-1 rounded hover:bg-red-500/20" title="Удалить" aria-label="Удалить">
+                                <button onClick={() => handleDeleteAttachment(att.id)} className="p-1 rounded hover:bg-red-500/20 nx-press" title="Удалить" aria-label="Удалить">
                                   <Trash2 className="w-3.5 h-3.5 text-red-400" />
                                 </button>
                               </div>
@@ -579,8 +573,8 @@ export default function Kanban() {
                 )}
               </div>
               <div className="flex gap-3 mt-5">
-                <button onClick={() => setShowModal(false)} className="flex-1 px-4 py-2.5 rounded-xl glass font-mono text-sm text-gray-400">ОТМЕНА</button>
-                <button onClick={handleSave} className="btn-primary flex-1 px-4 py-2.5 rounded-xl font-mono text-sm font-bold"
+                <button onClick={() => setShowModal(false)} className="flex-1 px-4 py-2.5 rounded-xl glass font-mono text-sm text-gray-400 nx-press">ОТМЕНА</button>
+                <button onClick={handleSave} className="btn-primary nx-press flex-1 px-4 py-2.5 rounded-xl font-mono text-sm font-bold"
                   >{editingTask ? 'СОХРАНИТЬ' : 'СОЗДАТЬ'}</button>
               </div>
             </motion.div>

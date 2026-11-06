@@ -39,7 +39,7 @@ export default function PublicSurvey() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center nx-stage">
         <p className="font-mono text-sm text-gray-500">загрузка…</p>
       </div>
     );
@@ -47,8 +47,8 @@ export default function PublicSurvey() {
 
   if (error || !survey) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6">
-        <div className="glass rounded-xl p-8 text-center max-w-md">
+      <div className="min-h-screen flex items-center justify-center p-6 nx-stage">
+        <div className="nx-panel p-8 text-center max-w-md">
           <Wrench className="w-10 h-10 mx-auto mb-4 text-gray-600" />
           <p className="font-mono text-sm text-gray-300 mb-2">{error || 'Опрос не найден'}</p>
           <Link to="/" className="font-mono text-xs" style={{ color: 'var(--color-primary)' }}>
@@ -63,8 +63,8 @@ export default function PublicSurvey() {
 
   if (mode === 'scheduled') {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6">
-        <div className="glass rounded-2xl p-8 text-center max-w-md space-y-3">
+      <div className="min-h-screen flex items-center justify-center p-6 nx-stage">
+        <div className="nx-panel p-8 text-center max-w-md space-y-3">
           <Clock className="w-12 h-12 mx-auto" style={{ color: '#eab308' }} />
           <h1 className="font-mono text-xl font-bold text-white">{survey.name}</h1>
           {survey.description && (
@@ -83,8 +83,8 @@ export default function PublicSurvey() {
 
   if (mode === 'completed') {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6">
-        <div className="glass rounded-2xl p-8 text-center max-w-md space-y-3">
+      <div className="min-h-screen flex items-center justify-center p-6 nx-stage">
+        <div className="nx-panel p-8 text-center max-w-md space-y-3">
           <CheckCircle2 className="w-12 h-12 mx-auto" style={{ color: '#6c9eff' }} />
           <h1 className="font-mono text-xl font-bold text-white">ОПРОС ЗАВЕРШЁН</h1>
           <p className="font-mono text-sm text-gray-300 leading-relaxed">
@@ -93,7 +93,7 @@ export default function PublicSurvey() {
           {survey.thanksRedirectUrl && (
             <a
               href={survey.thanksRedirectUrl}
-              className="inline-block mt-2 px-4 py-2 rounded-lg font-mono text-xs font-bold"
+              className="inline-block mt-2 px-4 py-2 rounded-lg font-mono text-xs font-bold nx-press"
               style={{ background: 'var(--color-primary)', color: '#000' }}
             >
               ПЕРЕЙТИ
@@ -105,7 +105,7 @@ export default function PublicSurvey() {
   }
 
   return (
-    <div className="min-h-screen p-4 md:p-8">
+    <div className="min-h-screen p-4 md:p-8 nx-stage">
       <div className="max-w-xl mx-auto">
         <SurveyFillForm survey={survey} slug={slug!} />
         <PrivacyFooter compact />

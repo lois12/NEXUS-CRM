@@ -165,17 +165,17 @@ export default function Users() {
           <h1 className="text-2xl md:text-3xl font-bold font-mono neon-text flex items-center gap-3" style={{ color: 'var(--color-primary)' }}>
             <UsersIcon className="w-7 h-7 md:w-8 md:h-8" /> ПОЛЬЗОВАТЕЛИ
           </h1>
-          <p className="text-gray-400 mt-1 font-mono text-sm">// {users.length} УЧЁТНЫХ ЗАПИСЕЙ</p>
+          <p className="nx-eyebrow mt-2">// {users.length} УЧЁТНЫХ ЗАПИСЕЙ</p>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => { setEditingUser(null); resetForm(); setShowModal(true); }}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-mono text-sm font-bold"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-mono text-sm font-bold nx-press"
             style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}>
             <UserPlus className="w-4 h-4" /> ДОБАВИТЬ
           </button>
           <button onClick={() => printTable('Пользователи', ['Имя', 'Логин', 'Email', 'Роли', 'Статус', 'Создан'],
             filteredUsers.map(u => [u.fullName, u.username, u.email, parseRoles(u).join(', '), onlineIds.has(u.id) ? 'Онлайн' : formatLastSeen((u as any).lastSeen), formatDateKR(u.createdAt)]))}
-            className="flex items-center gap-2 px-3 py-2.5 rounded-xl font-mono text-sm hover:bg-white/5 transition-colors"
+            className="flex items-center gap-2 px-3 py-2.5 rounded-xl font-mono text-sm hover:bg-white/5 transition-colors nx-press"
             style={{ border: '1px solid rgba(255,255,255,0.08)', color: '#8a8aa0' }}>
             <Printer className="w-4 h-4" />
           </button>
@@ -186,7 +186,7 @@ export default function Users() {
       <div className="max-w-md relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
         <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="ПОИСК..."
-          className="w-full pl-10 pr-4 py-2.5 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)]" />
+          className="w-full pl-10 pr-4 py-2.5 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]" />
       </div>
 
       {/* Users Table */}
@@ -207,7 +207,7 @@ export default function Users() {
             {filteredUsers.map(user => {
               const roles = parseRoles(user);
               return (
-                <tr key={user.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                <tr key={user.id} className="border-b border-white/5 hover:[box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)] transition-shadow duration-200">
                   <td className="p-4">
                     <div className="flex items-center gap-3">
                       <div className="w-9 h-9 rounded-full flex items-center justify-center glass-accent overflow-hidden flex-shrink-0">
@@ -250,8 +250,8 @@ export default function Users() {
                   <td className="p-4 text-sm text-gray-400 font-mono">{formatDateKR(user.createdAt)}</td>
                   <td className="p-4 text-right">
                     <div className="flex items-center justify-end gap-1">
-                      <button onClick={() => handleEdit(user)} className="p-1.5 rounded hover:bg-white/10"><Edit className="w-4 h-4 text-gray-400" /></button>
-                      <button onClick={() => handleDelete(user)} className="p-1.5 rounded hover:bg-red-500/20"><Trash className="w-4 h-4 text-red-400" /></button>
+                      <button onClick={() => handleEdit(user)} className="p-1.5 rounded hover:bg-white/10 nx-press"><Edit className="w-4 h-4 text-gray-400" /></button>
+                      <button onClick={() => handleDelete(user)} className="p-1.5 rounded hover:bg-red-500/20 nx-press"><Trash className="w-4 h-4 text-red-400" /></button>
                     </div>
                   </td>
                 </tr>
@@ -279,7 +279,7 @@ export default function Users() {
                 <h2 className="font-mono text-lg font-bold neon-text" style={{ color: 'var(--color-primary)' }}>
                   {editingUser ? 'РЕДАКТИРОВАТЬ' : 'НОВЫЙ ПОЛЬЗОВАТЕЛЬ'}
                 </h2>
-                <button onClick={() => setShowModal(false)} className="p-1 rounded hover:bg-white/10"><X className="w-5 h-5 text-gray-400" /></button>
+                <button onClick={() => setShowModal(false)} className="p-1 rounded hover:bg-white/10 nx-press"><X className="w-5 h-5 text-gray-400" /></button>
               </div>
 
               {/* Avatar */}
@@ -294,7 +294,7 @@ export default function Users() {
                       )}
                     </div>
                     <button type="button" onClick={() => avatarInputRef.current?.click()} disabled={uploadingAvatar}
-                      className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full flex items-center justify-center"
+                      className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full flex items-center justify-center nx-press"
                       style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}>
                       {uploadingAvatar ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
                     </button>
@@ -345,7 +345,7 @@ export default function Users() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {ALL_ROLES.map(role => (
                       <button key={role.value} type="button" onClick={() => toggleRole(role.value)}
-                        className={`px-3 py-2 rounded-lg text-xs font-mono font-bold border transition-all ${
+                        className={`px-3 py-2 rounded-lg text-xs font-mono font-bold border transition-all nx-press ${
                           formData.roles.includes(role.value)
                             ? role.color
                             : 'border-gray-700 text-gray-500 hover:border-gray-500'
@@ -358,12 +358,12 @@ export default function Users() {
 
                 <div className="flex gap-3 pt-3">
                   <button type="button" onClick={() => setShowModal(false)}
-                    className="flex-1 px-4 py-2.5 rounded-xl font-mono text-sm transition-colors"
+                    className="flex-1 px-4 py-2.5 rounded-xl font-mono text-sm transition-colors nx-press"
                     style={{ backgroundColor: 'rgba(255,255,255,0.05)', color: 'var(--color-text-secondary)', border: '1px solid rgba(255,255,255,0.1)' }}>
                     ОТМЕНИТЬ
                   </button>
                   <button type="submit"
-                    className="btn-primary flex-1 px-4 py-2.5 rounded-xl font-mono text-sm font-bold transition-all"
+                    className="btn-primary flex-1 px-4 py-2.5 rounded-xl font-mono text-sm font-bold transition-all nx-press"
                     >
                     {editingUser ? 'СОХРАНИТЬ' : 'ДОБАВИТЬ'}
                   </button>

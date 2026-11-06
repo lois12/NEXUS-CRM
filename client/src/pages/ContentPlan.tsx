@@ -504,29 +504,23 @@ export default function ContentPlan() {
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: day * 0.02 }}
-          whileHover={{ scale: 1.05, zIndex: 10 }}
-          whileTap={{ scale: 0.97 }}
           onClick={() => openDayModal(date)}
           onContextMenu={(e) => handleContextMenu(e, date)}
-          className={`relative h-20 sm:h-20 md:h-24 lg:h-28 p-1.5 md:p-2 rounded-xl cursor-pointer transition-all duration-300 overflow-hidden group ${
+          className={`nx-tile relative h-20 sm:h-20 md:h-24 lg:h-28 p-1.5 md:p-2 cursor-pointer overflow-hidden group ${
             isWeekend ? 'weekend-cell' : ''
           }`}
           style={{
-            background: isSelected 
-              ? 'linear-gradient(135deg, var(--color-glow), rgba(0,0,0,0.3))' 
-              : isToday 
-              ? 'linear-gradient(135deg, var(--color-glow), rgba(0,0,0,0.5))'
-              : 'linear-gradient(135deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01))',
-            border: isToday 
-              ? '2px solid var(--color-primary)' 
-              : isSelected
-              ? '2px solid var(--color-accent)'
-              : '1px solid rgba(255,255,255,0.06)',
-            boxShadow: isToday 
-              ? '0 0 20px var(--color-glow), inset 0 0 20px var(--color-glow)' 
-              : isSelected
-              ? '0 0 15px var(--color-glow)'
-              : 'none',
+            ...(isSelected || isToday ? {
+              background: isSelected
+                ? 'linear-gradient(135deg, var(--color-glow), rgba(0,0,0,0.3))'
+                : 'linear-gradient(135deg, var(--color-glow), rgba(0,0,0,0.5))',
+              border: isToday
+                ? '2px solid var(--color-primary)'
+                : '2px solid var(--color-accent)',
+              boxShadow: isToday
+                ? '0 0 20px var(--color-glow), inset 0 0 20px var(--color-glow)'
+                : '0 0 15px var(--color-glow)',
+            } : {}),
           }}
         >
           {/* Glow effect on hover */}
@@ -622,7 +616,7 @@ export default function ContentPlan() {
             <Calendar className="w-7 h-7 md:w-8 md:h-8" />
             КОНТЕНТ-ПЛАН
           </h1>
-          <p className="text-gray-400 mt-1 font-mono text-sm">// КАЛЕНДАРЬ ПУБЛИКАЦИЙ В СОЦСЕТЯХ</p>
+          <div className="nx-eyebrow mt-2">// КАЛЕНДАРЬ ПУБЛИКАЦИЙ В СОЦСЕТЯХ</div>
         </div>
         
         <div className="flex items-center gap-2 md:gap-3 flex-wrap">
@@ -630,17 +624,17 @@ export default function ContentPlan() {
           <div className="flex rounded-lg overflow-hidden border border-gray-700">
             <button onClick={() => setCalendarView('grid')}
               title="Сетка месяца"
-              className={`p-2 transition-all ${calendarView === 'grid' ? 'bg-white/10 text-white' : 'text-gray-500 hover:text-gray-300'}`}>
+              className={`p-2 transition-all nx-press ${calendarView === 'grid' ? 'bg-white/10 text-white' : 'text-gray-500 hover:text-gray-300'}`}>
               <LayoutGrid className="w-4 h-4" />
             </button>
             <button onClick={() => setCalendarView('week')}
               title="Недели"
-              className={`p-2 transition-all ${calendarView === 'week' ? 'bg-white/10 text-white' : 'text-gray-500 hover:text-gray-300'}`}>
+              className={`p-2 transition-all nx-press ${calendarView === 'week' ? 'bg-white/10 text-white' : 'text-gray-500 hover:text-gray-300'}`}>
               <Rows className="w-4 h-4" />
             </button>
             <button onClick={() => setCalendarView('full')}
               title="Полный календарь"
-              className={`p-2 transition-all ${calendarView === 'full' ? 'bg-white/10 text-white' : 'text-gray-500 hover:text-gray-300'}`}>
+              className={`p-2 transition-all nx-press ${calendarView === 'full' ? 'bg-white/10 text-white' : 'text-gray-500 hover:text-gray-300'}`}>
               <CalendarDays className="w-4 h-4" />
             </button>
           </div>
@@ -650,14 +644,14 @@ export default function ContentPlan() {
             <button
               onClick={() => exportWeekPdf(posts)}
               title="Экспорт недели в PDF"
-              className="px-2.5 py-2 rounded-lg text-xs font-mono glass text-gray-400 hover:text-gray-200 transition-colors"
+              className="px-2.5 py-2 rounded-lg text-xs font-mono glass text-gray-400 hover:text-gray-200 transition-colors nx-press"
             >
               PDF
             </button>
             <button
               onClick={() => exportWeekCsv(posts)}
               title="Экспорт недели в CSV (Excel)"
-              className="px-2.5 py-2 rounded-lg text-xs font-mono glass text-gray-400 hover:text-gray-200 transition-colors"
+              className="px-2.5 py-2 rounded-lg text-xs font-mono glass text-gray-400 hover:text-gray-200 transition-colors nx-press"
             >
               CSV
             </button>
@@ -667,7 +661,7 @@ export default function ContentPlan() {
           <div className="flex gap-1 p-1 rounded-xl glass overflow-x-auto">
             <button
               onClick={() => setFilterPlatform('all')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-mono transition-all ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-mono transition-all nx-press ${
                 filterPlatform === 'all' ? 'glass-accent text-white' : 'text-gray-400 hover:text-gray-200'
               }`}
             >
@@ -677,7 +671,7 @@ export default function ContentPlan() {
               <button
                 key={platform}
                 onClick={() => setFilterPlatform(platform)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-mono transition-all ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-mono transition-all nx-press ${
                   filterPlatform === platform ? 'text-white' : 'text-gray-400 hover:text-gray-200'
                 }`}
                 style={filterPlatform === platform ? { 
@@ -691,20 +685,18 @@ export default function ContentPlan() {
           </div>
 
           {canEdit && (
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+            <button
               onClick={() => {
                 setEditingPost(null);
                 resetForm();
                 setShowModal(true);
               }}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl font-mono text-sm transition-all neon-glow-pulse"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl font-mono text-sm transition-all neon-glow-pulse nx-press"
               style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}
             >
               <Plus className="w-4 h-4" />
               НОВЫЙ ПОСТ
-            </motion.button>
+            </button>
           )}
         </div>
       </motion.div>
@@ -716,7 +708,7 @@ export default function ContentPlan() {
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="glass rounded-2xl p-4 md:p-6 overflow-hidden"
+              className="nx-panel p-4 md:p-6 overflow-hidden"
             >
               <Suspense fallback={<div className="h-64 flex items-center justify-center"><NexusSpinner isVisible /></div>}>
                 <FullCalendarView
@@ -732,7 +724,7 @@ export default function ContentPlan() {
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="glass rounded-2xl p-4 md:p-6 overflow-hidden"
+              className="nx-panel p-4 md:p-6 overflow-hidden"
             >
               <Suspense fallback={<div className="h-64 flex items-center justify-center"><NexusSpinner isVisible /></div>}>
                 <WeekAccordionView
@@ -756,43 +748,37 @@ export default function ContentPlan() {
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="glass rounded-2xl p-4 md:p-6 overflow-hidden"
+            className="nx-panel p-4 md:p-6 overflow-hidden"
           >
             {/* Calendar Navigation */}
             <div className="flex items-center justify-between mb-6">
-              <motion.button
-                whileHover={{ scale: 1.1, x: -2 }}
-                whileTap={{ scale: 0.9 }}
+              <button
                 onClick={() => navigateMonth('prev')}
-                className="p-2 md:p-3 rounded-xl glass hover:glass-accent transition-all"
+                className="p-2 md:p-3 rounded-xl glass hover:glass-accent transition-all nx-press"
               >
                 <ChevronLeft className="w-4 h-4 md:w-5 md:h-5" style={{ color: 'var(--color-primary)' }} />
-              </motion.button>
+              </button>
               
               <div className="flex items-center gap-2 md:gap-4">
                 <h2 className="text-lg md:text-2xl font-bold font-mono text-gray-200">
                   {MONTHS[currentDate.getMonth()]} {currentDate.getFullYear()}
                 </h2>
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
+                <button
                   onClick={goToToday}
-                  className="px-3 py-1.5 md:px-4 md:py-2 rounded-xl text-xs font-mono glass hover:glass-accent transition-all"
+                  className="px-3 py-1.5 md:px-4 md:py-2 rounded-xl text-xs font-mono glass hover:glass-accent transition-all nx-press"
                   style={{ color: 'var(--color-primary)' }}
                 >
                   <Clock className="w-3 h-3 inline mr-1" />
                   СЕГОДНЯ
-                </motion.button>
+                </button>
               </div>
               
-              <motion.button
-                whileHover={{ scale: 1.1, x: 2 }}
-                whileTap={{ scale: 0.9 }}
+              <button
                 onClick={() => navigateMonth('next')}
-                className="p-2 md:p-3 rounded-xl glass hover:glass-accent transition-all"
+                className="p-2 md:p-3 rounded-xl glass hover:glass-accent transition-all nx-press"
               >
                 <ChevronRight className="w-4 h-4 md:w-5 md:h-5" style={{ color: 'var(--color-primary)' }} />
-              </motion.button>
+              </button>
             </div>
 
             {/* Days of Week Header */}
@@ -814,7 +800,8 @@ export default function ContentPlan() {
             <div className="grid grid-cols-7 gap-1 sm:gap-2">{renderCalendar()}</div>
 
             {/* Legend */}
-            <div className="flex flex-wrap items-center gap-4 mt-6 pt-4 border-t border-white/5">
+            <div className="nx-divider mt-6" />
+            <div className="flex flex-wrap items-center gap-4 pt-4">
               <div className="flex items-center gap-2">
                 <Sparkles className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />
                 <span className="text-xs font-mono text-gray-500">ПЛОЩАДКИ:</span>
@@ -849,7 +836,7 @@ export default function ContentPlan() {
           <motion.div 
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="glass rounded-2xl p-4 sticky top-6"
+            className="nx-panel p-4 sticky top-6"
           >
             {/* Selected Date */}
             <div className="flex items-center justify-between mb-4">
@@ -862,14 +849,14 @@ export default function ContentPlan() {
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => openDayModal(selectedDate)}
-                    className="p-1.5 rounded-lg hover:bg-white/10 text-gray-400 hover:text-gray-200 transition-colors"
+                    className="p-1.5 rounded-lg hover:bg-white/10 text-gray-400 hover:text-gray-200 transition-colors nx-press"
                     title="Управление днём"
                   >
                     <MoreVertical className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => setSelectedDate(null)}
-                    className="p-1.5 rounded-lg hover:bg-white/10 text-gray-400 hover:text-gray-200 transition-colors"
+                    className="p-1.5 rounded-lg hover:bg-white/10 text-gray-400 hover:text-gray-200 transition-colors nx-press"
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -890,7 +877,7 @@ export default function ContentPlan() {
                           initial={{ opacity: 0, x: 20 }}
                           animate={{ opacity: 1, x: 0 }}
                           transition={{ delay: index * 0.1 }}
-                          className="glass-card rounded-xl p-3 group"
+                          className="nx-tile p-3 group"
                         >
                           <div className="flex items-start justify-between mb-2 gap-2">
                             <PlatformBadges post={post} size="sm" />
@@ -911,14 +898,14 @@ export default function ContentPlan() {
                               <>
                                 <button
                                   onClick={() => handleEdit(post)}
-                                  className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg glass text-gray-400 hover:text-gray-200 text-xs transition-colors"
+                                  className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg glass text-gray-400 hover:text-gray-200 text-xs transition-colors nx-press"
                                 >
                                   <Edit className="w-3 h-3" />
                                   ИЗМЕНИТЬ
                                 </button>
                                 <button
                                   onClick={() => handleDelete(post.id)}
-                                  className="p-1.5 rounded-lg glass text-gray-400 hover:text-red-400 transition-colors"
+                                  className="p-1.5 rounded-lg glass text-gray-400 hover:text-red-400 transition-colors nx-press"
                                 >
                                   <Trash className="w-3 h-3" />
                                 </button>
@@ -951,7 +938,8 @@ export default function ContentPlan() {
             )}
 
             {/* Stats */}
-            <div className="mt-6 pt-4 border-t border-white/5">
+            <div className="nx-divider mt-6" />
+            <div className="pt-4">
               <h4 className="text-xs font-mono mb-3" style={{ color: 'var(--color-primary)' }}>
                 // СТАТИСТИКА
               </h4>
@@ -1068,9 +1056,9 @@ export default function ContentPlan() {
                     <Calendar className="w-5 h-5" style={{ color: 'var(--color-primary)' }} />
                     {selectedDate.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}
                   </h2>
-                  <p className="text-xs font-mono text-gray-500 mt-1">
+                  <div className="nx-eyebrow mt-2">
                     // {selectedDatePosts.length} {selectedDatePosts.length === 1 ? 'ПОСТ' : 'ПОСТОВ'}
-                  </p>
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
@@ -1079,14 +1067,14 @@ export default function ContentPlan() {
                       setEditingPost(null);
                       setShowModal(true);
                     }}
-                    className="p-2 rounded-lg hover:bg-white/10 text-gray-400 hover:text-gray-200 transition-colors"
+                    className="p-2 rounded-lg hover:bg-white/10 text-gray-400 hover:text-gray-200 transition-colors nx-press"
                     title="Добавить пост"
                   >
                     <Plus className="w-5 h-5" />
                   </button>
                   <button
                     onClick={() => setShowDayModal(false)}
-                    className="p-2 rounded-lg hover:bg-white/10 text-gray-400 hover:text-gray-200 transition-colors"
+                    className="p-2 rounded-lg hover:bg-white/10 text-gray-400 hover:text-gray-200 transition-colors nx-press"
                   >
                     <X className="w-5 h-5" />
                   </button>
@@ -1105,7 +1093,7 @@ export default function ContentPlan() {
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: index * 0.05 }}
-                        className="glass-card rounded-xl overflow-hidden"
+                        className="nx-tile overflow-hidden"
                       >
                         {/* Compact header — always visible */}
                         <button
@@ -1345,15 +1333,15 @@ export default function ContentPlan() {
 
                 <div className="flex gap-3 pt-4">
                   <button type="button" onClick={() => setShowModal(false)}
-                    className="flex-1 py-3 px-4 rounded-xl glass text-gray-400 hover:text-gray-200 transition-colors font-mono">
+                    className="flex-1 py-3 px-4 rounded-xl glass text-gray-400 hover:text-gray-200 transition-colors font-mono nx-press">
                     {canEdit ? 'ОТМЕНА' : 'ЗАКРЫТЬ'}
                   </button>
                   {canEdit && (
-                    <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} type="submit"
-                      className="flex-1 py-3 px-4 rounded-xl font-mono font-bold transition-all"
+                    <button type="submit"
+                      className="flex-1 py-3 px-4 rounded-xl font-mono font-bold transition-all nx-press"
                       style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}>
                       {editingPost ? 'СОХРАНИТЬ' : 'СОЗДАТЬ'}
-                    </motion.button>
+                    </button>
                   )}
                 </div>
               </form>

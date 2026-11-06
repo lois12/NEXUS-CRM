@@ -166,7 +166,7 @@ export default function SurveyBuilder({ survey, onSaved, onBack }: Props) {
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2 flex-wrap">
-        <button onClick={onBack} className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-xs glass hover:bg-white/10">
+        <button onClick={onBack} className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-xs glass hover:bg-white/10 nx-press">
           <ArrowLeft className="w-3.5 h-3.5" /> НАЗАД
         </button>
         <h2 className="font-mono text-lg font-bold flex-1 min-w-0 truncate" style={{ color: 'var(--color-primary)' }}>
@@ -175,7 +175,7 @@ export default function SurveyBuilder({ survey, onSaved, onBack }: Props) {
         <button
           onClick={() => save()}
           disabled={saving}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-xs font-bold disabled:opacity-50"
+          className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-xs font-bold disabled:opacity-50 nx-press"
           style={{ background: 'rgba(255,255,255,0.08)', color: '#ccc' }}
         >
           <Save className="w-3.5 h-3.5" />
@@ -183,7 +183,7 @@ export default function SurveyBuilder({ survey, onSaved, onBack }: Props) {
         </button>
         <button
           onClick={() => setPreviewOpen(true)}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-xs font-bold"
+          className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-xs font-bold nx-press"
           style={{ background: 'rgba(255,255,255,0.1)', color: '#eee' }}
           title="Превью формы"
         >
@@ -192,7 +192,7 @@ export default function SurveyBuilder({ survey, onSaved, onBack }: Props) {
         <button
           onClick={togglePublish}
           disabled={saving}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-lg font-mono text-xs font-bold disabled:opacity-50"
+          className="flex items-center gap-1.5 px-4 py-2 rounded-lg font-mono text-xs font-bold disabled:opacity-50 nx-press"
           style={isPublic
             ? { background: 'rgba(234,179,8,0.2)', color: '#eab308', border: '1px solid rgba(234,179,8,0.4)' }
             : { background: 'var(--color-primary)', color: '#000' }}
@@ -203,13 +203,13 @@ export default function SurveyBuilder({ survey, onSaved, onBack }: Props) {
       </div>
 
         <div
-          className="rounded-xl p-3 space-y-2"
+          className="rounded-xl p-3 space-y-2 [box-shadow:var(--depth-contact),var(--depth-rim-top),var(--depth-rim-bottom)]"
           style={{
             background: status === 'published' ? 'rgba(0,255,136,0.08)' : STATUS_META[status]?.bg || 'rgba(255,255,255,0.03)',
             border: `1px solid ${status === 'published' ? 'rgba(0,255,136,0.25)' : (STATUS_META[status]?.color + '33') || 'rgba(255,255,255,0.08)'}`,
           }}
         >
-          <div className="font-mono text-[9px] text-gray-500 uppercase tracking-wider">
+          <div className="nx-eyebrow">
             Статус и ссылка для пользователей
           </div>
           <div className="flex items-stretch gap-2 flex-wrap">
@@ -228,13 +228,13 @@ export default function SurveyBuilder({ survey, onSaved, onBack }: Props) {
                 value={publicSlug}
                 onChange={(e) => setPublicSlug(e.target.value.toLowerCase().replace(/[^a-z0-9а-яё_-]/g, '-'))}
                 placeholder="ocenka-meropriyatiya"
-                className="flex-1 px-2 py-2.5 rounded-r-lg font-mono text-sm bg-black/40 border border-gray-700 text-white focus:outline-none focus:border-[var(--color-primary)]"
+                className="flex-1 px-2 py-2.5 rounded-r-lg font-mono text-sm bg-black/40 border border-gray-700 text-white focus:outline-none focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]"
               />
             </div>
             <button
               onClick={() => save()}
               disabled={saving}
-              className="px-3 py-2 rounded-lg font-mono text-[11px] font-bold disabled:opacity-50"
+              className="px-3 py-2 rounded-lg font-mono text-[11px] font-bold disabled:opacity-50 nx-press"
               style={{ background: 'rgba(255,255,255,0.1)', color: '#ddd' }}
               title="Сохранить адрес"
             >
@@ -243,15 +243,15 @@ export default function SurveyBuilder({ survey, onSaved, onBack }: Props) {
             <button
               onClick={copyLink}
               disabled={!publicSlug}
-              className="btn-primary flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-[11px] font-bold disabled:opacity-40"
-              
+              className="btn-primary nx-press flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-[11px] font-bold disabled:opacity-40"
+
             >
               <Copy className="w-3.5 h-3.5" /> КОПИРОВАТЬ
             </button>
             {publicUrl && (
               <button
                 onClick={() => window.open(publicUrl, '_blank')}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-[11px] glass hover:bg-white/10"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-[11px] glass hover:bg-white/10 nx-press"
               >
                 <ExternalLink className="w-3.5 h-3.5" /> ОТКРЫТЬ
               </button>
@@ -288,11 +288,13 @@ export default function SurveyBuilder({ survey, onSaved, onBack }: Props) {
         }}
       />
 
+      <div className="nx-divider my-3" />
+
       <div className="flex items-center justify-between">
-        <span className="font-mono text-xs text-gray-500">ВОПРОСЫ ({questions.length})</span>
+        <span className="nx-eyebrow">ВОПРОСЫ ({questions.length})</span>
         <button
           onClick={() => setQuestions((prev) => [...prev, { type: 'choice', title: '', options: ['', ''], required: false }])}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-mono text-[11px] glass hover:bg-white/10"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-mono text-[11px] glass hover:bg-white/10 nx-press"
         >
           <Plus className="w-3.5 h-3.5" /> ВОПРОС
         </button>

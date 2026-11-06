@@ -285,11 +285,11 @@ export default function Materials() {
           <h1 className="text-2xl md:text-3xl font-bold font-mono neon-text flex items-center gap-3" style={{ color: 'var(--color-primary)' }}>
             <FolderOpen className="w-7 h-7 md:w-8 md:h-8" /> ХРАНИЛИЩЕ
           </h1>
-          <p className="text-gray-400 mt-1 font-mono text-sm">// УПРАВЛЕНИЕ ФАЙЛАМИ И МЕДИА</p>
+          <p className="nx-eyebrow mt-2">// УПРАВЛЕНИЕ ФАЙЛАМИ И МЕДИА</p>
         </div>
-        <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+        <motion.button
           onClick={() => fileInputRef.current?.click()} disabled={uploadQueue.some(u => u.status === 'uploading')}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl font-mono text-sm transition-all"
+          className="flex items-center gap-2 px-4 py-2 rounded-xl font-mono text-sm nx-press"
           style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}>
           <Upload className="w-5 h-5" /> {uploadQueue.some(u => u.status === 'uploading') ? 'Загрузка...' : 'Загрузить'}
         </motion.button>
@@ -302,12 +302,12 @@ export default function Materials() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
             <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-              placeholder="Поиск..." className="w-full pl-10 pr-4 py-2 bg-white/5 border border-white/10 rounded-lg text-gray-200 placeholder-gray-500" />
+              placeholder="Поиск..." className="w-full pl-10 pr-4 py-2 bg-white/5 border border-white/10 rounded-lg text-gray-200 placeholder-gray-500 [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]" />
           </div>
         </div>
 
         <select value={filterType} onChange={e => setFilterType(e.target.value as any)}
-          className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-gray-200">
+          className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-gray-200 [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]">
           <option value="all">Все типы</option>
           <option value="image">Изображения</option>
           <option value="document">Документы</option>
@@ -321,7 +321,7 @@ export default function Materials() {
           <div className="flex gap-1">
             {GRID_PRESETS.map((p, i) => (
               <button key={p.label} onClick={() => setGridSize(i)}
-                className="px-2 py-1 rounded text-[10px] font-mono transition-all"
+                className="px-2 py-1 rounded text-[10px] font-mono nx-press"
                 style={gridSize === i
                   ? { background: 'var(--color-primary)', color: '#000' }
                   : { color: '#5a5a70', background: 'rgba(255,255,255,0.03)' }}>
@@ -333,11 +333,11 @@ export default function Materials() {
 
         <div className="flex gap-2">
           <button onClick={() => setViewMode('grid')}
-            className={`p-2 rounded-lg transition-colors ${viewMode === 'grid' ? 'glass-accent' : 'bg-white/5 text-gray-400'}`} aria-label="Сетка">
+            className={`p-2 rounded-lg transition-colors nx-press ${viewMode === 'grid' ? 'glass-accent' : 'bg-white/5 text-gray-400'}`} aria-label="Сетка">
             <Grid className="w-5 h-5" style={viewMode === 'grid' ? { color: 'var(--color-primary)' } : {}} />
           </button>
           <button onClick={() => setViewMode('list')}
-            className={`p-2 rounded-lg transition-colors ${viewMode === 'list' ? 'glass-accent' : 'bg-white/5 text-gray-400'}`} aria-label="Список">
+            className={`p-2 rounded-lg transition-colors nx-press ${viewMode === 'list' ? 'glass-accent' : 'bg-white/5 text-gray-400'}`} aria-label="Список">
             <List className="w-5 h-5" style={viewMode === 'list' ? { color: 'var(--color-primary)' } : {}} />
           </button>
         </div>
@@ -346,7 +346,7 @@ export default function Materials() {
       {/* Folders */}
       <div className="flex flex-wrap gap-2 items-center">
         <button onClick={() => setCurrentFolder('')}
-          className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${!currentFolder ? 'glass-accent' : 'bg-white/5 text-gray-400'}`}
+          className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors nx-press ${!currentFolder ? 'glass-accent' : 'bg-white/5 text-gray-400'}`}
           style={!currentFolder ? { color: 'var(--color-primary)' } : {}}>
           <FolderOpen className="w-4 h-4" /> Все файлы
         </button>
@@ -355,7 +355,7 @@ export default function Materials() {
             onDragOver={(e) => handleFolderDragOver(e, f)}
             onDragLeave={() => setDragOverFolder(null)}
             onDrop={(e) => handleFolderDrop(e, f)}
-            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${currentFolder === f ? 'glass-accent' : 'bg-white/5 text-gray-400'} ${dragOverFolder === f ? 'ring-2 ring-green-500/50' : ''}`}
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors nx-press ${currentFolder === f ? 'glass-accent' : 'bg-white/5 text-gray-400'} ${dragOverFolder === f ? 'ring-2 ring-green-500/50' : ''}`}
             style={currentFolder === f ? { color: 'var(--color-primary)' } : {}}>
             <Folder className="w-4 h-4" /> {f}
           </button>
@@ -370,11 +370,11 @@ export default function Materials() {
               placeholder="Имя папки"
               className="px-2 py-2 rounded-lg text-sm bg-white/5 border border-white/10 text-gray-200 w-32"
             />
-            <button onClick={addFolder} className="btn-primary px-2 py-2 text-[10px]">OK</button>
-            <button onClick={() => setShowNewFolder(false)} className="btn-ghost px-2 py-2 text-[10px]">✕</button>
+            <button onClick={addFolder} className="btn-primary nx-press px-2 py-2 text-[10px]">OK</button>
+            <button onClick={() => setShowNewFolder(false)} className="btn-ghost nx-press px-2 py-2 text-[10px]">✕</button>
           </div>
         ) : (
-          <button onClick={() => setShowNewFolder(true)} className="flex items-center gap-1 px-3 py-2 rounded-lg text-sm btn-ghost">
+          <button onClick={() => setShowNewFolder(true)} className="flex items-center gap-1 px-3 py-2 rounded-lg text-sm btn-ghost nx-press">
             + ПАПКА
           </button>
         )}
@@ -386,10 +386,10 @@ export default function Materials() {
           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
             className="glass rounded-2xl p-4 overflow-hidden">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-mono font-bold" style={{ color: 'var(--color-primary)' }}>
+              <span className="nx-eyebrow">
                 // ЗАГРУЗКА ({uploadQueue.filter(u => u.status === 'done').length}/{uploadQueue.length})
               </span>
-              <button onClick={() => { setShowUploadPanel(false); setUploadQueue([]); }} className="p-1 rounded hover:bg-white/10" aria-label="Закрыть">
+              <button onClick={() => { setShowUploadPanel(false); setUploadQueue([]); }} className="p-1 rounded hover:bg-white/10 nx-press" aria-label="Закрыть">
                 <X className="w-4 h-4 text-gray-400" />
               </button>
             </div>
@@ -438,9 +438,9 @@ export default function Materials() {
               <motion.div
                 key={material.id}
                 layout
-                initial={{ opacity: 0, scale: 0.92 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ type: 'spring', stiffness: 260, damping: 26 }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.3 }}
                 draggable
                 onDragStart={(e) => handleFileDragStart(e as any, material.id)}
                 onDragEnd={handleFileDragEnd as any}
@@ -449,7 +449,7 @@ export default function Materials() {
                   setMoveOpen(false);
                   setCtx({ x: e.clientX, y: e.clientY, material });
                 }}
-                className="glass rounded-xl overflow-hidden hover:shadow-neon transition-all group cursor-grab active:cursor-grabbing mat-card"
+                className="nx-tile overflow-hidden group cursor-grab active:cursor-grabbing mat-card"
               >
                 <div className={`flex items-center justify-center ${preset.imgH} bg-white/5`}>
                   {material.type === 'image' ? (
@@ -472,17 +472,17 @@ export default function Materials() {
                   <p className="text-[10px] text-gray-400">{formatFileSize(material.size)}</p>
                   <div className="flex items-center gap-1.5 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button onClick={() => openSendModal(material)}
-                      className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-[10px] transition-colors"
+                      className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-[10px] transition-colors nx-press"
                       style={{ background: 'rgba(0,255,136,0.1)', color: 'var(--color-primary)', border: '1px solid rgba(0,255,136,0.2)' }}>
                       <Send className="w-3 h-3" /> Чат
                     </button>
-                    <a href={material.url} download className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-white/5 text-gray-400 hover:text-gray-200 text-[10px]" aria-label="Скачать">
+                    <a href={material.url} download className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-white/5 text-gray-400 hover:text-gray-200 text-[10px] nx-press" aria-label="Скачать">
                       <Download className="w-3 h-3" />
                     </a>
-                    <button onClick={() => handleCopyLink(material)} className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-white/5 text-gray-400 hover:text-gray-200 text-[10px]" aria-label="Копировать ссылку">
+                    <button onClick={() => handleCopyLink(material)} className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-white/5 text-gray-400 hover:text-gray-200 text-[10px] nx-press" aria-label="Копировать ссылку">
                       <Link className="w-3 h-3" />
                     </button>
-                    <button onClick={() => handleDelete(material.id)} className="p-1.5 rounded-lg bg-white/5 text-gray-400 hover:text-red-400 hover:bg-red-500/10" aria-label="Удалить">
+                    <button onClick={() => handleDelete(material.id)} className="p-1.5 rounded-lg bg-white/5 text-gray-400 hover:text-red-400 hover:bg-red-500/10 nx-press" aria-label="Удалить">
                       <Trash className="w-3 h-3" />
                     </button>
                   </div>
@@ -514,7 +514,7 @@ export default function Materials() {
                       setMoveOpen(false);
                       setCtx({ x: e.clientX, y: e.clientY, material });
                     }}
-                    className="border-b border-white/5 hover:bg-white/[0.02]"
+                    className="border-b border-white/5 hover:[box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)] transition-shadow duration-200"
                   >
                     <td className="p-4"><div className="flex items-center gap-3"><Icon className={`w-5 h-5 ${typeColors[material.type]}`} /><span className="text-sm text-gray-200">{material.name}</span></div></td>
                     <td className="p-4 text-sm text-gray-400 capitalize">{material.type}</td>
@@ -522,12 +522,12 @@ export default function Materials() {
                     <td className="p-4 text-sm text-gray-400">{formatDateKR(material.createdAt)}</td>
                     <td className="p-4 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <button onClick={() => openSendModal(material)} className="p-2 rounded-lg bg-white/5 text-gray-400 hover:text-green-400" title="Отправить в чат" aria-label="Отправить в чат">
+                        <button onClick={() => openSendModal(material)} className="p-2 rounded-lg bg-white/5 text-gray-400 hover:text-green-400 nx-press" title="Отправить в чат" aria-label="Отправить в чат">
                           <Send className="w-4 h-4" />
                         </button>
-                        <a href={material.url} download className="p-2 rounded-lg bg-white/5 text-gray-400 hover:text-gray-200" aria-label="Скачать"><Download className="w-4 h-4" /></a>
-                        <button onClick={() => handleCopyLink(material)} className="p-2 rounded-lg bg-white/5 text-gray-400 hover:text-gray-200" aria-label="Копировать ссылку"><Link className="w-4 h-4" /></button>
-                        <button onClick={() => handleDelete(material.id)} className="p-2 rounded-lg bg-white/5 text-gray-400 hover:text-red-400" aria-label="Удалить"><Trash className="w-4 h-4" /></button>
+                        <a href={material.url} download className="p-2 rounded-lg bg-white/5 text-gray-400 hover:text-gray-200 nx-press" aria-label="Скачать"><Download className="w-4 h-4" /></a>
+                        <button onClick={() => handleCopyLink(material)} className="p-2 rounded-lg bg-white/5 text-gray-400 hover:text-gray-200 nx-press" aria-label="Копировать ссылку"><Link className="w-4 h-4" /></button>
+                        <button onClick={() => handleDelete(material.id)} className="p-2 rounded-lg bg-white/5 text-gray-400 hover:text-red-400 nx-press" aria-label="Удалить"><Trash className="w-4 h-4" /></button>
                       </div>
                     </td>
                   </tr>
@@ -542,7 +542,7 @@ export default function Materials() {
         <div className="flex justify-center pt-2">
           <button
             onClick={() => setVisibleCount(c => c + 48)}
-            className="btn-ghost"
+            className="btn-ghost nx-press"
           >
             ПОКАЗАТЬ ЕЩЁ ({filteredMaterials.length - visibleMaterials.length})
           </button>
@@ -573,7 +573,7 @@ export default function Materials() {
               {/* Header */}
               <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
                 <span className="text-sm font-mono font-bold" style={{ color: 'var(--color-primary)' }}>ОТПРАВИТЬ В ЧАТ</span>
-                <button onClick={() => setSendModal(null)} className="p-1.5 rounded-xl hover:bg-white/5" aria-label="Закрыть"><X className="w-4 h-4 text-gray-400" /></button>
+                <button onClick={() => setSendModal(null)} className="p-1.5 rounded-xl hover:bg-white/5 nx-press" aria-label="Закрыть"><X className="w-4 h-4 text-gray-400" /></button>
               </div>
 
               {/* Preview */}
@@ -597,14 +597,14 @@ export default function Materials() {
                   <div className="flex items-center gap-3 p-3 rounded-xl" style={{ background: 'rgba(0,255,136,0.05)', border: '1px solid rgba(0,255,136,0.15)' }}>
                     <MessageCircle className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />
                     <span className="text-sm text-gray-200 flex-1">{selectedConv.otherName}</span>
-                    <button onClick={() => setSelectedConv(null)} className="text-xs text-gray-400 hover:text-gray-200">Сменить</button>
+                    <button onClick={() => setSelectedConv(null)} className="text-xs text-gray-400 hover:text-gray-200 nx-press">Сменить</button>
                   </div>
                 ) : (
                   <div className="space-y-1">
                     {conversations.length === 0 && <p className="text-xs text-gray-400 text-center py-4">Нет чатов</p>}
                     {conversations.map(conv => (
                       <button key={conv.id} onClick={() => setSelectedConv(conv)}
-                        className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/[0.03] transition-colors text-left">
+                        className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/[0.03] transition-colors text-left nx-press">
                         <MessageCircle className="w-4 h-4 text-gray-400" />
                         <div className="flex-1 min-w-0">
                           <span className="text-sm text-gray-200 truncate block">{conv.otherName}</span>
@@ -627,7 +627,7 @@ export default function Materials() {
               {/* Send button */}
               <div className="px-5 pb-5">
                 <button onClick={handleSendToChat} disabled={!selectedConv || sending}
-                  className="w-full py-3 rounded-xl font-mono text-sm font-bold transition-all disabled:opacity-30"
+                  className="w-full py-3 rounded-xl font-mono text-sm font-bold transition-all disabled:opacity-30 nx-press"
                   style={{ background: 'linear-gradient(135deg, var(--color-primary), var(--color-secondary))', color: '#000' }}>
                   {sending ? 'Отправка...' : 'ОТПРАВИТЬ'}
                 </button>
@@ -647,7 +647,7 @@ export default function Materials() {
         >
           <button
             onClick={() => setZoom(null)}
-            className="absolute top-4 right-4 p-2 rounded-lg bg-white/10 text-gray-300 hover:text-white z-10"
+            className="absolute top-4 right-4 p-2 rounded-lg bg-white/10 text-gray-300 hover:text-white z-10 nx-press"
             aria-label="Закрыть"
           >
             <X className="w-5 h-5" />
@@ -683,17 +683,17 @@ export default function Materials() {
           >
             <button
               onClick={() => setMoveOpen(v => !v)}
-              className="w-full flex items-center gap-2 px-3.5 py-2.5 text-left text-xs font-mono text-gray-200 hover:bg-white/[0.06]"
+              className="w-full flex items-center gap-2 px-3.5 py-2.5 text-left text-xs font-mono text-gray-200 hover:bg-white/[0.06] nx-press"
             >
               <Folder className="w-3.5 h-3.5" /> Перенести в… {moveOpen ? '▴' : '▾'}
             </button>
             {moveOpen && (
               <div className="py-1 border-t border-white/5">
-                <button onClick={() => moveTo('')} className="w-full text-left px-5 py-1.5 text-[11px] font-mono text-gray-400 hover:text-gray-200 hover:bg-white/[0.05]">
+                <button onClick={() => moveTo('')} className="w-full text-left px-5 py-1.5 text-[11px] font-mono text-gray-400 hover:text-gray-200 hover:bg-white/[0.05] nx-press">
                   — без папки —
                 </button>
                 {allFolders.map(f => (
-                  <button key={f} onClick={() => moveTo(f)} className="w-full text-left px-5 py-1.5 text-[11px] font-mono text-gray-300 hover:bg-white/[0.05] truncate">
+                  <button key={f} onClick={() => moveTo(f)} className="w-full text-left px-5 py-1.5 text-[11px] font-mono text-gray-300 hover:bg-white/[0.05] truncate nx-press">
                     {f}
                   </button>
                 ))}
@@ -701,13 +701,13 @@ export default function Materials() {
             )}
             <button
               onClick={() => { handleCopyLink(ctx.material); closeCtx(); }}
-              className="w-full flex items-center gap-2 px-3.5 py-2.5 text-left text-xs font-mono text-gray-200 hover:bg-white/[0.06]"
+              className="w-full flex items-center gap-2 px-3.5 py-2.5 text-left text-xs font-mono text-gray-200 hover:bg-white/[0.06] nx-press"
             >
               <Link className="w-3.5 h-3.5" /> Скопировать ссылку
             </button>
             <button
               onClick={() => { openSendModal(ctx.material); closeCtx(); }}
-              className="w-full flex items-center gap-2 px-3.5 py-2.5 text-left text-xs font-mono text-gray-200 hover:bg-white/[0.06]"
+              className="w-full flex items-center gap-2 px-3.5 py-2.5 text-left text-xs font-mono text-gray-200 hover:bg-white/[0.06] nx-press"
             >
               <MessageCircle className="w-3.5 h-3.5" /> Поделиться в чате
             </button>
@@ -716,7 +716,7 @@ export default function Materials() {
               target="_blank"
               rel="noopener noreferrer"
               onClick={closeCtx}
-              className="w-full flex items-center gap-2 px-3.5 py-2.5 text-left text-xs font-mono text-gray-200 hover:bg-white/[0.06]"
+              className="w-full flex items-center gap-2 px-3.5 py-2.5 text-left text-xs font-mono text-gray-200 hover:bg-white/[0.06] nx-press"
             >
               <Send className="w-3.5 h-3.5" /> В Telegram
             </a>
@@ -725,13 +725,13 @@ export default function Materials() {
               target="_blank"
               rel="noopener noreferrer"
               onClick={closeCtx}
-              className="w-full flex items-center gap-2 px-3.5 py-2.5 text-left text-xs font-mono text-gray-200 hover:bg-white/[0.06]"
+              className="w-full flex items-center gap-2 px-3.5 py-2.5 text-left text-xs font-mono text-gray-200 hover:bg-white/[0.06] nx-press"
             >
               <Send className="w-3.5 h-3.5" /> В MAX
             </a>
             <button
               onClick={() => { handleDelete(ctx.material.id); closeCtx(); }}
-              className="w-full flex items-center gap-2 px-3.5 py-2.5 text-left text-xs font-mono hover:bg-red-500/10"
+              className="w-full flex items-center gap-2 px-3.5 py-2.5 text-left text-xs font-mono hover:bg-red-500/10 nx-press"
               style={{ color: '#ff6b6b' }}
             >
               <Trash className="w-3.5 h-3.5" /> Удалить

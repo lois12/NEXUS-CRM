@@ -128,12 +128,8 @@ export default function Analytics() {
           { label: 'МАТЕРИАЛОВ', value: stats?.totalMaterials || 0, icon: FolderOpen },
           { label: 'ПОЛЬЗОВАТЕЛЕЙ', value: stats?.totalUsers || 0, icon: Users },
         ].map((m, i) => (
-          <motion.div key={m.label}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.08, duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-            whileHover={{ scale: 1.02, y: -4 }}
-            className="card-glow glass-card rounded-2xl p-6 stagger-item">
+          <div key={m.label}
+            className={`nx-tile p-6 nx-rise nx-rise-${Math.min(i + 1, 5)}`}>
             <div className="flex items-center justify-between mb-4">
               <div className="w-12 h-12 rounded-xl flex items-center justify-center glass-accent">
                 <m.icon className="w-6 h-6" style={{ color: 'var(--color-primary)' }} />
@@ -141,16 +137,15 @@ export default function Analytics() {
             </div>
             <p className="text-3xl font-bold font-mono text-gray-200">{m.value}</p>
             <p className="text-xs font-mono text-gray-500 mt-1">{m.label}</p>
-          </motion.div>
+          </div>
         ))}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
         {/* Area Chart — Posts by Day */}
-        <div className="lg:col-span-2 glass rounded-2xl p-6">
-          <h2 className="text-lg font-bold font-mono text-gray-200 mb-6 flex items-center gap-2">
-            <TrendingUp className="w-5 h-5" style={{ color: 'var(--color-primary)' }} />
-            ПУБЛИКАЦИИ ЗА 7 ДНЕЙ
+        <div className="lg:col-span-2 nx-panel p-6">
+          <h2 className="mb-5 flex items-center">
+            <span className="nx-eyebrow"><TrendingUp className="w-3.5 h-3.5" /> ПУБЛИКАЦИИ ЗА 7 ДНЕЙ</span>
           </h2>
           <ResponsiveContainer width="100%" height={220}>
             <AreaChart data={dayChartData}>
@@ -170,10 +165,9 @@ export default function Analytics() {
         </div>
 
         {/* Pie Chart — Platform Stats */}
-        <div className="glass rounded-2xl p-6">
-          <h2 className="text-lg font-bold font-mono text-gray-200 mb-6 flex items-center gap-2">
-            <Calendar className="w-5 h-5" style={{ color: 'var(--color-primary)' }} />
-            ПО ПЛОЩАДКАМ
+        <div className="nx-panel p-6">
+          <h2 className="mb-5 flex items-center">
+            <span className="nx-eyebrow"><Calendar className="w-3.5 h-3.5" /> ПО ПЛОЩАДКАМ</span>
           </h2>
           {platformChartData.length > 0 ? (
             <>
@@ -216,10 +210,9 @@ export default function Analytics() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
         {/* Recent Activity */}
-        <div className="glass rounded-2xl p-6">
-          <h2 className="text-lg font-bold font-mono text-gray-200 mb-6 flex items-center gap-2">
-            <Zap className="w-5 h-5" style={{ color: 'var(--color-primary)' }} />
-            ПОСЛЕДНИЕ ДЕЙСТВИЯ
+        <div className="nx-panel p-6">
+          <h2 className="mb-5 flex items-center">
+            <span className="nx-eyebrow"><Zap className="w-3.5 h-3.5" /> ПОСЛЕДНИЕ ДЕЙСТВИЯ</span>
           </h2>
           <div ref={activityRef} className="space-y-3">
             {(!stats?.recentActivities || stats.recentActivities.length === 0) && (
@@ -245,10 +238,9 @@ export default function Analytics() {
         </div>
 
         {/* Bar Chart — Content by Status */}
-        <div className="glass rounded-2xl p-6">
-          <h2 className="text-lg font-bold font-mono text-gray-200 mb-6 flex items-center gap-2">
-            <FileText className="w-5 h-5" style={{ color: 'var(--color-primary)' }} />
-            ПО СТАТУСАМ
+        <div className="nx-panel p-6">
+          <h2 className="mb-5 flex items-center">
+            <span className="nx-eyebrow"><FileText className="w-3.5 h-3.5" /> ПО СТАТУСАМ</span>
           </h2>
           {statusChartData.length > 0 ? (
             <ResponsiveContainer width="100%" height={220}>

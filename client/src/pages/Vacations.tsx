@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, Search, Edit3, Trash2, CalendarDays, Check, XIcon, Clock } from 'lucide-react';
 import { Vacation, VacationType, VacationStatus } from '../types';
@@ -110,14 +110,14 @@ export default function Vacations() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="ПОИСК..."
-              className="pl-9 pr-4 py-2 rounded-lg focus:border-[var(--color-primary)] w-full sm:w-48" />
+              className="pl-9 pr-4 py-2 rounded-lg focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)] w-full sm:w-48" />
           </div>
           <select value={filterStatus} onChange={e => setFilterStatus(e.target.value as any)}
-            className="px-3 py-2 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none">
+            className="px-3 py-2 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]">
             <option value="">ВСЕ СТАТУСЫ</option>
             {Object.entries(STATUS_CONFIG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
           </select>
-          <button onClick={openCreate} className="btn-primary flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-sm font-bold"
+          <button onClick={openCreate} className="btn-primary nx-press flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-sm font-bold"
             >
             <Plus className="w-4 h-4" /> ЗАЯВКА
           </button>
@@ -130,7 +130,7 @@ export default function Vacations() {
           const tc = TYPE_CONFIG[v.type];
           const ScIcon = sc.icon;
           return (
-            <motion.div key={v.id} layout className="glass-card rounded-xl p-4 group flex flex-col sm:flex-row sm:items-center gap-3">
+            <motion.div key={v.id} layout className="nx-tile p-4 group flex flex-col sm:flex-row sm:items-center gap-3">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-3 flex-wrap">
                   <span className="font-mono text-sm font-bold text-gray-200">{v.userName || 'Неизвестный'}</span>
@@ -149,12 +149,12 @@ export default function Vacations() {
               <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                 {v.status === 'pending' && (
                   <>
-                    <button onClick={() => handleStatus(v.id, 'approved')} className="p-1.5 rounded hover:bg-green-500/20" title="Одобрить"><Check className="w-4 h-4 text-green-400" /></button>
-                    <button onClick={() => handleStatus(v.id, 'rejected')} className="p-1.5 rounded hover:bg-red-500/20" title="Отклонить"><XIcon className="w-4 h-4 text-red-400" /></button>
+                    <button onClick={() => handleStatus(v.id, 'approved')} className="p-1.5 rounded hover:bg-green-500/20 nx-press" title="Одобрить"><Check className="w-4 h-4 text-green-400" /></button>
+                    <button onClick={() => handleStatus(v.id, 'rejected')} className="p-1.5 rounded hover:bg-red-500/20 nx-press" title="Отклонить"><XIcon className="w-4 h-4 text-red-400" /></button>
                   </>
                 )}
-                <button onClick={() => openEdit(v)} className="p-1.5 rounded hover:bg-white/10"><Edit3 className="w-4 h-4 text-gray-400" /></button>
-                <button onClick={() => handleDelete(v)} className="p-1.5 rounded hover:bg-red-500/20"><Trash2 className="w-4 h-4 text-red-400" /></button>
+                <button onClick={() => openEdit(v)} className="p-1.5 rounded hover:bg-white/10 nx-press"><Edit3 className="w-4 h-4 text-gray-400" /></button>
+                <button onClick={() => handleDelete(v)} className="p-1.5 rounded hover:bg-red-500/20 nx-press"><Trash2 className="w-4 h-4 text-red-400" /></button>
               </div>
             </motion.div>
           );

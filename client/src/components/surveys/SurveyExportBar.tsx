@@ -122,7 +122,7 @@ export default function SurveyExportBar({ surveyId, publicSlug }: Props) {
     <div className="flex gap-2 flex-wrap">
       <button
         onClick={openLiveStats}
-        className="btn-primary flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-[11px] font-bold"
+        className="btn-primary nx-press flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-[11px] font-bold"
         
         title="Живая страница статистики"
       >
@@ -131,25 +131,25 @@ export default function SurveyExportBar({ surveyId, publicSlug }: Props) {
       <button
         onClick={copyStatsLink}
         disabled={!statsUrl}
-        className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-[11px] glass hover:bg-white/10 disabled:opacity-40"
+        className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-[11px] glass hover:bg-white/10 disabled:opacity-40 nx-press"
       >
         <Link2 className="w-3.5 h-3.5" /> ССЫЛКА
       </button>
       <button
         onClick={downloadCsv}
-        className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-[11px] glass hover:bg-white/10"
+        className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-[11px] glass hover:bg-white/10 nx-press"
       >
         <Download className="w-3.5 h-3.5" /> CSV
       </button>
       <button
         onClick={downloadXlsx}
-        className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-[11px] glass hover:bg-white/10"
+        className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-[11px] glass hover:bg-white/10 nx-press"
       >
         <Table2 className="w-3.5 h-3.5" /> XLSX
       </button>
       <button
         onClick={openPdf}
-        className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-[11px] glass hover:bg-white/10"
+        className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-[11px] glass hover:bg-white/10 nx-press"
       >
         <FileText className="w-3.5 h-3.5" /> PDF
       </button>

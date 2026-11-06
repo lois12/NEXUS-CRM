@@ -122,7 +122,7 @@ export default function PublicQuiz() {
   const finished = quiz?.phase === 'finished';
 
   return (
-    <div className="min-h-screen p-4 md:p-8">
+    <div className="min-h-screen p-4 md:p-8 nx-stage">
       <div className="max-w-2xl mx-auto">
         {quiz?.imageUrl && (
           <div className="w-full rounded-2xl overflow-hidden mb-4 bg-white/5 flex items-center justify-center cursor-zoom-in"
@@ -135,7 +135,7 @@ export default function PublicQuiz() {
         {quiz?.description && <p className="text-sm text-gray-300 mt-3">{quiz.description}</p>}
 
         {finished && (
-          <div className="glass rounded-2xl p-5 mt-5">
+          <div className="nx-panel p-5 mt-5 nx-rise">
             <p className="font-mono text-sm text-gray-200 mb-2">МЕРОПРИЯТИЕ ЗАВЕРШЕНО</p>
             {quiz.afterEndText && <p className="text-sm text-gray-300">{quiz.afterEndText}</p>}
             {!quiz?.alreadyParticipated && <ResultsTable results={results} />}
@@ -143,7 +143,7 @@ export default function PublicQuiz() {
         )}
 
         {!finished && quiz?.alreadyParticipated && (
-          <div className="glass rounded-2xl p-8 mt-5 text-center">
+          <div className="nx-panel p-8 mt-5 text-center nx-rise">
             <div className="font-mono text-lg font-bold mb-2" style={{ color: 'var(--color-primary)' }}>
               ВЫ УЖЕ ПРИНЯЛИ УЧАСТИЕ В ЭТОМ МЕРОПРИЯТИИ
             </div>
@@ -153,7 +153,7 @@ export default function PublicQuiz() {
         )}
 
         {!quiz?.alreadyParticipated && !finished && upcoming && (
-          <div className="glass rounded-2xl p-6 mt-5 text-center">
+          <div className="nx-panel p-6 mt-5 text-center nx-rise">
             <p className="text-[10px] font-mono tracking-[0.25em] text-gray-500">ДО СТАРТА</p>
             <div className="font-mono text-4xl font-bold my-3" style={{ color: 'var(--color-primary)' }}>{fmtLeft(left)}</div>
             <p className="text-xs text-gray-400">{quiz.startsAt && new Date(quiz.startsAt).toLocaleString('ru-RU')}</p>
@@ -161,32 +161,34 @@ export default function PublicQuiz() {
         )}
 
         {!quiz?.alreadyParticipated && !upcoming && !finished && phase === 'intro' && (
-          <div className="glass rounded-2xl p-5 mt-5">
-            <h2 className="font-mono text-sm font-bold mb-3" style={{ color: 'var(--color-primary)' }}>АНКЕТА УЧАСТНИКА</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <Field label="ФАМИЛИЯ *" value={form.lastName} onChange={(v) => setForm({ ...form, lastName: v })} />
-              <Field label="ИМЯ *" value={form.firstName} onChange={(v) => setForm({ ...form, firstName: v })} />
-              <Field label="ОТЧЕСТВО" value={form.patronymic} onChange={(v) => setForm({ ...form, patronymic: v })} />
+          <div className="nx-bezel mt-5 nx-rise">
+            <div className="nx-core p-5">
+              <h2 className="font-mono text-sm font-bold mb-3" style={{ color: 'var(--color-primary)' }}>АНКЕТА УЧАСТНИКА</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <Field label="ФАМИЛИЯ *" value={form.lastName} onChange={(v) => setForm({ ...form, lastName: v })} />
+                <Field label="ИМЯ *" value={form.firstName} onChange={(v) => setForm({ ...form, firstName: v })} />
+                <Field label="ОТЧЕСТВО" value={form.patronymic} onChange={(v) => setForm({ ...form, patronymic: v })} />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+                <Field label="ТЕЛЕФОН" value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} />
+                <Field label="EMAIL" value={form.email} onChange={(v) => setForm({ ...form, email: v })} />
+              </div>
+              <label className="flex items-start gap-2 mt-4 cursor-pointer">
+                <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-1 accent-[var(--color-primary)]" />
+                <span className="text-[11px] text-gray-400 leading-relaxed">
+                  Согласен на обработку персональных данных по{' '}
+                  <a href="/privacy-policy.html" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-primary)' }}>политике</a> (152-ФЗ)
+                </span>
+              </label>
+              <button
+                onClick={start}
+                disabled={!form.lastName || !form.firstName || !consent}
+                className="btn-primary w-full mt-4 py-3 disabled:opacity-40 nx-press"
+              >
+                НАЧАТЬ КВИЗ
+              </button>
+              <p className="text-[10px] text-gray-600 mt-2 text-center">Таймер пойдёт после нажатия</p>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
-              <Field label="ТЕЛЕФОН" value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} />
-              <Field label="EMAIL" value={form.email} onChange={(v) => setForm({ ...form, email: v })} />
-            </div>
-            <label className="flex items-start gap-2 mt-4 cursor-pointer">
-              <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-1 accent-[var(--color-primary)]" />
-              <span className="text-[11px] text-gray-400 leading-relaxed">
-                Согласен на обработку персональных данных по{' '}
-                <a href="/privacy-policy.html" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-primary)' }}>политике</a> (152-ФЗ)
-              </span>
-            </label>
-            <button
-              onClick={start}
-              disabled={!form.lastName || !form.firstName || !consent}
-              className="btn-primary w-full mt-4 py-3 disabled:opacity-40"
-            >
-              НАЧАТЬ КВИЗ
-            </button>
-            <p className="text-[10px] text-gray-600 mt-2 text-center">Таймер пойдёт после нажатия</p>
           </div>
         )}
 
@@ -198,11 +200,11 @@ export default function PublicQuiz() {
               const q = quiz.questions[qi];
               return (
                 <>
-                  <div className="glass rounded-xl px-4 py-2 font-mono text-xs text-gray-400 flex items-center justify-between">
+                  <div className="nx-tile px-4 py-2 font-mono text-xs text-gray-400 flex items-center justify-between">
                     <span>ВОПРОС {qi + 1} / {total}</span>
                     <span>{form.lastName} {form.firstName}</span>
                   </div>
-                  <div className="glass rounded-2xl p-4">
+                  <div className="nx-tile p-4">
                     <div className="flex items-start gap-2 mb-2">
                       <span className="font-mono text-[10px] text-gray-500 mt-1">{qi + 1}</span>
                       <div className="flex-1">
@@ -228,7 +230,7 @@ export default function PublicQuiz() {
                         onChange={(e) => setAnswers({ ...answers, [q.id]: { ...answers[q.id], answerText: e.target.value } })}
                         rows={3}
                         placeholder="Ваш ответ…"
-                        className="w-full px-3 py-2 rounded-xl text-sm bg-white/5 border border-white/10 text-gray-200"
+                        className="w-full px-3 py-2 rounded-xl text-sm bg-white/5 border border-white/10 text-gray-200 [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]"
                       />
                     ) : (
                       <div className="space-y-1.5">
@@ -265,12 +267,12 @@ export default function PublicQuiz() {
                   </div>
                   <div className="flex gap-2">
                     {qi > 0 && (
-                      <button onClick={() => setStep((s) => Math.max(0, s - 1))} className="btn-ghost flex-1">← НАЗАД</button>
+                      <button onClick={() => setStep((s) => Math.max(0, s - 1))} className="btn-ghost flex-1 nx-press">← НАЗАД</button>
                     )}
                     {qi < total - 1 ? (
-                      <button onClick={() => setStep((s) => Math.min(total - 1, s + 1))} className="btn-primary flex-1">ДАЛЕЕ →</button>
+                      <button onClick={() => setStep((s) => Math.min(total - 1, s + 1))} className="btn-primary flex-1 nx-press">ДАЛЕЕ →</button>
                     ) : (
-                      <button onClick={submit} className="btn-primary flex-1">ЗАВЕРШИТЬ</button>
+                      <button onClick={submit} className="btn-primary flex-1 nx-press">ЗАВЕРШИТЬ</button>
                     )}
                   </div>
                 </>
@@ -280,7 +282,7 @@ export default function PublicQuiz() {
         )}
 
         {!quiz?.alreadyParticipated && phase === 'done' && result && (
-          <div className="glass rounded-2xl p-6 mt-5 text-center">
+          <div className="nx-panel p-6 mt-5 text-center nx-rise">
             <p className="font-mono text-[10px] tracking-[0.25em] text-gray-500">ЗАВЕРШЕНО</p>
             <div className="font-mono text-2xl font-bold my-3" style={{ color: 'var(--color-primary)' }}>
               {Math.floor((result.durationMs || 0) / 60000)} мин {Math.round(((result.durationMs || 0) % 60000) / 1000)} сек
@@ -322,7 +324,7 @@ function Field({ label, value, onChange }: { label: string; value: string; onCha
       <input
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full px-3 py-2.5 rounded-xl text-sm bg-white/5 border border-white/10 text-gray-200"
+        className="w-full px-3 py-2.5 rounded-xl text-sm bg-white/5 border border-white/10 text-gray-200 [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]"
       />
     </div>
   );

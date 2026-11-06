@@ -50,9 +50,10 @@ export default function CheckinPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'var(--color-bg)' }}>
+    <div className="min-h-screen flex items-center justify-center p-4 nx-stage">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-        className="glass rounded-2xl p-8 text-center max-w-md w-full space-y-4">
+        className="nx-bezel max-w-md w-full">
+        <div className="nx-core p-8 text-center space-y-4">
 
         {state === 'loading' && (
           <div className="w-12 h-12 mx-auto rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: 'var(--color-primary)', borderTopColor: 'transparent' }} />
@@ -76,14 +77,14 @@ export default function CheckinPage() {
               <p>Email: {data.contactEmail || '—'}</p>
               <p>Телефон: {data.contactPhone || '—'}</p>
             </div>
-            <div className="rounded-xl p-3 text-left" style={{ background: 'rgba(0,212,255,0.05)', border: '1px solid rgba(0,212,255,0.1)' }}>
+            <div className="nx-tile p-3 text-left">
               <p className="font-mono text-xs text-gray-500 mb-1">Мероприятие:</p>
               <p className="font-mono text-sm font-bold text-gray-200">{data.regTitle}</p>
               {data.eventDate && <p className="font-mono text-xs text-gray-400">{data.eventDate} {data.eventTime}</p>}
               {data.location && <p className="font-mono text-xs text-gray-400">{data.location}</p>}
             </div>
             <button onClick={handleConfirm}
-              className="w-full py-3 rounded-xl font-mono text-sm font-bold transition-all"
+              className="w-full py-3 rounded-xl font-mono text-sm font-bold transition-all nx-press"
               style={{ background: 'linear-gradient(135deg, var(--color-primary), var(--color-secondary))', color: '#000' }}>
               ПОДТВЕРДИТЬ ПРИСУТСТВИЕ
             </button>
@@ -118,6 +119,8 @@ export default function CheckinPage() {
             {data.updatedAt && <p className="font-mono text-xs text-gray-400">Время: {new Date(data.updatedAt).toLocaleString('ru-RU')}</p>}
           </>
         )}
+
+        </div>
       </motion.div>
     </div>
   );

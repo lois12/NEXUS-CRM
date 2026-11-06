@@ -290,16 +290,16 @@ export default function ImageGenerator() {
         {/* Controls */}
         <div className="space-y-4">
           {/* Prompt Input */}
-          <div className="glass rounded-xl p-4 neon-border-animated">
-            <h2 className="text-sm font-medium text-gray-300 mb-3 flex items-center gap-2">
-              <Wand2 className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />
+          <div className="nx-panel p-4">
+            <h2 className="nx-eyebrow mb-3 flex items-center gap-2">
+              <Wand2 className="w-3.5 h-3.5" />
               ОПИШИТЕ ИЗОБРАЖЕНИЕ
             </h2>
             <textarea
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               placeholder="// КОРОТКО ОПИШИТЕ ЧТО ВЫ ХОТИТЕ УВИДЕТЬ..."
-              className="w-full px-4 py-3 bg-white/5 border rounded-lg text-gray-200 h-28 resize-none"
+              className="w-full px-4 py-3 bg-white/5 border rounded-lg text-gray-200 h-28 resize-none [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]"
               style={{ borderColor: 'var(--color-border)' }}
             />
             
@@ -324,16 +324,14 @@ export default function ImageGenerator() {
           </div>
 
           {/* Style Selection */}
-          <div className="glass rounded-xl p-4">
-            <h2 className="text-sm font-medium text-gray-300 mb-3">СТИЛЬ ГЕНЕРАЦИИ</h2>
+          <div className="nx-panel p-4">
+            <h2 className="nx-eyebrow mb-3">СТИЛЬ ГЕНЕРАЦИИ</h2>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
               {styleOptions.map((opt) => (
                 <motion.button
                   key={opt.value}
-                  whileHover={{ scale: 1.03 }}
-                  whileTap={{ scale: 0.97 }}
                   onClick={() => setStyle(opt.value)}
-                  className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-all text-center ${
+                  className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-all text-center nx-press ${
                     style === opt.value
                       ? 'border shadow-lg'
                       : 'bg-white/5 text-gray-400 hover:bg-white/10 border border-transparent'
@@ -355,16 +353,14 @@ export default function ImageGenerator() {
           </div>
 
           {/* Size Selection */}
-          <div className="glass rounded-xl p-4">
-            <h2 className="text-sm font-medium text-gray-300 mb-3">РАЗМЕР</h2>
+          <div className="nx-panel p-4">
+            <h2 className="nx-eyebrow mb-3">РАЗМЕР</h2>
             <div className="flex gap-2">
               {sizeOptions.map((opt) => (
                 <motion.button
                   key={opt.value}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
                   onClick={() => setSize(opt.value)}
-                  className={`flex-1 py-3 px-4 rounded-lg text-center transition-all ${
+                  className={`flex-1 py-3 px-4 rounded-lg text-center transition-all nx-press ${
                     size === opt.value
                       ? 'border shadow-lg'
                       : 'bg-white/5 text-gray-400 hover:bg-white/10 border border-transparent'
@@ -396,11 +392,9 @@ export default function ImageGenerator() {
 
           {/* Generate Button */}
           <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
             onClick={generateImage}
             disabled={!prompt.trim() || isGenerating}
-            className="w-full py-4 px-4 rounded-lg font-bold text-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed neon-glow-pulse"
+            className="w-full py-4 px-4 rounded-lg font-bold text-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed neon-glow-pulse nx-press"
             style={{
               backgroundColor: 'var(--color-primary)',
               color: '#000'
@@ -422,9 +416,9 @@ export default function ImageGenerator() {
 
         {/* Preview */}
         <div className="space-y-4">
-          <div className="glass rounded-xl p-4 neon-border-animated">
-            <h2 className="text-sm font-medium text-gray-300 mb-4 flex items-center gap-2">
-              <ImageIcon className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />
+          <div className="nx-tile p-4 neon-border-animated">
+            <h2 className="nx-eyebrow mb-4 flex items-center gap-2">
+              <ImageIcon className="w-3.5 h-3.5" />
               РЕЗУЛЬТАТ
             </h2>
             <div className="relative aspect-square rounded-lg overflow-hidden bg-black/30">
@@ -477,10 +471,8 @@ export default function ImageGenerator() {
           {selectedImage && selectedImage.status === 'ready' && (
             <div className="flex gap-3">
               <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
                 onClick={downloadImage}
-                className="flex-1 py-3 px-4 rounded-lg font-medium flex items-center justify-center gap-2 transition-all"
+                className="flex-1 py-3 px-4 rounded-lg font-medium flex items-center justify-center gap-2 transition-all nx-press"
                 style={{
                   backgroundColor: 'var(--color-primary)',
                   color: '#000'
@@ -490,13 +482,11 @@ export default function ImageGenerator() {
                 СКАЧАТЬ PNG
               </motion.button>
               <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
                 onClick={() => {
                   setPrompt(selectedImage.promptRu);
                   generateImage();
                 }}
-                className="py-3 px-4 rounded-lg bg-white/5 border text-gray-400 hover:text-gray-200 transition-all"
+                className="py-3 px-4 rounded-lg bg-white/5 border text-gray-400 hover:text-gray-200 transition-all nx-press"
                 style={{ borderColor: 'var(--color-border)' }}
               >
                 <RefreshCw className="w-4 h-4" />
@@ -506,7 +496,7 @@ export default function ImageGenerator() {
 
           {/* Prompt Info */}
           {selectedImage && (
-            <div className="glass rounded-xl p-4">
+            <div className="nx-tile p-4">
               <h3 className="text-xs font-mono mb-2" style={{ color: 'var(--color-primary)' }}>
                 // ИСПОЛЬЗОВАННЫЙ ПРОМПТ
               </h3>
@@ -516,10 +506,10 @@ export default function ImageGenerator() {
 
           {/* History */}
           {generatedImages.length > 0 && (
-            <div className="glass rounded-xl p-4">
+            <div className="nx-panel p-4">
               <div className="flex items-center justify-between mb-3">
-                <h2 className="text-sm font-medium text-gray-300 flex items-center gap-2">
-                  <History className="w-4 h-4" />
+                <h2 className="nx-eyebrow flex items-center gap-2">
+                  <History className="w-3.5 h-3.5" />
                   ИСТОРИЯ ({generatedImages.length})
                 </h2>
                 <button
@@ -527,7 +517,7 @@ export default function ImageGenerator() {
                     setGeneratedImages([]);
                     setSelectedImage(null);
                   }}
-                  className="text-xs text-gray-400 hover:text-red-400 transition-colors"
+                  className="text-xs text-gray-400 hover:text-red-400 transition-colors nx-press"
                 >
                   <Trash className="w-3 h-3 inline mr-1" />
                   ОЧИСТИТЬ

@@ -401,26 +401,26 @@ export default function Registrations() {
   if (view === 'submissions' && editing) {
     return (
       <div className="space-y-4">
-        <button onClick={() => setView('list')} className="flex items-center gap-2 font-mono text-sm text-gray-400 hover:text-gray-200 transition-colors">
+        <button onClick={() => setView('list')} className="flex items-center gap-2 font-mono text-sm text-gray-400 hover:text-gray-200 transition-colors nx-press">
           <ArrowLeft className="w-4 h-4" /> НАЗАД
         </button>
 
         {/* Statistics cards */}
         {stats && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="glass rounded-xl p-4 text-center">
+            <div className="nx-tile p-4 text-center nx-rise nx-rise-1">
               <p className="font-mono text-[10px] text-gray-500 mb-1">ВСЕГО ЗАЯВОК</p>
               <p className="font-mono text-2xl font-bold" style={{ color: 'var(--color-primary)' }}>{stats.total || submissions.length}</p>
             </div>
-            <div className="glass rounded-xl p-4 text-center">
+            <div className="nx-tile p-4 text-center nx-rise nx-rise-2">
               <p className="font-mono text-[10px] text-gray-500 mb-1">ПОДТВЕРЖДЕНО</p>
               <p className="font-mono text-2xl font-bold" style={{ color: '#00d4ff' }}>{stats.confirmed || submissions.filter(s => s.status === 'confirmed').length}</p>
             </div>
-            <div className="glass rounded-xl p-4 text-center">
+            <div className="nx-tile p-4 text-center nx-rise nx-rise-3">
               <p className="font-mono text-[10px] text-gray-500 mb-1">ЗАРЕГИСТРИРОВАНО</p>
               <p className="font-mono text-2xl font-bold" style={{ color: '#00ff88' }}>{stats.registered || submissions.filter(s => s.status === 'registered').length}</p>
             </div>
-            <div className="glass rounded-xl p-4 text-center">
+            <div className="nx-tile p-4 text-center nx-rise nx-rise-4">
               <p className="font-mono text-[10px] text-gray-500 mb-1">В ОЖИДАНИИ</p>
               <p className="font-mono text-2xl font-bold" style={{ color: '#eab308' }}>{stats.waitlist || submissions.filter(s => s.status === 'waitlist').length}</p>
             </div>
@@ -429,8 +429,8 @@ export default function Registrations() {
 
         {/* Daily trend */}
         {stats?.dailyTrend && stats.dailyTrend.length > 0 && (
-          <div className="glass rounded-xl p-4">
-            <h3 className="font-mono text-xs font-bold text-gray-400 mb-3 flex items-center gap-2"><BarChart3 className="w-3.5 h-3.5" /> РЕГИСТРАЦИИ ПО ДНЯМ</h3>
+          <div className="nx-panel p-4">
+            <h3 className="nx-eyebrow mb-3"><BarChart3 className="w-3.5 h-3.5" /> РЕГИСТРАЦИИ ПО ДНЯМ</h3>
             <div className="flex items-end gap-1 h-20">
               {stats.dailyTrend.map((d: any, i: number) => {
                 const max = Math.max(...stats.dailyTrend.map((x: any) => x.count), 1);
@@ -458,7 +458,7 @@ export default function Registrations() {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between flex-wrap gap-3">
-          <button onClick={() => setView('list')} className="flex items-center gap-2 font-mono text-sm text-gray-400 hover:text-gray-200 transition-colors">
+          <button onClick={() => setView('list')} className="flex items-center gap-2 font-mono text-sm text-gray-400 hover:text-gray-200 transition-colors nx-press">
             <ArrowLeft className="w-4 h-4" /> НАЗАД
           </button>
 
@@ -468,7 +468,7 @@ export default function Registrations() {
               const newStatus = form.status === 'active' ? 'draft' : 'active';
               setForm(prev => ({ ...prev, status: newStatus }));
             }}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-sm font-bold transition-all"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-sm font-bold transition-all nx-press"
               style={form.status === 'active'
                 ? { background: 'rgba(0,255,136,0.15)', border: '1px solid rgba(0,255,136,0.3)', color: '#00ff88', boxShadow: '0 0 12px rgba(0,255,136,0.2)' }
                 : form.status === 'closed'
@@ -481,27 +481,27 @@ export default function Registrations() {
           <div className="flex flex-wrap gap-2">
             {editing && (
               <>
-                <button onClick={() => openSubmissions(editing)} className="flex items-center gap-1.5 px-2 sm:px-3 py-2 rounded-lg font-mono text-[10px] sm:text-xs glass hover:bg-white/10">
+                <button onClick={() => openSubmissions(editing)} className="flex items-center gap-1.5 px-2 sm:px-3 py-2 rounded-lg font-mono text-[10px] sm:text-xs glass hover:bg-white/10 nx-press">
                   <Eye className="w-3.5 h-3.5" /> ЗАЯВКИ ({editing.confirmedCount || 0})
                 </button>
-                <button onClick={() => setShowQR(true)} className="flex items-center gap-1.5 px-2 sm:px-3 py-2 rounded-lg font-mono text-[10px] sm:text-xs glass hover:bg-white/10">
+                <button onClick={() => setShowQR(true)} className="flex items-center gap-1.5 px-2 sm:px-3 py-2 rounded-lg font-mono text-[10px] sm:text-xs glass hover:bg-white/10 nx-press">
                   <QrCode className="w-3.5 h-3.5" /> QR
                 </button>
                 {publicUrl && (
-                  <button onClick={copyLink} className="flex items-center gap-1.5 px-2 sm:px-3 py-2 rounded-lg font-mono text-[10px] sm:text-xs glass hover:bg-white/10">
+                  <button onClick={copyLink} className="flex items-center gap-1.5 px-2 sm:px-3 py-2 rounded-lg font-mono text-[10px] sm:text-xs glass hover:bg-white/10 nx-press">
                     <Copy className="w-3.5 h-3.5" /> ССЫЛКА
                   </button>
                 )}
               </>
             )}
             <button onClick={handleSave} disabled={uploading}
-              className="btn-primary flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg font-mono text-xs sm:text-sm font-bold disabled:opacity-50"
+              className="btn-primary nx-press flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg font-mono text-xs sm:text-sm font-bold disabled:opacity-50"
               >
               {uploading ? 'СОХРАНЕНИЕ...' : 'СОХРАНИТЬ'}
             </button>
             {editing && (
               <button onClick={handleSaveAndNotify} disabled={uploading}
-                className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-lg font-mono text-[10px] sm:text-sm font-bold disabled:opacity-50"
+                className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-lg font-mono text-[10px] sm:text-sm font-bold disabled:opacity-50 nx-press"
                 style={{ backgroundColor: 'rgba(234,179,8,0.15)', color: '#eab308', border: '1px solid rgba(234,179,8,0.3)' }}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4"><path d="M22 2L11 13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
                 ИЗМЕНИТЬ И ОПОВЕСТИТЬ
@@ -513,44 +513,44 @@ export default function Registrations() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Left: Basic info */}
           <div className="space-y-4">
-            <div className="glass rounded-2xl p-6 space-y-4">
-              <h2 className="font-mono text-sm font-bold" style={{ color: 'var(--color-primary)' }}>ИНФОРМАЦИЯ</h2>
+            <div className="nx-panel p-6 space-y-4">
+              <h2 className="nx-eyebrow">ИНФОРМАЦИЯ</h2>
               <input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="// НАЗВАНИЕ МЕРОПРИЯТИЯ *"
-                className="w-full px-4 py-2.5 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)]" />
+                className="w-full px-4 py-2.5 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]" />
               <input value={form.organizer} onChange={e => setForm({ ...form, organizer: e.target.value })} placeholder="// ОРГАНИЗАТОР"
-                className="w-full px-4 py-2.5 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)]" />
+                className="w-full px-4 py-2.5 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]" />
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="font-mono text-[10px] text-gray-500 mb-1 block">ДАТА</label>
                   <input type="date" value={form.eventDate} onChange={e => setForm({ ...form, eventDate: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none" />
+                    className="w-full px-3 py-2 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]" />
                 </div>
                 <div>
                   <label className="font-mono text-[10px] text-gray-500 mb-1 block">ВРЕМЯ</label>
                   <input type="time" value={form.eventTime} onChange={e => setForm({ ...form, eventTime: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none" />
+                    className="w-full px-3 py-2 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]" />
                 </div>
               </div>
               <input value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} placeholder="// МЕСТО ПРОВЕДЕНИЯ"
-                className="w-full px-4 py-2.5 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)]" />
+                className="w-full px-4 py-2.5 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]" />
               {/* Location map */}
               <div>
                 <label className="font-mono text-[10px] text-gray-500 mb-1 block">МЕСТО НА КАРТЕ</label>
                 <MapField value={form.mapCoords || ''} onChange={coords => setForm(prev => ({ ...prev, mapCoords: coords }))} />
               </div>
               <input value={form.videoUrl} onChange={e => setForm({ ...form, videoUrl: e.target.value })} placeholder="// ССЫЛКА НА ВИДЕО"
-                className="w-full px-4 py-2.5 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)]" />
+                className="w-full px-4 py-2.5 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]" />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="font-mono text-[10px] text-gray-500 mb-1 block">ЛИМИТ УЧАСТНИКОВ</label>
                   <input type="number" min={0} value={form.maxParticipants} onChange={e => setForm({ ...form, maxParticipants: Number(e.target.value) })}
                     placeholder="0 = без лимита"
-                    className="w-full px-3 py-2 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none" />
+                    className="w-full px-3 py-2 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]" />
                 </div>
                 <div>
                   <label className="font-mono text-[10px] text-gray-500 mb-1 block">СТАТУС</label>
                   <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none">
+                    className="w-full px-3 py-2 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]">
                     <option value="draft">Черновик</option>
                     <option value="active">Активна</option>
                     <option value="closed">Закрыта</option>
@@ -562,12 +562,12 @@ export default function Registrations() {
                 <div>
                   <label className="font-mono text-[10px] text-gray-500 mb-1 block">НАЧАЛО РЕГИСТРАЦИИ</label>
                   <input type="datetime-local" value={form.registrationStart} onChange={e => setForm({ ...form, registrationStart: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none" />
+                    className="w-full px-3 py-2 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]" />
                 </div>
                 <div>
                   <label className="font-mono text-[10px] text-gray-500 mb-1 block">КОНЕЦ РЕГИСТРАЦИИ</label>
                   <input type="datetime-local" value={form.registrationEnd} onChange={e => setForm({ ...form, registrationEnd: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none" />
+                    className="w-full px-3 py-2 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]" />
                 </div>
               </div>
               {/* Custom message after close */}
@@ -576,7 +576,7 @@ export default function Registrations() {
                 <textarea value={form.closedMessage} onChange={e => setForm({ ...form, closedMessage: e.target.value })}
                   placeholder="// ТЕКСТ КОТОРЫЙ УВИДЯТ ПОЛЬЗОВАТЕЛИ ПОСЛЕ ЗАКРЫТИЯ РЕГИСТРАЦИИ"
                   rows={2}
-                  className="w-full px-3 py-2 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)] resize-none" />
+                  className="w-full px-3 py-2 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)] resize-none [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]" />
               </div>
               {/* Display toggles */}
               <div className="flex items-center gap-4 sm:gap-6 pt-2 flex-wrap">
@@ -614,7 +614,7 @@ export default function Registrations() {
                     <label className="text-xs font-mono text-gray-500 mb-1 block">Лимит вейтлиста (0 = без лимита)</label>
                     <input type="number" min="0" value={form.maxWaitlist}
                       onChange={e => setForm({ ...form, maxWaitlist: parseInt(e.target.value) || 0 })}
-                      className="w-full px-4 py-2.5 rounded-xl font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)]" />
+                      className="w-full px-4 py-2.5 rounded-xl font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]" />
                   </div>
                 )}
               </div>
@@ -627,7 +627,7 @@ export default function Registrations() {
                     className="w-10 h-10 rounded-lg cursor-pointer bg-transparent border border-gray-700" />
                   <span className="font-mono text-xs text-gray-400">{form.color || '#00ff88'}</span>
                   {form.color && (
-                    <button onClick={() => setForm({ ...form, color: '' })} className="text-xs text-gray-500 hover:text-gray-300">Сбросить</button>
+                    <button onClick={() => setForm({ ...form, color: '' })} className="text-xs text-gray-500 hover:text-gray-300 nx-press">Сбросить</button>
                   )}
                 </div>
               </label>
@@ -637,7 +637,7 @@ export default function Registrations() {
                 <div className="grid grid-cols-4 gap-2">
                   {REG_THEMES.map(t => (
                     <button key={t.id} onClick={() => setForm({ ...form, theme: t.id })}
-                      className="rounded-xl p-2 transition-all text-center"
+                      className="rounded-xl p-2 transition-all text-center nx-press"
                       style={form.theme === t.id
                         ? { background: t.preview.primary, color: t.preview.bg, border: `2px solid ${t.preview.primary}`, boxShadow: `0 0 12px ${t.preview.primary}40` }
                         : { background: t.preview.card, color: t.preview.text, border: `1px solid ${t.preview.border}` }
@@ -679,19 +679,19 @@ export default function Registrations() {
               )}
             </div>
 
-            <div className="glass rounded-2xl p-6">
-              <h2 className="font-mono text-sm font-bold mb-3" style={{ color: 'var(--color-primary)' }}>ОПИСАНИЕ</h2>
+            <div className="nx-panel p-6">
+              <h2 className="nx-eyebrow mb-3">ОПИСАНИЕ</h2>
               <RichEditor content={form.description} onChange={html => setForm({ ...form, description: html })} placeholder="// ОПИСАНИЕ МЕРОПРИЯТИЯ..." />
             </div>
 
-            <div className="glass rounded-2xl p-6">
-              <h2 className="font-mono text-sm font-bold mb-3" style={{ color: 'var(--color-primary)' }}>ОБЛОЖКА</h2>
+            <div className="nx-panel p-6">
+              <h2 className="nx-eyebrow mb-3">ОБЛОЖКА</h2>
               {/* Current image preview */}
               {imageUrl && !imageFiles.length ? (
                 <div className="relative rounded-xl overflow-hidden mb-3 group">
                   <img src={imageUrl} alt="" draggable="false" className="w-full h-40 object-cover rounded-xl select-none" />
                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                    <button onClick={() => { setImageUrl(''); }} className="p-2 rounded-lg bg-red-500/30 hover:bg-red-500/50 transition-colors">
+                    <button onClick={() => { setImageUrl(''); }} className="p-2 rounded-lg bg-red-500/30 hover:bg-red-500/50 transition-colors nx-press">
                       <X className="w-4 h-4 text-red-400" />
                     </button>
                   </div>
@@ -702,7 +702,7 @@ export default function Registrations() {
                 <div className="mb-3">
                   <div className="relative rounded-xl overflow-hidden mb-2">
                     <img src={URL.createObjectURL(imageFiles[0])} alt="" draggable="false" className="w-full h-40 object-cover rounded-xl select-none" />
-                    <button onClick={() => { setImageFiles([]); }} className="absolute top-2 right-2 p-1 rounded-full bg-black/60 hover:bg-black/80">
+                    <button onClick={() => { setImageFiles([]); }} className="absolute top-2 right-2 p-1 rounded-full bg-black/60 hover:bg-black/80 nx-press">
                       <X className="w-4 h-4 text-white" />
                     </button>
                   </div>
@@ -721,7 +721,7 @@ export default function Registrations() {
                       } catch { showToast('Ошибка загрузки', 'error'); }
                       finally { setUploading(false); }
                     }} disabled={uploading}
-                      className="w-full py-2 rounded-lg font-mono text-xs font-bold transition-all disabled:opacity-50"
+                      className="w-full py-2 rounded-lg font-mono text-xs font-bold transition-all disabled:opacity-50 nx-press"
                       style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}>
                       {uploading ? 'ЗАГРУЗКА...' : 'ЗАГРУЗИТЬ ОБЛОЖКУ'}
                     </button>
@@ -749,13 +749,13 @@ export default function Registrations() {
             </div>
 
             {/* Video */}
-            <div className="glass rounded-2xl p-6">
-              <h2 className="font-mono text-sm font-bold mb-3" style={{ color: 'var(--color-primary)' }}>ВИДЕО</h2>
+            <div className="nx-panel p-6">
+              <h2 className="nx-eyebrow mb-3">ВИДЕО</h2>
               {videoUrl && !videoFile ? (
                 <div className="relative rounded-xl overflow-hidden mb-3 group">
                   <video src={videoUrl} controls draggable="false" className="w-full rounded-xl select-none" style={{ maxHeight: 300 }} />
                   <button onClick={() => { setVideoUrl(''); setForm(prev => ({ ...prev, videoUrl: '' })); }}
-                    className="absolute top-2 right-2 p-1 rounded-full bg-black/60 hover:bg-red-500/80 opacity-0 group-hover:opacity-100 transition-opacity">
+                    className="absolute top-2 right-2 p-1 rounded-full bg-black/60 hover:bg-red-500/80 opacity-0 group-hover:opacity-100 transition-opacity nx-press">
                     <X className="w-4 h-4 text-white" />
                   </button>
                 </div>
@@ -764,7 +764,7 @@ export default function Registrations() {
                 <div className="mb-3">
                   <div className="relative rounded-xl overflow-hidden mb-2">
                     <video src={URL.createObjectURL(videoFile)} controls draggable="false" className="w-full rounded-xl select-none" style={{ maxHeight: 300 }} />
-                    <button onClick={() => setVideoFile(null)} className="absolute top-2 right-2 p-1 rounded-full bg-black/60 hover:bg-black/80">
+                    <button onClick={() => setVideoFile(null)} className="absolute top-2 right-2 p-1 rounded-full bg-black/60 hover:bg-black/80 nx-press">
                       <X className="w-4 h-4 text-white" />
                     </button>
                   </div>
@@ -783,7 +783,7 @@ export default function Registrations() {
                       } catch { showToast('Ошибка загрузки', 'error'); }
                       finally { setUploading(false); }
                     }} disabled={uploading}
-                      className="w-full py-2 rounded-lg font-mono text-xs font-bold transition-all disabled:opacity-50"
+                      className="w-full py-2 rounded-lg font-mono text-xs font-bold transition-all disabled:opacity-50 nx-press"
                       style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}>
                       {uploading ? 'ЗАГРУЗКА...' : 'ЗАГРУЗИТЬ ВИДЕО'}
                     </button>
@@ -811,9 +811,9 @@ export default function Registrations() {
             </div>
 
             {/* Media Gallery */}
-            <div className="glass rounded-2xl p-6">
+            <div className="nx-panel p-6">
               <div className="flex items-center justify-between mb-3">
-                <h2 className="font-mono text-sm font-bold" style={{ color: 'var(--color-primary)' }}>МЕДИАГАЛЕРЕЯ ({mediaItems.length + mediaFiles.length})</h2>
+                <h2 className="nx-eyebrow">МЕДИАГАЛЕРЕЯ ({mediaItems.length + mediaFiles.length})</h2>
                 {editing && mediaFiles.length > 0 && (
                   <button onClick={async () => {
                     setUploading(true);
@@ -826,7 +826,7 @@ export default function Registrations() {
                     setMediaFiles([]);
                     try { const res = await registrationsApi.getMedia(editing.id); if (res.success && res.data) setMediaItems(Array.isArray(res.data) ? res.data : []); } catch {}
                   }} disabled={uploading}
-                    className="px-3 py-1 rounded-lg font-mono text-[10px] font-bold transition-all disabled:opacity-50"
+                    className="px-3 py-1 rounded-lg font-mono text-[10px] font-bold transition-all disabled:opacity-50 nx-press"
                     style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}>
                     {uploading ? 'ЗАГРУЗКА...' : `ЗАГРУЗИТЬ ВСЕ (${mediaFiles.length})`}
                   </button>
@@ -843,7 +843,7 @@ export default function Registrations() {
                         <img src={m.url} alt="" draggable="false" className="w-full h-24 object-cover select-none" />
                       )}
                       <button onClick={async () => { await registrationsApi.deleteMedia(m.id); setMediaItems(prev => prev.filter((i: any) => i.id !== m.id)); showToast('Удалено', 'success'); }}
-                        className="absolute top-1 right-1 p-1 rounded-full bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity">
+                        className="absolute top-1 right-1 p-1 rounded-full bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity nx-press">
                         <X className="w-3 h-3 text-white" />
                       </button>
                     </div>
@@ -861,7 +861,7 @@ export default function Registrations() {
                         <img src={URL.createObjectURL(f)} alt="" draggable="false" className="w-full h-24 object-cover select-none" />
                       )}
                       <button onClick={() => setMediaFiles(prev => prev.filter((_, j) => j !== i))}
-                        className="absolute top-1 right-1 p-1 rounded-full bg-black/60">
+                        className="absolute top-1 right-1 p-1 rounded-full bg-black/60 nx-press">
                         <X className="w-3 h-3 text-white" />
                       </button>
                       <div className="absolute bottom-1 left-1 right-1 text-center">
@@ -892,17 +892,17 @@ export default function Registrations() {
           </div>
 
           {/* Right: Field Builder */}
-          <div className="glass rounded-2xl p-6">
+          <div className="nx-panel p-6">
             <FieldBuilder fields={regFields} onAdd={addField} onUpdate={updateField} onDelete={deleteField} onDuplicate={duplicateField} onReorder={reorderFields} />
           </div>
         </div>
 
         {/* Public link display */}
         {editing && publicUrl && (
-          <div className="glass rounded-2xl p-4 flex items-center gap-4 flex-wrap">
+          <div className="nx-panel p-4 flex items-center gap-4 flex-wrap">
             <span className="font-mono text-xs text-gray-400">ПУБЛИЧНАЯ ССЫЛКА:</span>
             <code className="font-mono text-sm px-3 py-1.5 rounded-lg bg-black/30 border border-gray-700 text-green-400 break-all">{publicUrl}</code>
-            <button onClick={copyLink} className="p-2 rounded-lg hover:bg-white/10"><Copy className="w-4 h-4 text-gray-400" /></button>
+            <button onClick={copyLink} className="p-2 rounded-lg hover:bg-white/10 nx-press"><Copy className="w-4 h-4 text-gray-400" /></button>
           </div>
         )}
 
@@ -913,13 +913,15 @@ export default function Registrations() {
               className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }}
               onClick={() => setShowQR(false)}>
               <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }}
-                className="glass-frost rounded-2xl p-6 text-center" onClick={e => e.stopPropagation()}>
+                className="nx-bezel" onClick={e => e.stopPropagation()}>
+                <div className="nx-core p-6 text-center">
                 <h3 className="font-mono text-sm font-bold mb-4" style={{ color: 'var(--color-primary)' }}>QR-КОД РЕГИСТРАЦИИ</h3>
                 <div className="inline-block p-4 bg-white rounded-xl">
                   <QRCodeSVG value={publicUrl} size={200} />
                 </div>
                 <p className="font-mono text-xs text-gray-400 mt-3 break-all max-w-xs mx-auto">{publicUrl}</p>
-                <button onClick={() => setShowQR(false)} className="mt-4 px-4 py-2 rounded-xl glass font-mono text-xs text-gray-400">ЗАКРЫТЬ</button>
+                <button onClick={() => setShowQR(false)} className="mt-4 px-4 py-2 rounded-xl glass font-mono text-xs text-gray-400 nx-press">ЗАКРЫТЬ</button>
+                </div>
               </motion.div>
             </motion.div>
           )}
@@ -935,19 +937,20 @@ export default function Registrations() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
+          <div className="nx-eyebrow mb-2">ФОРМЫ</div>
           <h1 className="text-2xl md:text-3xl font-bold font-mono neon-text flex items-center gap-3" style={{ color: 'var(--color-primary)' }}>
             <ClipboardList className="w-7 h-7 md:w-8 md:h-8" /> РЕГИСТРАЦИЯ
           </h1>
           <p className="text-gray-400 mt-1 font-mono text-sm">// {registrations.length} ФОРМ</p>
         </div>
         <div className="flex gap-2">
-          <a href="/checkin-scanner" className="flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-sm glass hover:bg-white/10 transition-all">
+          <a href="/checkin-scanner" className="flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-sm glass hover:bg-white/10 transition-all nx-press">
             <Camera className="w-4 h-4" /> СКАНЕР
           </a>
-          <button onClick={() => { setShowContacts(true); fetchContacts(); }} className="flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-sm glass hover:bg-white/10 transition-all">
+          <button onClick={() => { setShowContacts(true); fetchContacts(); }} className="flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-sm glass hover:bg-white/10 transition-all nx-press">
             <Users className="w-4 h-4" /> БАЗА
           </button>
-          <button onClick={openCreate} className="btn-primary flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-sm font-bold"
+          <button onClick={openCreate} className="btn-primary nx-press flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-sm font-bold"
             >
             <Plus className="w-4 h-4" /> СОЗДАТЬ
           </button>
@@ -958,7 +961,7 @@ export default function Registrations() {
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="ПОИСК..."
-            className="w-full pl-9 pr-4 py-2 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none" />
+            className="w-full pl-9 pr-4 py-2 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]" />
         </div>
       </div>
 
@@ -976,7 +979,7 @@ export default function Registrations() {
             : registrations.filter(r => r.status === 'archived' || r.status === 'closed').length;
           return (
             <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-xs font-bold transition-all"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-xs font-bold transition-all nx-press"
               style={activeTab === tab.key
                 ? { background: `${tab.color}18`, color: tab.color, boxShadow: `0 0 12px ${tab.color}20` }
                 : { color: '#4a4a60' }}>
@@ -996,8 +999,8 @@ export default function Registrations() {
         {filtered.map(reg => {
           const status = STATUS_CONFIG[reg.status] || STATUS_CONFIG.draft;
           return (
-            <motion.div key={reg.id} layout whileHover={{ y: -4 }}
-              className="glass-card rounded-xl overflow-hidden group cursor-pointer"
+            <motion.div key={reg.id} layout
+              className="nx-tile overflow-hidden group cursor-pointer"
               onClick={() => openEdit(reg)}>
               {reg.imageUrl && (
                 <div className="h-32 overflow-hidden">
@@ -1019,18 +1022,18 @@ export default function Registrations() {
                   {(reg.waitlistCount || 0) > 0 && <span className="flex items-center gap-1" style={{ color: '#eab308' }}><Clock className="w-3 h-3" />{reg.waitlistCount}</span>}
                 </div>
                 <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity pt-1">
-                  <button onClick={e => { e.stopPropagation(); openEdit(reg); }} className="p-1.5 rounded hover:bg-white/10"><Edit3 className="w-3.5 h-3.5 text-gray-400" /></button>
-                  <button onClick={e => { e.stopPropagation(); openSubmissions(reg); }} className="p-1.5 rounded hover:bg-white/10"><Eye className="w-3.5 h-3.5 text-gray-400" /></button>
-                  <a href={`/registrations/${reg.id}/participants`} onClick={e => e.stopPropagation()} className="p-1.5 rounded hover:bg-white/10"><Users className="w-3.5 h-3.5 text-gray-400" /></a>
+                  <button onClick={e => { e.stopPropagation(); openEdit(reg); }} className="p-1.5 rounded hover:bg-white/10 nx-press"><Edit3 className="w-3.5 h-3.5 text-gray-400" /></button>
+                  <button onClick={e => { e.stopPropagation(); openSubmissions(reg); }} className="p-1.5 rounded hover:bg-white/10 nx-press"><Eye className="w-3.5 h-3.5 text-gray-400" /></button>
+                  <a href={`/registrations/${reg.id}/participants`} onClick={e => e.stopPropagation()} className="p-1.5 rounded hover:bg-white/10 nx-press"><Users className="w-3.5 h-3.5 text-gray-400" /></a>
                   {reg.publicSlug && (
                     <a href={`/reg/${reg.publicSlug}`} target="_blank" rel="noopener"
                       onClick={e => e.stopPropagation()}
-                      className="p-1.5 rounded hover:bg-white/10" title="Предпросмотр">
+                      className="p-1.5 rounded hover:bg-white/10 nx-press" title="Предпросмотр">
                       <ExternalLink className="w-3.5 h-3.5 text-gray-400" />
                     </a>
                   )}
-                  <button onClick={e => { e.stopPropagation(); handleDuplicate(reg.id); }} className="p-1.5 rounded hover:bg-white/10" title="Копировать"><Copy className="w-3.5 h-3.5 text-gray-400" /></button>
-                  <button onClick={e => { e.stopPropagation(); handleDelete(reg); }} className="p-1.5 rounded hover:bg-red-500/20"><Trash2 className="w-3.5 h-3.5 text-red-400" /></button>
+                  <button onClick={e => { e.stopPropagation(); handleDuplicate(reg.id); }} className="p-1.5 rounded hover:bg-white/10 nx-press" title="Копировать"><Copy className="w-3.5 h-3.5 text-gray-400" /></button>
+                  <button onClick={e => { e.stopPropagation(); handleDelete(reg); }} className="p-1.5 rounded hover:bg-red-500/20 nx-press"><Trash2 className="w-3.5 h-3.5 text-red-400" /></button>
                 </div>
               </div>
             </motion.div>
@@ -1062,17 +1065,18 @@ export default function Registrations() {
               initial={{ scale: 0.95, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.95, opacity: 0, y: 20 }}
-              className="w-full max-w-3xl max-h-[85vh] rounded-2xl overflow-hidden flex flex-col"
-              style={{ background: 'linear-gradient(135deg, rgba(20,20,35,0.98), rgba(10,10,20,0.99))', border: '1px solid rgba(255,255,255,0.08)', backdropFilter: 'blur(24px)' }}
+              className="nx-bezel w-full max-w-3xl max-h-[85vh] flex flex-col"
               onClick={e => e.stopPropagation()}
             >
+              <div className="nx-core flex-1 min-h-0 flex flex-col overflow-hidden">
               {/* Header */}
-              <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+              <div className="flex items-center justify-between px-6 py-4">
                 <h3 className="font-mono text-lg font-bold" style={{ color: 'var(--color-primary)' }}>БАЗА КОНТАКТОВ</h3>
-                <button onClick={() => { setShowContacts(false); setSelectedContact(null); }} className="p-1.5 rounded-lg hover:bg-white/10" aria-label="Закрыть">
+                <button onClick={() => { setShowContacts(false); setSelectedContact(null); }} className="p-1.5 rounded-lg hover:bg-white/10 nx-press" aria-label="Закрыть">
                   <X className="w-4 h-4 text-gray-400" />
                 </button>
               </div>
+              <div className="nx-divider" />
               
               {/* Search */}
               <div className="px-6 py-3">
@@ -1082,7 +1086,7 @@ export default function Registrations() {
                     value={contactSearch}
                     onChange={e => setContactSearch(e.target.value)}
                     placeholder="Поиск по имени, телефону, email..."
-                    className="w-full pl-10 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-gray-200 focus:border-white/20 transition-colors placeholder:text-gray-600"
+                    className="w-full pl-10 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-gray-200 focus:border-white/20 transition-colors placeholder:text-gray-600 [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]"
                   />
                 </div>
               </div>
@@ -1140,9 +1144,11 @@ export default function Registrations() {
                 )}
               </div>
               
+              <div className="nx-divider" />
               {/* Footer */}
-              <div className="px-6 py-3 text-right" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+              <div className="px-6 py-3 text-right">
                 <span className="font-mono text-[10px] text-gray-500">{contacts.length} контактов</span>
+              </div>
               </div>
             </motion.div>
           </motion.div>
@@ -1172,17 +1178,18 @@ export default function Registrations() {
                 initial={{ scale: 0.95, opacity: 0, y: 20 }}
                 animate={{ scale: 1, opacity: 1, y: 0 }}
                 exit={{ scale: 0.95, opacity: 0, y: 20 }}
-                className="w-full max-w-md rounded-2xl overflow-hidden"
-                style={{ background: 'linear-gradient(135deg, rgba(20,20,35,0.98), rgba(10,10,20,0.99))', border: '1px solid rgba(255,255,255,0.08)', backdropFilter: 'blur(24px)' }}
+                className="nx-bezel w-full max-w-md"
                 onClick={e => e.stopPropagation()}
               >
+                <div className="nx-core">
                 {/* Header */}
-                <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                <div className="flex items-center justify-between px-6 py-4">
                   <h3 className="font-mono text-lg font-bold" style={{ color: 'var(--color-primary)' }}>КОНТАКТ</h3>
-                  <button onClick={() => setSelectedContact(null)} className="p-1.5 rounded-lg hover:bg-white/10" aria-label="Закрыть">
+                  <button onClick={() => setSelectedContact(null)} className="p-1.5 rounded-lg hover:bg-white/10 nx-press" aria-label="Закрыть">
                     <X className="w-4 h-4 text-gray-400" />
                   </button>
                 </div>
+                <div className="nx-divider" />
 
                 <div className="p-6 space-y-4">
                   {/* Avatar + name */}
@@ -1219,20 +1226,20 @@ export default function Registrations() {
                   {/* Actions: copy + socials */}
                   <div className="grid grid-cols-5 gap-2">
                     <button onClick={() => { navigator.clipboard.writeText(copyText); showToast('Скопировано'); }}
-                      className="flex flex-col items-center gap-1 p-2.5 rounded-xl glass hover:bg-white/10 transition-all">
+                      className="flex flex-col items-center gap-1 p-2.5 rounded-xl glass hover:bg-white/10 transition-all nx-press">
                       <Copy className="w-4 h-4 text-gray-400" />
                       <span className="font-mono text-[9px] text-gray-500">Копия</span>
                     </button>
 
                     <a href={`https://t.me/share/url?url=${encodeURIComponent(copyText)}`} target="_blank" rel="noopener noreferrer"
-                      className="flex flex-col items-center gap-1 p-2.5 rounded-xl glass hover:bg-white/10 transition-all no-underline">
+                      className="flex flex-col items-center gap-1 p-2.5 rounded-xl glass hover:bg-white/10 transition-all nx-press no-underline">
                       <svg viewBox="0 0 24 24" className="w-4 h-4" fill="#0088CC"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.479.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
                       <span className="font-mono text-[9px] text-gray-500">Telegram</span>
                     </a>
 
                     {cleanPhone ? (
                       <a href={`https://api.whatsapp.com/send?phone=${cleanPhone.replace(/^\+/, '')}`} target="_blank" rel="noopener noreferrer"
-                        className="flex flex-col items-center gap-1 p-2.5 rounded-xl glass hover:bg-white/10 transition-all no-underline">
+                        className="flex flex-col items-center gap-1 p-2.5 rounded-xl glass hover:bg-white/10 transition-all nx-press no-underline">
                         <svg viewBox="0 0 24 24" className="w-4 h-4" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
                         <span className="font-mono text-[9px] text-gray-500">WhatsApp</span>
                       </a>
@@ -1244,13 +1251,13 @@ export default function Registrations() {
                     )}
 
                     <a href={`https://vk.com/share.php?url=${encodeURIComponent(window.location.href)}&title=${encodeURIComponent(displayName)}&comment=${encodeURIComponent(copyText)}`} target="_blank" rel="noopener noreferrer"
-                      className="flex flex-col items-center gap-1 p-2.5 rounded-xl glass hover:bg-white/10 transition-all no-underline">
+                      className="flex flex-col items-center gap-1 p-2.5 rounded-xl glass hover:bg-white/10 transition-all nx-press no-underline">
                       <svg viewBox="0 0 24 24" className="w-4 h-4" fill="#0077FF"><path d="M12.785 16.241s.288-.032.436-.194c.136-.148.132-.427.132-.427s-.02-1.304.587-1.496c.596-.189 1.362 1.26 2.174 1.817.613.42 1.079.328 1.079.328l2.172-.03s1.136-.07.598-.964c-.044-.073-.314-.66-1.618-1.866-1.364-1.264-1.182-1.06.462-3.246.999-1.33 1.398-2.143 1.273-2.49-.12-.334-.86-.246-.86-.246l-2.446.015s-.182-.025-.316.056c-.131.079-.216.263-.216.263s-.387 1.026-.902 1.906c-1.086 1.85-1.524 1.952-1.702 1.838-.415-.268-.312-1.076-.312-1.65 0-1.793.272-2.54-.529-2.734-.266-.064-.462-.107-1.143-.114-.874-.008-1.613.003-2.032.208-.28.137-.496.442-.363.46.163.022.532.099.728.366.254.346.245 1.124.245 1.124s.146 2.15-.34 2.416c-.333.184-.791-.19-1.776-1.9-.503-.877-.882-1.844-.882-1.844s-.073-.18-.204-.277c-.159-.118-.38-.156-.38-.156l-2.32.015s-.348.01-.476.162c-.114.135-.01.413-.01.413s1.82 4.262 3.882 6.408c1.89 1.968 4.04 1.836 4.04 1.836h.976z"/></svg>
                       <span className="font-mono text-[9px] text-gray-500">ВКонтакте</span>
                     </a>
 
                     <button onClick={shareToMaxHandler}
-                      className="flex flex-col items-center gap-1 p-2.5 rounded-xl glass hover:bg-white/10 transition-all no-underline">
+                      className="flex flex-col items-center gap-1 p-2.5 rounded-xl glass hover:bg-white/10 transition-all nx-press no-underline">
                       <svg viewBox="0 0 100 100" className="w-4 h-4" fill="currentColor"><path fillRule="evenodd" d="M50.76 0c27.53 0 49.12 22.34 49.12 49.89S77.61 99.23 51.02 99.23c-9.43 0-14.01-1.33-21.37-6.54-.5-.36-1.2-.26-1.63.19-5.66 6.04-20.17 10.28-20.83 2.03C7.19 80.53 0 71.18 0 49.61 0 21.3 23.22 0 50.76 0m.77 24.55c-13.07-.68-23.26 8.39-25.51 22.58-1.86 11.75 1.44 26.07 4.26 26.8 1.2.3 4.08-1.9 6.18-3.88.4-.37.99-.44 1.45-.15 3.27 2 6.97 3.5 11.05 3.71 13.42.7 25.3-9.8 26-23.21.71-13.42-10.01-25.14-23.43-25.85" clipRule="evenodd"/></svg>
                       <span className="font-mono text-[9px] text-gray-500">МАКС</span>
                     </button>
@@ -1259,7 +1266,7 @@ export default function Registrations() {
                   {/* Call button */}
                   {cleanPhone && (
                     <a href={`tel:${cleanPhone}`}
-                      className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-mono text-sm font-bold w-full transition-all"
+                      className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-mono text-sm font-bold w-full transition-all nx-press"
                       style={{ background: 'rgba(0,255,136,0.15)', color: 'var(--color-primary)', border: '1px solid rgba(0,255,136,0.3)' }}>
                       <Phone className="w-4 h-4" /> ПОЗВОНИТЬ
                     </a>
@@ -1269,17 +1276,18 @@ export default function Registrations() {
                   <div className="flex gap-2">
                     {c.contactPhone && (
                       <button onClick={() => { navigator.clipboard.writeText(c.contactPhone); showToast('Телефон скопирован'); }}
-                        className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg font-mono text-xs glass hover:bg-white/10 transition-all text-gray-300">
+                        className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg font-mono text-xs glass hover:bg-white/10 transition-all text-gray-300 nx-press">
                         <Copy className="w-3.5 h-3.5" /> ТЕЛЕФОН
                       </button>
                     )}
                     {c.contactEmail && (
                       <button onClick={() => { navigator.clipboard.writeText(c.contactEmail); showToast('Email скопирован'); }}
-                        className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg font-mono text-xs glass hover:bg-white/10 transition-all text-gray-300">
+                        className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg font-mono text-xs glass hover:bg-white/10 transition-all text-gray-300 nx-press">
                         <Copy className="w-3.5 h-3.5" /> EMAIL
                       </button>
                     )}
                   </div>
+                </div>
                 </div>
               </motion.div>
             </motion.div>

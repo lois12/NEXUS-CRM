@@ -21,7 +21,7 @@ export default function PublicList() {
   }, [slug]);
 
   if (loading) return (
-    <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--color-bg)' }}>
+    <div className="min-h-screen flex items-center justify-center nx-stage">
       <CyberBackground />
       <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="relative z-10 text-center">
         <div className="w-12 h-12 rounded-full border-2 border-t-transparent animate-spin mx-auto mb-4" style={{ borderColor: 'var(--color-primary)', borderTopColor: 'transparent' }} />
@@ -31,12 +31,12 @@ export default function PublicList() {
   );
 
   if (error) return (
-    <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--color-bg)' }}>
+    <div className="min-h-screen flex items-center justify-center nx-stage">
       <CyberBackground />
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="relative z-10 text-center">
         <AlertTriangle className="w-16 h-16 mx-auto mb-4 text-red-400" />
         <h2 className="font-mono text-xl font-bold mb-2" style={{ color: 'var(--color-text-primary)' }}>{error}</h2>
-        <a href="/" className="inline-block mt-4 px-5 py-2.5 rounded-xl font-mono text-sm font-bold transition-all" style={{ backgroundColor: 'rgba(0,255,136,0.15)', color: 'var(--color-primary)', border: '1px solid rgba(0,255,136,0.3)' }}>НА ГЛАВНУЮ</a>
+        <a href="/" className="inline-block mt-4 px-5 py-2.5 rounded-xl font-mono text-sm font-bold transition-all nx-press" style={{ backgroundColor: 'rgba(0,255,136,0.15)', color: 'var(--color-primary)', border: '1px solid rgba(0,255,136,0.3)' }}>НА ГЛАВНУЮ</a>
       </motion.div>
     </div>
   );
@@ -48,7 +48,7 @@ export default function PublicList() {
   const customFields = fields.filter((f: any) => f.type !== 'toggle_called' && f.type !== 'toggle_visited');
 
   return (
-    <div className="min-h-screen" style={{ background: 'var(--color-bg)' }}>
+    <div className="min-h-screen nx-stage">
       <CyberBackground />
 
       {/* Header */}
@@ -77,18 +77,18 @@ export default function PublicList() {
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 }} className="relative z-10 p-4 md:p-6">
         {/* Stats */}
         <div className="flex flex-wrap gap-4 mb-6">
-          <div className="px-4 py-2 rounded-xl" style={{ background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.15)' }}>
+          <div className="nx-tile px-4 py-2">
             <span className="text-[10px] font-mono text-gray-500">Всего записей</span>
             <p className="font-mono text-lg font-bold" style={{ color: 'var(--color-primary)' }}>{entries.length}</p>
           </div>
           {hasCalled && (
-            <div className="px-4 py-2 rounded-xl" style={{ background: 'rgba(0,212,255,0.08)', border: '1px solid rgba(0,212,255,0.15)' }}>
+            <div className="nx-tile px-4 py-2">
               <span className="text-[10px] font-mono text-gray-500">Обзвонено</span>
               <p className="font-mono text-lg font-bold" style={{ color: '#00d4ff' }}>{entries.filter((e: any) => e.called).length}</p>
             </div>
           )}
           {hasVisited && (
-            <div className="px-4 py-2 rounded-xl" style={{ background: 'rgba(191,0,255,0.08)', border: '1px solid rgba(191,0,255,0.15)' }}>
+            <div className="nx-tile px-4 py-2">
               <span className="text-[10px] font-mono text-gray-500">Посещено</span>
               <p className="font-mono text-lg font-bold" style={{ color: '#bf00ff' }}>{entries.filter((e: any) => e.visited).length}</p>
             </div>
@@ -109,7 +109,7 @@ export default function PublicList() {
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a'); a.href = url; a.download = `${list.name}.csv`; a.click(); URL.revokeObjectURL(url);
-          }} className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-xs glass hover:bg-white/10 transition-all">
+          }} className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-xs glass hover:bg-white/10 transition-all nx-press">
             <Download className="w-3.5 h-3.5" /> Excel
           </button>
           <button onClick={() => {
@@ -123,13 +123,13 @@ export default function PublicList() {
             }).join('');
             win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${list.name}</title><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:Segoe UI,Arial,sans-serif;padding:30px;color:#333;font-size:11px}h1{font-size:18px;margin-bottom:16px}table{width:100%;border-collapse:collapse;font-size:10px}th{background:#f0f0f0;text-align:left;padding:6px 8px;border-bottom:2px solid #ddd;font-weight:600}td{padding:5px 8px;border-bottom:1px solid #eee}tr:hover td{background:#fafafa}@media print{@page{margin:12mm}}</style></head><body><h1>${list.name}</h1><p style="color:#888;margin-bottom:16px">${entries.length} записей • ${new Date().toLocaleDateString('ru-RU')}</p><table><thead><tr><th>№</th><th>ФАМИЛИЯ</th><th>ИМЯ</th><th>ОТЧЕСТВО</th><th>ТЕЛЕФОН</th><th>EMAIL</th><th>КОММЕНТАРИЙ</th>${fieldHeaders}</tr></thead><tbody>${rows}</tbody></table><script>window.onload=()=>window.print()</script></body></html>`);
             win.document.close();
-          }} className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-xs glass hover:bg-white/10 transition-all">
+          }} className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-xs glass hover:bg-white/10 transition-all nx-press">
             <FileText className="w-3.5 h-3.5" /> PDF
           </button>
         </div>
 
         {/* Table */}
-        <div className="overflow-x-auto rounded-xl" style={{ border: '1px solid rgba(0,255,136,0.08)' }}>
+        <div className="nx-panel overflow-x-auto">
           <table className="w-full text-left">
             <thead>
               <tr className="border-b border-white/5">

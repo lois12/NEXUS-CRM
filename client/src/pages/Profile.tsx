@@ -223,8 +223,9 @@ export default function Profile() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="glass rounded-2xl overflow-hidden"
+        className="nx-bezel"
       >
+        <div className="nx-core overflow-hidden">
         {/* Banner gradient */}
         <div className="h-32 md:h-40 relative" style={{
           background: `linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent) 50%, #ff00ff 100%)`,
@@ -286,7 +287,7 @@ export default function Profile() {
             {/* Edit button */}
             <button onClick={() => isEditing ? handleSave() : setIsEditing(true)}
               disabled={isSaving}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl font-mono text-sm font-bold transition-all"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl font-mono text-sm font-bold transition-all nx-press"
               style={isEditing
                 ? { backgroundColor: 'var(--color-primary)', color: '#000' }
                 : { backgroundColor: 'rgba(255,255,255,0.05)', color: 'var(--color-text-secondary)', border: '1px solid rgba(255,255,255,0.1)' }
@@ -295,6 +296,7 @@ export default function Profile() {
               {isEditing ? 'СОХРАНИТЬ' : 'РЕДАКТИРОВАТЬ'}
             </button>
           </div>
+        </div>
         </div>
       </motion.div>
 
@@ -308,10 +310,11 @@ export default function Profile() {
           className="lg:col-span-2 space-y-6"
         >
           {/* About */}
-          <div className="glass rounded-2xl p-6">
+          <div className="nx-panel p-6">
             <h2 className="font-mono text-sm font-bold mb-4 flex items-center gap-2" style={{ color: 'var(--color-text-secondary)' }}>
               <MessageSquare className="w-4 h-4" style={{ color: 'var(--color-primary)' }} /> О СЕБЕ
             </h2>
+            <div className="nx-divider mb-4" />
             {isEditing ? (
               <textarea value={form.about} onChange={e => setForm({ ...form, about: e.target.value })}
                 placeholder="Расскажите о себе..."
@@ -325,10 +328,11 @@ export default function Profile() {
           </div>
 
           {/* Social links */}
-          <div className="glass rounded-2xl p-6">
+          <div className="nx-panel p-6">
             <h2 className="font-mono text-sm font-bold mb-4 flex items-center gap-2" style={{ color: 'var(--color-text-secondary)' }}>
               <Link2 className="w-4 h-4" style={{ color: 'var(--color-primary)' }} /> ССЫЛКИ
             </h2>
+            <div className="nx-divider mb-4" />
             <div className="space-y-3">
               {SOCIAL_PLATFORMS.map(platform => (
                 <div key={platform.key} className="flex items-center gap-3">
@@ -368,10 +372,11 @@ export default function Profile() {
           className="space-y-6"
         >
           {/* Position */}
-          <div className="glass rounded-2xl p-6">
-            <h2 className="font-mono text-sm font-bold mb-3 flex items-center gap-2" style={{ color: 'var(--color-text-secondary)' }}>
+          <div className="nx-panel p-6">
+            <h2 className="font-mono text-sm font-bold mb-4 flex items-center gap-2" style={{ color: 'var(--color-text-secondary)' }}>
               <Briefcase className="w-4 h-4" style={{ color: 'var(--color-primary)' }} /> ДОЛЖНОСТЬ
             </h2>
+            <div className="nx-divider mb-4" />
             {isEditing ? (
               <input value={form.position} onChange={e => setForm({ ...form, position: e.target.value })}
                 placeholder="Ваша должность"
@@ -384,15 +389,16 @@ export default function Profile() {
           </div>
 
           {/* Status */}
-          <div className="glass rounded-2xl p-6">
-            <h2 className="font-mono text-sm font-bold mb-3 flex items-center gap-2" style={{ color: 'var(--color-text-secondary)' }}>
+          <div className="nx-panel p-6">
+            <h2 className="font-mono text-sm font-bold mb-4 flex items-center gap-2" style={{ color: 'var(--color-text-secondary)' }}>
               <Globe className="w-4 h-4" style={{ color: 'var(--color-primary)' }} /> СТАТУС
             </h2>
+            <div className="nx-divider mb-4" />
             {isEditing ? (
               <div className="grid grid-cols-2 gap-2">
                 {STATUS_OPTIONS.map(opt => (
                   <button key={opt.value} onClick={() => setForm({ ...form, status: opt.value })}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-mono transition-all ${
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-mono transition-all nx-press ${
                       form.status === opt.value ? 'ring-1 ring-[var(--color-primary)]' : 'hover:bg-white/5'
                     }`}
                     style={form.status === opt.value
@@ -415,10 +421,11 @@ export default function Profile() {
           </div>
 
           {/* Account info */}
-          <div className="glass rounded-2xl p-6">
-            <h2 className="font-mono text-sm font-bold mb-3 flex items-center gap-2" style={{ color: 'var(--color-text-secondary)' }}>
+          <div className="nx-panel p-6">
+            <h2 className="font-mono text-sm font-bold mb-4 flex items-center gap-2" style={{ color: 'var(--color-text-secondary)' }}>
               <User className="w-4 h-4" style={{ color: 'var(--color-primary)' }} /> АККАУНТ
             </h2>
+            <div className="nx-divider mb-4" />
             <div className="space-y-2">
               <div className="flex justify-between">
                 <span className="font-mono text-xs" style={{ color: 'var(--color-text-tertiary)' }}>Логин</span>
@@ -444,11 +451,12 @@ export default function Profile() {
           </div>
 
           {/* Push notifications */}
-          <div className="glass rounded-2xl p-6">
-            <h2 className="font-mono text-sm font-bold mb-3 flex items-center gap-2" style={{ color: 'var(--color-text-secondary)' }}>
+          <div className="nx-panel p-6">
+            <h2 className="font-mono text-sm font-bold mb-4 flex items-center gap-2" style={{ color: 'var(--color-text-secondary)' }}>
               {pushEnabled ? <Bell className="w-4 h-4" style={{ color: 'var(--color-primary)' }} /> : <BellOff className="w-4 h-4" style={{ color: '#6b7280' }} />}
               PUSH-УВЕДОМЛЕНИЯ
             </h2>
+            <div className="nx-divider mb-4" />
             <div className="flex items-center justify-between">
               <p className="text-xs font-mono" style={{ color: '#5a5a70' }}>
                 {pushEnabled ? 'Получать уведомления в фоне' : 'Уведомления отключены'}
@@ -456,7 +464,7 @@ export default function Profile() {
               <button
                 onClick={handlePushToggle}
                 disabled={pushLoading}
-                className="relative w-12 h-6 rounded-full transition-all disabled:opacity-50"
+                className="relative w-12 h-6 rounded-full transition-all disabled:opacity-50 nx-press"
                 style={{
                   background: pushEnabled
                     ? 'linear-gradient(135deg, var(--color-primary), var(--color-secondary))'
@@ -472,26 +480,28 @@ export default function Profile() {
           </div>
 
           {/* Onboarding */}
-          <div className="glass rounded-2xl p-6">
-            <h2 className="font-mono text-sm font-bold mb-3" style={{ color: 'var(--color-text-secondary)' }}>
+          <div className="nx-panel p-6">
+            <h2 className="font-mono text-sm font-bold mb-4" style={{ color: 'var(--color-text-secondary)' }}>
               ПОДСКАЗКИ
             </h2>
+            <div className="nx-divider mb-4" />
             <OnboardingResetButton />
           </div>
 
           {/* Password change */}
-          <div className="glass rounded-2xl p-6">
-            <div className="flex items-center justify-between mb-3">
+          <div className="nx-panel p-6">
+            <div className="flex items-center justify-between mb-4">
               <h2 className="font-mono text-sm font-bold flex items-center gap-2" style={{ color: 'var(--color-text-secondary)' }}>
                 <svg className="w-4 h-4" style={{ color: 'var(--color-primary)' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
                 ПАРОЛЬ
               </h2>
               {!showPasswordChange && (
-                <button onClick={() => setShowPasswordChange(true)} className="text-xs font-mono px-3 py-1.5 rounded-lg transition-colors hover:bg-white/5" style={{ color: 'var(--color-primary)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <button onClick={() => setShowPasswordChange(true)} className="text-xs font-mono px-3 py-1.5 rounded-lg transition-colors hover:bg-white/5 nx-press" style={{ color: 'var(--color-primary)', border: '1px solid rgba(255,255,255,0.08)' }}>
                   Изменить
                 </button>
               )}
             </div>
+            <div className="nx-divider mb-4" />
             {showPasswordChange ? (
               <div className="space-y-3">
                 <input type="password" value={passwords.new} onChange={e => setPasswords(p => ({ ...p, new: e.target.value }))}
@@ -503,11 +513,11 @@ export default function Profile() {
                   onKeyDown={e => e.key === 'Enter' && handlePasswordChange()} />
                 <div className="flex gap-2">
                   <button onClick={() => { setShowPasswordChange(false); setPasswords({ new: '', confirm: '' }); }}
-                    className="flex-1 py-2 rounded-lg text-xs font-mono transition-colors hover:bg-white/5" style={{ color: '#8a8aa0', border: '1px solid rgba(255,255,255,0.06)' }}>
+                    className="flex-1 py-2 rounded-lg text-xs font-mono transition-colors hover:bg-white/5 nx-press" style={{ color: '#8a8aa0', border: '1px solid rgba(255,255,255,0.06)' }}>
                     Отмена
                   </button>
                   <button onClick={handlePasswordChange} disabled={isSaving}
-                    className="flex-1 py-2 rounded-lg text-xs font-mono font-bold transition-all disabled:opacity-50"
+                    className="flex-1 py-2 rounded-lg text-xs font-mono font-bold transition-all disabled:opacity-50 nx-press"
                     style={{ background: 'linear-gradient(135deg, var(--color-primary), var(--color-secondary))', color: '#000' }}>
                     {isSaving ? 'Сохранение...' : 'Сохранить'}
                   </button>

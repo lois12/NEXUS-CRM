@@ -276,8 +276,8 @@ export default function IdeaMap() {
   if (isMobile) {
     return (
       <div className="h-dvh-minus-header flex items-center justify-center p-6">
-        <div className="text-center max-w-sm">
-          <div className="w-16 h-16 mx-auto mb-4 rounded-2xl flex items-center justify-center"
+        <div className="text-center max-w-sm nx-panel p-8">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-2xl flex items-center justify-center [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]"
             style={{ background: 'rgba(0,255,136,0.1)', border: '1px solid rgba(0,255,136,0.3)' }}>
             <Lightbulb className="w-8 h-8" style={{ color: 'var(--color-primary)' }} />
           </div>
@@ -291,7 +291,7 @@ export default function IdeaMap() {
             Для работы с картой идей используйте десктопную версию. На мобильных устройствах 3D-графика работает нестабильно.
           </p>
           <a href="/"
-            className="inline-block px-5 py-2.5 rounded-xl font-mono text-sm font-bold transition-all"
+            className="inline-block px-5 py-2.5 rounded-xl font-mono text-sm font-bold transition-all nx-press"
             style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}>
             НА ГЛАВНУЮ
           </a>
@@ -371,7 +371,7 @@ export default function IdeaMap() {
         {/* Fullscreen button */}
         <button
           onClick={toggleFullscreen}
-          className="absolute top-3 right-3 p-2 rounded-lg glass-frost text-gray-400 hover:text-gray-200 transition-colors z-10"
+          className="absolute top-3 right-3 p-2 rounded-lg glass-frost text-gray-400 hover:text-gray-200 transition-colors z-10 nx-press"
           title={isFullscreen ? 'Выйти из полноэкранного' : 'Полный экран'}
         >
           {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Expand className="w-4 h-4" />}
@@ -382,10 +382,12 @@ export default function IdeaMap() {
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="absolute top-4 left-1/2 -translate-x-1/2 px-4 py-2 rounded-xl glass-frost font-mono text-xs z-10"
-            style={{ color: 'var(--color-primary)', border: '1px solid var(--color-border)' }}
+            className="absolute top-4 left-1/2 -translate-x-1/2 z-10"
           >
-            {linkSource ? '// КЛИКНИТЕ НА ВТОРУЮ ИДЕЮ ДЛЯ СВЯЗИ' : '// КЛИКНИТЕ НА ПЕРВУЮ ИДЕЮ'}
+            <div className="nx-panel px-4 py-2 font-mono text-xs"
+              style={{ color: 'var(--color-primary)' }}>
+              {linkSource ? '// КЛИКНИТЕ НА ВТОРУЮ ИДЕЮ ДЛЯ СВЯЗИ' : '// КЛИКНИТЕ НА ПЕРВУЮ ИДЕЮ'}
+            </div>
           </motion.div>
         )}
 
@@ -394,11 +396,12 @@ export default function IdeaMap() {
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 z-10"
+            className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10"
           >
+            <div className="nx-panel p-2 flex items-center gap-2">
             <button
               onClick={() => handleUnlink(selectedLinkId)}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-mono text-xs font-bold transition-all"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-mono text-xs font-bold transition-all nx-press"
               style={{ backgroundColor: '#ff3b30', color: '#fff' }}
             >
               <Unlink className="w-4 h-4" />
@@ -406,10 +409,11 @@ export default function IdeaMap() {
             </button>
             <button
               onClick={() => setSelectedLinkId(null)}
-              className="px-3 py-2.5 rounded-xl glass font-mono text-xs text-gray-400 hover:text-gray-200 transition-colors"
+              className="px-3 py-2.5 rounded-xl glass font-mono text-xs text-gray-400 hover:text-gray-200 transition-colors nx-press"
             >
               ОТМЕНА
             </button>
+            </div>
           </motion.div>
         )}
 
@@ -421,7 +425,7 @@ export default function IdeaMap() {
               <p className="font-mono text-gray-500 mb-4">// ПОКА ПУСТО</p>
               <button
                 onClick={() => handleAdd()}
-                className="px-6 py-3 rounded-xl font-mono text-sm font-bold transition-all"
+                className="px-6 py-3 rounded-xl font-mono text-sm font-bold transition-all nx-press"
                 style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}
               >
                 СОЗДАТЬ ПЕРВУЮ ИДЕЮ

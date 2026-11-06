@@ -134,7 +134,7 @@ export default function Partners() {
             </h1>
             <p className="text-gray-400 mt-1 font-mono text-sm">// {partners.length} ПАРТНЁРОВ • {categories.length} КАТЕГОРИЙ</p>
           </div>
-          <button onClick={() => setShowCatModal(true)} className="flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-sm font-bold glass hover:bg-white/10">
+          <button onClick={() => setShowCatModal(true)} className="flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-sm font-bold glass hover:bg-white/10 nx-press">
             <Plus className="w-4 h-4" /> КАТЕГОРИЯ
           </button>
         </div>
@@ -143,9 +143,9 @@ export default function Partners() {
         <div className="flex-1 overflow-y-auto">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {categories.map(cat => (
-              <motion.button key={cat} whileHover={{ scale: 1.03, y: -4 }} whileTap={{ scale: 0.98 }}
+              <motion.button key={cat}
                 onClick={() => setActiveCategory(cat)}
-                className="glass-card rounded-2xl p-6 text-left transition-all hover:border-[var(--color-primary)]/40 group">
+                className="nx-tile p-6 text-left transition-all hover:border-[var(--color-primary)]/40 group">
                 <div className="flex items-center justify-between mb-3">
                   <div className="w-12 h-12 rounded-xl flex items-center justify-center glass-accent">
                     <Building2 className="w-6 h-6" style={{ color: 'var(--color-primary)' }} />
@@ -163,9 +163,9 @@ export default function Partners() {
 
             {/* "Без категории" tile if there are uncategorized partners */}
             {(catCounts['Без категории'] || 0) > 0 && (
-              <motion.button whileHover={{ scale: 1.03, y: -4 }} whileTap={{ scale: 0.98 }}
+              <motion.button
                 onClick={() => setActiveCategory('Без категории')}
-                className="glass-card rounded-2xl p-6 text-left transition-all hover:border-gray-500/40 group opacity-60 hover:opacity-100">
+                className="nx-tile p-6 text-left transition-all hover:border-gray-500/40 group opacity-60 hover:opacity-100">
                 <div className="flex items-center justify-between mb-3">
                   <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-white/5">
                     <Building2 className="w-6 h-6 text-gray-500" />
@@ -220,7 +220,7 @@ export default function Partners() {
     <div className="h-dvh-minus-header flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <button onClick={() => setActiveCategory(null)} className="p-2 rounded-lg glass hover:bg-white/10" aria-label="Назад">
+          <button onClick={() => setActiveCategory(null)} className="p-2 rounded-lg glass hover:bg-white/10 nx-press" aria-label="Назад">
             <ArrowLeft className="w-5 h-5 text-gray-400" />
           </button>
           <div>
@@ -234,9 +234,9 @@ export default function Partners() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="ПОИСК..."
-              className="pl-9 pr-4 py-2 rounded-lg focus:border-[var(--color-primary)] w-full sm:w-48" />
+              className="pl-9 pr-4 py-2 rounded-lg focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)] w-full sm:w-48" />
           </div>
-          <button onClick={openCreate} className="btn-primary flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-sm font-bold"
+          <button onClick={openCreate} className="btn-primary nx-press flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-sm font-bold"
             >
             <Plus className="w-4 h-4" /> ДОБАВИТЬ
           </button>
@@ -245,7 +245,7 @@ export default function Partners() {
 
       <div className="flex-1 overflow-y-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 content-start">
         {filtered.filter(p => !search || p.name.toLowerCase().includes(search.toLowerCase()) || p.contactPerson.toLowerCase().includes(search.toLowerCase())).map(p => (
-          <motion.div key={p.id} layout className="glass-card rounded-xl p-4 group">
+          <motion.div key={p.id} layout className="nx-tile p-4 group">
             <div className="flex items-start justify-between mb-3">
               <h3 className="font-mono text-sm font-bold text-gray-200">{p.name}</h3>
               <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">

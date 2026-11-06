@@ -22,13 +22,13 @@ export default function SurveyMetaFields({
 
   return (
     <div className="glass rounded-xl p-4 space-y-3">
-      <label className="font-mono text-xs text-gray-500 block">ДАННЫЕ ОПРОСА</label>
+      <label className="nx-eyebrow">ДАННЫЕ ОПРОСА</label>
       <div>
         <label className="font-mono text-[10px] text-gray-500 mb-1 block">НАЗВАНИЕ *</label>
         <input
           value={name}
           onChange={(e) => onChange({ name: e.target.value })}
-          className="w-full px-2 py-2 rounded font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none"
+          className="w-full px-2 py-2 rounded font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]"
           placeholder="Например: Оценка мероприятия"
         />
       </div>
@@ -38,7 +38,7 @@ export default function SurveyMetaFields({
           value={description}
           onChange={(e) => onChange({ description: e.target.value })}
           rows={2}
-          className="w-full px-2 py-2 rounded font-mono text-xs bg-black/30 border border-gray-700 text-gray-200 focus:outline-none resize-none"
+          className="w-full px-2 py-2 rounded font-mono text-xs bg-black/30 border border-gray-700 text-gray-200 focus:outline-none [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)] resize-none"
         />
       </div>
       <div>
@@ -58,7 +58,7 @@ export default function SurveyMetaFields({
         />
         <button
           onClick={() => fileRef.current?.click()}
-          className="flex items-center gap-2 px-3 py-2 rounded-lg font-mono text-[11px] glass hover:bg-white/10"
+          className="flex items-center gap-2 px-3 py-2 rounded-lg font-mono text-[11px] glass hover:bg-white/10 nx-press"
         >
           <ImageIcon className="w-3.5 h-3.5" />
           {(imageUrl || preview) ? 'Заменить обложку' : 'Загрузить обложку'}
@@ -74,7 +74,7 @@ export default function SurveyMetaFields({
       <button
         type="button"
         onClick={() => onChange({ isAnonymous: !isAnonymous })}
-        className="w-full py-2 rounded-lg font-mono text-xs transition-all"
+        className="w-full py-2 rounded-lg font-mono text-xs transition-all nx-press"
         style={isAnonymous
           ? { background: 'var(--color-primary)', color: '#000' }
           : { background: 'rgba(255,255,255,0.05)', color: '#888' }}
@@ -88,7 +88,7 @@ export default function SurveyMetaFields({
           onChange={(e) => onChange({ thanksText: e.target.value })}
           rows={2}
           placeholder="Спасибо что уделили время и проши опрос…"
-          className="w-full px-2 py-2 rounded font-mono text-xs bg-black/30 border border-gray-700 text-gray-200 focus:outline-none resize-none"
+          className="w-full px-2 py-2 rounded font-mono text-xs bg-black/30 border border-gray-700 text-gray-200 focus:outline-none [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)] resize-none"
         />
       </div>
       <div>
@@ -97,7 +97,7 @@ export default function SurveyMetaFields({
           value={thanksRedirectUrl}
           onChange={(e) => onChange({ thanksRedirectUrl: e.target.value })}
           placeholder="https://visit-norilsk.ru"
-          className="w-full px-2 py-2 rounded font-mono text-xs bg-black/30 border border-gray-700 text-gray-200 focus:outline-none"
+          className="w-full px-2 py-2 rounded font-mono text-xs bg-black/30 border border-gray-700 text-gray-200 focus:outline-none [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]"
         />
       </div>
     </div>

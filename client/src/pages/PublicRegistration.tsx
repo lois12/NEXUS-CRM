@@ -29,7 +29,7 @@ function calcTimeLeft(target: string): TimeLeft | null {
 function TimerBlock({ value, label }: { value: number; label: string }) {
   return (
     <div className="flex flex-col items-center">
-      <div className="w-16 h-16 rounded-xl flex items-center justify-center font-mono text-2xl font-bold"
+      <div className="w-16 h-16 nx-tile flex items-center justify-center font-mono text-2xl font-bold"
         style={{ background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.2)', color: 'var(--color-primary)', textShadow: '0 0 12px var(--color-glow)' }}>
         {String(value).padStart(2, '0')}
       </div>
@@ -232,16 +232,16 @@ export default function PublicRegistration() {
   // ── Loading ──
   if (state === 'loading') {
     return (
-      <div className="min-h-screen py-8 px-4 relative" style={{ background: 'var(--color-bg)' }}>
+      <div className="min-h-screen py-8 px-4 relative nx-stage">
         <CyberBackground />
         <div className="relative z-10 max-w-xl mx-auto space-y-6">
           <SkeletonBlock height="h-48" className="w-full rounded-2xl" />
-          <div className="glass rounded-2xl p-6 space-y-3">
+          <div className="nx-panel p-6 space-y-3">
             <SkeletonBlock height="h-7" className="w-2/3" />
             <SkeletonBlock height="h-3" className="w-1/2" />
             <SkeletonBlock height="h-3" className="w-3/4" />
           </div>
-          <div className="glass rounded-2xl p-6">
+          <div className="nx-panel p-6">
             <SkeletonForm />
           </div>
         </div>
@@ -253,8 +253,8 @@ export default function PublicRegistration() {
   if (state === 'error') {
     const isDraft = error === 'DRAFT';
     return (
-      <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'var(--color-bg)' }}>
-        <div className="glass rounded-2xl p-8 text-center max-w-md">
+      <div className="min-h-screen flex items-center justify-center p-4 nx-stage">
+        <div className="nx-panel p-8 text-center max-w-md">
           {isDraft ? (
             <>
               <Clock className="w-16 h-16 mx-auto mb-4" style={{ color: '#6b7280' }} />
@@ -276,9 +276,9 @@ export default function PublicRegistration() {
   // ── Timer (before start) ──
   if (state === 'timer' && timeLeft && timerType === 'before') {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'var(--color-bg)' }}>
+      <div className="min-h-screen flex items-center justify-center p-4 nx-stage">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-          className="glass rounded-2xl p-8 text-center max-w-md w-full space-y-6">
+          className="nx-panel p-8 text-center max-w-md w-full space-y-6">
           <Clock className="w-16 h-16 mx-auto" style={{ color: 'var(--color-primary)' }} />
           <h2 className="font-mono text-xl font-bold neon-text" style={{ color: 'var(--color-primary)' }}>РЕГИСТРАЦИЯ СКОРО ОТКРОЕТСЯ</h2>
           {reg && <p className="font-mono text-sm text-gray-400">{reg.title}</p>}
@@ -299,8 +299,8 @@ export default function PublicRegistration() {
   // ── Ended ──
   if (state === 'ended') {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'var(--color-bg)' }}>
-        <div className="glass rounded-2xl p-8 text-center max-w-md">
+      <div className="min-h-screen flex items-center justify-center p-4 nx-stage">
+        <div className="nx-panel p-8 text-center max-w-md">
           <XCircle className="w-16 h-16 mx-auto mb-4 text-gray-500" />
           <h2 className="font-mono text-lg font-bold text-gray-200 mb-2">РЕГИСТРАЦИЯ ЗАКРЫТА</h2>
           {reg && <p className="font-mono text-sm text-gray-400 mb-2">{reg.title}</p>}
@@ -320,10 +320,10 @@ export default function PublicRegistration() {
     const cancelUrl = `${window.location.origin}/reg/cancel/${result.cancelToken}`;
 
     return (
-      <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'var(--color-bg)' }}>
+      <div className="min-h-screen flex items-center justify-center p-4 nx-stage">
         <motion.div initial={{ opacity: 0, y: 20, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }}
-          className="rounded-2xl p-8 text-center max-w-md w-full space-y-5"
-          style={{ background: 'linear-gradient(135deg, rgba(15,15,25,0.95), rgba(10,10,20,0.98))', border: '1px solid rgba(0,255,136,0.15)', boxShadow: '0 0 40px rgba(0,255,136,0.08), 0 16px 48px rgba(0,0,0,0.4)' }}>
+          className="nx-bezel max-w-md w-full">
+          <div className="nx-core p-8 text-center space-y-5">
           {isRegistered ? (
             <>
               {/* NEXUS hexagon logo */}
@@ -394,6 +394,7 @@ export default function PublicRegistration() {
               {contactEmail}
             </p>
           </div>
+          </div>
         </motion.div>
       </div>
     );
@@ -407,7 +408,7 @@ export default function PublicRegistration() {
   const isClosed = isFull && (!reg.waitlistEnabled || isWaitlistFull);
 
   return (
-    <div className="min-h-screen py-8 px-4 relative" style={{ background: 'var(--color-bg)' }}>
+    <div className="min-h-screen py-8 px-4 relative nx-stage">
       {(reg.theme || reg.color) && (
         <style dangerouslySetInnerHTML={{ __html: (() => {
           const themes = [
@@ -436,7 +437,7 @@ export default function PublicRegistration() {
 
         {/* Media gallery */}
         {allMedia.length > 0 && (
-          <div className="glass rounded-2xl overflow-hidden">
+          <div className="nx-panel overflow-hidden">
             {/* Main display */}
             <div className="relative">
               {allMedia[activeMediaIdx]?.type === 'video' ? (
@@ -476,7 +477,7 @@ export default function PublicRegistration() {
 
         {/* Timer — right after cover */}
         {reg.showTimer !== 0 && timerType === 'during' && timeLeft && (
-          <div className="glass rounded-xl px-5 py-4 flex items-center justify-between flex-wrap gap-3" style={{ border: '1px solid rgba(0,255,136,0.1)' }}>
+          <div className="nx-tile px-5 py-4 flex items-center justify-between flex-wrap gap-3">
             <span className="font-mono text-xs font-bold" style={{ color: 'var(--color-primary)' }}>РЕГИСТРАЦИЯ ЗАКРОЕТСЯ ЧЕРЕЗ:</span>
             <div className="flex gap-2">
               <TimerBlock value={timeLeft.days} label="д" />
@@ -487,7 +488,7 @@ export default function PublicRegistration() {
           </div>
         )}
         {reg.showTimer !== 0 && timerType === 'before' && timeLeft && (
-          <div className="glass rounded-xl px-5 py-4 flex items-center justify-between flex-wrap gap-3" style={{ border: '1px solid rgba(0,212,255,0.1)' }}>
+          <div className="nx-tile px-5 py-4 flex items-center justify-between flex-wrap gap-3">
             <span className="font-mono text-xs font-bold" style={{ color: '#00d4ff' }}>РЕГИСТРАЦИЯ ОТКРОЕТСЯ ЧЕРЕЗ:</span>
             <div className="flex gap-2">
               <TimerBlock value={timeLeft.days} label="д" />
@@ -499,7 +500,7 @@ export default function PublicRegistration() {
         )}
 
         {/* Header card */}
-        <div className="glass rounded-2xl p-6 space-y-3">
+        <div className="nx-panel p-6 space-y-3">
           <h1 className="text-2xl font-bold font-mono neon-text" style={{ color: 'var(--color-primary)' }}>{reg.title}</h1>
           <div className="flex items-center gap-4 flex-wrap text-xs font-mono text-gray-400">
             {reg.eventDate && <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" />{reg.eventDate}</span>}
@@ -520,21 +521,21 @@ export default function PublicRegistration() {
           const dgisUrl = `https://2gis.ru/directions/tab/car/to/${coords.lng},${coords.lat}`;
           const googleUrl = `https://www.google.com/maps/dir/?api=1&destination=${coords.lat},${coords.lng}`;
           return (
-            <div className="glass rounded-2xl overflow-hidden">
+            <div className="nx-panel overflow-hidden">
               <MapField value={reg.mapCoords} label={reg.location || 'Место проведения'} />
               <div className="p-4 flex flex-wrap gap-2">
                 <a href={yandexUrl} target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-xs font-bold transition-all hover:brightness-110"
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-xs font-bold nx-press"
                   style={{ background: 'linear-gradient(135deg, #fc3f1d, #ff6b3d)', color: '#fff', boxShadow: '0 2px 8px rgba(252,63,29,0.3)' }}>
                   <Navigation className="w-3.5 h-3.5" /> ЯНДЕКС КАРТЫ
                 </a>
                 <a href={dgisUrl} target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-xs font-bold transition-all hover:brightness-110"
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-xs font-bold nx-press"
                   style={{ background: 'linear-gradient(135deg, #2db55d, #43d477)', color: '#fff', boxShadow: '0 2px 8px rgba(45,181,93,0.3)' }}>
                   <Navigation className="w-3.5 h-3.5" /> 2ГИС
                 </a>
                 <a href={googleUrl} target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-xs font-bold transition-all hover:brightness-110"
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-xs font-bold nx-press"
                   style={{ background: 'linear-gradient(135deg, #4285f4, #34a853)', color: '#fff', boxShadow: '0 2px 8px rgba(66,133,244,0.3)' }}>
                   <Navigation className="w-3.5 h-3.5" /> GOOGLE MAPS
                 </a>
@@ -548,7 +549,7 @@ export default function PublicRegistration() {
 
         {/* Participant counter — prominent */}
         {reg.showLimit !== 0 && reg.maxParticipants > 0 && (
-          <div className="rounded-xl px-5 py-4" style={{ background: 'rgba(0,255,136,0.04)', border: '1px solid rgba(0,255,136,0.12)' }}>
+          <div className="nx-tile px-5 py-4">
             <div className="flex items-center justify-between mb-2">
               <span className="font-mono text-xs font-bold" style={{ color: 'var(--color-primary)' }}>
                 <Users className="w-3.5 h-3.5 inline mr-1.5" />УЧАСТНИКИ
@@ -587,7 +588,7 @@ export default function PublicRegistration() {
               alert('Ссылка скопирована');
             }
           }}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg font-mono text-[10px] transition-all hover:bg-white/5"
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg font-mono text-[10px] transition-all hover:bg-white/5 nx-press"
             style={{ border: '1px solid rgba(0,255,136,0.12)', color: '#5a5a70' }}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
             ПОДЕЛИТЬСЯ
@@ -609,8 +610,9 @@ export default function PublicRegistration() {
 
         {/* Form */}
         {!isClosed && (
-        <div className="glass rounded-2xl p-6 space-y-5">
-          <h2 className="font-mono text-sm font-bold" style={{ color: 'var(--color-primary)' }}>ФОРМА РЕГИСТРАЦИИ</h2>
+        <div className="nx-bezel">
+          <div className="nx-core p-6 space-y-5">
+          <h2 className="nx-eyebrow mb-3">ФОРМА РЕГИСТРАЦИИ</h2>
 
           {fields.map(field => {
             // Check conditional visibility (showIf)
@@ -636,30 +638,30 @@ export default function PublicRegistration() {
           })}
 
           <div className="border-t border-white/5 pt-4 space-y-3">
-            <h3 className="font-mono text-xs font-bold text-gray-400">КОНТАКТНЫЕ ДАННЫЕ</h3>
+            <h3 className="nx-eyebrow mb-2">КОНТАКТНЫЕ ДАННЫЕ</h3>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <input value={contactLastName} onChange={e => setContactLastName(e.target.value)} placeholder="// ФАМИЛИЯ *"
-                  className={`w-full px-4 py-2.5 rounded-lg font-mono text-sm bg-black/30 border text-gray-200 focus:outline-none focus:border-[var(--color-primary)] ${fieldErrors['_lastName'] ? 'border-red-500' : 'border-gray-700'}`} />
+                  className={`w-full px-4 py-2.5 rounded-lg font-mono text-sm bg-black/30 border text-gray-200 focus:outline-none focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)] ${fieldErrors['_lastName'] ? 'border-red-500' : 'border-gray-700'}`} />
                 {fieldErrors['_lastName'] && <p className="text-xs font-mono text-red-400 mt-1">{fieldErrors['_lastName']}</p>}
               </div>
               <div>
                 <input value={contactFirstName} onChange={e => setContactFirstName(e.target.value)} placeholder="// ИМЯ *"
-                  className={`w-full px-4 py-2.5 rounded-lg font-mono text-sm bg-black/30 border text-gray-200 focus:outline-none focus:border-[var(--color-primary)] ${fieldErrors['_firstName'] ? 'border-red-500' : 'border-gray-700'}`} />
+                  className={`w-full px-4 py-2.5 rounded-lg font-mono text-sm bg-black/30 border text-gray-200 focus:outline-none focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)] ${fieldErrors['_firstName'] ? 'border-red-500' : 'border-gray-700'}`} />
                 {fieldErrors['_firstName'] && <p className="text-xs font-mono text-red-400 mt-1">{fieldErrors['_firstName']}</p>}
               </div>
               <div>
                 <input value={contactPatronymic} onChange={e => setContactPatronymic(e.target.value)} placeholder="// ОТЧЕСТВО"
-                  className="w-full px-4 py-2.5 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)]" />
+                  className="w-full px-4 py-2.5 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]" />
               </div>
             </div>
             <div>
               <input type="email" value={contactEmail} onChange={e => setContactEmail(e.target.value)} placeholder="// EMAIL *"
-                className={`w-full px-4 py-2.5 rounded-lg font-mono text-sm bg-black/30 border text-gray-200 focus:outline-none focus:border-[var(--color-primary)] ${fieldErrors['_email'] ? 'border-red-500' : 'border-gray-700'}`} />
+                className={`w-full px-4 py-2.5 rounded-lg font-mono text-sm bg-black/30 border text-gray-200 focus:outline-none focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)] ${fieldErrors['_email'] ? 'border-red-500' : 'border-gray-700'}`} />
               {fieldErrors['_email'] && <p className="text-xs font-mono text-red-400 mt-1">{fieldErrors['_email']}</p>}
             </div>
             <input type="tel" value={contactPhone} onChange={e => setContactPhone(e.target.value)} placeholder="// ТЕЛЕФОН"
-              className="w-full px-4 py-2.5 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)]" />
+              className="w-full px-4 py-2.5 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]" />
           </div>
 
           {/* Privacy consent */}
@@ -682,7 +684,7 @@ export default function PublicRegistration() {
           {fieldErrors['_privacy'] && <p className="text-xs font-mono text-red-400 -mt-1">{fieldErrors['_privacy']}</p>}
 
           <button onClick={handleSubmit} disabled={submitting}
-            className="w-full py-3 rounded-xl font-mono text-sm font-bold transition-all disabled:opacity-50"
+            className="w-full py-3 rounded-xl font-mono text-sm font-bold transition-all disabled:opacity-50 nx-press"
             style={{ background: 'linear-gradient(135deg, var(--color-primary), var(--color-secondary))', color: '#000' }}>
             {submitting ? 'ОТПРАВКА...' : 'ЗАРЕГИСТРИРОВАТЬСЯ'}
           </button>
@@ -691,6 +693,7 @@ export default function PublicRegistration() {
               <p className="font-mono text-xs text-red-400">{fieldErrors['_submit']}</p>
             </div>
           )}
+          </div>
         </div>
         )}
 

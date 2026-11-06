@@ -70,10 +70,7 @@ export default function MyDay() {
 
       <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr_1fr] gap-3 md:gap-4">
         {/* date / identity — asymmetric anchor */}
-        <div
-          className="hud-panel relative p-5 md:p-7 min-h-[180px] flex flex-col justify-between"
-          style={{ background: 'linear-gradient(145deg, rgba(18,20,28,0.95), rgba(10,12,18,0.98))' }}
-        >
+        <div className="hud-panel nx-tile nx-rise nx-rise-1 relative p-5 md:p-7 min-h-[180px] flex flex-col justify-between">
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="font-mono text-[10px] tracking-[0.28em] mb-2" style={{ color: 'var(--color-primary)' }}>
@@ -101,7 +98,7 @@ export default function MyDay() {
         </div>
 
         {/* tasks */}
-        <div className="hud-panel p-4 md:p-5 flex flex-col" style={{ background: 'rgba(18,20,28,0.72)' }}>
+        <div className="hud-panel nx-tile nx-rise nx-rise-2 p-4 md:p-5 flex flex-col">
           <PanelHead icon={<CheckSquare className="w-3.5 h-3.5" />} title="МОИ ЗАДАЧИ" to="/kanban" />
           <ul className="mt-3 space-y-2 flex-1">
             {tasks.length === 0 && <EmptyLine text="нет активных задач" />}
@@ -126,7 +123,7 @@ export default function MyDay() {
 
         {/* posts + events */}
         <div className="flex flex-col gap-3 md:gap-4">
-          <div className="hud-panel p-4 md:p-5 flex-1" style={{ background: 'rgba(18,20,28,0.72)' }}>
+          <div className="hud-panel nx-tile nx-rise nx-rise-3 p-4 md:p-5 flex-1">
             <PanelHead icon={<FileText className="w-3.5 h-3.5" />} title="ПОСТЫ НА СЕГОДНЯ" to="/content" />
             <div className="mt-3 space-y-2">
               {posts.length === 0 && <EmptyLine text="публикаций нет" />}
@@ -140,7 +137,7 @@ export default function MyDay() {
               ))}
             </div>
           </div>
-          <div className="hud-panel p-4 md:p-5" style={{ background: 'rgba(18,20,28,0.72)' }}>
+          <div className="hud-panel nx-tile nx-rise nx-rise-4 p-4 md:p-5">
             <PanelHead icon={<Calendar className="w-3.5 h-3.5" />} title="МЕРОПРИЯТИЯ" to="/events" />
             <div className="mt-2">
               {events.length === 0 ? (
@@ -158,7 +155,10 @@ export default function MyDay() {
 
 function Stat({ label, value, to }: { label: string; value: number; to: string }) {
   return (
-    <Link to={to} className="group flex items-baseline gap-1.5">
+    <Link
+      to={to}
+      className="nx-press group flex items-baseline gap-1.5 rounded-lg px-3 py-2 bg-white/5 [box-shadow:var(--depth-contact),var(--depth-rim-top),var(--depth-rim-bottom)]"
+    >
       <span className="font-mono text-xl md:text-2xl font-bold" style={{ color: 'var(--color-primary)' }}>
         {value}
       </span>
@@ -171,14 +171,17 @@ function Stat({ label, value, to }: { label: string; value: number; to: string }
 
 function PanelHead({ icon, title, to }: { icon: React.ReactNode; title: string; to: string }) {
   return (
-    <div className="flex items-center justify-between gap-2">
-      <div className="flex items-center gap-2 min-w-0">
-        <span style={{ color: 'var(--color-primary)' }}>{icon}</span>
-        <h3 className="font-mono text-[10px] tracking-[0.22em] text-gray-400 truncate">{title}</h3>
+    <div>
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="nx-eyebrow">
+          {icon}
+          {title}
+        </h3>
+        <Link to={to} className="nx-press text-gray-600 hover:text-[var(--color-primary)] transition-colors flex-shrink-0" aria-label={title}>
+          <ChevronRight className="w-4 h-4" />
+        </Link>
       </div>
-      <Link to={to} className="text-gray-600 hover:text-[var(--color-primary)] transition-colors flex-shrink-0" aria-label={title}>
-        <ChevronRight className="w-4 h-4" />
-      </Link>
+      <div className="nx-divider mt-2" />
     </div>
   );
 }
