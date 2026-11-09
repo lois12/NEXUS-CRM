@@ -270,8 +270,13 @@ function WeatherAnimation({ code }: { code: number }) {
       });
     }
 
-    let animId: number;
+    let animId = 0;
+    let running = false;
+    let inView = true;
+    let pageVisible = !document.hidden;
+
     const animate = () => {
+      if (!running) return;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       particles.forEach(p => {
@@ -304,7 +309,29 @@ function WeatherAnimation({ code }: { code: number }) {
       animId = requestAnimationFrame(animate);
     };
 
-    if (particleCount > 0) animId = requestAnimationFrame(animate);
+    const start = () => {
+      if (running || !inView || !pageVisible || particleCount === 0) return;
+      running = true;
+      animId = requestAnimationFrame(animate);
+    };
+    const stop = () => {
+      running = false;
+      cancelAnimationFrame(animId);
+    };
+
+    const onVisibilityChange = () => {
+      pageVisible = !document.hidden;
+      if (pageVisible) start(); else stop();
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    const io = new IntersectionObserver(([entry]) => {
+      inView = entry?.isIntersecting ?? true;
+      if (inView) start(); else stop();
+    });
+    io.observe(canvas);
+
+    start();
 
     const handleResize = () => {
       canvas.width = window.innerWidth;
@@ -313,7 +340,9 @@ function WeatherAnimation({ code }: { code: number }) {
     window.addEventListener('resize', handleResize);
 
     return () => {
-      cancelAnimationFrame(animId);
+      stop();
+      io.disconnect();
+      document.removeEventListener('visibilitychange', onVisibilityChange);
       window.removeEventListener('resize', handleResize);
     };
   }, [code]);

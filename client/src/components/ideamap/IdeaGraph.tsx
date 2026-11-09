@@ -175,10 +175,14 @@ export default function IdeaGraph({
     return () => clearTimeout(t);
   });
 
-  // Animate nodes
+  // Animate nodes — paused while the tab is hidden (scene.traverse every frame is costly)
   useEffect(() => {
-    let animId: number;
+    let animId = 0;
+    let running = false;
+    let pageVisible = !document.hidden;
+
     const animate = () => {
+      if (!running) return;
       try {
         if (fgRef.current) {
           const scene = fgRef.current.scene();
@@ -187,8 +191,29 @@ export default function IdeaGraph({
       } catch (e) { /* ignore */ }
       animId = requestAnimationFrame(animate);
     };
-    animId = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(animId);
+
+    const start = () => {
+      if (running || !pageVisible) return;
+      running = true;
+      animId = requestAnimationFrame(animate);
+    };
+    const stop = () => {
+      running = false;
+      cancelAnimationFrame(animId);
+    };
+
+    const onVisibilityChange = () => {
+      pageVisible = !document.hidden;
+      if (pageVisible) start(); else stop();
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    start();
+
+    return () => {
+      stop();
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
   }, []);
 
   // Camera to selected — smooth cinematic fly

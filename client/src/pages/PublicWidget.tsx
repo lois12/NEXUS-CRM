@@ -65,69 +65,69 @@ export default function PublicWidget() {
     }
   };
 
-  if (loading) return (
-    <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--color-bg)' }}>
-      <VantaBackground effect="halo" />
-      <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="relative z-10 text-center">
-        <div className="w-12 h-12 rounded-full border-2 border-t-transparent animate-spin mx-auto mb-4"
-          style={{ borderColor: 'var(--color-primary)', borderTopColor: 'transparent' }} />
-        <p className="font-mono text-sm text-gray-500">Загрузка...</p>
-      </motion.div>
-    </div>
-  );
-
-  if (error) return (
-    <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--color-bg)' }}>
-      <VantaBackground effect="halo" />
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="relative z-10 text-center">
-        <AlertTriangle className="w-16 h-16 mx-auto mb-4 text-red-400" />
-        <h2 className="font-mono text-xl font-bold mb-2" style={{ color: 'var(--color-text-primary)' }}>{error}</h2>
-        <a href="/" className="inline-block mt-4 px-5 py-2.5 rounded-xl font-mono text-sm font-bold transition-all nx-press"
-          style={{ backgroundColor: 'rgba(0,255,136,0.15)', color: 'var(--color-primary)', border: '1px solid rgba(0,255,136,0.3)' }}>
-          НА ГЛАВНУЮ
-        </a>
-      </motion.div>
-    </div>
-  );
-
-  // Password gate
-  if (needsPassword) return (
-    <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--color-bg)' }}>
-      <VantaBackground effect="halo" />
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="relative z-10 w-full max-w-sm mx-4">
-        <div className="nx-bezel">
-          <div className="nx-core p-6">
-            <Lock className="w-10 h-10 mx-auto mb-4" style={{ color: 'var(--color-primary)' }} />
-            <h2 className="font-mono text-lg font-bold text-center mb-2" style={{ color: 'var(--color-text-primary)' }}>
-              {widget?.title || 'Виджет'}
-            </h2>
-            {widget?.description && <p className="text-xs text-gray-500 text-center mb-4">{widget.description}</p>}
-            <p className="font-mono text-xs text-gray-400 text-center mb-4">Введите пароль для доступа</p>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handlePasswordSubmit()}
-              className="w-full rounded-xl px-4 py-3 font-mono text-sm focus:outline-none mb-3 [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]"
-              style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(0,255,136,0.15)', color: '#e8e8ec' }}
-              placeholder="Пароль"
-            />
-            {passwordError && <p className="text-xs text-red-400 font-mono mb-3">{passwordError}</p>}
-            <button onClick={handlePasswordSubmit}
-              className="w-full py-2.5 rounded-xl font-mono text-sm font-bold transition-all nx-press"
-              style={{ background: 'rgba(0,255,136,0.15)', color: 'var(--color-primary)', border: '1px solid rgba(0,255,136,0.3)' }}>
-              ОТКРЫТЬ
-            </button>
-          </div>
-        </div>
-      </motion.div>
-    </div>
-  );
-
+  // Single persistent VantaBackground — one WebGL instance across loading/error/password/content
   return (
     <div className="min-h-screen" style={{ background: 'var(--color-bg)' }}>
       <VantaBackground effect="halo" />
 
+      {loading && (
+        <div className="min-h-screen flex items-center justify-center">
+          <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="relative z-10 text-center">
+            <div className="w-12 h-12 rounded-full border-2 border-t-transparent animate-spin mx-auto mb-4"
+              style={{ borderColor: 'var(--color-primary)', borderTopColor: 'transparent' }} />
+            <p className="font-mono text-sm text-gray-500">Загрузка...</p>
+          </motion.div>
+        </div>
+      )}
+
+      {!loading && error && (
+        <div className="min-h-screen flex items-center justify-center">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="relative z-10 text-center">
+            <AlertTriangle className="w-16 h-16 mx-auto mb-4 text-red-400" />
+            <h2 className="font-mono text-xl font-bold mb-2" style={{ color: 'var(--color-text-primary)' }}>{error}</h2>
+            <a href="/" className="inline-block mt-4 px-5 py-2.5 rounded-xl font-mono text-sm font-bold transition-all nx-press"
+              style={{ backgroundColor: 'rgba(0,255,136,0.15)', color: 'var(--color-primary)', border: '1px solid rgba(0,255,136,0.3)' }}>
+              НА ГЛАВНУЮ
+            </a>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Password gate */}
+      {!loading && !error && needsPassword && (
+        <div className="min-h-screen flex items-center justify-center">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="relative z-10 w-full max-w-sm mx-4">
+            <div className="nx-bezel">
+              <div className="nx-core p-6">
+                <Lock className="w-10 h-10 mx-auto mb-4" style={{ color: 'var(--color-primary)' }} />
+                <h2 className="font-mono text-lg font-bold text-center mb-2" style={{ color: 'var(--color-text-primary)' }}>
+                  {widget?.title || 'Виджет'}
+                </h2>
+                {widget?.description && <p className="text-xs text-gray-500 text-center mb-4">{widget.description}</p>}
+                <p className="font-mono text-xs text-gray-400 text-center mb-4">Введите пароль для доступа</p>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handlePasswordSubmit()}
+                  className="w-full rounded-xl px-4 py-3 font-mono text-sm focus:outline-none mb-3 [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]"
+                  style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(0,255,136,0.15)', color: '#e8e8ec' }}
+                  placeholder="Пароль"
+                />
+                {passwordError && <p className="text-xs text-red-400 font-mono mb-3">{passwordError}</p>}
+                <button onClick={handlePasswordSubmit}
+                  className="w-full py-2.5 rounded-xl font-mono text-sm font-bold transition-all nx-press"
+                  style={{ background: 'rgba(0,255,136,0.15)', color: 'var(--color-primary)', border: '1px solid rgba(0,255,136,0.3)' }}>
+                  ОТКРЫТЬ
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {!loading && !error && !needsPassword && (
+        <>
       {/* Header */}
       <motion.header
         initial={{ opacity: 0, y: -20 }}
@@ -173,6 +173,8 @@ export default function PublicWidget() {
           </div>
         )}
       </motion.div>
+        </>
+      )}
     </div>
   );
 }

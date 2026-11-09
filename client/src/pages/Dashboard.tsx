@@ -1,16 +1,18 @@
-import { useRef, useEffect, useState, useCallback } from 'react';
+import { useRef, useEffect, useState, useCallback, useMemo, Suspense, lazy } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Link } from 'react-router-dom';
 import {
   Calendar, QrCode, Wifi, CalendarClock, Sparkles, Shuffle,
   BookOpen, CheckSquare, Users, CloudSun, Package, PartyPopper,
-  Rocket, FolderOpen, BarChart3, LucideIcon,
+  Rocket, FolderOpen, BarChart3, Cpu, Gauge, Monitor, LucideIcon,
 } from 'lucide-react';
-import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { useTheme } from '../context/ThemeContext';
 import MyDay from '../components/dashboard/MyDay';
 
-// Inject glitch CSS once
+// three.js lives in its own chunk and is only fetched once TitanScene mounts.
+const TitanScene = lazy(() => import('../components/dashboard/TitanScene'));
+
+// Inject glitch / badge CSS once
 const glitchCSS = `
 @keyframes glitch-in {
   0% {
@@ -42,7 +44,7 @@ const glitchCSS = `
   100% {
     opacity: 1;
     transform: skewX(0) translateX(0);
-    clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 100% 100%);
     filter: brightness(1);
   }
 }
@@ -50,7 +52,7 @@ const glitchCSS = `
   0% {
     opacity: 1;
     transform: skewX(0) translateX(0);
-    clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 100% 100%);
     filter: brightness(1);
   }
   25% {
@@ -76,6 +78,11 @@ const glitchCSS = `
 }
 .badge-enter { animation: glitch-in 0.5s cubic-bezier(0.23, 1, 0.32, 1) forwards; }
 .badge-exit { animation: glitch-out 0.4s cubic-bezier(0.55, 0, 1, 0.45) forwards; }
+@keyframes badge-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+.badge-float { animation: badge-float 5s ease-in-out infinite; }
 `;
 if (typeof document !== 'undefined' && !document.getElementById('glitch-styles')) {
   const style = document.createElement('style');
@@ -84,188 +91,24 @@ if (typeof document !== 'undefined' && !document.getElementById('glitch-styles')
   document.head.appendChild(style);
 }
 
-const MODEL_PATH = '/models/titan.glb';
-
-function EarthScene({ modelPath }: { modelPath: string }) {
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!containerRef.current) return;
-
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 1000);
-    // Pull camera back on mobile so model fits
-    const isMobile = window.innerWidth < 768;
-    camera.position.set(0, 0, isMobile ? 4.2 : 3);
-
-    const renderer = new THREE.WebGLRenderer({ antialias: !isMobile, alpha: true, powerPreference: 'high-performance' });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio * (isMobile ? 1 : 1.5), 3));
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.4;
-    renderer.outputColorSpace = THREE.SRGBColorSpace;
-    containerRef.current.appendChild(renderer.domElement);
-
-    scene.add(new THREE.AmbientLight(0xffffff, 0.4));
-    scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 0.6));
-    const sun = new THREE.DirectionalLight(0xfff4e6, 2.0);
-    sun.position.set(5, 2, 5);
-    scene.add(sun);
-    const rim = new THREE.DirectionalLight(0x88ccff, 0.6);
-    rim.position.set(-3, 1, -5);
-    scene.add(rim);
-    const back = new THREE.DirectionalLight(0x00ff88, 0.3);
-    back.position.set(0, -2, -3);
-    scene.add(back);
-
-    // Purple glow light for Titan
-    const purpleLight = new THREE.PointLight(0x8800ff, 2, 10);
-    purpleLight.position.set(0, 0.5, 0);
-    scene.add(purpleLight);
-
-    let pivot: THREE.Group | null = null;
-    let mixer: THREE.AnimationMixer | null = null;
-    let animFrame: number;
-
-    // Star field
-    const starsGeometry = new THREE.BufferGeometry();
-    const starCount = isMobile ? 1500 : 3000;
-    const starPositions = new Float32Array(starCount * 3);
-    const starSizes = new Float32Array(starCount);
-    for (let i = 0; i < starCount; i++) {
-      const r = 15 + Math.random() * 85;
-      const theta = Math.random() * Math.PI * 2;
-      const phi = Math.acos(2 * Math.random() - 1);
-      starPositions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
-      starPositions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
-      starPositions[i * 3 + 2] = r * Math.cos(phi);
-      starSizes[i] = 0.5 + Math.random() * 1.5;
-    }
-    starsGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
-    starsGeometry.setAttribute('size', new THREE.BufferAttribute(starSizes, 1));
-    const starsMaterial = new THREE.PointsMaterial({
-      color: 0xffffff,
-      size: 0.15,
-      transparent: true,
-      opacity: 0.8,
-      sizeAttenuation: true,
-    });
-    const stars = new THREE.Points(starsGeometry, starsMaterial);
-    scene.add(stars);
-
-    // Mouse parallax
-    let mouseX = 0;
-    let mouseY = 0;
-    let targetX = 0;
-    let targetY = 0;
-
-    const onMouseMove = (e: MouseEvent) => {
-      mouseX = (e.clientX / window.innerWidth - 0.5) * 2;
-      mouseY = (e.clientY / window.innerHeight - 0.5) * 2;
-    };
-    window.addEventListener('mousemove', onMouseMove);
-
-    new GLTFLoader().load(modelPath, (gltf) => {
-      const model = gltf.scene;
-      const box = new THREE.Box3().setFromObject(model);
-      const center = box.getCenter(new THREE.Vector3());
-      const size = box.getSize(new THREE.Vector3());
-      const maxDim = Math.max(size.x, size.y, size.z);
-      const s = 2 / maxDim;
-
-      pivot = new THREE.Group();
-      model.scale.setScalar(s);
-      model.position.set(-center.x * s, -center.y * s, -center.z * s);
-      pivot.add(model);
-      scene.add(pivot);
-
-      // Add emissive glow to generator/tech parts
-      model.traverse((child) => {
-        if (child instanceof THREE.Mesh && child.material) {
-          const mat = child.material as THREE.MeshStandardMaterial;
-          const name = child.name.toLowerCase();
-          
-          // Generator body — purple glow
-          if (name.includes('generator') || name.includes('c1a4d')) {
-            mat.emissive = new THREE.Color(0x8800ff);
-            mat.emissiveIntensity = 0.8;
-          }
-          // Mine/combine parts — subtle cyan glow
-          else if (name.includes('mine') || name.includes('combine')) {
-            mat.emissive = new THREE.Color(0x00ffcc);
-            mat.emissiveIntensity = 0.3;
-          }
-          // Tech reference parts — purple pulse
-          else if (name.includes('tech_reference')) {
-            mat.emissive = new THREE.Color(0xaa00ff);
-            mat.emissiveIntensity = 0.5;
-          }
-        }
-      });
-
-      if (gltf.animations.length > 0) {
-        mixer = new THREE.AnimationMixer(model);
-        gltf.animations.forEach((clip) => mixer!.clipAction(clip).play());
-      }
-    });
-
-    const resize = () => {
-      if (!containerRef.current) return;
-      const w = containerRef.current.clientWidth;
-      const h = containerRef.current.clientHeight;
-      camera.aspect = w / h;
-      camera.updateProjectionMatrix();
-      // Adjust camera distance on resize
-      camera.position.z = w < 768 ? 4.2 : 3;
-      renderer.setSize(w, h);
-    };
-    resize();
-    window.addEventListener('resize', resize);
-
-    const clock = new THREE.Clock();
-    let paused = false;
-
-    const onVisibilityChange = () => {
-      paused = document.hidden;
-      if (!paused) clock.getDelta(); // reset delta to avoid jump
-    };
-    document.addEventListener('visibilitychange', onVisibilityChange);
-
-    const animate = () => {
-      animFrame = requestAnimationFrame(animate);
-      if (paused) return;
-      const delta = clock.getDelta();
-      if (mixer) mixer.update(delta);
-      if (pivot) pivot.rotation.y += 0.001;
-
-      // Stars drift
-      stars.rotation.y += 0.00005;
-      stars.rotation.x += 0.00002;
-
-      // Parallax — smooth follow mouse
-      targetX += (mouseX * 0.3 - targetX) * 0.02;
-      targetY += (mouseY * 0.2 - targetY) * 0.02;
-      camera.position.x = targetX;
-      camera.position.y = -targetY;
-      camera.lookAt(0, 0, 0);
-
-      renderer.render(scene, camera);
-    };
-    animate();
-
-    const el = containerRef.current;
-    return () => {
-      cancelAnimationFrame(animFrame);
-      document.removeEventListener('visibilitychange', onVisibilityChange);
-      window.removeEventListener('resize', resize);
-      window.removeEventListener('mousemove', onMouseMove);
-      renderer.dispose();
-      if (el.contains(renderer.domElement)) el.removeChild(renderer.domElement);
-    };
-  }, [modelPath]);
-
-  return <div ref={containerRef} className="absolute inset-0" />;
+/** Weak / small / motion-sensitive devices get the static poster instead of WebGL. */
+function isWeakDevice() {
+  const cores = typeof navigator !== 'undefined' ? navigator.hardwareConcurrency ?? 8 : 8;
+  return cores <= 4 || window.innerWidth < 768;
 }
 
+function usePrefersReducedMotion() {
+  const [reduced, setReduced] = useState(
+    () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  );
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const onChange = () => setReduced(mq.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+  return reduced;
+}
 
 const ALL_BADGES: { label: string; icon: LucideIcon }[] = [
   { label: 'Контент-план', icon: Calendar },
@@ -306,20 +149,20 @@ function FloatingBadges() {
     const currentLabels = visible.map(v => v.label);
     const badge = randomFrom(ALL_BADGES, currentLabels[currentLabels.length - 1] || '');
     const pos = POSITIONS[id % POSITIONS.length];
-    setVisible(prev => [...prev.slice(-6), { id, label: badge.label, icon: badge.icon, pos }]);
+    setVisible(prev => [...prev.slice(-4), { id, label: badge.label, icon: badge.icon, pos }]);
   }, [visible]);
 
   useEffect(() => {
     const init = setTimeout(() => {
-      for (let i = 0; i < 4; i++) {
+      for (let i = 0; i < 3; i++) {
         setTimeout(() => addBadge(), i * 400);
       }
     }, 2000);
 
     const interval = setInterval(() => {
       if (Math.random() > 0.4) addBadge();
-      if (visible.length > 5) setVisible(prev => prev.slice(1));
-    }, 3000);
+      if (visible.length > 3) setVisible(prev => prev.slice(1));
+    }, 3500);
 
     return () => { clearTimeout(init); clearInterval(interval); };
   }, [addBadge, visible.length]);
@@ -335,10 +178,7 @@ function FloatingBadges() {
           className="absolute z-10 pointer-events-none"
           style={{ left: badge.pos.x, top: badge.pos.y }}
         >
-          <motion.div
-            animate={{ y: [0, -6, 0] }}
-            transition={{ duration: 4 + Math.random() * 2, repeat: Infinity, ease: 'easeInOut' }}
-          >
+          <div className="badge-float">
             <div className="badge-enter">
               <div
                 className="flex items-center gap-2 px-3 py-1.5 lg:px-4 lg:py-2 rounded whitespace-nowrap"
@@ -348,7 +188,7 @@ function FloatingBadges() {
                   border: '1px solid color-mix(in srgb, var(--color-primary) 15%, transparent)',
                   borderBottom: '2px solid color-mix(in srgb, var(--color-primary) 30%, transparent)',
                   boxShadow: '0 0 12px var(--color-glow)',
-                  fontFamily: "'JetBrains Mono', monospace",
+                  fontFamily: 'var(--font-mono)',
                   fontSize: '10px',
                   fontWeight: 700,
                   letterSpacing: '0.12em',
@@ -360,7 +200,7 @@ function FloatingBadges() {
                 {badge.label}
               </div>
             </div>
-          </motion.div>
+          </div>
         </motion.div>
       ))}
     </AnimatePresence>
@@ -436,7 +276,7 @@ function LightHeroScene() {
       className="absolute inset-0 overflow-hidden"
       style={{
         background:
-          'radial-gradient(ellipse at 30% 20%, rgba(15,118,110,0.12) 0%, transparent 50%), radial-gradient(ellipse at 70% 80%, rgba(13,148,136,0.10) 0%, transparent 45%), linear-gradient(180deg, #eef6f5 0%, #f4f6f8 100%)',
+          'radial-gradient(ellipse at 30% 20%, color-mix(in srgb, var(--color-primary) 12%, transparent) 0%, transparent 50%), radial-gradient(ellipse at 70% 80%, color-mix(in srgb, var(--color-accent) 10%, transparent) 0%, transparent 45%), linear-gradient(180deg, color-mix(in srgb, var(--color-bg) 94%, var(--color-primary)) 0%, var(--color-bg) 100%)',
       }}
     >
       {/* soft grid */}
@@ -444,17 +284,18 @@ function LightHeroScene() {
         className="absolute inset-0 opacity-40"
         style={{
           backgroundImage:
-            'linear-gradient(rgba(15,118,110,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(15,118,110,0.06) 1px, transparent 1px)',
+            'linear-gradient(color-mix(in srgb, var(--color-primary) 6%, transparent) 1px, transparent 1px), linear-gradient(90deg, color-mix(in srgb, var(--color-primary) 6%, transparent) 1px, transparent 1px)',
           backgroundSize: '48px 48px',
           maskImage: 'radial-gradient(ellipse at 50% 40%, black 20%, transparent 75%)',
+          WebkitMaskImage: 'radial-gradient(ellipse at 50% 40%, black 20%, transparent 75%)',
         }}
       />
       {/* floating orbs */}
       {[
-        { s: 220, x: '12%', y: '18%', c: 'rgba(15,118,110,0.14)', d: 0 },
-        { s: 160, x: '72%', y: '22%', c: 'rgba(13,148,136,0.12)', d: 1.2 },
-        { s: 280, x: '58%', y: '58%', c: 'rgba(15,118,110,0.10)', d: 0.6 },
-        { s: 120, x: '28%', y: '68%', c: 'rgba(20,184,166,0.12)', d: 1.8 },
+        { s: 220, x: '12%', y: '18%', c: 'var(--color-primary)', a: 0.14, d: 0 },
+        { s: 160, x: '72%', y: '22%', c: 'var(--color-accent)', a: 0.12, d: 1.2 },
+        { s: 280, x: '58%', y: '58%', c: 'var(--color-primary)', a: 0.1, d: 0.6 },
+        { s: 120, x: '28%', y: '68%', c: 'var(--color-accent)', a: 0.12, d: 1.8 },
       ].map((o, i) => (
         <motion.div
           key={i}
@@ -464,8 +305,8 @@ function LightHeroScene() {
             height: o.s,
             left: o.x,
             top: o.y,
-            background: `radial-gradient(circle at 35% 30%, rgba(255,255,255,0.7), ${o.c})`,
-            border: '1px solid rgba(15,118,110,0.12)',
+            background: `radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--color-card) 75%, transparent), color-mix(in srgb, ${o.c} ${Math.round(o.a * 100)}%, transparent))`,
+            border: '1px solid color-mix(in srgb, var(--color-primary) 12%, transparent)',
             filter: 'blur(0.5px)',
           }}
           animate={{ y: [0, -18, 0], opacity: [0.7, 1, 0.7] }}
@@ -476,65 +317,392 @@ function LightHeroScene() {
   );
 }
 
+/** Zero-GPU fallback: CSS starfield + gradient orb. Also the live scene's poster mode. */
+function StaticPoster() {
+  return (
+    <div className="absolute inset-0 overflow-hidden">
+      {/* tiled star layers */}
+      <div
+        className="absolute inset-0 opacity-40"
+        style={{
+          backgroundImage:
+            'radial-gradient(0.8px 0.8px at 24px 18px, color-mix(in srgb, var(--color-text-primary) 70%, transparent), transparent 100%)',
+          backgroundSize: '56px 48px',
+        }}
+      />
+      <div
+        className="absolute inset-0 opacity-25"
+        style={{
+          backgroundImage:
+            'radial-gradient(1px 1px at 30px 24px, color-mix(in srgb, var(--color-primary) 65%, transparent), transparent 100%)',
+          backgroundSize: '96px 82px',
+        }}
+      />
+      {/* gradient orb */}
+      <div
+        className="absolute left-1/2 top-[46%] -translate-x-1/2 -translate-y-1/2 rounded-full"
+        style={{
+          width: 'min(46vw, 380px)',
+          height: 'min(46vw, 380px)',
+          background:
+            'radial-gradient(circle at 38% 32%, color-mix(in srgb, var(--color-primary) 28%, transparent), color-mix(in srgb, var(--color-primary) 8%, transparent) 55%, transparent 72%)',
+          boxShadow: '0 0 100px color-mix(in srgb, var(--color-primary) 22%, transparent)',
+        }}
+      />
+      {/* horizon glow */}
+      <div
+        className="absolute inset-x-0 bottom-0 h-1/2"
+        style={{
+          background: 'linear-gradient(180deg, transparent, color-mix(in srgb, var(--color-primary) 7%, transparent))',
+        }}
+      />
+    </div>
+  );
+}
+
+/** Quick-launch routes — same paths as Sidebar. */
+const LAUNCH: { label: string; to: string; icon: LucideIcon }[] = [
+  { label: 'Контент-план', to: '/content', icon: Calendar },
+  { label: 'Задачи', to: '/kanban', icon: CheckSquare },
+  { label: 'QR генератор', to: '/qr', icon: QrCode },
+  { label: 'Мероприятия', to: '/events', icon: PartyPopper },
+  { label: 'Проекты', to: '/projects', icon: Rocket },
+  { label: 'Погода', to: '/weather', icon: CloudSun },
+  { label: 'Аналитика', to: '/analytics', icon: BarChart3 },
+  { label: 'База знаний', to: '/knowledge', icon: BookOpen },
+  { label: 'Материалы', to: '/materials', icon: FolderOpen },
+  { label: 'Оборудование', to: '/inventory', icon: Package },
+  { label: 'IP Ping', to: '/ping', icon: Wifi },
+  { label: 'Рандомайзер', to: '/random', icon: Shuffle },
+];
+
+function SectionHead({ title, hint }: { title: string; hint?: string }) {
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="nx-eyebrow">{title}</h2>
+        {hint && (
+          <span
+            className="font-mono text-[9px] tracking-[0.18em] uppercase"
+            style={{ color: 'var(--color-text-tertiary)' }}
+          >
+            {hint}
+          </span>
+        )}
+      </div>
+      <div className="nx-divider mt-2" />
+    </div>
+  );
+}
+
+function ModeChip({
+  active, disabled, onClick, children, title,
+}: {
+  active: boolean; disabled?: boolean; onClick: () => void; children: React.ReactNode; title?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      title={title}
+      className={`nx-press font-mono text-[9px] font-bold tracking-[0.16em] uppercase px-2.5 py-1.5 rounded-lg transition-colors${active ? ' [box-shadow:0_0_14px_var(--color-glow)]' : ''}`}
+      style={{
+        color: active ? 'var(--color-primary)' : 'var(--color-text-tertiary)',
+        background: active
+          ? 'color-mix(in srgb, var(--color-primary) 14%, transparent)'
+          : 'color-mix(in srgb, var(--color-text-primary) 6%, transparent)',
+        border: `1px solid ${active
+          ? 'color-mix(in srgb, var(--color-primary) 38%, transparent)'
+          : 'color-mix(in srgb, var(--color-text-primary) 10%, transparent)'}`,
+        opacity: disabled ? 0.45 : 1,
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+function VitalTile({
+  icon: Icon, label, value, sub, rise,
+}: {
+  icon: LucideIcon; label: string; value: string; sub: string; rise: string;
+}) {
+  return (
+    <div className={`hud-panel nx-tile nx-rise ${rise} p-4 md:p-5 flex items-center gap-4`}>
+      <div
+        className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center"
+        style={{
+          background: 'color-mix(in srgb, var(--color-primary) 10%, transparent)',
+          border: '1px solid color-mix(in srgb, var(--color-primary) 22%, transparent)',
+        }}
+      >
+        <Icon className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />
+      </div>
+      <div className="min-w-0">
+        <p
+          className="font-mono text-[9px] tracking-[0.22em] uppercase"
+          style={{ color: 'var(--color-text-tertiary)' }}
+        >
+          {label}
+        </p>
+        <p
+          className="font-mono text-xl md:text-2xl font-bold leading-tight"
+          style={{ color: 'var(--color-text-primary)' }}
+        >
+          {value}
+        </p>
+        <p className="font-mono text-[10px] truncate" style={{ color: 'var(--color-text-secondary)' }}>
+          {sub}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+type RenderMode = 'live' | 'static';
+
 export default function Dashboard() {
   const { themeName } = useTheme();
   const isLight = themeName === 'office-light';
+  const reducedMotion = usePrefersReducedMotion();
+  const [renderPref, setRenderPref] = useState<RenderMode>(() => {
+    try {
+      const saved = localStorage.getItem('nexus-dash-render');
+      if (saved === 'live' || saved === 'static') return saved;
+    } catch { /* storage blocked */ }
+    return isWeakDevice() ? 'static' : 'live';
+  });
+
+  useEffect(() => {
+    try { localStorage.setItem('nexus-dash-render', renderPref); } catch { /* storage blocked */ }
+  }, [renderPref]);
+
+  const mode: RenderMode = reducedMotion ? 'static' : renderPref;
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+  const cores = typeof navigator !== 'undefined' ? navigator.hardwareConcurrency ?? 0 : 0;
+  const [sessionTime] = useState(() => new Date());
+
+  const bootLog = useMemo(() => {
+    const t = sessionTime.toLocaleTimeString('ru-RU', { hour12: false });
+    return [
+      `[${t}] ядро — инициализация завершена`,
+      `[${t}] графика — ${mode === 'live' ? '3d-сцена активна' : 'статичный постер'}`,
+      `[${t}] потоков — ${cores || 'н/д'} · быстрый доступ — ${LAUNCH.length}`,
+      `[${t}] статус — OPERATIONAL`,
+    ];
+  }, [mode, cores, sessionTime]);
 
   return (
-    <>
-      <div className="nx-bezel h-[calc(100vh-11rem)] md:h-[calc(100vh-12rem)] min-h-[360px]">
+    <div className="mx-auto w-full max-w-[1400px] pb-10">
+      {/* ============ HERO BAND ============ */}
+      <section className="nx-bezel h-[calc(100vh-11rem)] md:h-[calc(100vh-12rem)] min-h-[360px]">
         <div
           className="nx-core relative w-full h-full overflow-hidden"
-          style={isLight ? { background: '#f4f6f8' } : undefined}
+          style={isLight ? { background: 'var(--color-bg)' } : undefined}
         >
-        {/* 3D Model (dark themes) / soft light hero */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.5 }}
-          className="absolute inset-0"
-        >
-          {isLight ? <LightHeroScene /> : <EarthScene modelPath={MODEL_PATH} />}
-        </motion.div>
+          {/* 3D scene / poster / light hero */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5 }}
+            className="absolute inset-0"
+          >
+            {isLight ? (
+              <LightHeroScene />
+            ) : mode === 'live' ? (
+              <Suspense fallback={<StaticPoster />}>
+                <TitanScene />
+              </Suspense>
+            ) : (
+              <StaticPoster />
+            )}
+          </motion.div>
 
-      {/* Title */}
-      <div className="absolute inset-0 flex flex-col items-center justify-start pt-4 md:pt-6 z-20 pointer-events-none">
-        <motion.div
-          initial={{ top: '-2px' }}
-          animate={{ top: '100%' }}
-          transition={{ duration: 1.5, ease: 'easeOut' }}
-          className="absolute left-0 right-0 h-[2px]"
-          style={{ background: 'linear-gradient(90deg, transparent, var(--color-primary), transparent)', boxShadow: '0 0 20px var(--color-primary), 0 0 40px var(--color-glow)' }}
-        />
-        <motion.div
-          initial={{ opacity: 0, scale: 0.8, filter: 'blur(10px)' }}
-          animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
-          transition={{ duration: 1, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
-          className="text-center"
-        >
-          <div className="nx-eyebrow nx-rise mb-3">SYSTEM · ONLINE</div>
-          <div className="relative">
-            <motion.h1
-              initial={{ opacity: 0 }}
-              animate={{ opacity: [0, 1, 0, 1, 0, 1] }}
-              transition={{ duration: 0.8, delay: 0.5, times: [0, 0.1, 0.15, 0.2, 0.25, 1] }}
-              className="text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-bold font-mono tracking-[0.2em] md:tracking-[0.3em] relative"
-              style={{ color: 'var(--color-primary)', textShadow: '0 0 30px var(--color-glow), 0 0 60px var(--color-glow), 0 0 100px var(--color-glow)' }}
+          {/* scan line */}
+          <motion.div
+            initial={{ top: '-2px' }}
+            animate={{ top: '100%' }}
+            transition={{ duration: 1.5, ease: 'easeOut' }}
+            className="absolute left-0 right-0 h-[2px] z-10"
+            style={{
+              background: 'linear-gradient(90deg, transparent, var(--color-primary), transparent)',
+              boxShadow: '0 0 20px var(--color-primary), 0 0 40px var(--color-glow)',
+            }}
+          />
+
+          {/* title overlay */}
+          <div className="absolute inset-0 flex flex-col items-center justify-start pt-4 md:pt-6 z-20 pointer-events-none">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8, filter: 'blur(10px)' }}
+              animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
+              transition={{ duration: 1, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
+              className="text-center"
             >
-              NEXUS CRM
-              <motion.span initial={{ opacity: 0 }} animate={{ opacity: [0, 0.7, 0] }} transition={{ duration: 0.3, delay: 0.6 }} className="absolute inset-0" style={{ color: '#ff0040', clipPath: 'inset(20% 0 60% 0)', transform: 'translate(-3px, 0)' }}>NEXUS CRM</motion.span>
-              <motion.span initial={{ opacity: 0 }} animate={{ opacity: [0, 0.7, 0] }} transition={{ duration: 0.3, delay: 0.65 }} className="absolute inset-0" style={{ color: '#00d4ff', clipPath: 'inset(50% 0 20% 0)', transform: 'translate(3px, 0)' }}>NEXUS CRM</motion.span>
-            </motion.h1>
+              <div className="nx-eyebrow nx-rise mb-3">SYSTEM · ONLINE</div>
+              <div className="relative">
+                <motion.h1
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: [0, 1, 0, 1, 0, 1] }}
+                  transition={{ duration: 0.8, delay: 0.5, times: [0, 0.1, 0.15, 0.2, 0.25, 1] }}
+                  className="text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-bold font-mono tracking-[0.2em] md:tracking-[0.3em] relative"
+                  style={{
+                    color: 'var(--color-primary)',
+                    textShadow: '0 0 30px var(--color-glow), 0 0 60px var(--color-glow), 0 0 100px var(--color-glow)',
+                  }}
+                >
+                  NEXUS CRM
+                  <motion.span
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: [0, 0.7, 0] }}
+                    transition={{ duration: 0.3, delay: 0.6 }}
+                    className="absolute inset-0"
+                    style={{ color: 'var(--color-danger)', clipPath: 'inset(20% 0 60% 0)', transform: 'translate(-3px, 0)' }}
+                  >
+                    NEXUS CRM
+                  </motion.span>
+                  <motion.span
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: [0, 0.7, 0] }}
+                    transition={{ duration: 0.3, delay: 0.65 }}
+                    className="absolute inset-0"
+                    style={{ color: 'var(--color-info)', clipPath: 'inset(50% 0 20% 0)', transform: 'translate(3px, 0)' }}
+                  >
+                    NEXUS CRM
+                  </motion.span>
+                </motion.h1>
+              </div>
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: '100%' }}
+                transition={{ duration: 0.8, delay: 0.8, ease: 'easeOut' }}
+                className="nx-divider mx-auto mt-2 mb-3 md:mt-3 md:mb-4"
+                style={{ maxWidth: '300px' }}
+              />
+              <TypingLine />
+            </motion.div>
           </div>
-          <motion.div initial={{ width: 0 }} animate={{ width: '100%' }} transition={{ duration: 0.8, delay: 0.8, ease: 'easeOut' }} className="nx-divider mx-auto mt-2 mb-3 md:mt-3 md:mb-4" style={{ maxWidth: '300px' }} />
-          <TypingLine />
-        </motion.div>
-      </div>
 
-      <FloatingBadges />
+          {/* render-mode switch (active chip = the only glowing one) */}
+          <div className="absolute top-3 right-3 z-30 flex items-center gap-1.5">
+            <ModeChip
+              active={mode === 'live'}
+              disabled={reducedMotion}
+              onClick={() => setRenderPref('live')}
+              title={reducedMotion ? 'prefers-reduced-motion: 3D отключён' : 'живая 3D-сцена'}
+            >
+              3D
+            </ModeChip>
+            <ModeChip
+              active={mode === 'static'}
+              onClick={() => setRenderPref('static')}
+              title="статичный постер"
+            >
+              ПОСТЕР
+            </ModeChip>
+          </div>
+
+          {!reducedMotion && <FloatingBadges />}
         </div>
+      </section>
+
+      <div className="nx-divider my-6" />
+
+      {/* ============ BENTO GRID ============ */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        {/* MyDay HUD — wide block */}
+        <div className="lg:col-span-8">
+          <MyDay />
+        </div>
+
+        {/* vitals — narrow stacked tiles */}
+        <div className="lg:col-span-4 flex flex-col gap-4">
+          <VitalTile
+            icon={Cpu}
+            label="ПРОЦЕССОР"
+            value={cores ? String(cores) : '—'}
+            sub="ядер доступно"
+            rise="nx-rise-1"
+          />
+          <VitalTile
+            icon={Gauge}
+            label="ВИЗУАЛ"
+            value={mode === 'live' ? 'LIVE 3D' : 'ПОСТЕР'}
+            sub={mode === 'live' ? 'динамическая сцена' : 'статичный рендер'}
+            rise="nx-rise-2"
+          />
+          <VitalTile
+            icon={Monitor}
+            label="КАДРЫ"
+            value={mode === 'static' ? 'СТАТИКА' : isMobile ? '30 FPS' : '60 FPS'}
+            sub="лимит кадров"
+            rise="nx-rise-3"
+          />
+        </div>
+
+        {/* quick-launch chips */}
+        <section className="lg:col-span-7 nx-rise nx-rise-4">
+          <SectionHead title="БЫСТРЫЙ ЗАПУСК" hint="основные модули" />
+          <div className="flex flex-wrap gap-2 mt-3">
+            {LAUNCH.map((item) => (
+              <Link
+                key={item.to}
+                to={item.to}
+                className="nx-press flex items-center gap-2 rounded-xl px-3.5 py-2.5 [box-shadow:var(--depth-contact),var(--depth-rim-top),var(--depth-rim-bottom)]"
+                style={{
+                  background: 'color-mix(in srgb, var(--color-primary) 6%, transparent)',
+                  border: '1px solid color-mix(in srgb, var(--color-primary) 16%, transparent)',
+                }}
+              >
+                <item.icon className="w-3.5 h-3.5" style={{ color: 'var(--color-primary)' }} />
+                <span
+                  className="font-mono text-[11px] font-semibold tracking-wide"
+                  style={{ color: 'var(--color-text-primary)' }}
+                >
+                  {item.label}
+                </span>
+              </Link>
+            ))}
+          </div>
+        </section>
+
+        {/* activity strip */}
+        <section className="lg:col-span-5 nx-rise nx-rise-5">
+          <SectionHead title="СИСТЕМНАЯ ЛЕНТА" hint="телеметрия" />
+          <div className="hud-panel nx-tile p-4 md:p-5 mt-3">
+            <div className="flex items-center justify-between gap-2">
+              <span
+                className="font-mono text-[9px] tracking-[0.18em] uppercase"
+                style={{ color: 'var(--color-text-tertiary)' }}
+              >
+                сессия {sessionTime.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
+              </span>
+              <span className="flex items-center gap-1.5 font-mono text-[9px] tracking-[0.18em] uppercase">
+                <span
+                  className="w-1.5 h-1.5 rounded-full [box-shadow:0_0_8px_var(--color-glow)]"
+                  style={{ background: 'var(--color-primary)' }}
+                />
+                <span style={{ color: 'var(--color-primary)' }}>online</span>
+              </span>
+            </div>
+            <div className="nx-divider my-3" />
+            <ul className="space-y-1.5">
+              {bootLog.map((line) => (
+                <li
+                  key={line}
+                  className="font-mono text-[10px] sm:text-[11px] leading-relaxed truncate"
+                  style={{ color: 'var(--color-text-secondary)' }}
+                >
+                  {line}
+                </li>
+              ))}
+              <li className="font-mono text-[10px] sm:text-[11px]" style={{ color: 'var(--color-primary)' }}>
+                &gt; <span className="animate-pulse">_</span>
+              </li>
+            </ul>
+          </div>
+        </section>
       </div>
-      <MyDay />
-    </>
+    </div>
   );
 }

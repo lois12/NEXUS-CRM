@@ -32,6 +32,13 @@ export default function PingTool() {
     if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
   }, [results]);
 
+  // Cancel the ping loop if the page unmounts mid-run
+  useEffect(() => {
+    return () => {
+      if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
+    };
+  }, []);
+
   const doPing = async (target: string) => {
     const now = new Date();
     const timeStr = formatTimeKR(now);

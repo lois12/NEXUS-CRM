@@ -57,17 +57,12 @@ export default function MyDay() {
   const wd = WEEKDAYS[(now.getDay() + 6) % 7];
 
   return (
-    <motion.section
+    <motion.div
       initial={{ opacity: 0, y: 28 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.55, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
-      className="mx-auto w-full max-w-[1400px] px-4 md:px-8 mt-5 md:mt-6 relative z-20"
+      className="relative z-20"
     >
-      <div
-        className="h-px w-full mb-5 opacity-60"
-        style={{ background: 'linear-gradient(90deg, transparent, var(--color-primary), var(--color-accent), transparent)' }}
-      />
-
       <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr_1fr] gap-3 md:gap-4">
         {/* date / identity — asymmetric anchor */}
         <div className="hud-panel nx-tile nx-rise nx-rise-1 relative p-5 md:p-7 min-h-[180px] flex flex-col justify-between">
@@ -149,7 +144,7 @@ export default function MyDay() {
           </div>
         </div>
       </div>
-    </motion.section>
+    </motion.div>
   );
 }
 
