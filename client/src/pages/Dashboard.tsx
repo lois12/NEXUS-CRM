@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState, useCallback, useMemo, Suspense, lazy } from 'react';
+import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import {
@@ -9,92 +9,24 @@ import {
 import { useTheme } from '../context/ThemeContext';
 import MyDay from '../components/dashboard/MyDay';
 
-// three.js lives in its own chunk and is only fetched once TitanScene mounts.
-const TitanScene = lazy(() => import('../components/dashboard/TitanScene'));
-
-// Inject glitch / badge CSS once
+// Inject badge CSS once
 const glitchCSS = `
-@keyframes glitch-in {
-  0% {
-    opacity: 0;
-    transform: skewX(-8deg) translateX(-10px);
-    clip-path: polygon(0 0, 0 0, 0 100%, 0 100%);
-    filter: brightness(3) saturate(0);
-  }
-  15% {
-    opacity: 1;
-    clip-path: polygon(0 0, 40% 0, 35% 100%, 0 100%);
-    filter: brightness(2) saturate(0.5);
-  }
-  30% {
-    transform: skewX(3deg) translateX(4px);
-    clip-path: polygon(0 0, 65% 0, 70% 100%, 0 100%);
-    filter: brightness(1.5) saturate(0.8);
-  }
-  50% {
-    transform: skewX(-1deg) translateX(-2px);
-    clip-path: polygon(0 0, 85% 0, 80% 100%, 0 100%);
-    filter: brightness(1.2) saturate(1);
-  }
-  70% {
-    transform: skewX(0.5deg) translateX(1px);
-    clip-path: polygon(0 0, 95% 0, 98% 100%, 0 100%);
-    filter: brightness(1.1);
-  }
-  100% {
-    opacity: 1;
-    transform: skewX(0) translateX(0);
-    clip-path: polygon(0 0, 100% 0, 100% 100%, 100% 100%);
-    filter: brightness(1);
-  }
-}
-@keyframes glitch-out {
-  0% {
-    opacity: 1;
-    transform: skewX(0) translateX(0);
-    clip-path: polygon(0 0, 100% 0, 100% 100%, 100% 100%);
-    filter: brightness(1);
-  }
-  25% {
-    transform: skewX(4deg) translateX(6px);
-    clip-path: polygon(10% 0, 100% 0, 100% 100%, 15% 100%);
-    filter: brightness(1.8) saturate(0.6);
-  }
-  50% {
-    transform: skewX(-6deg) translateX(-8px);
-    clip-path: polygon(30% 0, 100% 0, 100% 100%, 25% 100%);
-    filter: brightness(2.5) saturate(0.3);
-  }
-  75% {
-    opacity: 0.6;
-    clip-path: polygon(60% 0, 100% 0, 100% 100%, 55% 100%);
-    filter: brightness(3) saturate(0);
-  }
-  100% {
-    opacity: 0;
-    clip-path: polygon(100% 0, 100% 0, 100% 100%, 100% 100%);
-    filter: brightness(4) saturate(0);
-  }
-}
-.badge-enter { animation: glitch-in 0.5s cubic-bezier(0.23, 1, 0.32, 1) forwards; }
-.badge-exit { animation: glitch-out 0.4s cubic-bezier(0.55, 0, 1, 0.45) forwards; }
 @keyframes badge-float {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-6px); }
 }
 .badge-float { animation: badge-float 5s ease-in-out infinite; }
+@keyframes badge-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.92); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.badge-enter { animation: badge-in 0.55s cubic-bezier(0.23, 1, 0.32, 1) forwards; }
 `;
 if (typeof document !== 'undefined' && !document.getElementById('glitch-styles')) {
   const style = document.createElement('style');
   style.id = 'glitch-styles';
   style.textContent = glitchCSS;
   document.head.appendChild(style);
-}
-
-/** Weak / small / motion-sensitive devices get the static poster instead of WebGL. */
-function isWeakDevice() {
-  const cores = typeof navigator !== 'undefined' ? navigator.hardwareConcurrency ?? 8 : 8;
-  return cores <= 4 || window.innerWidth < 768;
 }
 
 function usePrefersReducedMotion() {
@@ -269,33 +201,81 @@ function TypingLine() {
   );
 }
 
-/** Light-theme hero: soft gradient + floating glass shapes (no dark 3D) */
-function LightHeroScene() {
+/** Unified hero backdrop — pure CSS nebula core. No WebGL, no three.js. */
+function HeroScene() {
   return (
-    <div
-      className="absolute inset-0 overflow-hidden"
-      style={{
-        background:
-          'radial-gradient(ellipse at 30% 20%, color-mix(in srgb, var(--color-primary) 12%, transparent) 0%, transparent 50%), radial-gradient(ellipse at 70% 80%, color-mix(in srgb, var(--color-accent) 10%, transparent) 0%, transparent 45%), linear-gradient(180deg, color-mix(in srgb, var(--color-bg) 94%, var(--color-primary)) 0%, var(--color-bg) 100%)',
-      }}
-    >
-      {/* soft grid */}
+    <div className="absolute inset-0 overflow-hidden">
+      {/* deep gradient base */}
       <div
-        className="absolute inset-0 opacity-40"
+        className="absolute inset-0"
         style={{
-          backgroundImage:
-            'linear-gradient(color-mix(in srgb, var(--color-primary) 6%, transparent) 1px, transparent 1px), linear-gradient(90deg, color-mix(in srgb, var(--color-primary) 6%, transparent) 1px, transparent 1px)',
-          backgroundSize: '48px 48px',
-          maskImage: 'radial-gradient(ellipse at 50% 40%, black 20%, transparent 75%)',
-          WebkitMaskImage: 'radial-gradient(ellipse at 50% 40%, black 20%, transparent 75%)',
+          background:
+            'radial-gradient(ellipse at 28% 18%, color-mix(in srgb, var(--color-primary) 14%, transparent) 0%, transparent 52%), radial-gradient(ellipse at 74% 78%, color-mix(in srgb, var(--color-accent) 11%, transparent) 0%, transparent 48%), linear-gradient(180deg, color-mix(in srgb, var(--color-bg) 92%, var(--color-primary)) 0%, var(--color-bg) 100%)',
         }}
       />
-      {/* floating orbs */}
+      {/* perspective grid */}
+      <div
+        className="absolute inset-0 opacity-50"
+        style={{
+          backgroundImage:
+            'linear-gradient(color-mix(in srgb, var(--color-primary) 7%, transparent) 1px, transparent 1px), linear-gradient(90deg, color-mix(in srgb, var(--color-primary) 7%, transparent) 1px, transparent 1px)',
+          backgroundSize: '52px 52px',
+          maskImage: 'radial-gradient(ellipse at 50% 42%, black 15%, transparent 78%)',
+          WebkitMaskImage: 'radial-gradient(ellipse at 50% 42%, black 15%, transparent 78%)',
+        }}
+      />
+      {/* starfield (two tiled layers) */}
+      <div
+        className="absolute inset-0 opacity-45"
+        style={{
+          backgroundImage:
+            'radial-gradient(0.8px 0.8px at 24px 18px, color-mix(in srgb, var(--color-text-primary) 70%, transparent), transparent 100%)',
+          backgroundSize: '56px 48px',
+        }}
+      />
+      <div
+        className="absolute inset-0 opacity-30"
+        style={{
+          backgroundImage:
+            'radial-gradient(1.1px 1.1px at 30px 24px, color-mix(in srgb, var(--color-primary) 65%, transparent), transparent 100%)',
+          backgroundSize: '104px 88px',
+        }}
+      />
+      {/* energy core */}
+      <div
+        className="absolute left-1/2 top-[46%] -translate-x-1/2 -translate-y-1/2 rounded-full"
+        style={{
+          width: 'min(52vw, 420px)',
+          height: 'min(52vw, 420px)',
+          background:
+            'radial-gradient(circle at 38% 32%, color-mix(in srgb, var(--color-primary) 30%, transparent), color-mix(in srgb, var(--color-primary) 9%, transparent) 55%, transparent 72%)',
+          boxShadow: '0 0 120px color-mix(in srgb, var(--color-primary) 26%, transparent)',
+        }}
+      />
+      {/* orbital rings */}
+      {[1.45, 1.75, 2.1].map((scale, i) => (
+        <motion.div
+          key={scale}
+          className="absolute left-1/2 top-[46%] rounded-full"
+          style={{
+            width: 'min(52vw, 420px)',
+            height: 'min(52vw, 420px)',
+            marginLeft: 'calc(min(52vw, 420px) / -2)',
+            marginTop: 'calc(min(52vw, 420px) / -2)',
+            transform: `scale(${scale}) rotateX(72deg)`,
+            border: `1px solid color-mix(in srgb, var(--color-primary) ${18 - i * 4}%, transparent)`,
+            boxShadow: `0 0 24px color-mix(in srgb, var(--color-primary) ${12 - i * 3}%, transparent)`,
+          }}
+          animate={{ rotate: [0, 360] }}
+          transition={{ duration: 26 + i * 14, repeat: Infinity, ease: 'linear' }}
+        />
+      ))}
+      {/* floating glass orbs */}
       {[
-        { s: 220, x: '12%', y: '18%', c: 'var(--color-primary)', a: 0.14, d: 0 },
-        { s: 160, x: '72%', y: '22%', c: 'var(--color-accent)', a: 0.12, d: 1.2 },
-        { s: 280, x: '58%', y: '58%', c: 'var(--color-primary)', a: 0.1, d: 0.6 },
-        { s: 120, x: '28%', y: '68%', c: 'var(--color-accent)', a: 0.12, d: 1.8 },
+        { s: 180, x: '12%', y: '20%', c: 'var(--color-primary)', a: 14, d: 0 },
+        { s: 130, x: '72%', y: '24%', c: 'var(--color-accent)', a: 12, d: 1.2 },
+        { s: 220, x: '58%', y: '60%', c: 'var(--color-primary)', a: 10, d: 0.6 },
+        { s: 96, x: '28%', y: '70%', c: 'var(--color-accent)', a: 12, d: 1.8 },
       ].map((o, i) => (
         <motion.div
           key={i}
@@ -305,55 +285,30 @@ function LightHeroScene() {
             height: o.s,
             left: o.x,
             top: o.y,
-            background: `radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--color-card) 75%, transparent), color-mix(in srgb, ${o.c} ${Math.round(o.a * 100)}%, transparent))`,
+            background: `radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--color-card) 72%, transparent), color-mix(in srgb, ${o.c} ${o.a}%, transparent))`,
             border: '1px solid color-mix(in srgb, var(--color-primary) 12%, transparent)',
-            filter: 'blur(0.5px)',
           }}
-          animate={{ y: [0, -18, 0], opacity: [0.7, 1, 0.7] }}
+          animate={{ y: [0, -16, 0], opacity: [0.65, 1, 0.65] }}
           transition={{ duration: 8 + o.d, repeat: Infinity, ease: 'easeInOut' }}
         />
       ))}
-    </div>
-  );
-}
-
-/** Zero-GPU fallback: CSS starfield + gradient orb. Also the live scene's poster mode. */
-function StaticPoster() {
-  return (
-    <div className="absolute inset-0 overflow-hidden">
-      {/* tiled star layers */}
+      {/* light rays */}
       <div
-        className="absolute inset-0 opacity-40"
+        className="absolute left-1/2 top-[46%] -translate-x-1/2 -translate-y-1/2"
         style={{
-          backgroundImage:
-            'radial-gradient(0.8px 0.8px at 24px 18px, color-mix(in srgb, var(--color-text-primary) 70%, transparent), transparent 100%)',
-          backgroundSize: '56px 48px',
-        }}
-      />
-      <div
-        className="absolute inset-0 opacity-25"
-        style={{
-          backgroundImage:
-            'radial-gradient(1px 1px at 30px 24px, color-mix(in srgb, var(--color-primary) 65%, transparent), transparent 100%)',
-          backgroundSize: '96px 82px',
-        }}
-      />
-      {/* gradient orb */}
-      <div
-        className="absolute left-1/2 top-[46%] -translate-x-1/2 -translate-y-1/2 rounded-full"
-        style={{
-          width: 'min(46vw, 380px)',
-          height: 'min(46vw, 380px)',
+          width: 'min(120vw, 1100px)',
+          height: 'min(120vw, 1100px)',
           background:
-            'radial-gradient(circle at 38% 32%, color-mix(in srgb, var(--color-primary) 28%, transparent), color-mix(in srgb, var(--color-primary) 8%, transparent) 55%, transparent 72%)',
-          boxShadow: '0 0 100px color-mix(in srgb, var(--color-primary) 22%, transparent)',
+            'conic-gradient(from 200deg at 50% 50%, transparent 0deg, color-mix(in srgb, var(--color-primary) 8%, transparent) 28deg, transparent 62deg, transparent 178deg, color-mix(in srgb, var(--color-accent) 7%, transparent) 210deg, transparent 250deg)',
+          maskImage: 'radial-gradient(circle at 50% 50%, transparent 28%, black 55%, transparent 78%)',
+          WebkitMaskImage: 'radial-gradient(circle at 50% 50%, transparent 28%, black 55%, transparent 78%)',
         }}
       />
       {/* horizon glow */}
       <div
         className="absolute inset-x-0 bottom-0 h-1/2"
         style={{
-          background: 'linear-gradient(180deg, transparent, color-mix(in srgb, var(--color-primary) 7%, transparent))',
+          background: 'linear-gradient(180deg, transparent, color-mix(in srgb, var(--color-primary) 8%, transparent))',
         }}
       />
     </div>
@@ -395,34 +350,6 @@ function SectionHead({ title, hint }: { title: string; hint?: string }) {
   );
 }
 
-function ModeChip({
-  active, disabled, onClick, children, title,
-}: {
-  active: boolean; disabled?: boolean; onClick: () => void; children: React.ReactNode; title?: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      title={title}
-      className={`nx-press font-mono text-[9px] font-bold tracking-[0.16em] uppercase px-2.5 py-1.5 rounded-lg transition-colors${active ? ' [box-shadow:0_0_14px_var(--color-glow)]' : ''}`}
-      style={{
-        color: active ? 'var(--color-primary)' : 'var(--color-text-tertiary)',
-        background: active
-          ? 'color-mix(in srgb, var(--color-primary) 14%, transparent)'
-          : 'color-mix(in srgb, var(--color-text-primary) 6%, transparent)',
-        border: `1px solid ${active
-          ? 'color-mix(in srgb, var(--color-primary) 38%, transparent)'
-          : 'color-mix(in srgb, var(--color-text-primary) 10%, transparent)'}`,
-        opacity: disabled ? 0.45 : 1,
-      }}
-    >
-      {children}
-    </button>
-  );
-}
-
 function VitalTile({
   icon: Icon, label, value, sub, rise,
 }: {
@@ -460,25 +387,10 @@ function VitalTile({
   );
 }
 
-type RenderMode = 'live' | 'static';
-
 export default function Dashboard() {
   const { themeName } = useTheme();
   const isLight = themeName === 'office-light';
   const reducedMotion = usePrefersReducedMotion();
-  const [renderPref, setRenderPref] = useState<RenderMode>(() => {
-    try {
-      const saved = localStorage.getItem('nexus-dash-render');
-      if (saved === 'live' || saved === 'static') return saved;
-    } catch { /* storage blocked */ }
-    return isWeakDevice() ? 'static' : 'live';
-  });
-
-  useEffect(() => {
-    try { localStorage.setItem('nexus-dash-render', renderPref); } catch { /* storage blocked */ }
-  }, [renderPref]);
-
-  const mode: RenderMode = reducedMotion ? 'static' : renderPref;
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
   const cores = typeof navigator !== 'undefined' ? navigator.hardwareConcurrency ?? 0 : 0;
   const [sessionTime] = useState(() => new Date());
@@ -487,11 +399,11 @@ export default function Dashboard() {
     const t = sessionTime.toLocaleTimeString('ru-RU', { hour12: false });
     return [
       `[${t}] ядро — инициализация завершена`,
-      `[${t}] графика — ${mode === 'live' ? '3d-сцена активна' : 'статичный постер'}`,
+      `[${t}] графика — постер-сцена активна`,
       `[${t}] потоков — ${cores || 'н/д'} · быстрый доступ — ${LAUNCH.length}`,
       `[${t}] статус — OPERATIONAL`,
     ];
-  }, [mode, cores, sessionTime]);
+  }, [cores, sessionTime]);
 
   return (
     <div className="mx-auto w-full max-w-[1400px] pb-10">
@@ -501,22 +413,14 @@ export default function Dashboard() {
           className="nx-core relative w-full h-full overflow-hidden"
           style={isLight ? { background: 'var(--color-bg)' } : undefined}
         >
-          {/* 3D scene / poster / light hero */}
+          {/* CSS nebula scene */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.5 }}
             className="absolute inset-0"
           >
-            {isLight ? (
-              <LightHeroScene />
-            ) : mode === 'live' ? (
-              <Suspense fallback={<StaticPoster />}>
-                <TitanScene />
-              </Suspense>
-            ) : (
-              <StaticPoster />
-            )}
+            <HeroScene />
           </motion.div>
 
           {/* scan line */}
@@ -583,25 +487,6 @@ export default function Dashboard() {
             </motion.div>
           </div>
 
-          {/* render-mode switch (active chip = the only glowing one) */}
-          <div className="absolute top-3 right-3 z-30 flex items-center gap-1.5">
-            <ModeChip
-              active={mode === 'live'}
-              disabled={reducedMotion}
-              onClick={() => setRenderPref('live')}
-              title={reducedMotion ? 'prefers-reduced-motion: 3D отключён' : 'живая 3D-сцена'}
-            >
-              3D
-            </ModeChip>
-            <ModeChip
-              active={mode === 'static'}
-              onClick={() => setRenderPref('static')}
-              title="статичный постер"
-            >
-              ПОСТЕР
-            </ModeChip>
-          </div>
-
           {!reducedMotion && <FloatingBadges />}
         </div>
       </section>
@@ -627,14 +512,14 @@ export default function Dashboard() {
           <VitalTile
             icon={Gauge}
             label="ВИЗУАЛ"
-            value={mode === 'live' ? 'LIVE 3D' : 'ПОСТЕР'}
-            sub={mode === 'live' ? 'динамическая сцена' : 'статичный рендер'}
+            value="CSS SCENE"
+            sub="no WebGL, weak-device friendly"
             rise="nx-rise-2"
           />
           <VitalTile
             icon={Monitor}
             label="КАДРЫ"
-            value={mode === 'static' ? 'СТАТИКА' : isMobile ? '30 FPS' : '60 FPS'}
+            value={isMobile ? '30 FPS' : '60 FPS'}
             sub="лимит кадров"
             rise="nx-rise-3"
           />

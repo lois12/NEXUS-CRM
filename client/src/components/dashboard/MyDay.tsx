@@ -35,7 +35,21 @@ export default function MyDay() {
           contentApi.getAll().catch(() => ({ data: [] as any[] })),
           eventsApi.getAll().catch(() => ({ data: [] as any[] })),
         ]);
-        setTasks(((t as any).data || []).filter((x: KanbanTask) => x.status !== 'done').slice(0, 4));
+        setTasks(
+          ((t as any).data || [])
+            .filter((x: KanbanTask) => {
+              if (x.status === 'done') return false;
+              // просроченные задачи в «Мой день» не показываем
+              const due = parseLocal(x.dueDate || undefined);
+              if (due) {
+                const todayStart = new Date();
+                todayStart.setHours(0, 0, 0, 0);
+                if (due.getTime() < todayStart.getTime()) return false;
+              }
+              return true;
+            })
+            .slice(0, 4)
+        );
         setPosts(
           ((c as any).data || []).filter((p: ContentPost) => {
             const d = parseLocal(p.scheduledDate);
