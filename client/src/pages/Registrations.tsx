@@ -37,7 +37,7 @@ export default function Registrations() {
   const [activeTab, setActiveTab] = useState<'active' | 'planned' | 'archive'>('active');
   const [view, setView] = useState<'list' | 'constructor' | 'submissions'>('list');
   const [editing, setEditing] = useState<Registration | null>(null);
-  const [form, setForm] = useState({ title: '', description: '', eventDate: '', eventTime: '', location: '', videoUrl: '', maxParticipants: 0, status: 'draft' as string, registrationStart: '', registrationEnd: '', closedMessage: '', mapCoords: '', showLimit: 1, showTimer: 1, organizer: '', color: '', theme: 'cyberpunk', waitlistEnabled: 1, maxWaitlist: 0, checkinEnabled: 1 });
+  const [form, setForm] = useState({ title: '', description: '', eventDate: '', eventTime: '', location: '', videoUrl: '', maxParticipants: 0, status: 'draft' as string, registrationStart: '', registrationEnd: '', closedMessage: '', mapCoords: '', showLimit: 1, showTimer: 1, organizer: '', color: '', theme: 'cyberpunk', waitlistEnabled: 1, maxWaitlist: 0, checkinEnabled: 1, showMap: 1 });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [regFields, setRegFields] = useState<RegistrationField[]>([]);
   const [submissions, setSubmissions] = useState<RegistrationSubmission[]>([]);
@@ -94,7 +94,7 @@ export default function Registrations() {
 
   const openCreate = () => {
     setEditing(null);
-    setForm({ title: '', description: '', eventDate: '', eventTime: '', location: '', videoUrl: '', maxParticipants: 0, status: 'draft', registrationStart: '', registrationEnd: '', closedMessage: '', mapCoords: '', showLimit: 1, showTimer: 1, organizer: '', color: '', theme: 'cyberpunk', waitlistEnabled: 1, maxWaitlist: 0, checkinEnabled: 1 });
+    setForm({ title: '', description: '', eventDate: '', eventTime: '', location: '', videoUrl: '', maxParticipants: 0, status: 'draft', registrationStart: '', registrationEnd: '', closedMessage: '', mapCoords: '', showLimit: 1, showTimer: 1, organizer: '', color: '', theme: 'cyberpunk', waitlistEnabled: 1, maxWaitlist: 0, checkinEnabled: 1, showMap: 1 });
     setRegFields([]);
     setImageUrl('');
     setImageFiles([]);
@@ -148,6 +148,7 @@ export default function Registrations() {
           theme: data.theme || 'cyberpunk',
           waitlistEnabled: data.waitlistEnabled ?? 1,
           checkinEnabled: data.checkinEnabled ?? 1,
+          showMap: data.showMap ?? 1,
           maxWaitlist: data.maxWaitlist ?? 0,
         });
         setRegFields(normalizeFields(data.fields));
@@ -706,6 +707,19 @@ export default function Registrations() {
                 </div>
                 <p className="text-[10px] font-mono text-gray-600 mt-1">Когда выключен — письмо и итоговый экран содержат только основную информацию и кнопку отмены.</p>
               </div>
+              {/* Show map toggle */}
+              <div>
+                <label className="text-xs font-mono text-gray-500 mb-2 block">КАРТА НА СТРАНИЦЕ</label>
+                <div className="flex items-center gap-3">
+                  <button onClick={() => setForm({ ...form, showMap: form.showMap ? 0 : 1 })}
+                    className="w-10 h-5 rounded-full transition-colors relative"
+                    style={{ background: form.showMap ? 'var(--color-primary)' : '#3a3a50' }}>
+                    <div className="absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform"
+                      style={{ transform: form.showMap ? 'translateX(20px)' : 'translateX(2px)' }} />
+                  </button>
+                  <span className="text-xs font-mono text-gray-400">{form.showMap ? 'Показывать' : 'Скрыта'}</span>
+                </div>
+              </div>
               {/* Color picker */}
               <label className="block">
                 <span className="font-mono text-sm text-gray-300">ЦВЕТ АКЦЕНТА</span>
@@ -986,6 +1000,24 @@ export default function Registrations() {
 
           {/* Right: Field Builder */}
           <div className="nx-panel p-6">
+            {/* System blocks — always first on the public form */}
+            <div className="mb-4">
+              <h2 className="nx-eyebrow mb-2">СИСТЕМНЫЕ БЛОКИ</h2>
+              <div className="nx-divider mb-3" />
+              <div className="nx-tile p-3 mb-2 opacity-80">
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-[11px] font-bold text-gray-300">ФИО</span>
+                  <span className="font-mono text-[9px] text-gray-500">Фамилия* · Имя* · Отчество</span>
+                </div>
+              </div>
+              <div className="nx-tile p-3 opacity-80">
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-[11px] font-bold text-gray-300">КОНТАКТНЫЕ ДАННЫЕ</span>
+                  <span className="font-mono text-[9px] text-gray-500">Email* · Телефон</span>
+                </div>
+              </div>
+              <p className="text-[10px] font-mono text-gray-600 mt-2">Эти блоки всегда первые на публичной форме — не редактируются. Ниже — ваши поля.</p>
+            </div>
             <FieldBuilder fields={regFields} onAdd={addField} onUpdate={updateField} onDelete={deleteField} onDuplicate={duplicateField} onReorder={reorderFields} />
           </div>
         </div>

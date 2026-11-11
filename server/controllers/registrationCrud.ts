@@ -51,14 +51,14 @@ export const getRegistrationById = (req: AuthRequest, res: Response) => {
 
 export const createRegistration = (req: AuthRequest, res: Response) => {
   try {
-    const { title, description, eventDate, eventTime, location, videoUrl, maxParticipants, status, registrationStart, registrationEnd, closedMessage, mapCoords, showLimit, showTimer, organizer, color, theme, waitlistEnabled, maxWaitlist, checkinEnabled } = req.body;
+    const { title, description, eventDate, eventTime, location, videoUrl, maxParticipants, status, registrationStart, registrationEnd, closedMessage, mapCoords, showLimit, showTimer, organizer, color, theme, waitlistEnabled, maxWaitlist, checkinEnabled, showMap } = req.body;
     if (!title) return res.status(400).json({ success: false, error: 'Название обязательно' });
 
     const id = uuidv4();
     const slug = uuidv4().slice(0, 8);
-    run(`INSERT INTO registrations (id, title, description, eventDate, eventTime, location, videoUrl, maxParticipants, status, publicSlug, createdBy, registrationStart, registrationEnd, closedMessage, mapCoords, showLimit, showTimer, organizer, color, theme, waitlistEnabled, maxWaitlist, checkinEnabled)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [id, title, description || '', eventDate || '', eventTime || '', location || '', videoUrl || '', maxParticipants || 0, status || 'draft', slug, req.user?.id, registrationStart || '', registrationEnd || '', closedMessage || '', mapCoords || '', showLimit ?? 1, showTimer ?? 1, organizer || '', color || '', theme || 'cyberpunk', waitlistEnabled ?? 1, maxWaitlist ?? 0, checkinEnabled ?? 1]);
+    run(`INSERT INTO registrations (id, title, description, eventDate, eventTime, location, videoUrl, maxParticipants, status, publicSlug, createdBy, registrationStart, registrationEnd, closedMessage, mapCoords, showLimit, showTimer, organizer, color, theme, waitlistEnabled, maxWaitlist, checkinEnabled, showMap)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [id, title, description || '', eventDate || '', eventTime || '', location || '', videoUrl || '', maxParticipants || 0, status || 'draft', slug, req.user?.id, registrationStart || '', registrationEnd || '', closedMessage || '', mapCoords || '', showLimit ?? 1, showTimer ?? 1, organizer || '', color || '', theme || 'cyberpunk', waitlistEnabled ?? 1, maxWaitlist ?? 0, checkinEnabled ?? 1, showMap ?? 1]);
 
     const reg = get('SELECT * FROM registrations WHERE id = ?', [id]);
     res.status(201).json({ success: true, data: reg });
@@ -74,7 +74,7 @@ export const updateRegistration = (req: AuthRequest, res: Response) => {
     const reg = get('SELECT * FROM registrations WHERE id = ?', [id]);
     if (!reg) return res.status(404).json({ success: false, error: 'Регистрация не найдена' });
 
-    const { title, description, eventDate, eventTime, location, videoUrl, maxParticipants, status, imageUrl, registrationStart, registrationEnd, closedMessage, mapCoords, showLimit, showTimer, organizer, color, theme, waitlistEnabled, maxWaitlist, checkinEnabled } = req.body;
+    const { title, description, eventDate, eventTime, location, videoUrl, maxParticipants, status, imageUrl, registrationStart, registrationEnd, closedMessage, mapCoords, showLimit, showTimer, organizer, color, theme, waitlistEnabled, maxWaitlist, checkinEnabled, showMap } = req.body;
     const updates: string[] = [];
     const params: any[] = [];
 
@@ -99,6 +99,7 @@ export const updateRegistration = (req: AuthRequest, res: Response) => {
     if (waitlistEnabled !== undefined) { updates.push('waitlistEnabled = ?'); params.push(waitlistEnabled); }
     if (maxWaitlist !== undefined) { updates.push('maxWaitlist = ?'); params.push(maxWaitlist); }
     if (checkinEnabled !== undefined) { updates.push('checkinEnabled = ?'); params.push(checkinEnabled); }
+    if (showMap !== undefined) { updates.push('showMap = ?'); params.push(showMap); }
 
     updates.push("updatedAt = datetime('now')");
     params.push(id);
@@ -246,8 +247,8 @@ export const duplicateRegistration = (req: AuthRequest, res: Response) => {
     const newId = uuidv4();
 
     transaction(() => {
-      run(`INSERT INTO registrations (id, title, description, eventDate, eventTime, location, videoUrl, maxParticipants, status, publicSlug, createdBy, registrationStart, registrationEnd, closedMessage, mapCoords, showLimit, showTimer, organizer, color, theme, waitlistEnabled, maxWaitlist, checkinEnabled) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'draft', NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [newId, reg.title + ' (копия)', reg.description, reg.eventDate, reg.eventTime, reg.location, reg.videoUrl, reg.maxParticipants, req.user?.id, reg.registrationStart, reg.registrationEnd, reg.closedMessage, reg.mapCoords, reg.showLimit, reg.showTimer, reg.organizer, reg.color, reg.theme || 'cyberpunk', reg.waitlistEnabled ?? 1, reg.maxWaitlist ?? 0, reg.checkinEnabled ?? 1]);
+      run(`INSERT INTO registrations (id, title, description, eventDate, eventTime, location, videoUrl, maxParticipants, status, publicSlug, createdBy, registrationStart, registrationEnd, closedMessage, mapCoords, showLimit, showTimer, organizer, color, theme, waitlistEnabled, maxWaitlist, checkinEnabled, showMap) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'draft', NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [newId, reg.title + ' (копия)', reg.description, reg.eventDate, reg.eventTime, reg.location, reg.videoUrl, reg.maxParticipants, req.user?.id, reg.registrationStart, reg.registrationEnd, reg.closedMessage, reg.mapCoords, reg.showLimit, reg.showTimer, reg.organizer, reg.color, reg.theme || 'cyberpunk', reg.waitlistEnabled ?? 1, reg.maxWaitlist ?? 0, reg.checkinEnabled ?? 1, reg.showMap ?? 1]);
 
       // Copy all fields
       const fields = query('SELECT * FROM registration_fields WHERE registrationId = ? ORDER BY position', [id]);

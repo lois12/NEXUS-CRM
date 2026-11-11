@@ -669,7 +669,7 @@ export default function PublicRegistration() {
         )}
 
         {/* ── Map + Route buttons ── */}
-        {reg.mapCoords && (() => {
+        {reg.mapCoords && reg.showMap !== 0 && (() => {
           let coords: { lat: number; lng: number } | null = null;
           try { const c = JSON.parse(reg.mapCoords); coords = { lat: c.lat, lng: c.lng }; } catch {}
           if (!coords) return null;
@@ -725,6 +725,51 @@ export default function PublicRegistration() {
           <div className="nx-core p-5 sm:p-7">
           <h2 className="nx-eyebrow mb-5">ФОРМА РЕГИСТРАЦИИ</h2>
 
+          {/* FIO block */}
+          <div className="mt-6 nx-tile p-5">
+            <h3 className="nx-eyebrow mb-4">ФИО</h3>
+            <div className="nx-divider mb-4" />
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label className="font-mono text-[10px] text-gray-500 mb-1 block">ФАМИЛИЯ *</label>
+                <input value={contactLastName} onChange={e => setContactLastName(e.target.value)} placeholder="// ФАМИЛИЯ"
+                  className={`w-full px-4 py-3.5 rounded-xl font-mono text-sm bg-black/30 border text-gray-200 focus:outline-none focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)] ${fieldErrors['_lastName'] ? 'border-red-500' : 'border-gray-700'}`} />
+                {fieldErrors['_lastName'] && <p className="text-xs font-mono text-red-400 mt-1">{fieldErrors['_lastName']}</p>}
+              </div>
+              <div>
+                <label className="font-mono text-[10px] text-gray-500 mb-1 block">ИМЯ *</label>
+                <input value={contactFirstName} onChange={e => setContactFirstName(e.target.value)} placeholder="// ИМЯ"
+                  className={`w-full px-4 py-3.5 rounded-xl font-mono text-sm bg-black/30 border text-gray-200 focus:outline-none focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)] ${fieldErrors['_firstName'] ? 'border-red-500' : 'border-gray-700'}`} />
+                {fieldErrors['_firstName'] && <p className="text-xs font-mono text-red-400 mt-1">{fieldErrors['_firstName']}</p>}
+              </div>
+              <div>
+                <label className="font-mono text-[10px] text-gray-500 mb-1 block">ОТЧЕСТВО</label>
+                <input value={contactPatronymic} onChange={e => setContactPatronymic(e.target.value)} placeholder="// ОТЧЕСТВО"
+                  className="w-full px-4 py-3.5 rounded-xl font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]" />
+              </div>
+            </div>
+          </div>
+
+          {/* Contact block */}
+          <div className="mt-4 nx-tile p-5">
+            <h3 className="nx-eyebrow mb-4">КОНТАКТНЫЕ ДАННЫЕ</h3>
+            <div className="nx-divider mb-4" />
+            <div className="mt-4">
+              <input type="email" value={contactEmail} onChange={e => setContactEmail(e.target.value)} placeholder="// EMAIL *"
+                className={`w-full px-4 py-3.5 rounded-xl font-mono text-sm bg-black/30 border text-gray-200 focus:outline-none focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)] ${fieldErrors['_email'] ? 'border-red-500' : 'border-gray-700'}`} />
+              {fieldErrors['_email'] && <p className="text-xs font-mono text-red-400 mt-1">{fieldErrors['_email']}</p>}
+            </div>
+            <div className="mt-4">
+              <input type="tel" value={contactPhone} onChange={e => setContactPhone(e.target.value)} placeholder="// ТЕЛЕФОН"
+                className="w-full px-4 py-3.5 rounded-xl font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]" />
+            </div>
+          </div>
+
+          {/* Sticky CTA bar — consent + submit */}
+          <div className="sticky z-40 mt-6 rounded-2xl glass-frost px-4 pt-4 pb-4 space-y-3"
+            style={{ bottom: 'calc(16px + env(safe-area-inset-bottom, 0px))' }}>
+
+
           {fieldGroups.map((group, gi) => (
             <div key={`group-${gi}`} className="space-y-4">
               {fieldGroups.length > 1 && group[0]?.type !== 'page_break' && (
@@ -774,49 +819,6 @@ export default function PublicRegistration() {
             </div>
           ))}
 
-          {/* FIO block */}
-          <div className="mt-6 nx-tile p-5">
-            <h3 className="nx-eyebrow mb-4">ФИО</h3>
-            <div className="nx-divider mb-4" />
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div>
-                <label className="font-mono text-[10px] text-gray-500 mb-1 block">ФАМИЛИЯ *</label>
-                <input value={contactLastName} onChange={e => setContactLastName(e.target.value)} placeholder="// ФАМИЛИЯ"
-                  className={`w-full px-4 py-3.5 rounded-xl font-mono text-sm bg-black/30 border text-gray-200 focus:outline-none focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)] ${fieldErrors['_lastName'] ? 'border-red-500' : 'border-gray-700'}`} />
-                {fieldErrors['_lastName'] && <p className="text-xs font-mono text-red-400 mt-1">{fieldErrors['_lastName']}</p>}
-              </div>
-              <div>
-                <label className="font-mono text-[10px] text-gray-500 mb-1 block">ИМЯ *</label>
-                <input value={contactFirstName} onChange={e => setContactFirstName(e.target.value)} placeholder="// ИМЯ"
-                  className={`w-full px-4 py-3.5 rounded-xl font-mono text-sm bg-black/30 border text-gray-200 focus:outline-none focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)] ${fieldErrors['_firstName'] ? 'border-red-500' : 'border-gray-700'}`} />
-                {fieldErrors['_firstName'] && <p className="text-xs font-mono text-red-400 mt-1">{fieldErrors['_firstName']}</p>}
-              </div>
-              <div>
-                <label className="font-mono text-[10px] text-gray-500 mb-1 block">ОТЧЕСТВО</label>
-                <input value={contactPatronymic} onChange={e => setContactPatronymic(e.target.value)} placeholder="// ОТЧЕСТВО"
-                  className="w-full px-4 py-3.5 rounded-xl font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]" />
-              </div>
-            </div>
-          </div>
-
-          {/* Contact block */}
-          <div className="mt-4 nx-tile p-5">
-            <h3 className="nx-eyebrow mb-4">КОНТАКТНЫЕ ДАННЫЕ</h3>
-            <div className="nx-divider mb-4" />
-            <div className="mt-4">
-              <input type="email" value={contactEmail} onChange={e => setContactEmail(e.target.value)} placeholder="// EMAIL *"
-                className={`w-full px-4 py-3.5 rounded-xl font-mono text-sm bg-black/30 border text-gray-200 focus:outline-none focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)] ${fieldErrors['_email'] ? 'border-red-500' : 'border-gray-700'}`} />
-              {fieldErrors['_email'] && <p className="text-xs font-mono text-red-400 mt-1">{fieldErrors['_email']}</p>}
-            </div>
-            <div className="mt-4">
-              <input type="tel" value={contactPhone} onChange={e => setContactPhone(e.target.value)} placeholder="// ТЕЛЕФОН"
-                className="w-full px-4 py-3.5 rounded-xl font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]" />
-            </div>
-          </div>
-
-          {/* Sticky CTA bar — consent + submit */}
-          <div className="sticky z-40 mt-6 rounded-2xl glass-frost px-4 pt-4 pb-4 space-y-3"
-            style={{ bottom: 'calc(16px + env(safe-area-inset-bottom, 0px))' }}>
           {/* Privacy consent */}
           <label className="flex items-start gap-3 px-4 py-3 rounded-xl cursor-pointer transition-all hover:bg-white/[0.02] min-h-[44px]"
             style={{ border: fieldErrors['_privacy'] ? '1px solid rgba(255,59,48,0.4)' : privacyConsent ? '1px solid rgba(0,255,136,0.2)' : '1px solid rgba(255,255,255,0.06)' }}>

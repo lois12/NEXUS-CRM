@@ -39,6 +39,7 @@ import './migrations/023_chat_user_flags';
 import './migrations/024_chat_general_row';
 import './migrations/025_quiz_question_media';
 import './migrations/026_registrations_checkin_enabled';
+import './migrations/027_registrations_show_map';
 
 export function runMigrations(): void {
   run(`CREATE TABLE IF NOT EXISTS schema_migrations (
