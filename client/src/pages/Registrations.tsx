@@ -38,6 +38,7 @@ export default function Registrations() {
   const [view, setView] = useState<'list' | 'constructor' | 'submissions'>('list');
   const [editing, setEditing] = useState<Registration | null>(null);
   const [form, setForm] = useState({ title: '', description: '', eventDate: '', eventTime: '', location: '', videoUrl: '', maxParticipants: 0, status: 'draft' as string, registrationStart: '', registrationEnd: '', closedMessage: '', mapCoords: '', showLimit: 1, showTimer: 1, organizer: '', color: '', theme: 'cyberpunk', waitlistEnabled: 1, maxWaitlist: 0, checkinEnabled: 1 });
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [regFields, setRegFields] = useState<RegistrationField[]>([]);
   const [submissions, setSubmissions] = useState<RegistrationSubmission[]>([]);
   const [showQR, setShowQR] = useState(false);
@@ -179,15 +180,63 @@ export default function Registrations() {
     } catch { showToast('Ошибка', 'error'); }
   };
 
+  type FormErrors = Record<string, string>;
+
+  /** Валидация по блокам: возвращает ошибки {поле: сообщение} и список блоков */
+  const validateForm = (): { errs: FormErrors; blocks: string[] } => {
+    const errs: FormErrors = {};
+    const blocks = new Set<string>();
+
+    // Блок «Информация»
+    if (!form.title.trim()) { errs.title = 'Укажите название мероприятия'; blocks.add('Информация'); }
+    if (!form.organizer.trim()) { errs.organizer = 'Укажите организатора'; blocks.add('Информация'); }
+    if (!form.eventDate) { errs.eventDate = 'Укажите дату проведения'; blocks.add('Информация'); }
+    if (!form.eventTime) { errs.eventTime = 'Укажите время проведения'; blocks.add('Информация'); }
+    if (!form.location.trim()) { errs.location = 'Укажите место проведения'; blocks.add('Информация'); }
+
+    // Блок «Регистрация» (окно записи)
+    if (!form.registrationStart) { errs.registrationStart = 'Укажите начало регистрации'; blocks.add('Регистрация'); }
+    if (!form.registrationEnd) { errs.registrationEnd = 'Укажите конец регистрации'; blocks.add('Регистрация'); }
+    if (form.registrationStart && form.registrationEnd &&
+        new Date(form.registrationEnd).getTime() <= new Date(form.registrationStart).getTime()) {
+      errs.registrationEnd = 'Конец регистрации должен быть позже начала';
+      blocks.add('Регистрация');
+    }
+    if (form.eventDate && form.registrationEnd &&
+        new Date(form.registrationEnd).getTime() > new Date(form.eventDate + 'T' + (form.eventTime || '23:59')).getTime()) {
+      errs.registrationEnd = 'Регистрация должна закрыться до старта мероприятия';
+      blocks.add('Регистрация');
+    }
+
+    // Блок «Описание»
+    if (!form.description.trim()) { errs.description = 'Введите описание мероприятия'; blocks.add('Описание'); }
+
+    // Блок «Лимиты»
+    if (form.maxParticipants < 0) { errs.maxParticipants = 'Лимит не может быть отрицательным'; blocks.add('Лимиты'); }
+    if (form.maxWaitlist < 0) { errs.maxWaitlist = 'Лимит не может быть отрицательным'; blocks.add('Лимиты'); }
+
+    return { errs, blocks: Array.from(blocks) };
+  };
+
+  /** Класс поля с ошибкой */
+  const errCls = (key: string) =>
+    errors[key] ? ' border-[var(--color-danger)]' : '';
+
+  /** Подпись ошибки под полем */
+  const ErrMsg = ({ k }: { k: string }) =>
+    errors[k] ? <p className="text-[10px] font-mono mt-1" style={{ color: 'var(--color-danger)' }}>{errors[k]}</p> : null;
+
   const handleSave = async () => {
-    if (!form.title.trim()) { showToast('Введите название мероприятия', 'error'); return; }
-    if (!form.organizer.trim()) { showToast('Введите организатора', 'error'); return; }
-    if (!form.eventDate) { showToast('Укажите дату проведения', 'error'); return; }
-    if (!form.eventTime) { showToast('Укажите время проведения', 'error'); return; }
-    if (!form.location.trim()) { showToast('Укажите место проведения', 'error'); return; }
-    if (!form.registrationStart) { showToast('Укажите начало регистрации', 'error'); return; }
-    if (!form.registrationEnd) { showToast('Укажите конец регистрации', 'error'); return; }
-    if (!form.description.trim()) { showToast('Введите описание мероприятия', 'error'); return; }
+    const { errs, blocks } = validateForm();
+    setErrors(errs);
+    if (Object.keys(errs).length > 0) {
+      const firstKey = Object.keys(errs)[0];
+      showToast(`Не заполнено в блоках: ${blocks.join(', ')}`, 'error');
+      const el = document.querySelector(`[data-field="${firstKey}"]`);
+      if (el) (el as HTMLElement).scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    setErrors({});
     try {
       let regId = editing?.id;
       if (editing) {
@@ -256,14 +305,13 @@ export default function Registrations() {
 
   const handleSaveAndNotify = async () => {
     if (!editing) return;
-    if (!form.title.trim()) { showToast('Введите название мероприятия', 'error'); return; }
-    if (!form.organizer.trim()) { showToast('Введите организатора', 'error'); return; }
-    if (!form.eventDate) { showToast('Укажите дату проведения', 'error'); return; }
-    if (!form.eventTime) { showToast('Укажите время проведения', 'error'); return; }
-    if (!form.location.trim()) { showToast('Укажите место проведения', 'error'); return; }
-    if (!form.registrationStart) { showToast('Укажите начало регистрации', 'error'); return; }
-    if (!form.registrationEnd) { showToast('Укажите конец регистрации', 'error'); return; }
-    if (!form.description.trim()) { showToast('Введите описание мероприятия', 'error'); return; }
+    const { errs, blocks } = validateForm();
+    setErrors(errs);
+    if (Object.keys(errs).length > 0) {
+      showToast(`Не заполнено в блоках: ${blocks.join(', ')}`, 'error');
+      return;
+    }
+    setErrors({});
     try {
       setUploading(true);
       // Save fields first (same as handleSave)
@@ -534,24 +582,29 @@ export default function Registrations() {
             <div className="nx-panel p-6 space-y-4">
               <h2 className="nx-eyebrow">ИНФОРМАЦИЯ</h2>
               <div className="nx-divider" />
-              <input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="// НАЗВАНИЕ МЕРОПРИЯТИЯ *"
-                className="w-full px-4 py-2.5 rounded-xl font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]" />
-              <input value={form.organizer} onChange={e => setForm({ ...form, organizer: e.target.value })} placeholder="// ОРГАНИЗАТОР"
-                className="w-full px-4 py-2.5 rounded-xl font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]" />
+              <input data-field="title" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="// НАЗВАНИЕ МЕРОПРИЯТИЯ *"
+                className={`w-full px-4 py-2.5 rounded-xl font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]${errCls('title')}`} />
+                <ErrMsg k="title" />
+              <input data-field="organizer" value={form.organizer} onChange={e => setForm({ ...form, organizer: e.target.value })} placeholder="// ОРГАНИЗАТОР"
+                className={`w-full px-4 py-2.5 rounded-xl font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]${errCls('organizer')}`} />
+                <ErrMsg k="organizer" />
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="font-mono text-[10px] text-gray-500 mb-1 block">ДАТА</label>
-                  <input type="date" value={form.eventDate} onChange={e => setForm({ ...form, eventDate: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]" />
+                  <input data-field="eventDate" type="date" value={form.eventDate} onChange={e => setForm({ ...form, eventDate: e.target.value })}
+                    className={`w-full px-3 py-2 rounded-xl font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]${errCls('eventDate')}`} />
+                <ErrMsg k="eventDate" />
                 </div>
                 <div>
                   <label className="font-mono text-[10px] text-gray-500 mb-1 block">ВРЕМЯ</label>
-                  <input type="time" value={form.eventTime} onChange={e => setForm({ ...form, eventTime: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]" />
+                  <input data-field="eventTime" type="time" value={form.eventTime} onChange={e => setForm({ ...form, eventTime: e.target.value })}
+                    className={`w-full px-3 py-2 rounded-xl font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]${errCls('eventTime')}`} />
+                <ErrMsg k="eventTime" />
                 </div>
               </div>
-              <input value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} placeholder="// МЕСТО ПРОВЕДЕНИЯ"
-                className="w-full px-4 py-2.5 rounded-xl font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]" />
+              <input data-field="location" value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} placeholder="// МЕСТО ПРОВЕДЕНИЯ"
+                className={`w-full px-4 py-2.5 rounded-xl font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]${errCls('location')}`} />
+                <ErrMsg k="location" />
               {/* Location map */}
               <div>
                 <label className="font-mono text-[10px] text-gray-500 mb-1 block">МЕСТО НА КАРТЕ</label>
@@ -580,13 +633,15 @@ export default function Registrations() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="font-mono text-[10px] text-gray-500 mb-1 block">НАЧАЛО РЕГИСТРАЦИИ</label>
-                  <input type="datetime-local" value={form.registrationStart} onChange={e => setForm({ ...form, registrationStart: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]" />
+                  <input data-field="registrationStart" type="datetime-local" value={form.registrationStart} onChange={e => setForm({ ...form, registrationStart: e.target.value })}
+                    className={`w-full px-3 py-2 rounded-xl font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]${errCls('registrationStart')}`} />
+                <ErrMsg k="registrationStart" />
                 </div>
                 <div>
                   <label className="font-mono text-[10px] text-gray-500 mb-1 block">КОНЕЦ РЕГИСТРАЦИИ</label>
-                  <input type="datetime-local" value={form.registrationEnd} onChange={e => setForm({ ...form, registrationEnd: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]" />
+                  <input data-field="registrationEnd" type="datetime-local" value={form.registrationEnd} onChange={e => setForm({ ...form, registrationEnd: e.target.value })}
+                    className={`w-full px-3 py-2 rounded-xl font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]${errCls('registrationEnd')}`} />
+                <ErrMsg k="registrationEnd" />
                 </div>
               </div>
               {/* Custom message after close */}
@@ -716,6 +771,7 @@ export default function Registrations() {
               <h2 className="nx-eyebrow mb-3">ОПИСАНИЕ</h2>
               <div className="nx-divider mb-4" />
               <RichEditor content={form.description} onChange={html => setForm({ ...form, description: html })} placeholder="// ОПИСАНИЕ МЕРОПРИЯТИЯ..." />
+              <ErrMsg k="description" />
             </div>
 
             <div className="nx-panel p-6">

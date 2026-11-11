@@ -774,25 +774,35 @@ export default function PublicRegistration() {
             </div>
           ))}
 
-          {/* Contact block */}
+          {/* FIO block */}
           <div className="mt-6 nx-tile p-5">
-            <h3 className="nx-eyebrow mb-4">КОНТАКТНЫЕ ДАННЫЕ</h3>
+            <h3 className="nx-eyebrow mb-4">ФИО</h3>
+            <div className="nx-divider mb-4" />
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
-                <input value={contactLastName} onChange={e => setContactLastName(e.target.value)} placeholder="// ФАМИЛИЯ *"
+                <label className="font-mono text-[10px] text-gray-500 mb-1 block">ФАМИЛИЯ *</label>
+                <input value={contactLastName} onChange={e => setContactLastName(e.target.value)} placeholder="// ФАМИЛИЯ"
                   className={`w-full px-4 py-3.5 rounded-xl font-mono text-sm bg-black/30 border text-gray-200 focus:outline-none focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)] ${fieldErrors['_lastName'] ? 'border-red-500' : 'border-gray-700'}`} />
                 {fieldErrors['_lastName'] && <p className="text-xs font-mono text-red-400 mt-1">{fieldErrors['_lastName']}</p>}
               </div>
               <div>
-                <input value={contactFirstName} onChange={e => setContactFirstName(e.target.value)} placeholder="// ИМЯ *"
+                <label className="font-mono text-[10px] text-gray-500 mb-1 block">ИМЯ *</label>
+                <input value={contactFirstName} onChange={e => setContactFirstName(e.target.value)} placeholder="// ИМЯ"
                   className={`w-full px-4 py-3.5 rounded-xl font-mono text-sm bg-black/30 border text-gray-200 focus:outline-none focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)] ${fieldErrors['_firstName'] ? 'border-red-500' : 'border-gray-700'}`} />
                 {fieldErrors['_firstName'] && <p className="text-xs font-mono text-red-400 mt-1">{fieldErrors['_firstName']}</p>}
               </div>
               <div>
+                <label className="font-mono text-[10px] text-gray-500 mb-1 block">ОТЧЕСТВО</label>
                 <input value={contactPatronymic} onChange={e => setContactPatronymic(e.target.value)} placeholder="// ОТЧЕСТВО"
                   className="w-full px-4 py-3.5 rounded-xl font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]" />
               </div>
             </div>
+          </div>
+
+          {/* Contact block */}
+          <div className="mt-4 nx-tile p-5">
+            <h3 className="nx-eyebrow mb-4">КОНТАКТНЫЕ ДАННЫЕ</h3>
+            <div className="nx-divider mb-4" />
             <div className="mt-4">
               <input type="email" value={contactEmail} onChange={e => setContactEmail(e.target.value)} placeholder="// EMAIL *"
                 className={`w-full px-4 py-3.5 rounded-xl font-mono text-sm bg-black/30 border text-gray-200 focus:outline-none focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)] ${fieldErrors['_email'] ? 'border-red-500' : 'border-gray-700'}`} />
