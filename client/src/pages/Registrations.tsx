@@ -316,13 +316,24 @@ export default function Registrations() {
     setErrors({});
     try {
       setUploading(true);
+      // Upload media first (same as handleSave) — иначе файлы теряются
+      if (imageFiles.length > 0) {
+        await registrationsApi.uploadImage(editing.id, imageFiles[0]);
+      }
+      if (videoFile) {
+        await registrationsApi.uploadVideo(editing.id, videoFile);
+      }
+      if (mediaFiles.length > 0) {
+        for (const file of mediaFiles) {
+          await registrationsApi.uploadMedia(editing.id, file);
+        }
+        setMediaFiles([]);
+      }
+      setImageFiles([]);
+      setVideoFile(null);
       // Save fields first (same as handleSave)
       const currentRes = await registrationsApi.getOne(editing.id);
       if (currentRes.success && currentRes.data) {
-        const existingIds = currentRes.data.fields?.map((f: any) => f.id) || [];
-        for (const f of regFields) {
-          if (!existingIds.includes(f.id) && !f.id.startsWith('temp-')) continue;
-        }
         for (const f of (currentRes.data.fields || [])) {
           if (!regFields.find(rf => rf.id === f.id)) {
             await registrationsApi.deleteField(editing.id, f.id);

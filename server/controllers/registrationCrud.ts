@@ -125,7 +125,7 @@ export const updateAndNotify = async (req: AuthRequest, res: Response) => {
 
     // Track what changed
     const changes: string[] = [];
-    const { title, description, eventDate, eventTime, location, videoUrl, maxParticipants, status, imageUrl, registrationStart, registrationEnd, closedMessage, mapCoords, showLimit, showTimer, organizer } = req.body;
+    const { title, description, eventDate, eventTime, location, videoUrl, maxParticipants, status, imageUrl, registrationStart, registrationEnd, closedMessage, mapCoords, showLimit, showTimer, organizer, color, theme, waitlistEnabled, maxWaitlist, checkinEnabled, showMap } = req.body;
 
     if (eventDate !== undefined && eventDate !== reg.eventDate) changes.push(`Дата проведения изменена на "${eventDate}"`);
     if (eventTime !== undefined && eventTime !== reg.eventTime) changes.push(`Время проведения изменено на "${eventTime}"`);
@@ -135,11 +135,7 @@ export const updateAndNotify = async (req: AuthRequest, res: Response) => {
     if (description !== undefined && description !== reg.description) changes.push(`Описание мероприятия обновлено`);
     if (maxParticipants !== undefined && maxParticipants !== reg.maxParticipants) changes.push(`Лимит участников изменён на ${maxParticipants}`);
 
-    if (changes.length === 0) {
-      return res.json({ success: true, message: 'Нет изменений для уведомления', notified: 0 });
-    }
-
-    // Apply changes
+    // Apply changes (всегда — чтобы новые поля не терялись); уведомление шлём только при tracked-изходах
     const updates: string[] = [];
     const params: any[] = [];
     if (title !== undefined) { updates.push('title = ?'); params.push(title); }
@@ -158,6 +154,12 @@ export const updateAndNotify = async (req: AuthRequest, res: Response) => {
     if (showLimit !== undefined) { updates.push('showLimit = ?'); params.push(showLimit); }
     if (showTimer !== undefined) { updates.push('showTimer = ?'); params.push(showTimer); }
     if (organizer !== undefined) { updates.push('organizer = ?'); params.push(organizer); }
+    if (color !== undefined) { updates.push('color = ?'); params.push(color); }
+    if (theme !== undefined) { updates.push('theme = ?'); params.push(theme); }
+    if (waitlistEnabled !== undefined) { updates.push('waitlistEnabled = ?'); params.push(waitlistEnabled); }
+    if (maxWaitlist !== undefined) { updates.push('maxWaitlist = ?'); params.push(maxWaitlist); }
+    if (checkinEnabled !== undefined) { updates.push('checkinEnabled = ?'); params.push(checkinEnabled); }
+    if (showMap !== undefined) { updates.push('showMap = ?'); params.push(showMap); }
     updates.push("updatedAt = datetime('now')");
     params.push(id);
 
@@ -168,13 +170,14 @@ export const updateAndNotify = async (req: AuthRequest, res: Response) => {
     // Get updated registration
     const updatedReg = get('SELECT * FROM registrations WHERE id = ?', [id]);
 
-    // Send emails to all registered/waitlisted participants
+    // Send emails to all registered/waitlisted participants — только если были tracked-изменения
+    let notified = 0;
+    if (changes.length > 0) {
     const participants = query(
       "SELECT contactName, contactEmail, cancelToken FROM registration_submissions WHERE registrationId = ? AND status IN ('registered', 'waitlist') AND contactEmail != ''",
       [id]
     );
 
-    let notified = 0;
     const origin = `${req.protocol}://${req.get('host')}`;
 
     for (const p of participants) {
@@ -209,8 +212,9 @@ export const updateAndNotify = async (req: AuthRequest, res: Response) => {
         link: '/registrations',
       });
     }
+    }
 
-    res.json({ success: true, message: `Обновлено. Уведомлено ${notified} участников.`, notified, changes });
+    res.json({ success: true, message: changes.length > 0 ? `Обновлено. Уведомлено ${notified} участников.` : 'Обновлено без уведомления', notified, changes });
   } catch (error) {
     console.error('UpdateAndNotify error:', error);
     res.status(500).json({ success: false, error: 'Ошибка сервера' });
