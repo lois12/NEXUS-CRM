@@ -107,7 +107,8 @@ export const submitRegistration = (req: AuthRequest, res: Response) => {
         (req.ip || req.socket?.remoteAddress || '').toString().slice(0, 64)]);
 
     const submission = get('SELECT * FROM registration_submissions WHERE id = ?', [id]);
-    res.status(201).json({ success: true, data: { ...submission, cancelToken, checkinToken, confirmCode } });
+    const withCheckin = reg.checkinEnabled !== 0 && reg.checkinEnabled !== false;
+    res.status(201).json({ success: true, data: { ...submission, cancelToken, checkinToken: withCheckin ? checkinToken : '', confirmCode: withCheckin ? confirmCode : '' } });
 
     // ── Notifications (fire-and-forget, don't block response) ──
     (async () => {
@@ -131,6 +132,7 @@ export const submitRegistration = (req: AuthRequest, res: Response) => {
             confirmCode: status === 'registered' ? confirmCode : undefined,
             cancelToken,
             origin,
+            checkinEnabled: withCheckin,
           });
         }
 
@@ -189,7 +191,8 @@ export const createAdminSubmission = (req: AuthRequest, res: Response) => {
         (req.ip || req.socket?.remoteAddress || '').toString().slice(0, 64)]);
 
     const submission = get('SELECT * FROM registration_submissions WHERE id = ?', [submissionId]);
-    res.status(201).json({ success: true, data: { ...submission, cancelToken, checkinToken, confirmCode } });
+    const withCheckin2 = reg.checkinEnabled !== 0 && reg.checkinEnabled !== false;
+    res.status(201).json({ success: true, data: { ...submission, cancelToken, checkinToken: withCheckin2 ? checkinToken : '', confirmCode: withCheckin2 ? confirmCode : '' } });
 
     // Send email if requested (fire-and-forget)
     if (sendEmail && contactEmail?.trim()) {
@@ -206,9 +209,10 @@ export const createAdminSubmission = (req: AuthRequest, res: Response) => {
             organizer: reg.organizer,
             description: reg.description,
             status: 'registered',
-            checkinToken,
-            confirmCode,
+            checkinToken: withCheckin2 ? checkinToken : undefined,
+            confirmCode: withCheckin2 ? confirmCode : undefined,
             cancelToken,
+            checkinEnabled: withCheckin2,
             origin,
           });
         } catch (e) {
@@ -289,7 +293,7 @@ export const cancelSubmission = (req: AuthRequest, res: Response) => {
 
         // Notify promoted user
         const promoted = get('SELECT * FROM registration_submissions WHERE id = ?', [firstWaitlist.id]);
-        const regInfo = get('SELECT title, eventDate, eventTime, location, mapCoords, organizer, description FROM registrations WHERE id = ?', [sub.registrationId]);
+        const regInfo = get('SELECT title, eventDate, eventTime, location, mapCoords, organizer, description, checkinEnabled FROM registrations WHERE id = ?', [sub.registrationId]);
         if (promoted && regInfo) {
           (async () => {
             try {
@@ -303,9 +307,10 @@ export const cancelSubmission = (req: AuthRequest, res: Response) => {
                   mapCoords: regInfo.mapCoords,
                   organizer: regInfo.organizer,
                   description: regInfo.description,
-                  checkinToken: promoted.checkinToken || '',
-                  confirmCode: promoted.confirmCode || '',
+                  checkinToken: (regInfo.checkinEnabled !== 0 ? promoted.checkinToken : '') || '',
+                  confirmCode: (regInfo.checkinEnabled !== 0 ? promoted.confirmCode : '') || '',
                   cancelToken: promoted.cancelToken || '',
+                  checkinEnabled: regInfo.checkinEnabled !== 0,
                   origin: `${req.protocol}://${req.get('host')}`,
                 });
               }
@@ -352,7 +357,7 @@ export const cancelByToken = (req: AuthRequest, res: Response) => {
 
         // Notify promoted user
         const promoted = get('SELECT * FROM registration_submissions WHERE id = ?', [firstWaitlist.id]);
-        const regInfo = get('SELECT title, eventDate, eventTime, location, mapCoords, organizer, description FROM registrations WHERE id = ?', [sub.registrationId]);
+        const regInfo = get('SELECT title, eventDate, eventTime, location, mapCoords, organizer, description, checkinEnabled FROM registrations WHERE id = ?', [sub.registrationId]);
         if (promoted && regInfo) {
           (async () => {
             try {
@@ -366,9 +371,10 @@ export const cancelByToken = (req: AuthRequest, res: Response) => {
                   mapCoords: regInfo.mapCoords,
                   organizer: regInfo.organizer,
                   description: regInfo.description,
-                  checkinToken: promoted.checkinToken || '',
-                  confirmCode: promoted.confirmCode || '',
+                  checkinToken: (regInfo.checkinEnabled !== 0 ? promoted.checkinToken : '') || '',
+                  confirmCode: (regInfo.checkinEnabled !== 0 ? promoted.confirmCode : '') || '',
                   cancelToken: promoted.cancelToken || '',
+                  checkinEnabled: regInfo.checkinEnabled !== 0,
                   origin: `${req.protocol}://${req.get('host')}`,
                 });
               }

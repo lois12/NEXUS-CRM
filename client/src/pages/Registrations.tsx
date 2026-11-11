@@ -37,7 +37,7 @@ export default function Registrations() {
   const [activeTab, setActiveTab] = useState<'active' | 'planned' | 'archive'>('active');
   const [view, setView] = useState<'list' | 'constructor' | 'submissions'>('list');
   const [editing, setEditing] = useState<Registration | null>(null);
-  const [form, setForm] = useState({ title: '', description: '', eventDate: '', eventTime: '', location: '', videoUrl: '', maxParticipants: 0, status: 'draft' as string, registrationStart: '', registrationEnd: '', closedMessage: '', mapCoords: '', showLimit: 1, showTimer: 1, organizer: '', color: '', theme: 'cyberpunk', waitlistEnabled: 1, maxWaitlist: 0 });
+  const [form, setForm] = useState({ title: '', description: '', eventDate: '', eventTime: '', location: '', videoUrl: '', maxParticipants: 0, status: 'draft' as string, registrationStart: '', registrationEnd: '', closedMessage: '', mapCoords: '', showLimit: 1, showTimer: 1, organizer: '', color: '', theme: 'cyberpunk', waitlistEnabled: 1, maxWaitlist: 0, checkinEnabled: 1 });
   const [regFields, setRegFields] = useState<RegistrationField[]>([]);
   const [submissions, setSubmissions] = useState<RegistrationSubmission[]>([]);
   const [showQR, setShowQR] = useState(false);
@@ -93,7 +93,7 @@ export default function Registrations() {
 
   const openCreate = () => {
     setEditing(null);
-    setForm({ title: '', description: '', eventDate: '', eventTime: '', location: '', videoUrl: '', maxParticipants: 0, status: 'draft', registrationStart: '', registrationEnd: '', closedMessage: '', mapCoords: '', showLimit: 1, showTimer: 1, organizer: '', color: '', theme: 'cyberpunk', waitlistEnabled: 1, maxWaitlist: 0 });
+    setForm({ title: '', description: '', eventDate: '', eventTime: '', location: '', videoUrl: '', maxParticipants: 0, status: 'draft', registrationStart: '', registrationEnd: '', closedMessage: '', mapCoords: '', showLimit: 1, showTimer: 1, organizer: '', color: '', theme: 'cyberpunk', waitlistEnabled: 1, maxWaitlist: 0, checkinEnabled: 1 });
     setRegFields([]);
     setImageUrl('');
     setImageFiles([]);
@@ -146,6 +146,7 @@ export default function Registrations() {
           color: data.color || '',
           theme: data.theme || 'cyberpunk',
           waitlistEnabled: data.waitlistEnabled ?? 1,
+          checkinEnabled: data.checkinEnabled ?? 1,
           maxWaitlist: data.maxWaitlist ?? 0,
         });
         setRegFields(normalizeFields(data.fields));
@@ -635,6 +636,20 @@ export default function Registrations() {
                       className="w-full px-4 py-2.5 rounded-xl font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]" />
                   </div>
                 )}
+              </div>
+              {/* Checkin toggle */}
+              <div>
+                <label className="text-xs font-mono text-gray-500 mb-2 block">КОНТРОЛЬ ПОСЕЩЕНИЯ (С QR)</label>
+                <div className="flex items-center gap-3">
+                  <button onClick={() => setForm({ ...form, checkinEnabled: form.checkinEnabled ? 0 : 1 })}
+                    className="w-10 h-5 rounded-full transition-colors relative"
+                    style={{ background: form.checkinEnabled ? 'var(--color-primary)' : '#3a3a50' }}>
+                    <div className="absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform"
+                      style={{ transform: form.checkinEnabled ? 'translateX(20px)' : 'translateX(2px)' }} />
+                  </button>
+                  <span className="text-xs font-mono text-gray-400">{form.checkinEnabled ? 'Включён — QR в письме и на экране' : 'Выключён — только информация'}</span>
+                </div>
+                <p className="text-[10px] font-mono text-gray-600 mt-1">Когда выключен — письмо и итоговый экран содержат только основную информацию и кнопку отмены.</p>
               </div>
               {/* Color picker */}
               <label className="block">

@@ -104,11 +104,14 @@ export async function sendRegistrationConfirm(to: string, data: {
   confirmCode?: string;
   cancelToken?: string;
   origin: string;
+  /** false = контроль посещения выключен: письмо без QR/кода, но с отменой */
+  checkinEnabled?: boolean;
 }): Promise<boolean> {
   if (!isEnabled()) return false;
   try {
     const displayName = escapeHtml(getDisplayName(data.name));
     const cancelUrl = `${data.origin}/reg/cancel/${data.cancelToken}`;
+    const withCheckin = data.checkinEnabled !== false;
 
     if (data.status === 'waitlist') {
       const subject = `${data.eventTitle} — вы в листе ожидания`;
@@ -127,8 +130,7 @@ export async function sendRegistrationConfirm(to: string, data: {
       await resend!.emails.send({ from: FROM, to, subject, html: wrap('ВЫ В ОЧЕРЕДИ', content, '#eab308') });
     } else {
       const subject = `${data.eventTitle} — регистрация подтверждена`;
-      const qrUrl = `${data.origin}/reg/checkin/${data.checkinToken}`;
-      const qrDataUrl = await generateQRDataURL(qrUrl);
+      const qrDataUrl = withCheckin && data.checkinToken ? await generateQRDataURL(`${data.origin}/reg/checkin/${data.checkinToken}`) : '';
       const content = `
         <p style="margin:0 0 16px;">Здравствуйте, <strong style="color:#e0e0e0;">${displayName}</strong>!</p>
         <p style="margin:0 0 16px;">Платформа NEXUS оповещает вас о том, что ваша регистрация на мероприятие подтверждена.</p>
@@ -137,14 +139,14 @@ export async function sendRegistrationConfirm(to: string, data: {
           <div style="font-size:18px;font-weight:700;color:#00ff88;font-family:monospace;">ЗАРЕГИСТРИРОВАН ✓</div>
         </div>
         ${eventBlock(data.eventTitle, data.eventDate, data.eventTime, data.mapCoords, data.location, data.organizer, data.description)}
-        <div style="text-align:center;margin:24px 0;padding:20px;background:rgba(255,255,255,0.03);border-radius:12px;">
+        ${withCheckin ? `<div style="text-align:center;margin:24px 0;padding:20px;background:rgba(255,255,255,0.03);border-radius:12px;">
           <p style="font-family:monospace;font-size:11px;color:#4a4a60;margin:0 0 12px;">Покажите этот QR-код организатору при входе:</p>
           <img src="${qrDataUrl}" alt="QR Code" width="160" height="160" style="display:block;margin:0 auto;border-radius:8px;" />
         </div>
         ${data.confirmCode ? `<div style="text-align:center;margin:16px 0;padding:16px;background:rgba(0,212,255,0.06);border:1px solid rgba(0,212,255,0.15);border-radius:12px;">
           <p style="font-family:monospace;font-size:11px;color:#4a4a60;margin:0 0 8px;">Или назовите этот код организатору:</p>
           <div style="font-size:32px;font-weight:700;color:#00d4ff;font-family:monospace;letter-spacing:0.3em;">${data.confirmCode}</div>
-        </div>` : ''}
+        </div>` : ''}` : ''}
         <div style="text-align:center;margin:24px 0 0;">
           <a href="${cancelUrl}" style="display:inline-block;padding:12px 32px;background:rgba(255,59,48,0.1);border:1px solid rgba(255,59,48,0.3);border-radius:10px;color:#ff6b6b;font-family:monospace;font-size:13px;font-weight:600;text-decoration:none;">Отменить регистрацию</a>
         </div>`;
@@ -201,13 +203,15 @@ export async function sendWaitlistPromotion(to: string, data: {
   confirmCode?: string;
   cancelToken: string;
   origin: string;
+  /** false = контроль посещения выключен: без QR/кода */
+  checkinEnabled?: boolean;
 }): Promise<boolean> {
   if (!isEnabled()) return false;
   try {
     const displayName = escapeHtml(getDisplayName(data.name));
     const cancelUrl = `${data.origin}/reg/cancel/${data.cancelToken}`;
-    const qrUrl = `${data.origin}/reg/checkin/${data.checkinToken}`;
-    const qrDataUrl = await generateQRDataURL(qrUrl);
+    const withCheckin = data.checkinEnabled !== false;
+    const qrDataUrl = withCheckin && data.checkinToken ? await generateQRDataURL(`${data.origin}/reg/checkin/${data.checkinToken}`) : '';
 
     const content = `
       <p style="margin:0 0 16px;">Здравствуйте, <strong style="color:#e0e0e0;">${displayName}</strong>!</p>
@@ -217,14 +221,14 @@ export async function sendWaitlistPromotion(to: string, data: {
         <div style="font-size:18px;font-weight:700;color:#00ff88;font-family:monospace;">ВЫ ЗАРЕГИСТРИРОВАНЫ ✓</div>
       </div>
       ${eventBlock(data.eventTitle, data.eventDate, data.eventTime, data.mapCoords, data.location, data.organizer, data.description)}
-      <div style="text-align:center;margin:24px 0;padding:20px;background:rgba(255,255,255,0.03);border-radius:12px;">
+      ${withCheckin ? `<div style="text-align:center;margin:24px 0;padding:20px;background:rgba(255,255,255,0.03);border-radius:12px;">
         <p style="font-family:monospace;font-size:11px;color:#4a4a60;margin:0 0 12px;">Покажите этот QR-код организатору при входе:</p>
         <img src="${qrDataUrl}" alt="QR Code" width="160" height="160" style="display:block;margin:0 auto;border-radius:8px;" />
       </div>
       ${data.confirmCode ? `<div style="text-align:center;margin:16px 0;padding:16px;background:rgba(0,212,255,0.06);border:1px solid rgba(0,212,255,0.15);border-radius:12px;">
         <p style="font-family:monospace;font-size:11px;color:#4a4a60;margin:0 0 8px;">Или назовите этот код организатору:</p>
         <div style="font-size:32px;font-weight:700;color:#00d4ff;font-family:monospace;letter-spacing:0.3em;">${data.confirmCode}</div>
-      </div>` : ''}
+      </div>` : ''}` : ''}
       <div style="text-align:center;margin:24px 0 0;">
         <a href="${cancelUrl}" style="display:inline-block;padding:12px 32px;background:rgba(255,59,48,0.1);border:1px solid rgba(255,59,48,0.3);border-radius:10px;color:#ff6b6b;font-family:monospace;font-size:13px;font-weight:600;text-decoration:none;">Отменить регистрацию</a>
       </div>`;

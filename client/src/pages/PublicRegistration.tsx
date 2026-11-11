@@ -401,6 +401,19 @@ export default function PublicRegistration() {
               </button>
             </div>
           </div>
+          {/* Event info — основная информация */}
+          {(reg?.title || reg?.eventDate || reg?.location) && (
+            <div className="nx-tile p-4">
+              <div className="nx-eyebrow mb-2">МЕРОПРИЯТИЕ</div>
+              {reg?.title && <p className="font-mono text-sm font-bold text-gray-200">{reg.title}</p>}
+              {(reg?.eventDate || reg?.eventTime) && (
+                <p className="font-mono text-[11px] text-gray-400 mt-1">
+                  {[reg?.eventDate, reg?.eventTime].filter(Boolean).join(" · ")}
+                </p>
+              )}
+              {reg?.location && <p className="font-mono text-[11px] text-gray-500 mt-1">{reg.location}</p>}
+            </div>
+          )}
           {/* Checkin QR code */}
           {result.checkinToken && (
             <div className="nx-tile p-4 text-center">
