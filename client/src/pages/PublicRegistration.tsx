@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Calendar, MapPin, Clock, Users, Play, XCircle, AlertTriangle, Navigation } from 'lucide-react';
+import { Calendar, MapPin, Clock, Users, Play, XCircle, AlertTriangle, Navigation, Share2, Sparkles, Info } from 'lucide-react';
 import { publicRegApi } from '../services/api';
 import FieldRenderer from '../components/registrations/FieldRenderer';
 import MapField from '../components/registrations/MapField';
@@ -26,14 +26,26 @@ function calcTimeLeft(target: string): TimeLeft | null {
   };
 }
 
+/** Countdown digit — floating tile chip */
 function TimerBlock({ value, label }: { value: number; label: string }) {
   return (
-    <div className="flex flex-col items-center">
-      <div className="w-16 h-16 nx-tile flex items-center justify-center font-mono text-2xl font-bold"
-        style={{ background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.2)', color: 'var(--color-primary)', textShadow: '0 0 12px var(--color-glow)' }}>
-        {String(value).padStart(2, '0')}
+    <div className="flex flex-col items-center gap-1.5">
+      <div className="nx-tile w-16 h-16 sm:w-[72px] sm:h-[72px] flex items-center justify-center">
+        <span className="font-mono text-2xl sm:text-3xl font-bold leading-none" style={{ color: 'var(--color-primary)' }}>
+          {String(value).padStart(2, '0')}
+        </span>
       </div>
-      <span className="font-mono text-[10px] text-gray-500 mt-1 uppercase">{label}</span>
+      <span className="font-mono text-[10px] text-gray-500 uppercase tracking-wider">{label}</span>
+    </div>
+  );
+}
+
+/** Key-fact highlight card (info band) */
+function FactTile({ icon: Icon, label, value }: { icon: typeof Calendar; label: string; value: string }) {
+  return (
+    <div className="nx-tile p-4">
+      <div className="nx-eyebrow mb-2"><Icon className="w-3 h-3" />{label}</div>
+      <p className="font-mono text-sm text-gray-200 leading-snug">{value}</p>
     </div>
   );
 }
@@ -234,15 +246,21 @@ export default function PublicRegistration() {
     return (
       <div className="min-h-screen py-8 px-4 relative nx-stage">
         <CyberBackground />
-        <div className="relative z-10 max-w-xl mx-auto space-y-6">
-          <SkeletonBlock height="h-48" className="w-full rounded-2xl" />
-          <div className="nx-panel p-6 space-y-3">
+        <div className="relative z-10 max-w-2xl mx-auto space-y-6">
+          <div className="nx-bezel nx-rise">
+            <div className="nx-core p-4">
+              <SkeletonBlock height="h-48" className="w-full rounded-2xl" />
+            </div>
+          </div>
+          <div className="nx-panel p-6 space-y-3 nx-rise nx-rise-2">
             <SkeletonBlock height="h-7" className="w-2/3" />
             <SkeletonBlock height="h-3" className="w-1/2" />
             <SkeletonBlock height="h-3" className="w-3/4" />
           </div>
-          <div className="nx-panel p-6">
-            <SkeletonForm />
+          <div className="nx-bezel nx-rise nx-rise-3">
+            <div className="nx-core p-6">
+              <SkeletonForm />
+            </div>
           </div>
         </div>
       </div>
@@ -254,20 +272,23 @@ export default function PublicRegistration() {
     const isDraft = error === 'DRAFT';
     return (
       <div className="min-h-screen flex items-center justify-center p-4 nx-stage">
-        <div className="nx-panel p-8 text-center max-w-md">
-          {isDraft ? (
-            <>
-              <Clock className="w-16 h-16 mx-auto mb-4" style={{ color: '#6b7280' }} />
-              <h2 className="font-mono text-lg font-bold text-gray-200 mb-2">ЕЩЁ НЕ ОПУБЛИКОВАНО</h2>
-              <p className="font-mono text-sm text-gray-400">Администратор ещё не опубликовал эту регистрацию. Попробуйте позже.</p>
-            </>
-          ) : (
-            <>
-              <XCircle className="w-16 h-16 mx-auto mb-4 text-red-400" />
-              <h2 className="font-mono text-lg font-bold text-gray-200 mb-2">ОШИБКА</h2>
-              <p className="font-mono text-sm text-gray-400">{error}</p>
-            </>
-          )}
+        <div className="nx-bezel max-w-md w-full nx-rise">
+          <div className="nx-core p-8 text-center space-y-4">
+            <span className="nx-eyebrow">{isDraft ? 'ЧЕРНОВИК' : 'ОШИБКА'}</span>
+            {isDraft ? (
+              <>
+                <Clock className="w-16 h-16 mx-auto" style={{ color: 'var(--color-text-tertiary)' }} />
+                <h2 className="font-mono text-lg font-bold text-gray-200">ЕЩЁ НЕ ОПУБЛИКОВАНО</h2>
+                <p className="text-sm text-gray-400 leading-relaxed">Администратор ещё не опубликовал эту регистрацию. Попробуйте позже.</p>
+              </>
+            ) : (
+              <>
+                <XCircle className="w-16 h-16 mx-auto text-red-400" />
+                <h2 className="font-mono text-lg font-bold text-gray-200">ОШИБКА</h2>
+                <p className="text-sm text-gray-400 leading-relaxed">{error}</p>
+              </>
+            )}
+          </div>
         </div>
       </div>
     );
@@ -278,19 +299,22 @@ export default function PublicRegistration() {
     return (
       <div className="min-h-screen flex items-center justify-center p-4 nx-stage">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-          className="nx-panel p-8 text-center max-w-md w-full space-y-6">
-          <Clock className="w-16 h-16 mx-auto" style={{ color: 'var(--color-primary)' }} />
-          <h2 className="font-mono text-xl font-bold neon-text" style={{ color: 'var(--color-primary)' }}>РЕГИСТРАЦИЯ СКОРО ОТКРОЕТСЯ</h2>
-          {reg && <p className="font-mono text-sm text-gray-400">{reg.title}</p>}
-          <div className="flex justify-center gap-3">
-            <TimerBlock value={timeLeft.days} label="дней" />
-            <TimerBlock value={timeLeft.hours} label="часов" />
-            <TimerBlock value={timeLeft.minutes} label="минут" />
-            <TimerBlock value={timeLeft.seconds} label="секунд" />
+          className="nx-bezel max-w-md w-full nx-rise">
+          <div className="nx-core p-8 text-center space-y-6">
+            <span className="nx-eyebrow">СКОРО</span>
+            <Clock className="w-16 h-16 mx-auto" style={{ color: 'var(--color-primary)' }} />
+            <h2 className="font-mono text-xl font-bold neon-text" style={{ color: 'var(--color-primary)' }}>РЕГИСТРАЦИЯ СКОРО ОТКРОЕТСЯ</h2>
+            {reg && <p className="text-sm text-gray-400">{reg.title}</p>}
+            <div className="flex justify-center gap-3">
+              <TimerBlock value={timeLeft.days} label="дней" />
+              <TimerBlock value={timeLeft.hours} label="часов" />
+              <TimerBlock value={timeLeft.minutes} label="минут" />
+              <TimerBlock value={timeLeft.seconds} label="секунд" />
+            </div>
+            {reg?.registrationStart && (
+              <p className="font-mono text-xs text-gray-500">Старт: {new Date(reg.registrationStart).toLocaleString('ru-RU')}</p>
+            )}
           </div>
-          {reg?.registrationStart && (
-            <p className="font-mono text-xs text-gray-500">Старт: {new Date(reg.registrationStart).toLocaleString('ru-RU')}</p>
-          )}
         </motion.div>
       </div>
     );
@@ -300,15 +324,18 @@ export default function PublicRegistration() {
   if (state === 'ended') {
     return (
       <div className="min-h-screen flex items-center justify-center p-4 nx-stage">
-        <div className="nx-panel p-8 text-center max-w-md">
-          <XCircle className="w-16 h-16 mx-auto mb-4 text-gray-500" />
-          <h2 className="font-mono text-lg font-bold text-gray-200 mb-2">РЕГИСТРАЦИЯ ЗАКРЫТА</h2>
-          {reg && <p className="font-mono text-sm text-gray-400 mb-2">{reg.title}</p>}
-          {reg?.closedMessage && (
-            <p className="font-mono text-sm text-gray-300 mt-3 px-4 py-3 rounded-lg" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-              {reg.closedMessage}
-            </p>
-          )}
+        <div className="nx-bezel max-w-md w-full nx-rise">
+          <div className="nx-core p-8 text-center space-y-4">
+            <span className="nx-eyebrow">ЗАВЕРШЕНО</span>
+            <XCircle className="w-16 h-16 mx-auto text-gray-500" />
+            <h2 className="font-mono text-lg font-bold text-gray-200">РЕГИСТРАЦИЯ ЗАКРЫТА</h2>
+            {reg && <p className="text-sm text-gray-400">{reg.title}</p>}
+            {reg?.closedMessage && (
+              <div className="nx-tile px-4 py-3 text-left">
+                <p className="text-sm text-gray-300 leading-relaxed">{reg.closedMessage}</p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     );
@@ -322,8 +349,10 @@ export default function PublicRegistration() {
     return (
       <div className="min-h-screen flex items-center justify-center p-4 nx-stage">
         <motion.div initial={{ opacity: 0, y: 20, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }}
-          className="nx-bezel max-w-md w-full">
-          <div className="nx-core p-8 text-center space-y-5">
+          className="nx-bezel max-w-md w-full nx-rise">
+          <div className="nx-core p-6 sm:p-8 space-y-5">
+          <div className="text-center space-y-4">
+            <span className="nx-eyebrow">{isRegistered ? 'РЕГИСТРАЦИЯ ПОДТВЕРЖДЕНА' : 'ОЧЕРЕДЬ ОЖИДАНИЯ'}</span>
           {isRegistered ? (
             <>
               {/* NEXUS hexagon logo */}
@@ -338,9 +367,9 @@ export default function PublicRegistration() {
                 </svg>
               </motion.div>
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}>
-                <h2 className="font-mono text-xl font-bold" style={{ color: 'var(--color-primary)', textShadow: '0 0 20px rgba(0,255,136,0.4)' }}>ВЫ ЗАРЕГИСТРИРОВАНЫ</h2>
+                <h2 className="text-2xl font-bold" style={{ color: 'var(--color-primary)' }}>ВЫ ЗАРЕГИСТРИРОВАНЫ</h2>
                 <div className="w-16 h-[1px] mx-auto mt-2 mb-3" style={{ background: 'linear-gradient(90deg, transparent, var(--color-primary), transparent)', boxShadow: '0 0 8px var(--color-primary)' }} />
-                <p className="font-mono text-sm text-gray-400">Ваш номер: <span className="font-bold text-lg" style={{ color: 'var(--color-primary)', textShadow: '0 0 10px var(--color-glow)' }}>#{result.position || '—'}</span></p>
+                <p className="font-mono text-sm text-gray-400">Ваш номер: <span className="font-bold text-lg" style={{ color: 'var(--color-primary)' }}>#{result.position || '—'}</span></p>
               </motion.div>
             </>
           ) : (
@@ -352,24 +381,30 @@ export default function PublicRegistration() {
                   <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
                 </svg>
               </motion.div>
-              <h2 className="font-mono text-xl font-bold" style={{ color: '#eab308', textShadow: '0 0 20px rgba(234,179,8,0.3)' }}>ВЫ В ОЧЕРЕДИ</h2>
+              <h2 className="text-2xl font-bold" style={{ color: 'var(--color-warning)' }}>ВЫ В ОЧЕРЕДИ</h2>
               <p className="font-mono text-sm text-gray-400">Позиция: <span className="font-bold text-gray-200">#{result.position}</span></p>
             </>
           )}
-          <div className="pt-4 border-t" style={{ borderColor: 'rgba(0,255,136,0.08)' }}>
+          </div>
+
+          {/* Next-step chips */}
+          <div className="space-y-3">
+          <div className="nx-tile p-4">
+            <div className="nx-eyebrow mb-2">ОТМЕНА</div>
             <p className="font-mono text-[10px] text-gray-500 mb-2">Ссылка для отмены регистрации:</p>
-            <div className="flex items-center gap-2 px-3 py-2 rounded-lg" style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.06)' }}>
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5 border border-white/10">
               <code className="font-mono text-[10px] text-gray-400 flex-1 truncate">{cancelUrl}</code>
               <button onClick={() => {
                 const ta = document.createElement('textarea'); ta.value = cancelUrl; ta.style.cssText = 'position:fixed;left:-9999px'; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); alert('Скопировано');
-              }} className="p-1 rounded hover:bg-white/10 flex-shrink-0">
+              }} className="w-10 h-10 rounded-lg hover:bg-white/10 flex-shrink-0 flex items-center justify-center nx-press">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5" style={{ color: 'var(--color-primary)' }}><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
               </button>
             </div>
           </div>
           {/* Checkin QR code */}
           {result.checkinToken && (
-            <div className="pt-3 border-t" style={{ borderColor: 'rgba(0,255,136,0.08)' }}>
+            <div className="nx-tile p-4 text-center">
+              <div className="nx-eyebrow mb-2">QR-КОД</div>
               <p className="font-mono text-[10px] text-gray-500 mb-3 text-center">Покажите этот QR-код организатору при входе:</p>
               <div className="inline-block p-3 bg-white rounded-xl mx-auto block" style={{ width: 'fit-content' }}>
                 <QRCodeSVG value={`${window.location.origin}/reg/checkin/${result.checkinToken}`} size={160} />
@@ -378,21 +413,24 @@ export default function PublicRegistration() {
           )}
           {/* 4-digit confirm code */}
           {result.confirmCode && (
-            <div className="pt-3 border-t text-center" style={{ borderColor: 'rgba(0,255,136,0.08)' }}>
+            <div className="nx-tile p-4 text-center">
+              <div className="nx-eyebrow mb-2">КОД</div>
               <p className="font-mono text-[10px] text-gray-500 mb-2">Или назовите этот код организатору:</p>
-              <div className="inline-flex items-center gap-3 px-6 py-3 rounded-xl" style={{ background: 'rgba(0,212,255,0.08)', border: '1px solid rgba(0,212,255,0.2)' }}>
-                <span className="font-mono text-3xl font-bold tracking-[0.3em]" style={{ color: '#00d4ff' }}>{result.confirmCode}</span>
+              <div className="inline-flex items-center gap-3 px-6 py-3 rounded-xl bg-white/5 border border-white/10">
+                <span className="font-mono text-3xl font-bold tracking-[0.3em]" style={{ color: 'var(--color-accent)' }}>{result.confirmCode}</span>
               </div>
             </div>
           )}
           {/* Email notification */}
-          <div className="pt-3 border-t text-center" style={{ borderColor: 'rgba(0,255,136,0.08)' }}>
+          <div className="nx-tile p-4 text-center">
+            <div className="nx-eyebrow mb-2">ПОЧТА</div>
             <p className="font-mono text-[10px] text-gray-500">
               Подробная информация о регистрации направлена на вашу почту:
             </p>
             <p className="font-mono text-xs font-bold mt-1" style={{ color: 'var(--color-primary)' }}>
               {contactEmail}
             </p>
+          </div>
           </div>
           </div>
         </motion.div>
@@ -406,6 +444,35 @@ export default function PublicRegistration() {
   const isFull = reg.maxParticipants > 0 && (reg.confirmedCount || 0) >= reg.maxParticipants;
   const isWaitlistFull = isFull && reg.waitlistEnabled && reg.maxWaitlist > 0 && (reg.waitlistCount || 0) >= reg.maxWaitlist;
   const isClosed = isFull && (!reg.waitlistEnabled || isWaitlistFull);
+  const heroEyebrow = isClosed ? 'РЕГИСТРАЦИЯ ЗАКРЫТА' : isFull ? 'ОЧЕРЕДЬ ОЖИДАНИЯ' : 'РЕГИСТРАЦИЯ ОТКРЫТА';
+
+  // Visual-only grouping of long forms (all fields stay rendered + validated as before)
+  const layoutFieldTypes = ['heading', 'paragraph', 'divider', 'page_break', 'link_block', 'button_block'];
+  const fieldGroups: RegistrationField[][] = (() => {
+    const groups: RegistrationField[][] = [];
+    let current: RegistrationField[] = [];
+    let answerableInGroup = 0;
+    const hasNaturalBreaks = fields.some(f => f.type === 'page_break');
+    for (let i = 0; i < fields.length; i++) {
+      const f = fields[i];
+      if (f.type === 'page_break') {
+        if (current.length > 0) { groups.push(current); current = []; answerableInGroup = 0; }
+        current.push(f);
+        continue;
+      }
+      current.push(f);
+      if (!layoutFieldTypes.includes(f.type)) {
+        answerableInGroup += 1;
+        if (!hasNaturalBreaks && answerableInGroup >= 5 && i < fields.length - 1) {
+          groups.push(current);
+          current = [];
+          answerableInGroup = 0;
+        }
+      }
+    }
+    if (current.length > 0) groups.push(current);
+    return groups;
+  })();
 
   return (
     <div className="min-h-screen py-8 px-4 relative nx-stage">
@@ -432,87 +499,163 @@ export default function PublicRegistration() {
         })() }} />
       )}
       <CyberBackground />
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-        className="max-w-xl mx-auto space-y-6">
+      <div className="relative z-10 mx-auto w-full max-w-2xl space-y-6">
 
-        {/* Media gallery */}
+        {/* ── Media gallery ── */}
         {allMedia.length > 0 && (
-          <div className="nx-panel overflow-hidden">
-            {/* Main display */}
-            <div className="relative">
-              {allMedia[activeMediaIdx]?.type === 'video' ? (
-                <video src={allMedia[activeMediaIdx].url} controls className="w-full" style={{ maxHeight: 400, objectFit: 'cover' }} />
-              ) : (
-                <img src={allMedia[activeMediaIdx]?.url} alt="" className="w-full h-64 object-cover" />
-              )}
+          <div className="nx-bezel nx-rise">
+            <div className="nx-core overflow-hidden">
+              {/* Main display */}
+              <div className="relative">
+                {allMedia[activeMediaIdx]?.type === 'video' ? (
+                  <video src={allMedia[activeMediaIdx].url} controls className="w-full max-h-[420px] object-cover" />
+                ) : (
+                  <img src={allMedia[activeMediaIdx]?.url} alt="" className="w-full h-64 sm:h-80 object-cover" />
+                )}
+                {allMedia.length > 1 && (
+                  <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-black/40 backdrop-blur-sm">
+                    {allMedia.map((_, i) => (
+                      <button key={i} onClick={() => setActiveMediaIdx(i)} aria-label={`${i + 1}`}
+                        className="w-10 h-10 flex items-center justify-center rounded-full">
+                        <span className={`w-2 h-2 rounded-full transition-transform ${i === activeMediaIdx ? 'scale-125' : 'opacity-50'}`}
+                          style={{ background: i === activeMediaIdx ? 'var(--color-primary)' : '#fff' }} />
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {/* Thumbnails */}
               {allMedia.length > 1 && (
-                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
-                  {allMedia.map((_, i) => (
+                <div className="flex gap-2 p-3 overflow-x-auto">
+                  {allMedia.map((m, i) => (
                     <button key={i} onClick={() => setActiveMediaIdx(i)}
-                      className={`w-2 h-2 rounded-full transition-all ${i === activeMediaIdx ? 'scale-125' : 'opacity-50'}`}
-                      style={{ background: i === activeMediaIdx ? 'var(--color-primary)' : '#fff' }} />
+                      className={`flex-shrink-0 w-20 h-14 rounded-xl overflow-hidden border-2 transition-all nx-press ${i === activeMediaIdx ? 'border-[var(--color-primary)]' : 'border-white/10 opacity-60 hover:opacity-100'}`}>
+                      {m.type === 'video' ? (
+                        <div className="w-full h-full bg-black/50 flex items-center justify-center">
+                          <Play className="w-4 h-4 text-white" />
+                        </div>
+                      ) : (
+                        <img src={m.url} alt="" className="w-full h-full object-cover" />
+                      )}
+                    </button>
                   ))}
                 </div>
               )}
             </div>
-            {/* Thumbnails */}
-            {allMedia.length > 1 && (
-              <div className="flex gap-1 p-2 overflow-x-auto">
-                {allMedia.map((m, i) => (
-                  <button key={i} onClick={() => setActiveMediaIdx(i)}
-                    className={`flex-shrink-0 w-16 h-12 rounded-lg overflow-hidden border-2 transition-all ${i === activeMediaIdx ? 'border-green-400' : 'border-transparent opacity-60 hover:opacity-100'}`}>
-                    {m.type === 'video' ? (
-                      <div className="w-full h-full bg-black/50 flex items-center justify-center">
-                        <Play className="w-4 h-4 text-white" />
-                      </div>
-                    ) : (
-                      <img src={m.url} alt="" className="w-full h-full object-cover" />
-                    )}
-                  </button>
-                ))}
+          </div>
+        )}
+
+        {/* ── Hero band ── */}
+        <div className="nx-bezel nx-rise nx-rise-1">
+          <div className="nx-core p-6 sm:p-8 space-y-5">
+            <div>
+              <span className="nx-eyebrow"><Sparkles className="w-3 h-3" />{heroEyebrow}</span>
+            </div>
+            <h1 className="text-3xl sm:text-4xl font-bold leading-[1.12] tracking-tight neon-text" style={{ color: 'var(--color-primary)' }}>{reg.title}</h1>
+
+            {/* Date / venue meta row */}
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-gray-400">
+              {reg.eventDate && <span className="inline-flex items-center gap-2"><Calendar className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />{reg.eventDate}</span>}
+              {reg.eventTime && <span className="inline-flex items-center gap-2"><Clock className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />{reg.eventTime}</span>}
+              {reg.location && <span className="inline-flex items-center gap-2"><MapPin className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />{reg.location}</span>}
+            </div>
+
+            {/* Countdown chips */}
+            {reg.showTimer !== 0 && timeLeft && (timerType === 'during' || timerType === 'before') && (
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <Clock className="w-3.5 h-3.5" style={{ color: timerType === 'during' ? 'var(--color-primary)' : 'var(--color-accent)' }} />
+                  <span className="font-mono text-[11px] font-bold tracking-wider" style={{ color: timerType === 'during' ? 'var(--color-primary)' : 'var(--color-accent)' }}>
+                    {timerType === 'during' ? 'РЕГИСТРАЦИЯ ЗАКРОЕТСЯ ЧЕРЕЗ:' : 'РЕГИСТРАЦИЯ ОТКРОЕТСЯ ЧЕРЕЗ:'}
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-2 sm:gap-3">
+                  <TimerBlock value={timeLeft.days} label="д" />
+                  <TimerBlock value={timeLeft.hours} label="ч" />
+                  <TimerBlock value={timeLeft.minutes} label="м" />
+                  <TimerBlock value={timeLeft.seconds} label="с" />
+                </div>
+              </div>
+            )}
+
+            {/* Counter + share */}
+            <div className="flex flex-wrap items-stretch gap-3">
+              {reg.showLimit !== 0 && reg.maxParticipants > 0 && (
+                <div className="nx-tile flex-1 min-w-[240px] px-5 py-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="inline-flex items-center gap-2 font-mono text-xs font-bold" style={{ color: 'var(--color-primary)' }}>
+                      <Users className="w-4 h-4" />УЧАСТНИКИ
+                    </span>
+                    <span className="font-mono text-xl font-bold" style={{ color: 'var(--color-primary)' }}>
+                      {reg.confirmedCount || 0}<span className="text-gray-500 text-sm"> / {reg.maxParticipants}</span>
+                    </span>
+                  </div>
+                  <div className="mt-3 w-full h-2 rounded-full overflow-hidden bg-white/5">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${Math.min(((reg.confirmedCount || 0) / reg.maxParticipants) * 100, 100)}%` }}
+                      transition={{ duration: 0.8, ease: 'easeOut' }}
+                      className="h-full rounded-full"
+                      style={{ background: 'linear-gradient(90deg, var(--color-primary), var(--color-accent))' }}
+                    />
+                  </div>
+                  {(reg.waitlistCount || 0) > 0 && (
+                    <p className="font-mono text-[10px] mt-2" style={{ color: 'var(--color-warning)' }}>{reg.waitlistCount} в очереди ожидания</p>
+                  )}
+                </div>
+              )}
+              <button onClick={() => {
+                const url = window.location.href;
+                const title = reg.title || 'Регистрация';
+                if (navigator.share) {
+                  navigator.share({ title, url }).catch(() => {});
+                } else {
+                  const ta = document.createElement('textarea');
+                  ta.value = url;
+                  ta.style.cssText = 'position:fixed;left:-9999px';
+                  document.body.appendChild(ta);
+                  ta.select();
+                  document.execCommand('copy');
+                  document.body.removeChild(ta);
+                  alert('Ссылка скопирована');
+                }
+              }}
+                className="nx-tile nx-press px-4 py-3 inline-flex items-center gap-2 font-mono text-[10px] tracking-wider self-start text-gray-500">
+                <Share2 className="w-3.5 h-3.5" />
+                ПОДЕЛИТЬСЯ
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <hr className="nx-divider" />
+
+        {/* ── Info band ── */}
+        {(reg.description || reg.eventDate || reg.eventTime || reg.location || (reg.showLimit !== 0 && reg.maxParticipants > 0)) && (
+          <div className="nx-rise nx-rise-2 space-y-4">
+            {reg.description && (
+              <div className="nx-panel p-6 sm:p-8">
+                <h2 className="nx-eyebrow mb-4"><Info className="w-3 h-3" />О МЕРОПРИЯТИИ</h2>
+                <div
+                  className="text-base leading-relaxed text-gray-300 [&_p]:mb-3 [&_p:last-child]:mb-0 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:mb-3 [&_li]:mb-1 [&_a]:underline [&_a]:text-[var(--color-primary)]"
+                  dangerouslySetInnerHTML={{ __html: reg.description }}
+                />
+              </div>
+            )}
+            {(reg.eventDate || reg.eventTime || reg.location || (reg.showLimit !== 0 && reg.maxParticipants > 0)) && (
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                {reg.eventDate && <FactTile icon={Calendar} label="ДАТА" value={reg.eventDate} />}
+                {reg.eventTime && <FactTile icon={Clock} label="ВРЕМЯ" value={reg.eventTime} />}
+                {reg.location && <FactTile icon={MapPin} label="МЕСТО" value={reg.location} />}
+                {reg.showLimit !== 0 && reg.maxParticipants > 0 && (
+                  <FactTile icon={Users} label="УЧАСТНИКИ" value={`${reg.confirmedCount || 0} / ${reg.maxParticipants}`} />
+                )}
               </div>
             )}
           </div>
         )}
 
-        {/* Timer — right after cover */}
-        {reg.showTimer !== 0 && timerType === 'during' && timeLeft && (
-          <div className="nx-tile px-5 py-4 flex items-center justify-between flex-wrap gap-3">
-            <span className="font-mono text-xs font-bold" style={{ color: 'var(--color-primary)' }}>РЕГИСТРАЦИЯ ЗАКРОЕТСЯ ЧЕРЕЗ:</span>
-            <div className="flex gap-2">
-              <TimerBlock value={timeLeft.days} label="д" />
-              <TimerBlock value={timeLeft.hours} label="ч" />
-              <TimerBlock value={timeLeft.minutes} label="м" />
-              <TimerBlock value={timeLeft.seconds} label="с" />
-            </div>
-          </div>
-        )}
-        {reg.showTimer !== 0 && timerType === 'before' && timeLeft && (
-          <div className="nx-tile px-5 py-4 flex items-center justify-between flex-wrap gap-3">
-            <span className="font-mono text-xs font-bold" style={{ color: '#00d4ff' }}>РЕГИСТРАЦИЯ ОТКРОЕТСЯ ЧЕРЕЗ:</span>
-            <div className="flex gap-2">
-              <TimerBlock value={timeLeft.days} label="д" />
-              <TimerBlock value={timeLeft.hours} label="ч" />
-              <TimerBlock value={timeLeft.minutes} label="м" />
-              <TimerBlock value={timeLeft.seconds} label="с" />
-            </div>
-          </div>
-        )}
-
-        {/* Header card */}
-        <div className="nx-panel p-6 space-y-3">
-          <h1 className="text-2xl font-bold font-mono neon-text" style={{ color: 'var(--color-primary)' }}>{reg.title}</h1>
-          <div className="flex items-center gap-4 flex-wrap text-xs font-mono text-gray-400">
-            {reg.eventDate && <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" />{reg.eventDate}</span>}
-            {reg.eventTime && <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{reg.eventTime}</span>}
-            {reg.location && <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{reg.location}</span>}
-          </div>
-          {reg.description && (
-            <div className="prose prose-invert prose-sm max-w-none font-mono text-gray-300 text-sm" dangerouslySetInnerHTML={{ __html: reg.description }} />
-          )}
-        </div>
-
-        {/* Map + Route buttons */}
+        {/* ── Map + Route buttons ── */}
         {reg.mapCoords && (() => {
           let coords: { lat: number; lng: number } | null = null;
           try { const c = JSON.parse(reg.mapCoords); coords = { lat: c.lat, lng: c.lng }; } catch {}
@@ -521,7 +664,7 @@ export default function PublicRegistration() {
           const dgisUrl = `https://2gis.ru/directions/tab/car/to/${coords.lng},${coords.lat}`;
           const googleUrl = `https://www.google.com/maps/dir/?api=1&destination=${coords.lat},${coords.lng}`;
           return (
-            <div className="nx-panel overflow-hidden">
+            <div className="nx-panel overflow-hidden nx-rise nx-rise-3">
               <MapField value={reg.mapCoords} label={reg.location || 'Место проведения'} />
               <div className="p-4 flex flex-wrap gap-2">
                 <a href={yandexUrl} target="_blank" rel="noopener noreferrer"
@@ -547,130 +690,119 @@ export default function PublicRegistration() {
           );
         })()}
 
-        {/* Participant counter — prominent */}
-        {reg.showLimit !== 0 && reg.maxParticipants > 0 && (
-          <div className="nx-tile px-5 py-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="font-mono text-xs font-bold" style={{ color: 'var(--color-primary)' }}>
-                <Users className="w-3.5 h-3.5 inline mr-1.5" />УЧАСТНИКИ
-              </span>
-              <span className="font-mono text-lg font-bold" style={{ color: 'var(--color-primary)', textShadow: '0 0 10px var(--color-glow)' }}>
-                {reg.confirmedCount || 0}<span className="text-gray-500 text-sm"> / {reg.maxParticipants}</span>
-              </span>
-            </div>
-            <div className="w-full h-2 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
-              <motion.div
-                initial={{ width: 0 }}
-                animate={{ width: `${Math.min(((reg.confirmedCount || 0) / reg.maxParticipants) * 100, 100)}%` }}
-                transition={{ duration: 0.8, ease: 'easeOut' }}
-                className="h-full rounded-full"
-                style={{ background: 'linear-gradient(90deg, var(--color-primary), var(--color-accent))', boxShadow: '0 0 10px var(--color-glow)' }}
-              />
-            </div>
-            {(reg.waitlistCount || 0) > 0 && (
-              <p className="font-mono text-[10px] mt-1.5" style={{ color: '#eab308' }}>{reg.waitlistCount} в очереди ожидания</p>
-            )}
-          </div>
-        )}
-          <button onClick={() => {
-            const url = window.location.href;
-            const title = reg.title || 'Регистрация';
-            if (navigator.share) {
-              navigator.share({ title, url }).catch(() => {});
-            } else {
-              const ta = document.createElement('textarea');
-              ta.value = url;
-              ta.style.cssText = 'position:fixed;left:-9999px';
-              document.body.appendChild(ta);
-              ta.select();
-              document.execCommand('copy');
-              document.body.removeChild(ta);
-              alert('Ссылка скопирована');
-            }
-          }}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg font-mono text-[10px] transition-all hover:bg-white/5 nx-press"
-            style={{ border: '1px solid rgba(0,255,136,0.12)', color: '#5a5a70' }}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
-            ПОДЕЛИТЬСЯ
-          </button>
-
-        {/* Status banners */}
+        {/* ── Status banners ── */}
         {isClosed && (
-          <div className="rounded-xl px-4 py-3 flex items-center gap-3" style={{ background: 'rgba(255,59,48,0.08)', border: '1px solid rgba(255,59,48,0.2)' }}>
-            <AlertTriangle className="w-5 h-5 flex-shrink-0" style={{ color: '#ff3b30' }} />
-            <span className="font-mono text-xs" style={{ color: '#ff3b30' }}>Все места заняты. Регистрация закрыта.</span>
+          <div className="rounded-xl px-4 py-3 flex items-center gap-3 nx-rise" style={{ background: 'color-mix(in srgb, var(--color-danger) 8%, transparent)', border: '1px solid color-mix(in srgb, var(--color-danger) 30%, transparent)' }}>
+            <AlertTriangle className="w-5 h-5 flex-shrink-0" style={{ color: 'var(--color-danger)' }} />
+            <span className="font-mono text-xs" style={{ color: 'var(--color-danger)' }}>Все места заняты. Регистрация закрыта.</span>
           </div>
         )}
         {isFull && !isClosed && (
-          <div className="rounded-xl px-4 py-3 flex items-center gap-3" style={{ background: 'rgba(234,179,8,0.08)', border: '1px solid rgba(234,179,8,0.2)' }}>
-            <AlertTriangle className="w-5 h-5 flex-shrink-0" style={{ color: '#eab308' }} />
-            <span className="font-mono text-xs" style={{ color: '#eab308' }}>Все места заняты — вы будете в очереди ожидания</span>
+          <div className="rounded-xl px-4 py-3 flex items-center gap-3 nx-rise" style={{ background: 'color-mix(in srgb, var(--color-warning) 8%, transparent)', border: '1px solid color-mix(in srgb, var(--color-warning) 30%, transparent)' }}>
+            <AlertTriangle className="w-5 h-5 flex-shrink-0" style={{ color: 'var(--color-warning)' }} />
+            <span className="font-mono text-xs" style={{ color: 'var(--color-warning)' }}>Все места заняты — вы будете в очереди ожидания</span>
           </div>
         )}
 
-        {/* Form */}
+        {/* ── Form ── */}
         {!isClosed && (
-        <div className="nx-bezel">
-          <div className="nx-core p-6 space-y-5">
-          <h2 className="nx-eyebrow mb-3">ФОРМА РЕГИСТРАЦИИ</h2>
+        <>
+        <hr className="nx-divider" />
+        <div className="nx-bezel nx-rise nx-rise-4">
+          <div className="nx-core p-5 sm:p-7">
+          <h2 className="nx-eyebrow mb-5">ФОРМА РЕГИСТРАЦИИ</h2>
 
-          {fields.map(field => {
-            // Check conditional visibility (showIf)
-            const s = typeof field.settings === 'object' && field.settings !== null ? field.settings : (typeof field.settings === 'string' ? (() => { try { return JSON.parse(field.settings); } catch { return {}; } })() : {});
-            if (s.showIf && s.showIf.fieldId) {
-              const depValue = answers[s.showIf.fieldId] || '';
-              const op = s.showIf.operator || 'equals';
-              const target = s.showIf.value || '';
-              let visible = false;
-              if (op === 'equals') visible = depValue === target;
-              else if (op === 'not_equals') visible = depValue !== target;
-              else if (op === 'contains') visible = depValue.includes(target);
-              else if (op === 'not_empty') visible = depValue.length > 0;
-              else if (op === 'empty') visible = depValue.length === 0;
-              if (!visible) return null;
-            }
-            return (
-              <FieldRenderer key={field.id} field={field}
-                value={answers[field.id] || ''}
-              onChange={val => setAnswers(prev => ({ ...prev, [field.id]: val }))}
-              error={fieldErrors[field.id]} />
-            );
-          })}
+          {fieldGroups.map((group, gi) => (
+            <div key={`group-${gi}`} className="space-y-4">
+              {fieldGroups.length > 1 && group[0]?.type !== 'page_break' && (
+                <div className="flex items-center gap-3 pt-1">
+                  <span className="nx-eyebrow">ШАГ {gi + 1} / {fieldGroups.length}</span>
+                  <div className="flex-1 h-[1px] bg-white/10" />
+                </div>
+              )}
+              {group.map((field, fi) => {
+                // Check conditional visibility (showIf)
+                const s = typeof field.settings === 'object' && field.settings !== null ? field.settings : (typeof field.settings === 'string' ? (() => { try { return JSON.parse(field.settings); } catch { return {}; } })() : {});
+                if (s.showIf && s.showIf.fieldId) {
+                  const depValue = answers[s.showIf.fieldId] || '';
+                  const op = s.showIf.operator || 'equals';
+                  const target = s.showIf.value || '';
+                  let visible = false;
+                  if (op === 'equals') visible = depValue === target;
+                  else if (op === 'not_equals') visible = depValue !== target;
+                  else if (op === 'contains') visible = depValue.includes(target);
+                  else if (op === 'not_empty') visible = depValue.length > 0;
+                  else if (op === 'empty') visible = depValue.length === 0;
+                  if (!visible) return null;
+                }
+                const riseDelay = `${Math.min((gi * 5 + fi) * 45, 480)}ms`;
+                if (layoutFieldTypes.includes(field.type)) {
+                  return (
+                    <div key={field.id} className="nx-rise" style={{ animationDelay: riseDelay }}>
+                      <FieldRenderer field={field}
+                        value={answers[field.id] || ''}
+                        onChange={val => setAnswers(prev => ({ ...prev, [field.id]: val }))}
+                        error={fieldErrors[field.id]} />
+                    </div>
+                  );
+                }
+                return (
+                  <div key={field.id} className="nx-tile p-5 nx-rise" style={{ animationDelay: riseDelay }}>
+                    <div className="mb-3">
+                      <span className="nx-eyebrow">{field.required === 1 ? 'ОБЯЗАТЕЛЬНО' : 'ПО ЖЕЛАНИЮ'}</span>
+                    </div>
+                    <FieldRenderer field={field}
+                      value={answers[field.id] || ''}
+                      onChange={val => setAnswers(prev => ({ ...prev, [field.id]: val }))}
+                      error={fieldErrors[field.id]} />
+                  </div>
+                );
+              })}
+            </div>
+          ))}
 
-          <div className="border-t border-white/5 pt-4 space-y-3">
-            <h3 className="nx-eyebrow mb-2">КОНТАКТНЫЕ ДАННЫЕ</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {/* Contact block */}
+          <div className="mt-6 nx-tile p-5">
+            <h3 className="nx-eyebrow mb-4">КОНТАКТНЫЕ ДАННЫЕ</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <input value={contactLastName} onChange={e => setContactLastName(e.target.value)} placeholder="// ФАМИЛИЯ *"
-                  className={`w-full px-4 py-2.5 rounded-lg font-mono text-sm bg-black/30 border text-gray-200 focus:outline-none focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)] ${fieldErrors['_lastName'] ? 'border-red-500' : 'border-gray-700'}`} />
+                  className={`w-full px-4 py-3.5 rounded-xl font-mono text-sm bg-black/30 border text-gray-200 focus:outline-none focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)] ${fieldErrors['_lastName'] ? 'border-red-500' : 'border-gray-700'}`} />
                 {fieldErrors['_lastName'] && <p className="text-xs font-mono text-red-400 mt-1">{fieldErrors['_lastName']}</p>}
               </div>
               <div>
                 <input value={contactFirstName} onChange={e => setContactFirstName(e.target.value)} placeholder="// ИМЯ *"
-                  className={`w-full px-4 py-2.5 rounded-lg font-mono text-sm bg-black/30 border text-gray-200 focus:outline-none focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)] ${fieldErrors['_firstName'] ? 'border-red-500' : 'border-gray-700'}`} />
+                  className={`w-full px-4 py-3.5 rounded-xl font-mono text-sm bg-black/30 border text-gray-200 focus:outline-none focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)] ${fieldErrors['_firstName'] ? 'border-red-500' : 'border-gray-700'}`} />
                 {fieldErrors['_firstName'] && <p className="text-xs font-mono text-red-400 mt-1">{fieldErrors['_firstName']}</p>}
               </div>
               <div>
                 <input value={contactPatronymic} onChange={e => setContactPatronymic(e.target.value)} placeholder="// ОТЧЕСТВО"
-                  className="w-full px-4 py-2.5 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]" />
+                  className="w-full px-4 py-3.5 rounded-xl font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]" />
               </div>
             </div>
-            <div>
+            <div className="mt-4">
               <input type="email" value={contactEmail} onChange={e => setContactEmail(e.target.value)} placeholder="// EMAIL *"
-                className={`w-full px-4 py-2.5 rounded-lg font-mono text-sm bg-black/30 border text-gray-200 focus:outline-none focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)] ${fieldErrors['_email'] ? 'border-red-500' : 'border-gray-700'}`} />
+                className={`w-full px-4 py-3.5 rounded-xl font-mono text-sm bg-black/30 border text-gray-200 focus:outline-none focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)] ${fieldErrors['_email'] ? 'border-red-500' : 'border-gray-700'}`} />
               {fieldErrors['_email'] && <p className="text-xs font-mono text-red-400 mt-1">{fieldErrors['_email']}</p>}
             </div>
-            <input type="tel" value={contactPhone} onChange={e => setContactPhone(e.target.value)} placeholder="// ТЕЛЕФОН"
-              className="w-full px-4 py-2.5 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]" />
+            <div className="mt-4">
+              <input type="tel" value={contactPhone} onChange={e => setContactPhone(e.target.value)} placeholder="// ТЕЛЕФОН"
+                className="w-full px-4 py-3.5 rounded-xl font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]" />
+            </div>
           </div>
 
+          {/* Sticky CTA bar — consent + submit */}
+          <div className="sticky z-40 mt-6 rounded-2xl glass-frost px-4 pt-4 pb-4 space-y-3"
+            style={{ bottom: 'calc(16px + env(safe-area-inset-bottom, 0px))' }}>
           {/* Privacy consent */}
-          <label className="flex items-start gap-3 px-4 py-3 rounded-lg cursor-pointer transition-all hover:bg-white/[0.02]"
+          <label className="flex items-start gap-3 px-4 py-3 rounded-xl cursor-pointer transition-all hover:bg-white/[0.02] min-h-[44px]"
             style={{ border: fieldErrors['_privacy'] ? '1px solid rgba(255,59,48,0.4)' : privacyConsent ? '1px solid rgba(0,255,136,0.2)' : '1px solid rgba(255,255,255,0.06)' }}>
             <div onClick={() => setPrivacyConsent(!privacyConsent)}
-              className="w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 mt-0.5 transition-all cursor-pointer"
-              style={{ borderColor: privacyConsent ? 'var(--color-primary)' : '#4a4a60', background: privacyConsent ? 'var(--color-primary)' : 'transparent' }}>
-              {privacyConsent && <span className="text-black text-xs font-bold">✓</span>}
+              className="flex items-center justify-center flex-shrink-0 w-11 h-11 -mt-2 -ml-2 cursor-pointer">
+              <div className="w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all"
+                style={{ borderColor: privacyConsent ? 'var(--color-primary)' : 'var(--color-text-tertiary)', background: privacyConsent ? 'var(--color-primary)' : 'transparent' }}>
+                {privacyConsent && <span className="text-black text-xs font-bold">✓</span>}
+              </div>
             </div>
             <span className="font-mono text-xs text-gray-400 leading-relaxed">
               Я ознакомлен с{' '}
@@ -684,22 +816,24 @@ export default function PublicRegistration() {
           {fieldErrors['_privacy'] && <p className="text-xs font-mono text-red-400 -mt-1">{fieldErrors['_privacy']}</p>}
 
           <button onClick={handleSubmit} disabled={submitting}
-            className="w-full py-3 rounded-xl font-mono text-sm font-bold transition-all disabled:opacity-50 nx-press"
-            style={{ background: 'linear-gradient(135deg, var(--color-primary), var(--color-secondary))', color: '#000' }}>
+            className="w-full py-4 rounded-xl font-mono text-sm font-bold transition-all disabled:opacity-50 nx-press"
+            style={{ background: 'linear-gradient(135deg, var(--color-primary), var(--color-secondary))', color: '#000', boxShadow: '0 0 24px var(--color-glow)' }}>
             {submitting ? 'ОТПРАВКА...' : 'ЗАРЕГИСТРИРОВАТЬСЯ'}
           </button>
           {fieldErrors['_submit'] && (
-            <div className="rounded-lg px-4 py-2.5 mt-2" style={{ background: 'rgba(255,59,48,0.08)', border: '1px solid rgba(255,59,48,0.2)' }}>
+            <div className="rounded-xl px-4 py-2.5" style={{ background: 'color-mix(in srgb, var(--color-danger) 8%, transparent)', border: '1px solid color-mix(in srgb, var(--color-danger) 30%, transparent)' }}>
               <p className="font-mono text-xs text-red-400">{fieldErrors['_submit']}</p>
             </div>
           )}
           </div>
+          </div>
         </div>
+        </>
         )}
 
         <p className="text-center font-mono text-[10px] text-gray-600">Powered by NEXUS CRM</p>
         <PrivacyFooter compact />
-      </motion.div>
+      </div>
     </div>
   );
 }

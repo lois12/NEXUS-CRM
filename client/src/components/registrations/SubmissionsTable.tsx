@@ -22,6 +22,9 @@ const STATUS_CONFIG = {
   cancelled: { label: 'Отменено', color: '#6b7280', icon: XCircle },
 };
 
+// Hover inset rim per cell — tr box-shadow does not paint under border-collapse
+const HOVER_RIM = 'group-hover:[box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)] transition-shadow duration-200';
+
 type SortDir = 'asc' | 'desc' | null;
 
 interface GroupConfig {
@@ -243,13 +246,15 @@ export default function SubmissionsTable({ registrationId, fields, submissions, 
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <h2 className="font-mono text-lg font-bold neon-text" style={{ color: 'var(--color-primary)' }}>ЗАЯВКИ ({submissions.length})</h2>
+        <div>
+          <div className="nx-eyebrow mb-2">РЕЕСТР</div>
+          <h2 className="font-mono text-lg font-bold neon-text" style={{ color: 'var(--color-primary)' }}>ЗАЯВКИ ({submissions.length})</h2>
+        </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => setShowAddModal(true)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-mono text-xs font-bold transition-all"
-            style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}>
+          <button onClick={() => setShowAddModal(true)} className="btn-primary nx-press flex items-center gap-1.5 px-3.5 py-2 rounded-xl font-mono text-xs font-bold">
             <UserPlus className="w-3.5 h-3.5" /> ДОБАВИТЬ
           </button>
-          <button onClick={handleExportCSV} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-mono text-xs glass hover:bg-white/10 transition-colors nx-press">
+          <button onClick={handleExportCSV} className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl font-mono text-xs glass hover:bg-white/10 transition-colors nx-press">
             <Download className="w-3.5 h-3.5" /> CSV
           </button>
           <button onClick={async () => {
@@ -261,26 +266,42 @@ export default function SubmissionsTable({ registrationId, fields, submissions, 
               const win = window.open('', '_blank');
               if (win) { win.document.write(html); win.document.close(); }
             } catch { showToast('Ошибка', 'error'); }
-          }} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-mono text-xs glass hover:bg-white/10 transition-colors nx-press">
+          }} className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl font-mono text-xs glass hover:bg-white/10 transition-colors nx-press">
             <FileText className="w-3.5 h-3.5" /> PDF
           </button>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10" aria-label="Закрыть"><X className="w-4 h-4 text-gray-400" /></button>
+          <button onClick={onClose} className="p-2 rounded-lg hover:bg-white/10 nx-press" aria-label="Закрыть"><X className="w-4 h-4 text-gray-400" /></button>
         </div>
       </div>
 
+      {/* Stat strip */}
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+        {[
+          { label: 'ВСЕГО', value: submissions.length, color: 'var(--color-primary)' },
+          { label: STATUS_CONFIG.registered.label, value: submissions.filter(s => s.status === 'registered').length, color: STATUS_CONFIG.registered.color },
+          { label: STATUS_CONFIG.confirmed.label, value: submissions.filter(s => s.status === 'confirmed').length, color: STATUS_CONFIG.confirmed.color },
+          { label: STATUS_CONFIG.waitlist.label, value: submissions.filter(s => s.status === 'waitlist').length, color: STATUS_CONFIG.waitlist.color },
+          { label: STATUS_CONFIG.cancelled.label, value: submissions.filter(s => s.status === 'cancelled').length, color: STATUS_CONFIG.cancelled.color },
+        ].map((chip, i) => (
+          <div key={chip.label} className={`nx-tile p-4 text-center nx-rise nx-rise-${Math.min(i + 1, 5)}`}>
+            <p className="font-mono text-[9px] text-gray-500 mb-1.5 tracking-[0.18em] uppercase">{chip.label}</p>
+            <p className="font-mono text-2xl font-bold" style={{ color: chip.color }}>{chip.value}</p>
+          </div>
+        ))}
+      </div>
+
       {/* Filters + Search */}
-      <div className="flex items-center gap-2 flex-wrap">
+      <div className="nx-panel p-3 flex items-center gap-2 flex-wrap">
         <div className="relative flex-1 min-w-[150px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="ПОИСК..."
-            className="w-full pl-9 pr-4 py-2 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none" />
+            className="w-full pl-9 pr-4 py-2 rounded-xl font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]" />
         </div>
         {(['all', 'registered', 'confirmed', 'waitlist', 'cancelled'] as const).map(s => {
           const config = s === 'all' ? null : STATUS_CONFIG[s];
           const count = s === 'all' ? submissions.length : submissions.filter(sub => sub.status === s).length;
           return (
             <button key={s} onClick={() => setFilter(s)}
-              className="px-3 py-1.5 rounded-lg font-mono text-[10px] font-bold transition-all flex items-center gap-1.5"
+              className="px-3 py-1.5 rounded-lg font-mono text-[10px] font-bold transition-all flex items-center gap-1.5 nx-press"
               style={filter === s
                 ? { background: config?.color || 'var(--color-primary)', color: '#000' }
                 : { color: '#6a6a80', background: 'rgba(255,255,255,0.03)' }}>
@@ -303,7 +324,7 @@ export default function SubmissionsTable({ registrationId, fields, submissions, 
           const active = groupByCols.includes(cfg.key);
           return (
             <button key={cfg.key} onClick={() => toggleGroup(cfg.key)}
-              className="px-2 py-1 rounded text-[10px] font-mono transition-all"
+              className="px-2.5 py-1 rounded-lg text-[10px] font-mono transition-all nx-press"
               style={active
                 ? { background: 'var(--color-primary)', color: '#000' }
                 : { color: '#5a5a70', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
@@ -312,28 +333,28 @@ export default function SubmissionsTable({ registrationId, fields, submissions, 
           );
         })}
         {groupByCols.length > 0 && (
-          <button onClick={() => setGroupByCols([])} className="text-[10px] font-mono text-gray-500 hover:text-gray-300 px-2 py-1">СБРОС</button>
+          <button onClick={() => setGroupByCols([])} className="text-[10px] font-mono text-gray-500 hover:text-gray-300 px-2 py-1 nx-press">СБРОС</button>
         )}
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto rounded-xl nx-panel">
+      <div className="overflow-x-auto rounded-2xl nx-panel">
         <table className="w-full text-left">
           <thead>
             <tr className="border-b border-white/5">
-              <th className="px-3 py-2 font-mono text-[10px] text-gray-500">№</th>
-              <th className="px-3 py-2 font-mono text-[10px] text-gray-500">ИМЯ</th>
+              <th className="px-3 py-2.5 font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-gray-500">№</th>
+              <th className="px-3 py-2.5 font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-gray-500">ИМЯ</th>
               <SortHeader label="EMAIL" colKey="email" sortCol={sortCol} sortDir={sortDir} onSort={toggleSort} />
               <SortHeader label="ТЕЛЕФОН" colKey="phone" sortCol={sortCol} sortDir={sortDir} onSort={toggleSort} />
               {dataFields.map(f => (
                 <SortHeader key={f.id} label={f.label} colKey={`field_${f.id}`} sortCol={sortCol} sortDir={sortDir} onSort={toggleSort} className="max-w-[150px] truncate" />
               ))}
               <SortHeader label="СТАТУС" colKey="status" sortCol={sortCol} sortDir={sortDir} onSort={toggleSort} />
-              <th className="px-3 py-2 font-mono text-[10px] text-gray-500 cursor-pointer hover:text-gray-300" onClick={() => toggleSort('date')}>
+              <th className="px-3 py-2.5 font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-gray-500 cursor-pointer hover:text-gray-300" onClick={() => toggleSort('date')}>
                 ДАТА {sortCol === 'date' && (sortDir === 'asc' ? '↑' : '↓')}
               </th>
-              <th className="px-3 py-2 font-mono text-[10px] text-gray-500">ДАТА РЕГИСТРАЦИИ</th>
-              <th className="px-3 py-2"></th>
+              <th className="px-3 py-2.5 font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-gray-500">ДАТА РЕГИСТРАЦИИ</th>
+              <th className="px-3 py-2.5"></th>
             </tr>
           </thead>
           <tbody>
@@ -345,31 +366,31 @@ export default function SubmissionsTable({ registrationId, fields, submissions, 
               const groupBorder = getGroupBorder(i);
 
               return (
-                <tr key={sub.id} className="border-b border-white/5 transition-colors cursor-pointer hover:bg-white/[0.03]"
+                <tr key={sub.id} className="group border-b border-white/5 transition-colors cursor-pointer hover:bg-white/[0.03]"
                   style={{ background: groupBg || undefined, borderLeft: groupBg ? `3px solid ${groupBorder}` : undefined }}
                   onClick={() => setDetailSub(sub)}
                   onContextMenu={(e) => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, sub }); }}>
-                  <td className="px-3 py-2 font-mono text-xs text-gray-400">{i + 1}</td>
-                  <td className="px-3 py-2 font-mono text-xs text-gray-200">{sub.contactName || '—'}</td>
-                  <td className="px-3 py-2 font-mono text-xs text-gray-300">{sub.contactEmail || '—'}</td>
-                  <td className="px-3 py-2 font-mono text-xs text-gray-300">{sub.contactPhone || '—'}</td>
+                  <td className={`px-3 py-2.5 font-mono text-xs text-gray-400 ${HOVER_RIM}`}>{i + 1}</td>
+                  <td className={`px-3 py-2.5 font-mono text-xs text-gray-200 ${HOVER_RIM}`}>{sub.contactName || '—'}</td>
+                  <td className={`px-3 py-2.5 font-mono text-xs text-gray-300 ${HOVER_RIM}`}>{sub.contactEmail || '—'}</td>
+                  <td className={`px-3 py-2.5 font-mono text-xs text-gray-300 ${HOVER_RIM}`}>{sub.contactPhone || '—'}</td>
                   {dataFields.map(f => (
-                    <td key={f.id} className="px-3 py-2 font-mono text-xs text-gray-300 max-w-[200px] break-words whitespace-pre-wrap">{answers[f.id] || '—'}</td>
+                    <td key={f.id} className={`px-3 py-2.5 font-mono text-xs text-gray-300 max-w-[200px] break-words whitespace-pre-wrap ${HOVER_RIM}`}>{answers[f.id] || '—'}</td>
                   ))}
-                  <td className="px-3 py-2">
+                  <td className={`px-3 py-2.5 ${HOVER_RIM}`}>
                     <span className="inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded" style={{ backgroundColor: `${statusCfg.color}20`, color: statusCfg.color }}>
                       <StatusIcon className="w-3 h-3" /> {statusCfg.label}
                     </span>
                   </td>
-                  <td className="px-3 py-2 font-mono text-[10px] text-gray-500">{new Date(sub.createdAt).toLocaleDateString('ru-RU')}</td>
-                  <td className="px-3 py-2 font-mono text-[10px] text-gray-400">{sub.createdAt ? new Date(sub.createdAt + 'Z').toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}</td>
-                  <td className="px-3 py-2">
+                  <td className={`px-3 py-2.5 font-mono text-[10px] text-gray-500 ${HOVER_RIM}`}>{new Date(sub.createdAt).toLocaleDateString('ru-RU')}</td>
+                  <td className={`px-3 py-2.5 font-mono text-[10px] text-gray-400 ${HOVER_RIM}`}>{sub.createdAt ? new Date(sub.createdAt + 'Z').toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}</td>
+                  <td className={`px-3 py-2.5 ${HOVER_RIM}`}>
                     {sub.status !== 'cancelled' ? (
-                      <button onClick={() => handleCancel(sub.id)} className="p-1 rounded hover:bg-red-500/20 text-gray-400 hover:text-red-400" title="Отменить" aria-label="Отменить">
+                      <button onClick={() => handleCancel(sub.id)} className="p-1.5 rounded-lg hover:bg-red-500/20 text-gray-400 hover:text-red-400 nx-press" title="Отменить" aria-label="Отменить">
                         <XCircle className="w-3.5 h-3.5" />
                       </button>
                     ) : (
-                      <button onClick={() => handleDelete(sub.id)} className="p-1 rounded hover:bg-red-500/20 text-gray-400 hover:text-red-400" title="Удалить" aria-label="Удалить">
+                      <button onClick={() => handleDelete(sub.id)} className="p-1.5 rounded-lg hover:bg-red-500/20 text-gray-400 hover:text-red-400 nx-press" title="Удалить" aria-label="Удалить">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                       </button>
                     )}
@@ -409,17 +430,22 @@ export default function SubmissionsTable({ registrationId, fields, submissions, 
             style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }}
             onClick={() => setShowAddModal(false)}>
             <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
-              className="glass-frost rounded-2xl w-full max-w-lg max-h-[85vh] flex flex-col"
+              className="nx-bezel w-full max-w-lg max-h-[85vh] flex flex-col"
               onClick={e => e.stopPropagation()}>
+              <div className="nx-core flex-1 min-h-0 flex flex-col overflow-hidden">
               {/* Modal header */}
-              <div className="flex items-center justify-between px-6 pt-6 pb-2">
-                <h3 className="font-mono text-sm font-bold" style={{ color: 'var(--color-primary)' }}>
-                  ДОБАВИТЬ УЧАСТНИКА
-                </h3>
-                <button onClick={() => setShowAddModal(false)} className="p-1.5 rounded-lg hover:bg-white/10" aria-label="Закрыть">
+              <div className="flex items-center justify-between px-6 pt-5 pb-4">
+                <div>
+                  <div className="nx-eyebrow mb-2">УЧАСТНИК</div>
+                  <h3 className="font-mono text-sm font-bold" style={{ color: 'var(--color-primary)' }}>
+                    ДОБАВИТЬ УЧАСТНИКА
+                  </h3>
+                </div>
+                <button onClick={() => setShowAddModal(false)} className="p-2 rounded-lg hover:bg-white/10 nx-press" aria-label="Закрыть">
                   <X className="w-4 h-4 text-gray-400" />
                 </button>
               </div>
+              <div className="nx-divider" />
 
               {/* Scrollable body */}
               <div className="px-6 py-4 space-y-4 overflow-y-auto flex-1">
@@ -430,32 +456,32 @@ export default function SubmissionsTable({ registrationId, fields, submissions, 
                       <span className="font-mono text-sm text-gray-300">Фамилия <span className="text-red-400">*</span></span>
                       <input value={addForm.contactLastName} onChange={e => setAddForm({ ...addForm, contactLastName: e.target.value })}
                         placeholder="// ФАМИЛИЯ"
-                        className="mt-1 w-full px-4 py-2.5 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)]" />
+                        className="mt-1 w-full px-4 py-2.5 rounded-xl font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]" />
                     </label>
                     <label className="block">
                       <span className="font-mono text-sm text-gray-300">Имя <span className="text-red-400">*</span></span>
                       <input value={addForm.contactFirstName} onChange={e => setAddForm({ ...addForm, contactFirstName: e.target.value })}
                         placeholder="// ИМЯ"
-                        className="mt-1 w-full px-4 py-2.5 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)]" />
+                        className="mt-1 w-full px-4 py-2.5 rounded-xl font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]" />
                     </label>
                     <label className="block">
                       <span className="font-mono text-sm text-gray-300">Отчество</span>
                       <input value={addForm.contactPatronymic} onChange={e => setAddForm({ ...addForm, contactPatronymic: e.target.value })}
                         placeholder="// ОТЧЕСТВО"
-                        className="mt-1 w-full px-4 py-2.5 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)]" />
+                        className="mt-1 w-full px-4 py-2.5 rounded-xl font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]" />
                     </label>
                   </div>
                   <label className="block">
                     <span className="font-mono text-sm text-gray-300">Email</span>
                     <input type="email" value={addForm.contactEmail} onChange={e => setAddForm({ ...addForm, contactEmail: e.target.value })}
                       placeholder="email@example.com"
-                      className="mt-1 w-full px-4 py-2.5 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)]" />
+                      className="mt-1 w-full px-4 py-2.5 rounded-xl font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]" />
                   </label>
                   <label className="block">
                     <span className="font-mono text-sm text-gray-300">Телефон</span>
                     <input type="tel" value={addForm.contactPhone} onChange={e => setAddForm({ ...addForm, contactPhone: e.target.value })}
                       placeholder="+7 (999) 999-99-99"
-                      className="mt-1 w-full px-4 py-2.5 rounded-lg font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)]" />
+                      className="mt-1 w-full px-4 py-2.5 rounded-xl font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]" />
                   </label>
                 </div>
 
@@ -474,7 +500,7 @@ export default function SubmissionsTable({ registrationId, fields, submissions, 
                 {/* Send email checkbox */}
                 <div className="pt-2 border-t border-white/5">
                   <label onClick={() => setSendEmail(!sendEmail)}
-                    className="flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer transition-all hover:bg-white/5"
+                    className="flex items-center gap-3 px-4 py-3 rounded-xl cursor-pointer transition-all hover:bg-white/5 nx-press"
                     style={{ border: sendEmail ? '1px solid rgba(0,255,136,0.3)' : '1px solid rgba(255,255,255,0.06)', background: sendEmail ? 'rgba(0,255,136,0.05)' : 'transparent' }}>
                     <div className="w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0"
                       style={{ borderColor: sendEmail ? 'var(--color-primary)' : '#4a4a60', background: sendEmail ? 'var(--color-primary)' : 'transparent' }}>
@@ -492,17 +518,19 @@ export default function SubmissionsTable({ registrationId, fields, submissions, 
               </div>
 
               {/* Modal footer */}
-              <div className="px-6 py-4 border-t border-white/5 flex items-center justify-end gap-3">
+              <div className="nx-divider" />
+              <div className="px-6 py-4 flex items-center justify-end gap-3">
                 <button onClick={() => setShowAddModal(false)}
-                  className="px-4 py-2 rounded-lg font-mono text-sm text-gray-400 hover:bg-white/10 transition-colors">
+                  className="px-4 py-2 rounded-xl font-mono text-sm text-gray-400 hover:bg-white/10 transition-colors nx-press">
                   ОТМЕНА
                 </button>
                 <button onClick={handleAddSubmit} disabled={adding}
-                  className="btn-primary flex items-center gap-2 px-5 py-2 rounded-lg font-mono text-sm font-bold disabled:opacity-50 transition-all"
+                  className="btn-primary nx-press flex items-center gap-2 px-5 py-2 rounded-xl font-mono text-sm font-bold disabled:opacity-50 transition-all"
                   >
                   <UserPlus className="w-4 h-4" />
                   {adding ? 'ДОБАВЛЕНИЕ...' : 'ДОБАВИТЬ'}
                 </button>
+              </div>
               </div>
             </motion.div>
           </motion.div>
@@ -524,18 +552,22 @@ export default function SubmissionsTable({ registrationId, fields, submissions, 
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="w-full max-w-lg rounded-2xl overflow-hidden"
-              style={{ background: 'linear-gradient(135deg, rgba(20,20,35,0.98), rgba(10,10,20,0.99))', border: '1px solid rgba(255,255,255,0.08)', backdropFilter: 'blur(24px)' }}
+              className="nx-bezel w-full max-w-lg"
               onClick={e => e.stopPropagation()}
             >
+              <div className="nx-core">
               {/* Header */}
-              <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                <h3 className="font-mono text-lg font-bold" style={{ color: 'var(--color-primary)' }}>Детали заявки</h3>
-                <button onClick={() => setDetailSub(null)} className="p-1.5 rounded-lg hover:bg-white/10" aria-label="Закрыть">
+              <div className="flex items-center justify-between px-6 py-4">
+                <div>
+                  <div className="nx-eyebrow mb-2">ЗАЯВКА</div>
+                  <h3 className="font-mono text-lg font-bold" style={{ color: 'var(--color-primary)' }}>Детали заявки</h3>
+                </div>
+                <button onClick={() => setDetailSub(null)} className="p-2 rounded-lg hover:bg-white/10 nx-press" aria-label="Закрыть">
                   <X className="w-4 h-4 text-gray-400" />
                 </button>
               </div>
-              
+              <div className="nx-divider" />
+
               <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
                 {/* Name */}
                 <div>
@@ -605,25 +637,27 @@ export default function SubmissionsTable({ registrationId, fields, submissions, 
               </div>
               
               {/* Actions */}
-              <div className="px-6 py-4 flex gap-2" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+              <div className="nx-divider" />
+              <div className="px-6 py-4 flex gap-2">
                 {detailSub.status !== 'confirmed' && (
                   <button onClick={() => { handleChangeStatus(detailSub.id, 'confirmed'); setDetailSub(null); }}
-                    className="px-4 py-2 rounded-xl font-mono text-xs font-bold" style={{ background: 'rgba(0,212,255,0.15)', color: '#00d4ff', border: '1px solid rgba(0,212,255,0.3)' }}>
+                    className="px-4 py-2 rounded-xl font-mono text-xs font-bold nx-press" style={{ background: 'rgba(0,212,255,0.15)', color: '#00d4ff', border: '1px solid rgba(0,212,255,0.3)' }}>
                     ПОДТВЕРДИТЬ
                   </button>
                 )}
                 {detailSub.status !== 'registered' && detailSub.status !== 'cancelled' && (
                   <button onClick={() => { handleChangeStatus(detailSub.id, 'registered'); setDetailSub(null); }}
-                    className="px-4 py-2 rounded-xl font-mono text-xs font-bold" style={{ background: 'rgba(0,255,136,0.15)', color: 'var(--color-primary)', border: '1px solid rgba(0,255,136,0.3)' }}>
+                    className="px-4 py-2 rounded-xl font-mono text-xs font-bold nx-press" style={{ background: 'rgba(0,255,136,0.15)', color: 'var(--color-primary)', border: '1px solid rgba(0,255,136,0.3)' }}>
                     ЗАРЕГИСТРИРОВАН
                   </button>
                 )}
                 {detailSub.status !== 'cancelled' && (
                   <button onClick={() => { handleChangeStatus(detailSub.id, 'cancelled'); setDetailSub(null); }}
-                    className="px-4 py-2 rounded-xl font-mono text-xs" style={{ background: 'rgba(255,59,48,0.08)', color: '#ff6b6b', border: '1px solid rgba(255,59,48,0.15)' }}>
+                    className="px-4 py-2 rounded-xl font-mono text-xs nx-press" style={{ background: 'rgba(255,59,48,0.08)', color: '#ff6b6b', border: '1px solid rgba(255,59,48,0.15)' }}>
                     ОТМЕНИТЬ
                   </button>
                 )}
+              </div>
               </div>
             </motion.div>
           </motion.div>
@@ -652,26 +686,26 @@ export default function SubmissionsTable({ registrationId, fields, submissions, 
             <div className="h-px mx-2 my-1" style={{ background: 'rgba(255,255,255,0.06)' }} />
             {contextMenu.sub.status !== 'registered' && (
               <button onClick={() => handleChangeStatus(contextMenu.sub.id, 'registered')}
-                className="w-full flex items-center gap-2 px-3 py-2 text-xs font-mono hover:bg-white/5 transition-colors" style={{ color: '#00ff88' }}>
+                className="w-full flex items-center gap-2 px-3 py-2 text-xs font-mono hover:bg-white/5 transition-colors nx-press" style={{ color: '#00ff88' }}>
                 <CheckCircle className="w-3.5 h-3.5" /> Зарегистрирован
               </button>
             )}
             {contextMenu.sub.status !== 'confirmed' && (
               <button onClick={() => handleChangeStatus(contextMenu.sub.id, 'confirmed')}
-                className="w-full flex items-center gap-2 px-3 py-2 text-xs font-mono hover:bg-white/5 transition-colors" style={{ color: '#00d4ff' }}>
+                className="w-full flex items-center gap-2 px-3 py-2 text-xs font-mono hover:bg-white/5 transition-colors nx-press" style={{ color: '#00d4ff' }}>
                 <CheckCircle className="w-3.5 h-3.5" /> Подтверждён
               </button>
             )}
             {contextMenu.sub.status !== 'waitlist' && (
               <button onClick={() => handleChangeStatus(contextMenu.sub.id, 'waitlist')}
-                className="w-full flex items-center gap-2 px-3 py-2 text-xs font-mono hover:bg-white/5 transition-colors" style={{ color: '#eab308' }}>
+                className="w-full flex items-center gap-2 px-3 py-2 text-xs font-mono hover:bg-white/5 transition-colors nx-press" style={{ color: '#eab308' }}>
                 <Clock className="w-3.5 h-3.5" /> Ожидание
               </button>
             )}
             <div className="h-px mx-2 my-1" style={{ background: 'rgba(255,255,255,0.06)' }} />
             {contextMenu.sub.status !== 'cancelled' && (
               <button onClick={() => handleChangeStatus(contextMenu.sub.id, 'cancelled')}
-                className="w-full flex items-center gap-2 px-3 py-2 text-xs font-mono hover:bg-white/5 transition-colors" style={{ color: '#ff6b6b' }}>
+                className="w-full flex items-center gap-2 px-3 py-2 text-xs font-mono hover:bg-white/5 transition-colors nx-press" style={{ color: '#ff6b6b' }}>
                 <XCircle className="w-3.5 h-3.5" /> Отменить
               </button>
             )}
@@ -691,7 +725,7 @@ function SortHeader({ label, colKey, sortCol, sortDir, onSort, className }: {
 }) {
   const active = sortCol === colKey;
   return (
-    <th className={`px-3 py-2 font-mono text-[10px] cursor-pointer transition-colors select-none ${className || ''}`}
+    <th className={`px-3 py-2.5 font-mono text-[10px] font-bold uppercase tracking-[0.18em] cursor-pointer transition-colors select-none ${className || ''}`}
       style={{ color: active ? 'var(--color-primary)' : '#5a5a70' }}
       onClick={() => onSort(colKey)}>
       <span className="inline-flex items-center gap-1">

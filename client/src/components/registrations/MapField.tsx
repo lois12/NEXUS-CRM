@@ -152,29 +152,29 @@ export default function MapField({ value, onChange, label }: MapFieldProps) {
   const mapHeight = expanded ? 'calc(100vh - 8rem)' : 280;
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2.5">
       {/* Controls */}
-      <div className="flex items-center gap-2">
-        <div className="flex gap-1 flex-1">
+      <div className="nx-tile px-3 py-2 flex items-center gap-2">
+        <div className="flex gap-1.5 flex-1">
           {(Object.keys(TILES) as Array<keyof typeof TILES>).map(key => (
             <button key={key} type="button" onClick={() => setTileLayer(key)}
-              className="px-2 py-1 rounded text-[10px] font-mono transition-all"
+              className="px-2.5 py-1.5 rounded-lg text-[10px] font-mono transition-all nx-press"
               style={tileLayer === key
-                ? { background: 'var(--color-primary)', color: '#000' }
+                ? { background: 'var(--color-primary)', color: '#000', boxShadow: '0 0 12px var(--color-glow)' }
                 : { color: '#5a5a70', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
               {TILES[key].label}
             </button>
           ))}
         </div>
         <button type="button" onClick={() => setExpanded(!expanded)}
-          className="p-1.5 rounded-lg hover:bg-white/10 transition-colors flex-shrink-0"
+          className="p-2 rounded-lg hover:bg-white/10 transition-colors flex-shrink-0 nx-press"
           title={expanded ? 'Свернуть' : 'Развернуть'}>
           {expanded ? <Minimize2 className="w-4 h-4 text-gray-400" /> : <Maximize2 className="w-4 h-4 text-gray-400" />}
         </button>
       </div>
       {/* Map container */}
-      <div ref={mapRef} className="w-full rounded-xl overflow-hidden relative transition-all duration-300"
-        style={{ height: mapHeight, border: '1px solid rgba(0,255,136,0.12)' }} />
+      <div ref={mapRef} className="w-full rounded-2xl overflow-hidden relative transition-all duration-300 border border-white/10 [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]"
+        style={{ height: mapHeight }} />
       {isInteractive && !expanded && (
         <p className="font-mono text-[10px] text-gray-500">Кликните по карте чтобы установить метку • Нажмите ⤢ чтобы развернуть</p>
       )}
@@ -182,7 +182,7 @@ export default function MapField({ value, onChange, label }: MapFieldProps) {
       {(() => {
         const { lat, lng } = parseValue();
         return (
-          <div className="flex gap-3">
+          <div className="nx-tile px-3 py-2 flex gap-4">
             <span className="font-mono text-[10px] text-gray-500">Широта: <span className="text-gray-300">{lat.toFixed(4)}</span></span>
             <span className="font-mono text-[10px] text-gray-500">Долгота: <span className="text-gray-300">{lng.toFixed(4)}</span></span>
           </div>

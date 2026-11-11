@@ -25,11 +25,11 @@ export default function FieldRenderer({ field, value, onChange, error }: FieldRe
     }
     return [];
   })();
-  const baseClass = `w-full px-4 py-2.5 rounded-lg font-mono text-sm bg-black/30 border text-gray-200 focus:outline-none focus:border-[var(--color-primary)] transition-colors ${error ? 'border-red-500' : 'border-gray-700'}`;
+  const baseClass = `w-full px-4 py-3 rounded-xl font-mono text-sm bg-black/30 border text-gray-200 focus:outline-none focus:border-[var(--color-primary)] transition-colors [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)] ${error ? 'border-red-500' : 'border-gray-700'}`;
 
   // ── Layout types (no input, no label wrapper) ──
   if (field.type === 'heading') {
-    return <h3 className="text-lg font-bold font-mono text-gray-200 pt-2">{field.label}</h3>;
+    return <h3 className="text-xl font-bold font-mono text-gray-200 pt-2">{field.label}</h3>;
   }
   if (field.type === 'paragraph') {
     return <p className="text-sm text-gray-400 leading-relaxed whitespace-pre-wrap">{field.label}</p>;
@@ -50,7 +50,7 @@ export default function FieldRenderer({ field, value, onChange, error }: FieldRe
     const url = settings.url || '#';
     const linkText = settings.linkText || field.label || 'Перейти по ссылке';
     return (
-      <a href={url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg font-mono text-sm transition-all hover:brightness-110" style={{ color: '#00d4ff', background: 'rgba(0,212,255,0.08)', border: '1px solid rgba(0,212,255,0.2)' }}>
+      <a href={url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-5 py-3 rounded-xl font-mono text-sm transition-all hover:brightness-110 nx-press" style={{ color: '#00d4ff', background: 'rgba(0,212,255,0.08)', border: '1px solid rgba(0,212,255,0.2)' }}>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
         {linkText}
       </a>
@@ -58,7 +58,7 @@ export default function FieldRenderer({ field, value, onChange, error }: FieldRe
   }
   if (field.type === 'acknowledgment') {
     return (
-      <label onClick={() => onChange(value === 'true' ? '' : 'true')} className="flex items-start gap-3 px-4 py-3 rounded-lg cursor-pointer transition-all hover:bg-white/5" style={{ border: value === 'true' ? '1px solid rgba(0,255,136,0.3)' : '1px solid rgba(255,255,255,0.06)', background: value === 'true' ? 'rgba(0,255,136,0.05)' : 'transparent' }}>
+      <label onClick={() => onChange(value === 'true' ? '' : 'true')} className="flex items-start gap-3 px-4 py-3.5 rounded-xl cursor-pointer transition-all hover:bg-white/5 nx-press" style={{ border: value === 'true' ? '1px solid rgba(0,255,136,0.3)' : '1px solid rgba(255,255,255,0.06)', background: value === 'true' ? 'rgba(0,255,136,0.05)' : 'transparent' }}>
         <div className="w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 mt-0.5" style={{ borderColor: value === 'true' ? 'var(--color-primary)' : '#4a4a60', background: value === 'true' ? 'var(--color-primary)' : 'transparent' }}>
           {value === 'true' && <span className="text-black text-xs font-bold">✓</span>}
         </div>
@@ -73,7 +73,7 @@ export default function FieldRenderer({ field, value, onChange, error }: FieldRe
     const btnUrl = settings.url || '#';
     const btnText = settings.buttonText || field.label || 'Нажми';
     return (
-      <a href={btnUrl} target="_blank" rel="noopener noreferrer" className="block w-full px-6 py-3 rounded-xl font-mono text-sm font-bold text-center transition-all hover:brightness-110" style={{ background: 'var(--color-primary)', color: '#000' }}>
+      <a href={btnUrl} target="_blank" rel="noopener noreferrer" className="block w-full px-6 py-3.5 rounded-xl font-mono text-sm font-bold text-center transition-all hover:brightness-110 nx-press" style={{ background: 'var(--color-primary)', color: '#000' }}>
         {btnText}
       </a>
     );
@@ -151,7 +151,7 @@ export default function FieldRenderer({ field, value, onChange, error }: FieldRe
             <div className="flex gap-1">
               {Array.from({ length: max }, (_, i) => (
                 <button key={i} type="button" onClick={() => onChange(String(i + 1))}
-                  className="flex-1 py-2 rounded-lg font-mono text-sm font-bold transition-all"
+                  className="flex-1 py-2.5 rounded-xl font-mono text-sm font-bold transition-all nx-press"
                   style={current === i + 1
                     ? { background: 'var(--color-primary)', color: '#000', boxShadow: '0 0 10px var(--color-glow)' }
                     : { background: 'rgba(255,255,255,0.05)', color: '#6a6a80', border: '1px solid rgba(255,255,255,0.08)' }}>
@@ -173,7 +173,7 @@ export default function FieldRenderer({ field, value, onChange, error }: FieldRe
                 const isSelected = current === i;
                 return (
                   <button key={i} type="button" onClick={() => onChange(String(i))}
-                    className="flex-1 py-2 rounded-lg font-mono text-xs font-bold transition-all"
+                    className="flex-1 py-2 rounded-lg font-mono text-xs font-bold transition-all nx-press"
                     style={isSelected
                       ? { background: `hsl(${hue}, 80%, 50%)`, color: '#000', boxShadow: `0 0 10px hsl(${hue}, 80%, 50%)` }
                       : { background: 'rgba(255,255,255,0.03)', color: '#6a6a80', border: '1px solid rgba(255,255,255,0.06)' }}>
@@ -195,7 +195,7 @@ export default function FieldRenderer({ field, value, onChange, error }: FieldRe
         return (
           <div className="space-y-2">
             {options.map((opt, i) => (
-              <label key={i} onClick={() => onChange(opt)} className="flex items-center gap-3 px-4 py-2.5 rounded-lg cursor-pointer transition-all hover:bg-white/5" style={{ border: value === opt ? '1px solid rgba(0,255,136,0.3)' : '1px solid rgba(255,255,255,0.06)', background: value === opt ? 'rgba(0,255,136,0.05)' : 'transparent' }}>
+              <label key={i} onClick={() => onChange(opt)} className="flex items-center gap-3 px-4 py-3 rounded-xl cursor-pointer transition-all hover:bg-white/5 nx-press" style={{ border: value === opt ? '1px solid rgba(0,255,136,0.3)' : '1px solid rgba(255,255,255,0.06)', background: value === opt ? 'rgba(0,255,136,0.05)' : 'transparent' }}>
                 <div className="w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0" style={{ borderColor: value === opt ? 'var(--color-primary)' : '#4a4a60' }}>
                   {value === opt && <div className="w-2 h-2 rounded-full" style={{ background: 'var(--color-primary)' }} />}
                 </div>
@@ -214,7 +214,7 @@ export default function FieldRenderer({ field, value, onChange, error }: FieldRe
         return (
           <div className="space-y-2">
             {options.map((opt, i) => (
-              <label key={i} onClick={() => toggleMulti(opt)} className="flex items-center gap-3 px-4 py-2.5 rounded-lg cursor-pointer transition-all hover:bg-white/5" style={{ border: selected.includes(opt) ? '1px solid rgba(0,255,136,0.3)' : '1px solid rgba(255,255,255,0.06)', background: selected.includes(opt) ? 'rgba(0,255,136,0.05)' : 'transparent' }}>
+              <label key={i} onClick={() => toggleMulti(opt)} className="flex items-center gap-3 px-4 py-3 rounded-xl cursor-pointer transition-all hover:bg-white/5 nx-press" style={{ border: selected.includes(opt) ? '1px solid rgba(0,255,136,0.3)' : '1px solid rgba(255,255,255,0.06)', background: selected.includes(opt) ? 'rgba(0,255,136,0.05)' : 'transparent' }}>
                 <div className="w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0" style={{ borderColor: selected.includes(opt) ? 'var(--color-primary)' : '#4a4a60', background: selected.includes(opt) ? 'var(--color-primary)' : 'transparent' }}>
                   {selected.includes(opt) && <span className="text-black text-[10px] font-bold">✓</span>}
                 </div>
@@ -238,7 +238,7 @@ export default function FieldRenderer({ field, value, onChange, error }: FieldRe
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {options.map((opt, i) => (
               <button key={i} type="button" onClick={() => onChange(opt)}
-                className="p-3 rounded-xl text-center transition-all"
+                className="p-3 rounded-xl text-center transition-all nx-press"
                 style={value === opt
                   ? { background: 'rgba(0,255,136,0.1)', border: '2px solid var(--color-primary)', boxShadow: '0 0 12px var(--color-glow)' }
                   : { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
@@ -264,11 +264,11 @@ export default function FieldRenderer({ field, value, onChange, error }: FieldRe
         return (
           <div className="space-y-1.5">
             {order.map((opt, i) => (
-              <div key={opt} className="flex items-center gap-2 px-3 py-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+              <div key={opt} className="flex items-center gap-2 px-3 py-2.5 rounded-xl" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
                 <span className="font-mono text-[10px] font-bold w-5 text-center" style={{ color: 'var(--color-primary)' }}>{i + 1}</span>
                 <span className="flex-1 font-mono text-sm text-gray-200">{opt}</span>
-                <button type="button" onClick={() => moveUp(i)} className="p-1 rounded hover:bg-white/10 text-gray-500 hover:text-gray-300 text-xs">▲</button>
-                <button type="button" onClick={() => moveDown(i)} className="p-1 rounded hover:bg-white/10 text-gray-500 hover:text-gray-300 text-xs">▼</button>
+                <button type="button" onClick={() => moveUp(i)} className="p-1 rounded hover:bg-white/10 text-gray-500 hover:text-gray-300 text-xs nx-press">▲</button>
+                <button type="button" onClick={() => moveDown(i)} className="p-1 rounded hover:bg-white/10 text-gray-500 hover:text-gray-300 text-xs nx-press">▼</button>
               </div>
             ))}
           </div>
@@ -310,7 +310,7 @@ export default function FieldRenderer({ field, value, onChange, error }: FieldRe
 
       case 'checkbox':
         return (
-          <label onClick={() => onChange(value === 'true' ? '' : 'true')} className="flex items-center gap-3 px-4 py-2.5 rounded-lg cursor-pointer transition-all hover:bg-white/5" style={{ border: value === 'true' ? '1px solid rgba(0,255,136,0.3)' : '1px solid rgba(255,255,255,0.06)' }}>
+          <label onClick={() => onChange(value === 'true' ? '' : 'true')} className="flex items-center gap-3 px-4 py-3 rounded-xl cursor-pointer transition-all hover:bg-white/5 nx-press" style={{ border: value === 'true' ? '1px solid rgba(0,255,136,0.3)' : '1px solid rgba(255,255,255,0.06)' }}>
             <div className="w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0" style={{ borderColor: value === 'true' ? 'var(--color-primary)' : '#4a4a60', background: value === 'true' ? 'var(--color-primary)' : 'transparent' }}>
               {value === 'true' && <span className="text-black text-xs font-bold">✓</span>}
             </div>
@@ -349,12 +349,12 @@ export default function FieldRenderer({ field, value, onChange, error }: FieldRe
               onChange(JSON.stringify([...files, ...names]));
             }} className="font-mono text-sm text-gray-300" />
             {files.length > 0 && (
-              <div className="space-y-1">
+              <div className="space-y-1.5">
                 {files.map((f, i) => (
-                  <div key={i} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5">
+                  <div key={i} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5">
                     <span className="font-mono text-xs text-gray-300 flex-1 truncate">{f}</span>
                     <button type="button" onClick={() => { const next = files.filter((_, j) => j !== i); onChange(JSON.stringify(next)); }}
-                      className="text-gray-500 hover:text-red-400 text-xs">✕</button>
+                      className="text-gray-500 hover:text-red-400 text-xs nx-press">✕</button>
                   </div>
                 ))}
               </div>
@@ -377,7 +377,7 @@ export default function FieldRenderer({ field, value, onChange, error }: FieldRe
   };
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2.5">
       {field.type !== 'checkbox' && (field.type as string) !== 'button_block' && (
         <label className="block">
           <span className="font-mono text-sm text-gray-300">
@@ -459,7 +459,7 @@ function SignaturePad({ value, onChange }: { value: string; onChange: (v: string
         onTouchStart={startDraw} onTouchMove={draw} onTouchEnd={endDraw}
         className="w-full rounded-lg cursor-crosshair touch-none"
         style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', maxHeight: 150 }} />
-      <button type="button" onClick={clear} className="font-mono text-[10px] text-gray-500 hover:text-gray-300 transition-colors">ОЧИСТИТЬ</button>
+      <button type="button" onClick={clear} className="font-mono text-[10px] text-gray-500 hover:text-gray-300 transition-colors nx-press">ОЧИСТИТЬ</button>
     </div>
   );
 }
