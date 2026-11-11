@@ -39,6 +39,7 @@ export default function Registrations() {
   const [editing, setEditing] = useState<Registration | null>(null);
   const [form, setForm] = useState({ title: '', description: '', eventDate: '', eventTime: '', location: '', videoUrl: '', maxParticipants: 0, status: 'draft' as string, registrationStart: '', registrationEnd: '', closedMessage: '', mapCoords: '', showLimit: 1, showTimer: 1, organizer: '', color: '', theme: 'cyberpunk', waitlistEnabled: 1, maxWaitlist: 0, checkinEnabled: 1, showMap: 1 });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [showSysBlocks, setShowSysBlocks] = useState(false);
   const [regFields, setRegFields] = useState<RegistrationField[]>([]);
   const [submissions, setSubmissions] = useState<RegistrationSubmission[]>([]);
   const [showQR, setShowQR] = useState(false);
@@ -610,6 +611,15 @@ export default function Registrations() {
               <div>
                 <label className="font-mono text-[10px] text-gray-500 mb-1 block">МЕСТО НА КАРТЕ</label>
                 <MapField value={form.mapCoords || ''} onChange={coords => setForm(prev => ({ ...prev, mapCoords: coords }))} />
+                <div className="flex items-center justify-between mt-2">
+                  <span className="font-mono text-[10px] text-gray-500">Показывать карту на странице</span>
+                  <button type="button" onClick={() => setForm({ ...form, showMap: form.showMap ? 0 : 1 })}
+                    className="w-10 h-5 rounded-full transition-colors relative"
+                    style={{ background: form.showMap ? 'var(--color-primary)' : '#3a3a50' }}>
+                    <div className="absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform"
+                      style={{ transform: form.showMap ? 'translateX(20px)' : 'translateX(2px)' }} />
+                  </button>
+                </div>
               </div>
               <input value={form.videoUrl} onChange={e => setForm({ ...form, videoUrl: e.target.value })} placeholder="// ССЫЛКА НА ВИДЕО"
                 className="w-full px-4 py-2.5 rounded-xl font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]" />
@@ -706,19 +716,6 @@ export default function Registrations() {
                   <span className="text-xs font-mono text-gray-400">{form.checkinEnabled ? 'Включён — QR в письме и на экране' : 'Выключён — только информация'}</span>
                 </div>
                 <p className="text-[10px] font-mono text-gray-600 mt-1">Когда выключен — письмо и итоговый экран содержат только основную информацию и кнопку отмены.</p>
-              </div>
-              {/* Show map toggle */}
-              <div>
-                <label className="text-xs font-mono text-gray-500 mb-2 block">КАРТА НА СТРАНИЦЕ</label>
-                <div className="flex items-center gap-3">
-                  <button onClick={() => setForm({ ...form, showMap: form.showMap ? 0 : 1 })}
-                    className="w-10 h-5 rounded-full transition-colors relative"
-                    style={{ background: form.showMap ? 'var(--color-primary)' : '#3a3a50' }}>
-                    <div className="absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform"
-                      style={{ transform: form.showMap ? 'translateX(20px)' : 'translateX(2px)' }} />
-                  </button>
-                  <span className="text-xs font-mono text-gray-400">{form.showMap ? 'Показывать' : 'Скрыта'}</span>
-                </div>
               </div>
               {/* Color picker */}
               <label className="block">
@@ -1000,23 +997,41 @@ export default function Registrations() {
 
           {/* Right: Field Builder */}
           <div className="nx-panel p-6">
-            {/* System blocks — always first on the public form */}
-            <div className="mb-4">
-              <h2 className="nx-eyebrow mb-2">СИСТЕМНЫЕ БЛОКИ</h2>
+            {/* System blocks — always first on the public form (expandable preview) */}
+            <div className="mb-5">
+              <button type="button"
+                onClick={() => setShowSysBlocks(v => !v)}
+                className="w-full flex items-center justify-between mb-2 nx-press">
+                <span className="nx-eyebrow">СИСТЕМНЫЕ БЛОКИ</span>
+                <span className="font-mono text-[9px] text-gray-500">{showSysBlocks ? "Свернуть" : "Развернуть просмотр"}</span>
+              </button>
               <div className="nx-divider mb-3" />
-              <div className="nx-tile p-3 mb-2 opacity-80">
-                <div className="flex items-center justify-between">
-                  <span className="font-mono text-[11px] font-bold text-gray-300">ФИО</span>
-                  <span className="font-mono text-[9px] text-gray-500">Фамилия* · Имя* · Отчество</span>
+              {showSysBlocks && (
+                <div className="space-y-2 mb-2">
+                  <div className="nx-tile p-3 opacity-90">
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono text-[11px] font-bold text-gray-300">ФИО</span>
+                      <span className="font-mono text-[9px] text-gray-500">Фамилия* · Имя* · Отчество</span>
+                    </div>
+                    <div className="mt-2 space-y-1.5">
+                      <div className="h-8 rounded-lg bg-white/5 border border-white/10 flex items-center px-3"><span className="font-mono text-[9px] text-gray-600">// ФАМИЛИЯ *</span></div>
+                      <div className="h-8 rounded-lg bg-white/5 border border-white/10 flex items-center px-3"><span className="font-mono text-[9px] text-gray-600">// ИМЯ *</span></div>
+                      <div className="h-8 rounded-lg bg-white/5 border border-white/10 flex items-center px-3"><span className="font-mono text-[9px] text-gray-600">// ОТЧЕСТВО</span></div>
+                    </div>
+                  </div>
+                  <div className="nx-tile p-3 opacity-90">
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono text-[11px] font-bold text-gray-300">КОНТАКТНЫЕ ДАННЫЕ</span>
+                      <span className="font-mono text-[9px] text-gray-500">Email* · Телефон</span>
+                    </div>
+                    <div className="mt-2 space-y-1.5">
+                      <div className="h-8 rounded-lg bg-white/5 border border-white/10 flex items-center px-3"><span className="font-mono text-[9px] text-gray-600">// EMAIL *</span></div>
+                      <div className="h-8 rounded-lg bg-white/5 border border-white/10 flex items-center px-3"><span className="font-mono text-[9px] text-gray-600">// ТЕЛЕФОН</span></div>
+                    </div>
+                  </div>
+                  <p className="text-[10px] font-mono text-gray-600">Эти блоки всегда первые на публичной форме — не редактируются. Ниже — ваши поля.</p>
                 </div>
-              </div>
-              <div className="nx-tile p-3 opacity-80">
-                <div className="flex items-center justify-between">
-                  <span className="font-mono text-[11px] font-bold text-gray-300">КОНТАКТНЫЕ ДАННЫЕ</span>
-                  <span className="font-mono text-[9px] text-gray-500">Email* · Телефон</span>
-                </div>
-              </div>
-              <p className="text-[10px] font-mono text-gray-600 mt-2">Эти блоки всегда первые на публичной форме — не редактируются. Ниже — ваши поля.</p>
+              )}
             </div>
             <FieldBuilder fields={regFields} onAdd={addField} onUpdate={updateField} onDelete={deleteField} onDuplicate={duplicateField} onReorder={reorderFields} />
           </div>
