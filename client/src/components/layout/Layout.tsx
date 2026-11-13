@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import Breadcrumbs from './Breadcrumbs';
+import PresenceToasts from '../common/PresenceToasts';
 
 const pageVariants = {
   initial: {
@@ -34,6 +35,7 @@ export default function Layout() {
 
   return (
     <div className="flex h-dvh overflow-hidden">
+      <PresenceToasts />
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="flex-1 flex flex-col overflow-hidden min-w-0 nx-stage">
         <div className="flex-shrink-0" style={{ height: 'env(safe-area-inset-top, 0px)' }} />
