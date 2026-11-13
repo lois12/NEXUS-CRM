@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import SmartImage from '../ui/SmartImage';
-import { BarChart3, Image as ImageIcon, Copy, Link2, Trash2, QrCode, X } from 'lucide-react';
+import { BarChart3, Image as ImageIcon, Copy, Link2, Trash2, QrCode, X, Download } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import SurveyStatusSelect, { STATUS_META } from './SurveyStatusSelect';
 import type { Survey, SurveyStatus } from '../../services/surveyApi';
@@ -109,12 +109,32 @@ export default function SurveyCard({
           <div className="nx-core p-6 text-center">
             <div className="flex items-center justify-between mb-3">
               <span className="nx-eyebrow">QR-КОД</span>
-              <button onClick={() => setShowQr(false)} className="p-1 rounded-lg hover:bg-white/10 nx-press" aria-label="Закрыть">
-                <X className="w-4 h-4 text-gray-400" />
-              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => {
+                    const svg = document.getElementById('survey-qr-svg');
+                    if (!svg) return;
+                    const xml = new XMLSerializer().serializeToString(svg);
+                    const blob = new Blob([xml], { type: 'image/svg+xml' });
+                    const a = document.createElement('a');
+                    a.href = URL.createObjectURL(blob);
+                    a.download = `qr-${survey.publicSlug || 'survey'}.svg`;
+                    a.click();
+                    URL.revokeObjectURL(a.href);
+                  }}
+                  className="p-1 rounded-lg hover:bg-white/10 nx-press"
+                  aria-label="Скачать QR"
+                  title="Скачать SVG"
+                >
+                  <Download className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />
+                </button>
+                <button onClick={() => setShowQr(false)} className="p-1 rounded-lg hover:bg-white/10 nx-press" aria-label="Закрыть">
+                  <X className="w-4 h-4 text-gray-400" />
+                </button>
+              </div>
             </div>
             <div className="inline-block p-3 bg-white rounded-xl">
-              <QRCodeSVG value={publicUrl} size={180} />
+              <QRCodeSVG value={publicUrl} size={180} id="survey-qr-svg" />
             </div>
             <p className="font-mono text-[10px] text-gray-500 mt-3 break-all max-w-[260px] mx-auto">{publicUrl}</p>
             <button
