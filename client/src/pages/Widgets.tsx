@@ -50,6 +50,10 @@ export default function Widgets() {
   const [htmlCode, setHtmlCode] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imageFilePreview, setImageFilePreview] = useState('');
+  useEffect(() => {
+    setImageFilePreview(imageFile ? URL.createObjectURL(imageFile) : '');
+  }, [imageFile]);
   const [uploading, setUploading] = useState(false);
   const [publishForm, setPublishForm] = useState({ customSlug: '', password: '' });
   const fileRef = useRef<HTMLInputElement>(null);
@@ -418,7 +422,7 @@ export default function Widgets() {
             {imageFile && (
               <div className="mb-3">
                 <div className="relative rounded-xl overflow-hidden mb-2">
-                  <SmartImage loading="lazy" src={URL.createObjectURL(imageFile)} alt="" className="w-full h-40 object-cover rounded-xl" />
+                  <SmartImage loading="lazy" src={imageFilePreview} alt="" className="w-full h-40 object-cover rounded-xl" />
                   <button onClick={() => setImageFile(null)}
                     className="absolute top-2 right-2 p-1 rounded-full bg-black/60 hover:bg-black/80" aria-label="Удалить изображение">
                     <span className="text-white text-sm">✕</span>

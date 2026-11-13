@@ -214,9 +214,9 @@ export default function BackgroundRemover() {
     setMaskData(null);
     setShowMask(false);
 
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      const dataUrl = e.target?.result as string;
+    // объект-URL вместо base64 — большие файлы больше не фризят интерфейс
+    const dataUrl = URL.createObjectURL(file);
+    const onLoad = async () => {
       setOriginal(dataUrl);
 
       const img = new window.Image();
@@ -254,7 +254,7 @@ export default function BackgroundRemover() {
       };
       img.src = dataUrl;
     };
-    reader.readAsDataURL(file);
+    onLoad();
   }, [mode, tolerance, maskToResult]);
 
   const applyBrush = useCallback((clientX: number, clientY: number) => {

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import SmartImage from '../components/ui/SmartImage';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Plus, Trash2, Edit3, X, Search, Calendar, Flag, User,
+  Plus, Trash2, Edit3, X, Search, Calendar, User,
   ChevronRight, ArrowLeft, Image, FileText, Paperclip, Upload, Download,
   Play, Circle, CheckCircle2, Target, GitBranch, ZoomIn, Sliders, Link
 } from 'lucide-react';
@@ -349,7 +349,7 @@ export default function Projects() {
   };
 
   if (isLoading) {
-    return <div className="flex items-center justify-center h-full"><motion.div animate={{ rotate: 360 }} transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}><Flag className="w-12 h-12" style={{ color: 'var(--color-primary)' }} /></motion.div></div>;
+    return <div className="flex items-center justify-center h-full"><span className="smart-image-spinner" style={{ width: 40, height: 40 }} /></div>;
   }
 
   // ── Detail View ──

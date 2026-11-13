@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Trash2, Edit3, Calendar, Flag, X, Archive, ArchiveRestore, Paperclip, Upload, FileText, Image, File, Download, GripVertical } from 'lucide-react';
+import { Plus, Trash2, Edit3, Calendar, X, Archive, ArchiveRestore, Paperclip, Upload, FileText, Image, File, Download, GripVertical } from 'lucide-react';
 import { KanbanTask, KanbanStatus, KanbanPriority, KANBAN_COLUMNS } from '../types';
 import { kanbanApi } from '../services/api';
 import { showToast, showUndoToast } from '../components/ui/NexusModal';
@@ -396,9 +396,7 @@ export default function Kanban() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <motion.div animate={{ rotate: 360 }} transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}>
-          <Flag className="w-12 h-12" style={{ color: 'var(--color-primary)' }} />
-        </motion.div>
+        <span className="smart-image-spinner" style={{ width: 40, height: 40 }} />
       </div>
     );
   }

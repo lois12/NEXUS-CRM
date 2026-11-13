@@ -51,6 +51,15 @@ export default function Registrations() {
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [mediaItems, setMediaItems] = useState<any[]>([]);
   const [mediaFiles, setMediaFiles] = useState<File[]>([]);
+  // превью-URL создаём один раз на файл; createObjectURL прямо в рендере = утечка и лаги
+  const [imagePreview, setImagePreview] = useState('');
+  const [videoPreview, setVideoPreview] = useState('');
+  const [mediaPreviews, setMediaPreviews] = useState<string[]>([]);
+  useEffect(() => {
+    setImagePreview(imageFiles[0] ? URL.createObjectURL(imageFiles[0]) : '');
+    setVideoPreview(videoFile ? URL.createObjectURL(videoFile) : '');
+    setMediaPreviews(mediaFiles.map((f: File) => URL.createObjectURL(f)));
+  }, [imageFiles, videoFile, mediaFiles]);
   const { confirmState, showConfirm, closeConfirm } = useNexusConfirm();
   const [listRef] = useAutoAnimate({ duration: 200 });
   const [stats, setStats] = useState<any>(null);
@@ -815,7 +824,7 @@ export default function Registrations() {
               {imageFiles.length > 0 && (
                 <div className="mb-3">
                   <div className="relative rounded-xl overflow-hidden mb-2">
-                    <SmartImage loading="lazy" src={URL.createObjectURL(imageFiles[0])} alt="" draggable="false" className="w-full h-40 object-cover rounded-xl select-none" />
+                    <SmartImage loading="lazy" src={imagePreview} alt="" draggable="false" className="w-full h-40 object-cover rounded-xl select-none" />
                     <button onClick={() => { setImageFiles([]); }} className="absolute top-2 right-2 p-1 rounded-full bg-black/60 hover:bg-black/80 nx-press">
                       <X className="w-4 h-4 text-white" />
                     </button>
@@ -878,7 +887,7 @@ export default function Registrations() {
               {videoFile && (
                 <div className="mb-3">
                   <div className="relative rounded-xl overflow-hidden mb-2">
-                    <video src={URL.createObjectURL(videoFile)} controls draggable="false" className="w-full rounded-xl select-none" style={{ maxHeight: 300 }} />
+                    <video src={videoPreview} controls draggable="false" className="w-full rounded-xl select-none" style={{ maxHeight: 300 }} />
                     <button onClick={() => setVideoFile(null)} className="absolute top-2 right-2 p-1 rounded-full bg-black/60 hover:bg-black/80 nx-press">
                       <X className="w-4 h-4 text-white" />
                     </button>
@@ -972,9 +981,9 @@ export default function Registrations() {
                   {mediaFiles.map((f, i) => (
                     <div key={i} className="relative rounded-lg overflow-hidden">
                       {f.type.startsWith('video/') ? (
-                        <video src={URL.createObjectURL(f)} draggable="false" className="w-full h-24 object-cover select-none" />
+                        <video src={mediaPreviews[i]} draggable="false" className="w-full h-24 object-cover select-none" />
                       ) : (
-                        <SmartImage loading="lazy" src={URL.createObjectURL(f)} alt="" draggable="false" className="w-full h-24 object-cover select-none" />
+                        <SmartImage loading="lazy" src={mediaPreviews[i]} alt="" draggable="false" className="w-full h-24 object-cover select-none" />
                       )}
                       <button onClick={() => setMediaFiles(prev => prev.filter((_, j) => j !== i))}
                         className="absolute top-1 right-1 p-1 rounded-full bg-black/60 nx-press">

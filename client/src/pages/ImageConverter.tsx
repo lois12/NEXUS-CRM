@@ -58,20 +58,13 @@ function formatFileSize(bytes: number): string {
 }
 
 function loadImage(file: File): Promise<{ preview: string; width: number; height: number }> {
+  // объект-URL вместо base64: без FileReader и гигантских строк в стейте
   return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const img = new window.Image();
-      img.onload = () => resolve({
-        preview: e.target?.result as string,
-        width: img.width,
-        height: img.height,
-      });
-      img.onerror = reject;
-      img.src = e.target?.result as string;
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
+    const url = URL.createObjectURL(file);
+    const img = new window.Image();
+    img.onload = () => resolve({ preview: url, width: img.width, height: img.height });
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('image load failed')); };
+    img.src = url;
   });
 }
 
