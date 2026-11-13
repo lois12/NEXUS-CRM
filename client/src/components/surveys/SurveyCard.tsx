@@ -24,7 +24,43 @@ export default function SurveyCard({
   const status = survey.status || (survey.isPublic ? 'published' : 'draft');
   const meta = STATUS_META[status];
   const [showQr, setShowQr] = useState(false);
+  const [showQrFormats, setShowQrFormats] = useState(false);
   const publicUrl = survey.publicSlug ? `${window.location.origin}/opros/${survey.publicSlug}` : '';
+
+  /** Скачать QR в выбранном формате */
+  const downloadQr = (format: 'svg' | 'png' | 'jpg') => {
+    const svg = document.getElementById('survey-qr-svg');
+    if (!svg) return;
+    const base = `qr-${survey.publicSlug || 'survey'}`;
+    if (format === 'svg') {
+      const xml = new XMLSerializer().serializeToString(svg);
+      const blob = new Blob([xml], { type: 'image/svg+xml' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `${base}.svg`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } else {
+      const xml = new XMLSerializer().serializeToString(svg);
+      const img = new Image();
+      const url = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(xml)));
+      img.onload = () => {
+        const c = document.createElement('canvas');
+        c.width = 512; c.height = 512;
+        const ctx = c.getContext('2d')!;
+        // белый фон обязателен для JPG
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0, 0, 512, 512);
+        ctx.drawImage(img, 0, 0, 512, 512);
+        const a = document.createElement('a');
+        a.href = c.toDataURL(format === 'jpg' ? 'image/jpeg' : 'image/png', 0.92);
+        a.download = `${base}.${format}`;
+        a.click();
+      };
+      img.src = url;
+    }
+    setShowQrFormats(false);
+  };
 
   return (
     <>
@@ -109,25 +145,33 @@ export default function SurveyCard({
           <div className="nx-core p-6 text-center">
             <div className="flex items-center justify-between mb-3">
               <span className="nx-eyebrow">QR-КОД</span>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1 relative">
                 <button
-                  onClick={() => {
-                    const svg = document.getElementById('survey-qr-svg');
-                    if (!svg) return;
-                    const xml = new XMLSerializer().serializeToString(svg);
-                    const blob = new Blob([xml], { type: 'image/svg+xml' });
-                    const a = document.createElement('a');
-                    a.href = URL.createObjectURL(blob);
-                    a.download = `qr-${survey.publicSlug || 'survey'}.svg`;
-                    a.click();
-                    URL.revokeObjectURL(a.href);
-                  }}
+                  onClick={() => setShowQrFormats(v => !v)}
                   className="p-1 rounded-lg hover:bg-white/10 nx-press"
                   aria-label="Скачать QR"
-                  title="Скачать SVG"
+                  title="Скачать"
                 >
                   <Download className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />
                 </button>
+                {showQrFormats && (
+                  <div
+                    className="absolute top-full right-0 mt-1 flex gap-1 p-1 rounded-xl z-10"
+                    style={{ background: 'rgba(20,20,35,0.98)', border: '1px solid rgba(255,255,255,0.12)' }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {(['svg', 'png', 'jpg'] as const).map(f => (
+                      <button
+                        key={f}
+                        onClick={() => downloadQr(f)}
+                        className="px-2 py-1 rounded-lg font-mono text-[9px] font-bold uppercase hover:bg-white/10 nx-press"
+                        style={{ color: 'var(--color-primary)' }}
+                      >
+                        {f}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 <button onClick={() => setShowQr(false)} className="p-1 rounded-lg hover:bg-white/10 nx-press" aria-label="Закрыть">
                   <X className="w-4 h-4 text-gray-400" />
                 </button>
