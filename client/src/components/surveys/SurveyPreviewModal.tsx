@@ -83,7 +83,7 @@ export default function SurveyPreviewModal({ open, onClose, survey }: Props) {
           {questions.map((q, i) => (
             <div key={q.id || i} className="glass rounded-xl p-3 space-y-2">
               <p className="font-mono text-sm text-gray-200" style={{ wordBreak: 'break-word' }}>
-                {i + 1}. {q.title || 'Без текста'}{q.required && <span className="text-red-400">*</span>}
+                {i + 1}. {q.title || 'Без текста'}{!!q.required && <span className="text-red-400">*</span>}
               </p>
               {q.type === 'choice' ? (
                 <div className="space-y-1">

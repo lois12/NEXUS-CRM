@@ -202,7 +202,7 @@ export default function SurveyFillForm({ survey, slug }: Props) {
           <div key={qid} className="glass rounded-xl p-4 space-y-2">
             <p className="font-mono text-sm text-gray-200">
               {qi + 1}. {q.title}
-              {q.required && <span className="text-red-400 ml-1">*</span>}
+              {!!q.required && <span className="text-red-400 ml-1">*</span>}
             </p>
             {q.type === 'choice' ? (
               <div className="space-y-1">
