@@ -1183,7 +1183,6 @@ select option:checked {
   transition: all 0.25s ease !important;
   border: 1px solid transparent !important;
   margin-bottom: 2px !important;
-  backdrop-filter: blur(4px);
   position: relative;
   overflow: hidden;
 }
@@ -2124,4 +2123,12 @@ html.low-fx .nx-bezel {
 .low-fx .nx-tile {
   content-visibility: auto;
   contain-intrinsic-size: auto 120px;
+}
+
+/* Плотная поверхность без blur — для шапки/сайдбара (blur 40px убивал слабые GPU) */
+.nx-surface {
+  background: linear-gradient(180deg, rgba(20, 20, 35, 0.96), rgba(14, 14, 26, 0.98));
+}
+.theme-light .nx-surface {
+  background: #f7f8fa;
 }

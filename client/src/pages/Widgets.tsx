@@ -407,7 +407,7 @@ export default function Widgets() {
             <label className="text-xs font-mono text-gray-500 mb-2 block">Картинка</label>
             {imageUrl && !imageFile ? (
               <div className="relative rounded-xl overflow-hidden mb-3 group">
-                <img src={imageUrl} alt="" className="w-full h-40 object-cover rounded-xl" />
+                <img loading="lazy" src={imageUrl} alt="" className="w-full h-40 object-cover rounded-xl" />
                 <button onClick={() => setImageUrl('')}
                   className="absolute top-2 right-2 p-1 rounded-full bg-black/60 hover:bg-red-500/80 opacity-0 group-hover:opacity-100 transition-opacity" aria-label="Удалить изображение">
                   <span className="text-white text-sm">✕</span>
@@ -417,7 +417,7 @@ export default function Widgets() {
             {imageFile && (
               <div className="mb-3">
                 <div className="relative rounded-xl overflow-hidden mb-2">
-                  <img src={URL.createObjectURL(imageFile)} alt="" className="w-full h-40 object-cover rounded-xl" />
+                  <img loading="lazy" src={URL.createObjectURL(imageFile)} alt="" className="w-full h-40 object-cover rounded-xl" />
                   <button onClick={() => setImageFile(null)}
                     className="absolute top-2 right-2 p-1 rounded-full bg-black/60 hover:bg-black/80" aria-label="Удалить изображение">
                     <span className="text-white text-sm">✕</span>
@@ -547,7 +547,7 @@ export default function Widgets() {
               <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mb-3">
                 {galleryImages.map((img: any) => (
                   <div key={img.id} className="relative rounded-xl overflow-hidden group aspect-square">
-                    <img src={img.url} alt="" className="w-full h-full object-cover" />
+                    <img loading="lazy" src={img.url} alt="" className="w-full h-full object-cover" />
                     <button onClick={() => handleGalleryDelete(img.id)}
                       className="absolute top-1 right-1 p-1 rounded-full bg-black/60 hover:bg-red-500/80 opacity-0 group-hover:opacity-100 transition-opacity" aria-label="Удалить фото">
                       <X className="w-3 h-3 text-white" />
@@ -705,7 +705,7 @@ export default function Widgets() {
               {/* Image */}
               {w.imageUrl ? (
                 <div className="h-40 overflow-hidden relative">
-                  <img src={w.imageUrl} alt={w.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                  <img loading="lazy" src={w.imageUrl} alt={w.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                   {w.isPinned && (
                     <div className="absolute top-2 left-2 px-2 py-0.5 rounded-full text-[9px] font-mono flex items-center gap-1"
                       style={{ background: 'rgba(0,0,0,0.7)', color: 'var(--color-primary)' }}>

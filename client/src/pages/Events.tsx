@@ -124,25 +124,25 @@ export default function Events() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {viewing.date && (
-              <div className="glass-card rounded-xl p-4">
+              <div className="nx-tile rounded-xl p-4">
                 <div className="flex items-center gap-2 mb-1 text-gray-500 text-xs font-mono"><Calendar className="w-3.5 h-3.5" /> ДАТА</div>
                 <p className="font-mono text-sm text-gray-200">{viewing.date}</p>
               </div>
             )}
             {viewing.location && (
-              <div className="glass-card rounded-xl p-4">
+              <div className="nx-tile rounded-xl p-4">
                 <div className="flex items-center gap-2 mb-1 text-gray-500 text-xs font-mono"><MapPin className="w-3.5 h-3.5" /> МЕСТО</div>
                 <p className="font-mono text-sm text-gray-200">{viewing.location}</p>
               </div>
             )}
             {viewing.responsiblePerson && (
-              <div className="glass-card rounded-xl p-4">
+              <div className="nx-tile rounded-xl p-4">
                 <div className="flex items-center gap-2 mb-1 text-gray-500 text-xs font-mono">👤 ОТВЕТСТВЕННЫЙ</div>
                 <p className="font-mono text-sm text-gray-200">{viewing.responsiblePerson}</p>
               </div>
             )}
             {viewing.budget > 0 && (
-              <div className="glass-card rounded-xl p-4">
+              <div className="nx-tile rounded-xl p-4">
                 <div className="flex items-center gap-2 mb-1 text-gray-500 text-xs font-mono"><DollarSign className="w-3.5 h-3.5" /> БЮДЖЕТ</div>
                 <p className="font-mono text-sm text-gray-200">{viewing.budget.toLocaleString('ru-RU')} ₽</p>
               </div>
@@ -161,7 +161,7 @@ export default function Events() {
             <AnimatePresence>
               {showBlockForm && (
                 <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
-                  className="glass-card rounded-xl p-4 mb-3 space-y-3 overflow-hidden">
+                  className="nx-tile rounded-xl p-4 mb-3 space-y-3 overflow-hidden">
                   <input value={blockForm.title} onChange={e => setBlockForm({ ...blockForm, title: e.target.value })}
                     placeholder="Название блока" className="w-full px-3 py-2 rounded-lg bg-black/30 border border-gray-700 text-sm text-gray-200 font-mono" />
                   <textarea value={blockForm.description} onChange={e => setBlockForm({ ...blockForm, description: e.target.value })}
@@ -183,7 +183,7 @@ export default function Events() {
             {blocks.length > 0 ? (
               <div className="space-y-2">
                 {blocks.map((block: any) => (
-                  <div key={block.id} className="glass-card rounded-xl overflow-hidden">
+                  <div key={block.id} className="nx-tile rounded-xl overflow-hidden">
                     <button onClick={() => setExpandedBlock(expandedBlock === block.id ? null : block.id)}
                       className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-white/[0.03] transition-colors">
                       <span className="text-sm font-medium text-gray-200 flex-1 truncate">{block.title}</span>

@@ -544,7 +544,7 @@ export default function Quizzes() {
             <div key={q.id} className="nx-tile p-4">
               <div className="flex items-start gap-3">
                 {q.imageUrl ? (
-                  <img src={q.imageUrl} alt="" className="w-14 h-14 rounded-xl object-cover flex-shrink-0" />
+                  <img loading="lazy" src={q.imageUrl} alt="" className="w-14 h-14 rounded-xl object-cover flex-shrink-0" />
                 ) : (
                   <div className="w-14 h-14 rounded-xl flex items-center justify-center" style={{ background: 'rgba(0,255,136,0.1)', border: '1px solid var(--color-border)' }}>
                     <span className="text-lg">🧠</span>
@@ -665,7 +665,7 @@ export default function Quizzes() {
                     {uploads['quiz'] !== undefined ? (
                       <UploadSkeleton pct={uploads['quiz']} />
                     ) : form.imageUrl ? (
-                      <img src={form.imageUrl} alt="" className="w-12 h-12 rounded-lg object-cover" />
+                      <img loading="lazy" src={form.imageUrl} alt="" className="w-12 h-12 rounded-lg object-cover" />
                     ) : null}
                   </div>
                 </div>
@@ -800,7 +800,7 @@ export default function Quizzes() {
                               {uploads[`q${qi}`] !== undefined ? (
                                 <UploadSkeleton pct={uploads[`q${qi}`]} />
                               ) : q.imageUrl ? (
-                                <img src={q.imageUrl} alt="" className="w-10 h-10 rounded object-cover" />
+                                <img loading="lazy" src={q.imageUrl} alt="" className="w-10 h-10 rounded object-cover" />
                               ) : null}
                               {uploads[`qv${qi}`] !== undefined && <UploadSkeleton pct={uploads[`qv${qi}`]} />}
                               {uploads[`qa${qi}`] !== undefined && <UploadSkeleton pct={uploads[`qa${qi}`]} />}
@@ -879,7 +879,7 @@ export default function Quizzes() {
                                     {uploads[`o${qi}_${oi}`] !== undefined ? (
                                       <UploadSkeleton pct={uploads[`o${qi}_${oi}`]} />
                                     ) : o.imageUrl ? (
-                                      <img src={o.imageUrl} alt="" className="w-8 h-8 rounded object-cover" />
+                                      <img loading="lazy" src={o.imageUrl} alt="" className="w-8 h-8 rounded object-cover" />
                                     ) : null}
                                     <button
                                       onClick={() =>

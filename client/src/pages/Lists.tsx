@@ -824,7 +824,7 @@ export default function Lists() {
             {sortedEntries.map(e => {
               const answers = (() => { try { return JSON.parse(e.answers || '{}'); } catch { return {}; } })();
               return (
-                <motion.div key={e.id} layout className={`glass-card rounded-xl p-4 group ${e.pinned ? 'ring-1 ring-[var(--color-primary)]/30' : ''}`}>
+                <motion.div key={e.id} layout className={`nx-tile rounded-xl p-4 group ${e.pinned ? 'ring-1 ring-[var(--color-primary)]/30' : ''}`}>
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex items-center gap-1.5">
                       <button onClick={() => handleToggle(e.id, 'starred')} className="p-0.5">

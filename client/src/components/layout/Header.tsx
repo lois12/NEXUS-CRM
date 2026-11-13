@@ -84,7 +84,7 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
   return (
     <>
     <header
-      className="h-14 md:h-16 glass-frost flex items-center justify-between px-3 md:px-6 sticky top-0 z-40"
+      className="h-14 md:h-16 nx-surface flex items-center justify-between px-3 md:px-6 sticky top-0 z-40"
       style={{ boxShadow: 'var(--depth-ambient), var(--depth-rim-top)' }}
     >
       {/* Left: hamburger + search */}
@@ -127,7 +127,7 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
             )}
           </div>
           {showSearch && searchResults.length > 0 && (
-            <div className="absolute top-full left-0 right-0 mt-1 glass-frost rounded-xl overflow-hidden shadow-2xl max-h-80 overflow-y-auto" style={{ border: '1px solid rgba(255,255,255,0.1)', zIndex: 9999 }}>
+            <div className="absolute top-full left-0 right-0 mt-1 nx-surface rounded-xl overflow-hidden shadow-2xl max-h-80 overflow-y-auto" style={{ border: '1px solid rgba(255,255,255,0.1)', zIndex: 9999 }}>
               {searchResults.slice(0, 15).map(r => {
                 const Icon = typeIcons[r.type] || Search;
                 return (
@@ -135,7 +135,7 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
                     className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-white/5 transition-colors text-left">
                     <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
                       style={{ background: 'color-mix(in srgb, var(--color-primary) 10%, transparent)' }}>
-                      {r.avatar ? <img src={r.avatar} alt="" className="w-full h-full object-cover rounded-lg" />
+                      {r.avatar ? <img loading="lazy" src={r.avatar} alt="" className="w-full h-full object-cover rounded-lg" />
                       : <Icon className="w-3.5 h-3.5" style={{ color: 'var(--color-primary)' }} />}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -148,7 +148,7 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
             </div>
           )}
           {showSearch && searchQuery.length >= 2 && searchResults.length === 0 && (
-            <div className="absolute top-full left-0 right-0 mt-1 glass-frost rounded-xl p-4 text-center shadow-2xl" style={{ border: '1px solid rgba(255,255,255,0.1)', zIndex: 9999 }}>
+            <div className="absolute top-full left-0 right-0 mt-1 nx-surface rounded-xl p-4 text-center shadow-2xl" style={{ border: '1px solid rgba(255,255,255,0.1)', zIndex: 9999 }}>
               <span className="text-xs font-mono text-gray-500">Не найдено</span>
             </div>
           )}
@@ -177,7 +177,7 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
               initial={{ opacity: 0, y: -10, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -10, scale: 0.95 }}
-              className="absolute right-0 top-12 w-56 md:w-64 glass-frost rounded-2xl p-3 shadow-2xl"
+              className="absolute right-0 top-12 w-56 md:w-64 nx-surface rounded-2xl p-3 shadow-2xl"
               style={{ border: '1px solid rgba(255,255,255,0.1)', zIndex: 9999 }}
             >
               <div className="text-xs font-mono mb-2 px-2" style={{ color: 'var(--color-primary)' }}>
@@ -229,7 +229,7 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
             <div className="w-9 h-9 md:w-10 md:h-10 rounded-xl flex items-center justify-center overflow-hidden"
               style={{ border: '2px solid var(--color-primary)', boxShadow: '0 0 12px var(--color-glow)' }}>
               {user?.avatar ? (
-                <img src={user.avatar} alt={user.fullName} className="w-full h-full object-cover" />
+                <img loading="lazy" src={user.avatar} alt={user.fullName} className="w-full h-full object-cover" />
               ) : (
                 <span className="text-sm font-mono font-bold" style={{ color: 'var(--color-primary)' }}>
                   {user?.fullName?.charAt(0) || 'U'}
@@ -280,7 +280,7 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
             </button>
           </div>
           {showSearch && searchResults.length > 0 && (
-            <div className="mt-2 glass-frost rounded-xl overflow-hidden max-h-[70vh] overflow-y-auto" style={{ border: '1px solid rgba(255,255,255,0.1)' }}>
+            <div className="mt-2 nx-surface rounded-xl overflow-hidden max-h-[70vh] overflow-y-auto" style={{ border: '1px solid rgba(255,255,255,0.1)' }}>
               {searchResults.slice(0, 15).map(r => {
                 const Icon = typeIcons[r.type] || Search;
                 return (
@@ -288,7 +288,7 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
                     className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/5 transition-colors text-left">
                     <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
                       style={{ background: 'color-mix(in srgb, var(--color-primary) 10%, transparent)' }}>
-                      {r.avatar ? <img src={r.avatar} alt="" className="w-full h-full object-cover rounded-lg" />
+                      {r.avatar ? <img loading="lazy" src={r.avatar} alt="" className="w-full h-full object-cover rounded-lg" />
                       : <Icon className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -301,7 +301,7 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
             </div>
           )}
           {showSearch && searchQuery.length >= 2 && searchResults.length === 0 && (
-            <div className="mt-2 glass-frost rounded-xl p-4 text-center" style={{ border: '1px solid rgba(255,255,255,0.1)' }}>
+            <div className="mt-2 nx-surface rounded-xl p-4 text-center" style={{ border: '1px solid rgba(255,255,255,0.1)' }}>
               <span className="text-xs font-mono text-gray-500">Не найдено</span>
             </div>
           )}

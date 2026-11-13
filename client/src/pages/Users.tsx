@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useDebounce } from '../hooks/useDebounce';
 import {
@@ -147,11 +147,11 @@ export default function Users() {
     finally { setUploadingAvatar(false); }
   };
 
-  const filteredUsers = users.filter(u => {
+  const filteredUsers = useMemo(() => users.filter(u => {
     if (!debouncedSearch) return true;
     const q = debouncedSearch.toLowerCase();
     return u.fullName.toLowerCase().includes(q) || u.username.toLowerCase().includes(q) || u.email.toLowerCase().includes(q);
-  });
+  }), [users, debouncedSearch]);
 
   if (isLoading) {
     return <div className="flex items-center justify-center h-full"><div className="neon-text text-xl font-mono" style={{ color: 'var(--color-primary)' }}>Загрузка...</div></div>;

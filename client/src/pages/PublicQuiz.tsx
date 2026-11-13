@@ -127,7 +127,7 @@ export default function PublicQuiz() {
         {quiz?.imageUrl && (
           <div className="w-full rounded-2xl overflow-hidden mb-4 bg-white/5 flex items-center justify-center cursor-zoom-in"
             onClick={() => setZoom(quiz.imageUrl)}>
-            <img src={quiz.imageUrl} alt="" className="w-full max-h-72 object-contain" />
+            <img loading="lazy" src={quiz.imageUrl} alt="" className="w-full max-h-72 object-contain" />
           </div>
         )}
         <h1 className="font-mono text-2xl font-bold" style={{ color: 'var(--color-primary)' }}>{quiz?.title}</h1>
@@ -213,7 +213,7 @@ export default function PublicQuiz() {
                           <p className="text-[11px] text-gray-500 mt-1 leading-relaxed">{q.comment}</p>
                         )}
                         {q.imageUrl && (
-                          <img src={q.imageUrl} alt="" className="mt-2 rounded-lg max-h-56 object-contain cursor-zoom-in"
+                          <img loading="lazy" src={q.imageUrl} alt="" className="mt-2 rounded-lg max-h-56 object-contain cursor-zoom-in"
                             onClick={() => setZoom(q.imageUrl)} />
                         )}
                         {q.videoUrl && (
@@ -256,7 +256,7 @@ export default function PublicQuiz() {
                               </span>
                               <span className="flex-1 text-gray-200">{o.text}</span>
                               {o.imageUrl && (
-                                <img src={o.imageUrl} alt="" className="w-12 h-12 rounded object-cover cursor-zoom-in"
+                                <img loading="lazy" src={o.imageUrl} alt="" className="w-12 h-12 rounded object-cover cursor-zoom-in"
                                   onClick={(e) => { e.stopPropagation(); setZoom(o.imageUrl); }} />
                               )}
                             </button>

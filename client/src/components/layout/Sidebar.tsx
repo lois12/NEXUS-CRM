@@ -212,7 +212,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       {/* Sidebar */}
       <aside className={`
           fixed md:static inset-y-0 left-0 z-50
-          ${collapsed ? 'w-[68px]' : 'w-64'} glass-frost flex flex-col
+          ${collapsed ? 'w-[68px]' : 'w-64'} nx-surface flex flex-col
           transform transition-all duration-300 ease-in-out
           ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
         `}
