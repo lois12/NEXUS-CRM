@@ -49,6 +49,37 @@ interface HeaderProps {
   onToggleSidebar?: () => void;
 }
 
+/** Индикатор режима отрисовки (lite/pro) с переключением вручную */
+function PerfModeChip() {
+  const [lite, setLite] = useState(
+    () => typeof document !== 'undefined' && document.documentElement.classList.contains('low-fx')
+  );
+  const toggle = () => {
+    const next = !lite;
+    setLite(next);
+    document.documentElement.classList.toggle('low-fx', next);
+    try { localStorage.setItem('nexus-fx-mode', next ? 'lite' : 'pro'); } catch { /* storage blocked */ }
+  };
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      title={lite
+        ? 'Лёгкий режим: без размытия и анимаций. Нажмите для полного'
+        : 'Полный режим: все эффекты включены. Нажмите для лёгкого'}
+      className="nx-press hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg font-mono text-[9px] font-bold tracking-[0.14em] uppercase transition-colors"
+      style={{
+        color: lite ? '#eab308' : 'var(--color-primary)',
+        background: lite ? 'rgba(234,179,8,0.1)' : 'color-mix(in srgb, var(--color-primary) 10%, transparent)',
+        border: `1px solid ${lite ? 'rgba(234,179,8,0.28)' : 'color-mix(in srgb, var(--color-primary) 24%, transparent)'}`,
+      }}
+    >
+      <span className="w-1.5 h-1.5 rounded-full" style={{ background: lite ? '#eab308' : 'var(--color-primary)', boxShadow: `0 0 6px ${lite ? '#eab308' : 'var(--color-glow)'}` }} />
+      {lite ? 'LITE' : 'PRO'}
+    </button>
+  );
+}
+
 export default function Header({ onToggleSidebar }: HeaderProps) {
   const { user } = useAuth();
   const { themeName, setTheme, themes } = useTheme();
@@ -218,6 +249,7 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
           )}
         </div>
 
+        <PerfModeChip />
         <NotificationBell />
         <FeedbackButton />
         <OnlineUsers />

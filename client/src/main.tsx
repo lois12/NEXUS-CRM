@@ -6,13 +6,22 @@ import './styles/globals.css';
 
 // Слабые устройства: убираем blur/анимации (главный вор производительности).
 // Класс low-fx ставится до первого рендера, чтобы не было мигания.
+// Ручной выбор пользователя (nexus-fx-mode) имеет приоритет над автодетектом.
 if (typeof document !== 'undefined') {
-  const nav = navigator as Navigator & { deviceMemory?: number };
-  const cores = nav.hardwareConcurrency ?? 8;
-  const mem = nav.deviceMemory ?? 8;
-  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if (cores <= 4 || mem <= 4 || reduced) {
+  let mode = '';
+  try { mode = localStorage.getItem('nexus-fx-mode') || ''; } catch { /* storage blocked */ }
+  if (mode === 'lite') {
     document.documentElement.classList.add('low-fx');
+  } else if (mode === 'pro') {
+    document.documentElement.classList.remove('low-fx');
+  } else {
+    const nav = navigator as Navigator & { deviceMemory?: number };
+    const cores = nav.hardwareConcurrency ?? 8;
+    const mem = nav.deviceMemory ?? 8;
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (cores <= 4 || mem <= 4 || reduced) {
+      document.documentElement.classList.add('low-fx');
+    }
   }
 }
 
