@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import SmartImage from '../ui/SmartImage';
-import { BarChart3, Image as ImageIcon, Copy, Link2, Trash2 } from 'lucide-react';
+import { BarChart3, Image as ImageIcon, Copy, Link2, Trash2, QrCode, X } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 import SurveyStatusSelect, { STATUS_META } from './SurveyStatusSelect';
 import type { Survey, SurveyStatus } from '../../services/surveyApi';
 import { formatRuDate } from '../../utils/collageStore';
@@ -21,8 +23,11 @@ export default function SurveyCard({
 }: Props) {
   const status = survey.status || (survey.isPublic ? 'published' : 'draft');
   const meta = STATUS_META[status];
+  const [showQr, setShowQr] = useState(false);
+  const publicUrl = survey.publicSlug ? `${window.location.origin}/opros/${survey.publicSlug}` : '';
 
   return (
+    <>
     <motion.div
       className="nx-tile overflow-hidden cursor-pointer"
       onClick={onOpen}
@@ -74,9 +79,14 @@ export default function SurveyCard({
             СТАТИСТИКА
           </button>
           {(status === 'published' || status === 'completed') && survey.publicSlug && (
-            <button onClick={onCopyLink} className="px-2 py-1.5 rounded-lg font-mono text-[10px] glass hover:bg-white/10 nx-press" title="Ссылка">
-              <Link2 className="w-3 h-3" />
-            </button>
+            <>
+              <button onClick={onCopyLink} className="px-2 py-1.5 rounded-lg font-mono text-[10px] glass hover:bg-white/10 nx-press" title="Ссылка">
+                <Link2 className="w-3 h-3" />
+              </button>
+              <button onClick={() => setShowQr(true)} className="px-2 py-1.5 rounded-lg font-mono text-[10px] glass hover:bg-white/10 nx-press" title="QR-код">
+                <QrCode className="w-3 h-3" />
+              </button>
+            </>
           )}
           <button onClick={onDuplicate} className="px-2 py-1.5 rounded-lg font-mono text-[10px] glass hover:bg-white/10 nx-press" title="Дублировать">
             <Copy className="w-3 h-3" />
@@ -87,5 +97,41 @@ export default function SurveyCard({
         </div>
       </div>
     </motion.div>
+
+    {/* QR модалка */}
+    {showQr && (
+      <div
+        className="fixed inset-0 z-[120] flex items-center justify-center p-4"
+        style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)' }}
+        onClick={() => setShowQr(false)}
+      >
+        <div className="nx-bezel" onClick={(e) => e.stopPropagation()}>
+          <div className="nx-core p-6 text-center">
+            <div className="flex items-center justify-between mb-3">
+              <span className="nx-eyebrow">QR-КОД</span>
+              <button onClick={() => setShowQr(false)} className="p-1 rounded-lg hover:bg-white/10 nx-press" aria-label="Закрыть">
+                <X className="w-4 h-4 text-gray-400" />
+              </button>
+            </div>
+            <div className="inline-block p-3 bg-white rounded-xl">
+              <QRCodeSVG value={publicUrl} size={180} />
+            </div>
+            <p className="font-mono text-[10px] text-gray-500 mt-3 break-all max-w-[260px] mx-auto">{publicUrl}</p>
+            <button
+              onClick={() => {
+                const ta = document.createElement('textarea');
+                ta.value = publicUrl; ta.style.cssText = 'position:fixed;left:-9999px';
+                document.body.appendChild(ta); ta.select(); document.execCommand('copy');
+                document.body.removeChild(ta);
+              }}
+              className="mt-3 px-4 py-2 rounded-lg font-mono text-[10px] glass hover:bg-white/10 nx-press"
+            >
+              СКОПИРОВАТЬ ССЫЛКУ
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
