@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import SmartImage from '../ui/SmartImage';
 import { BarChart3, Image as ImageIcon, Copy, Link2, Trash2 } from 'lucide-react';
 import SurveyStatusSelect, { STATUS_META } from './SurveyStatusSelect';
 import type { Survey, SurveyStatus } from '../../services/surveyApi';
@@ -28,7 +29,7 @@ export default function SurveyCard({
     >
       <div className="h-24 bg-black/40 relative">
         {survey.imageUrl ? (
-          <img src={survey.imageUrl} alt="" className="w-full h-full object-cover" />
+          <SmartImage src={survey.imageUrl} alt="" className="w-full h-full object-cover" />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-gray-700">
             <ImageIcon className="w-7 h-7" />

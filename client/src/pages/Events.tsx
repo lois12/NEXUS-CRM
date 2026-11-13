@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import SmartImage from '../components/ui/SmartImage';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Search, Edit3, Trash2, Calendar, MapPin, DollarSign, ArrowLeft, Clock, Camera, Image, ChevronRight, User } from 'lucide-react';
 import { eventsApi } from '../services/api';
@@ -102,7 +103,7 @@ export default function Events() {
         <div className="glass rounded-2xl overflow-hidden">
           {viewing.imageUrl && (
             <div className="h-48 md:h-64 overflow-hidden">
-              <img loading="lazy" decoding="async" src={viewing.imageUrl} alt={viewing.title} className="w-full h-full object-cover" />
+              <SmartImage loading="lazy" decoding="async" src={viewing.imageUrl} alt={viewing.title} className="w-full h-full object-cover" />
             </div>
           )}
           <div className="p-6 md:p-8">
@@ -259,7 +260,7 @@ export default function Events() {
               onClick={() => setViewing(e)}>
               {e.imageUrl && (
                 <div className="h-32 overflow-hidden">
-                  <img loading="lazy" decoding="async" src={e.imageUrl} alt={e.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                  <SmartImage loading="lazy" decoding="async" src={e.imageUrl} alt={e.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                 </div>
               )}
               <div className="p-4">
@@ -304,7 +305,7 @@ export default function Events() {
             <div className="flex items-center gap-3">
               <div className="w-20 h-20 rounded-lg overflow-hidden bg-white/5 flex-shrink-0">
                 {form.imageUrl ? (
-                  <img loading="lazy" decoding="async" src={form.imageUrl} alt="" className="w-full h-full object-cover" />
+                  <SmartImage loading="lazy" decoding="async" src={form.imageUrl} alt="" className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center"><Image className="w-6 h-6 text-gray-600" /></div>
                 )}

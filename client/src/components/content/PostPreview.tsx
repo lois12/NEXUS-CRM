@@ -1,4 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
+import SmartImage from '../ui/SmartImage';
 import { X, Send, Edit, Calendar, Globe } from 'lucide-react';
 
 interface PostPreviewProps {
@@ -73,7 +74,7 @@ export default function PostPreview({ title, content, platform, imageUrl, schedu
               {/* Image */}
               {imageUrl && (
                 <div className="aspect-video relative overflow-hidden">
-                  <img loading="lazy" decoding="async" src={imageUrl} alt="" className="w-full h-full object-cover" />
+                  <SmartImage loading="lazy" decoding="async" src={imageUrl} alt="" className="w-full h-full object-cover" />
                 </div>
               )}
 

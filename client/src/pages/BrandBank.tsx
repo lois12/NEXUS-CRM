@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import SmartImage from '../components/ui/SmartImage';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Search, Trash2, X, Download, Upload, Image, FileText, Film, Music, Edit3, Grid, List, Sliders } from 'lucide-react';
 import { brandApi } from '../services/api';
@@ -235,7 +236,7 @@ export default function BrandBank() {
                   {/* Preview */}
                   <div className={`flex items-center justify-center ${preset.imgH} bg-white/5 overflow-hidden`}>
                     {isImage(a.mimeType) ? (
-                      <img loading="lazy" decoding="async" src={a.url} alt={a.name} draggable="false" onClick={() => setZoomedImage(a.url)} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ink-reveal select-none cursor-pointer" />
+                      <SmartImage loading="lazy" decoding="async" src={a.url} alt={a.name} draggable="false" onClick={() => setZoomedImage(a.url)} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ink-reveal select-none cursor-pointer" />
                     ) : (
                       <CatIcon className="w-10 h-10 text-gray-600" />
                     )}
@@ -294,7 +295,7 @@ export default function BrandBank() {
                       <td className="p-4">
                         <div className="flex items-center gap-3">
                           {isImage(a.mimeType) ? (
-                            <img loading="lazy" decoding="async" src={a.url} alt="" className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
+                            <SmartImage loading="lazy" decoding="async" src={a.url} alt="" className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
                           ) : (
                             <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-white/5 flex-shrink-0">
                               <CatIcon className="w-5 h-5 text-gray-500" />
@@ -355,7 +356,7 @@ export default function BrandBank() {
               <div className="mb-4">
                 {preview ? (
                   <div className="relative rounded-xl overflow-hidden">
-                    <img loading="lazy" decoding="async" src={preview} alt="" draggable="false" className="w-full h-40 object-contain bg-white/5 select-none" />
+                    <SmartImage loading="lazy" decoding="async" src={preview} alt="" draggable="false" className="w-full h-40 object-contain bg-white/5 select-none" />
                     {!editingAsset && (
                       <button onClick={() => { setSelectedFile(null); setPreview(null); }}
                         className="absolute top-2 right-2 p-1 rounded-full bg-black/60 hover:bg-black/80">

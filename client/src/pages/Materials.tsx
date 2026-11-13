@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import SmartImage from '../components/ui/SmartImage';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
 import { useDebounce } from '../hooks/useDebounce';
@@ -453,7 +454,7 @@ export default function Materials() {
               >
                 <div className={`flex items-center justify-center ${preset.imgH} bg-white/5`}>
                   {material.type === 'image' ? (
-                    <img
+                    <SmartImage
                       loading="lazy"
                       decoding="async"
                       src={thumb}
@@ -579,7 +580,7 @@ export default function Materials() {
               {/* Preview */}
               <div className="px-5 py-3 flex items-center gap-3">
                 {sendModal.type === 'image' ? (
-                  <img loading="lazy" decoding="async" src={sendModal.url} alt="" draggable="false" className="w-16 h-16 rounded-lg object-cover select-none" style={{ border: '1px solid rgba(255,255,255,0.06)' }} />
+                  <SmartImage loading="lazy" decoding="async" src={sendModal.url} alt="" draggable="false" className="w-16 h-16 rounded-lg object-cover select-none" style={{ border: '1px solid rgba(255,255,255,0.06)' }} />
                 ) : (
                   <div className="w-16 h-16 rounded-lg flex items-center justify-center" style={{ background: 'rgba(0,212,255,0.1)', border: '1px solid rgba(0,212,255,0.2)' }}>
                     {(() => { const Icon = typeIcons[sendModal.type]; return <Icon className="w-8 h-8" style={{ color: '#00d4ff' }} />; })()}

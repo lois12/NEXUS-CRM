@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import SmartImage from '../components/ui/SmartImage';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Search, Edit3, Trash2, BookOpen, Clock, Eye, Upload, Download, X, Image as ImageIcon, FileText, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -261,7 +262,7 @@ export default function Knowledge() {
             <ReactMarkdown
               components={{
                 img: ({ src, alt }: any) => (
-                  <img
+                  <SmartImage
                     src={src}
                     alt={alt || ''}
                     loading="lazy"
@@ -287,7 +288,7 @@ export default function Knowledge() {
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
               {images.map((att, idx) => (
                 <div key={att.id} className="relative rounded-xl overflow-hidden group">
-                  <img src={(att as any).thumbnailUrl || att.url} alt={att.originalName} draggable="false"
+                  <SmartImage src={(att as any).thumbnailUrl || att.url} alt={att.originalName} draggable="false"
                     className="w-full h-32 object-cover select-none cursor-zoom-in hover:scale-105 transition-transform relative z-10"
                     loading="lazy" decoding="async"
                     onClick={() => setLightboxIdx(idx)} />

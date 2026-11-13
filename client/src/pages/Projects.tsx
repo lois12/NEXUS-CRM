@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import SmartImage from '../components/ui/SmartImage';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus, Trash2, Edit3, X, Search, Calendar, Flag, User,
@@ -399,7 +400,7 @@ export default function Projects() {
             {/* ── Description ── */}
             {viewTab === 'desc' && (
               <div className="glass rounded-xl p-6 space-y-4">
-                {viewing.imageUrl && <img loading="lazy" decoding="async" src={`${viewing.imageUrl}`} alt="" draggable="false" className="w-full max-h-64 object-cover rounded-lg select-none" />}
+                {viewing.imageUrl && <SmartImage loading="lazy" decoding="async" src={`${viewing.imageUrl}`} alt="" draggable="false" className="w-full max-h-64 object-cover rounded-lg select-none" />}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                   <div><span className="text-gray-500 font-mono text-xs block">ПЕРИОД</span><span className="text-gray-200 font-mono">{viewing.startDate || '—'} — {viewing.endDate || '—'}</span></div>
                   <div><span className="text-gray-500 font-mono text-xs block">ОТВЕТСТВЕННЫЙ</span><span className="text-gray-200 font-mono">{viewing.responsiblePerson || '—'}</span></div>
@@ -463,7 +464,7 @@ export default function Projects() {
                             <video src={`${doc.filePath}`} draggable="false" className={`w-full ${mediaPreset.imgH} object-cover transition-opacity duration-500`}
                               onLoadedData={e => (e.target as HTMLVideoElement).style.opacity = '1'} style={{ opacity: 0 }} />
                           ) : (
-                            <img loading="lazy" decoding="async" src={doc.thumbnailPath || doc.filePath} alt={doc.fileName} draggable="false"
+                            <SmartImage loading="lazy" decoding="async" src={doc.thumbnailPath || doc.filePath} alt={doc.fileName} draggable="false"
                               className={`w-full ${mediaPreset.imgH} object-cover transition-opacity duration-500 select-none`}
                               onLoad={e => (e.target as HTMLImageElement).style.opacity = '1'}
                               style={{ opacity: 0 }} />
@@ -767,7 +768,7 @@ export default function Projects() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
         {filtered.map(p => (
           <div key={p.id} onClick={() => openDetail(p)} className="nx-tile p-4 cursor-pointer group">
-            {p.imageUrl && <img loading="lazy" decoding="async" src={`${p.imageUrl}`} alt="" className="w-full h-32 object-cover rounded-lg mb-3" />}
+            {p.imageUrl && <SmartImage loading="lazy" decoding="async" src={`${p.imageUrl}`} alt="" className="w-full h-32 object-cover rounded-lg mb-3" />}
             <div className="flex items-start justify-between mb-2">
               <h3 className="font-mono text-sm font-bold text-gray-200 truncate flex-1">{p.title}</h3>
               <button onClick={(e) => { e.stopPropagation(); handleDelete(p.id); }} className="p-1 rounded hover:bg-red-500/20 opacity-0 group-hover:opacity-100 transition-opacity nx-press" aria-label="Удалить"><Trash2 className="w-3.5 h-3.5 text-red-400" /></button>

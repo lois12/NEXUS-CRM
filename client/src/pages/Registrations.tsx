@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import SmartImage from '../components/ui/SmartImage';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Search, Edit3, Trash2, X, ClipboardList, Eye, QrCode, Copy, Calendar, Users, MapPin, ArrowLeft, Clock, Upload, Camera, ExternalLink, BarChart3, Phone, CheckCircle } from 'lucide-react';
 import { Registration, RegistrationField, RegistrationSubmission, FieldType, FIELD_TYPE_CONFIG } from '../types';
@@ -802,7 +803,7 @@ export default function Registrations() {
               {/* Current image preview */}
               {imageUrl && !imageFiles.length ? (
                 <div className="relative rounded-xl overflow-hidden mb-3 group">
-                  <img loading="lazy" src={imageUrl} alt="" draggable="false" className="w-full h-40 object-cover rounded-xl select-none" />
+                  <SmartImage loading="lazy" src={imageUrl} alt="" draggable="false" className="w-full h-40 object-cover rounded-xl select-none" />
                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                     <button onClick={() => { setImageUrl(''); }} className="p-2 rounded-lg bg-red-500/30 hover:bg-red-500/50 transition-colors nx-press">
                       <X className="w-4 h-4 text-red-400" />
@@ -814,7 +815,7 @@ export default function Registrations() {
               {imageFiles.length > 0 && (
                 <div className="mb-3">
                   <div className="relative rounded-xl overflow-hidden mb-2">
-                    <img loading="lazy" src={URL.createObjectURL(imageFiles[0])} alt="" draggable="false" className="w-full h-40 object-cover rounded-xl select-none" />
+                    <SmartImage loading="lazy" src={URL.createObjectURL(imageFiles[0])} alt="" draggable="false" className="w-full h-40 object-cover rounded-xl select-none" />
                     <button onClick={() => { setImageFiles([]); }} className="absolute top-2 right-2 p-1 rounded-full bg-black/60 hover:bg-black/80 nx-press">
                       <X className="w-4 h-4 text-white" />
                     </button>
@@ -955,7 +956,7 @@ export default function Registrations() {
                       {m.type === 'video' ? (
                         <video src={m.url} draggable="false" className="w-full h-24 object-cover select-none" />
                       ) : (
-                        <img loading="lazy" src={m.url} alt="" draggable="false" className="w-full h-24 object-cover select-none" />
+                        <SmartImage loading="lazy" src={m.url} alt="" draggable="false" className="w-full h-24 object-cover select-none" />
                       )}
                       <button onClick={async () => { await registrationsApi.deleteMedia(m.id); setMediaItems(prev => prev.filter((i: any) => i.id !== m.id)); showToast('Удалено', 'success'); }}
                         className="absolute top-1 right-1 p-1 rounded-full bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity nx-press">
@@ -973,7 +974,7 @@ export default function Registrations() {
                       {f.type.startsWith('video/') ? (
                         <video src={URL.createObjectURL(f)} draggable="false" className="w-full h-24 object-cover select-none" />
                       ) : (
-                        <img loading="lazy" src={URL.createObjectURL(f)} alt="" draggable="false" className="w-full h-24 object-cover select-none" />
+                        <SmartImage loading="lazy" src={URL.createObjectURL(f)} alt="" draggable="false" className="w-full h-24 object-cover select-none" />
                       )}
                       <button onClick={() => setMediaFiles(prev => prev.filter((_, j) => j !== i))}
                         className="absolute top-1 right-1 p-1 rounded-full bg-black/60 nx-press">
@@ -1180,7 +1181,7 @@ export default function Registrations() {
               onClick={() => openEdit(reg)}>
               {reg.imageUrl && (
                 <div className="h-36 overflow-hidden">
-                  <img loading="lazy" src={reg.imageUrl} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                  <SmartImage loading="lazy" src={reg.imageUrl} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                 </div>
               )}
               <div className="p-5 space-y-3">

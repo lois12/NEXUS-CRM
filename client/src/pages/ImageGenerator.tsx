@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import SmartImage from '../components/ui/SmartImage';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ImageIcon,
@@ -440,7 +441,7 @@ export default function ImageGenerator() {
                       </div>
                     </div>
                   )}
-                  <img loading="lazy" decoding="async" src={selectedImage.url}
+                  <SmartImage loading="lazy" decoding="async" src={selectedImage.url}
                     alt={selectedImage.promptRu}
                     className={`w-full h-full object-contain transition-opacity duration-500 ${
                       selectedImage.status === 'loading' ? 'opacity-0' : 'opacity-100'
@@ -549,7 +550,7 @@ export default function ImageGenerator() {
                           <AlertCircle className="w-6 h-6 text-red-400" />
                         </div>
                       ) : (
-                        <img loading="lazy" decoding="async" src={img.url} alt={img.promptRu} className="w-full h-full object-cover" />
+                        <SmartImage loading="lazy" decoding="async" src={img.url} alt={img.promptRu} className="w-full h-full object-cover" />
                       )}
                       <button
                         onClick={(e) => {

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import SmartImage from '../components/ui/SmartImage';
 import { useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Calendar, MapPin, Clock, Users, Play, XCircle, AlertTriangle, Navigation, Share2, Sparkles, Info } from 'lucide-react';
@@ -523,7 +524,7 @@ export default function PublicRegistration() {
                 {allMedia[activeMediaIdx]?.type === 'video' ? (
                   <video src={allMedia[activeMediaIdx].url} controls className="w-full max-h-[420px] object-cover" />
                 ) : (
-                  <img loading="lazy" src={allMedia[activeMediaIdx]?.url} alt="" className="w-full h-64 sm:h-80 object-cover" />
+                  <SmartImage loading="lazy" src={allMedia[activeMediaIdx]?.url} alt="" className="w-full h-64 sm:h-80 object-cover" />
                 )}
                 {allMedia.length > 1 && (
                   <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-black/40 backdrop-blur-sm">
@@ -548,7 +549,7 @@ export default function PublicRegistration() {
                           <Play className="w-4 h-4 text-white" />
                         </div>
                       ) : (
-                        <img loading="lazy" src={m.url} alt="" className="w-full h-full object-cover" />
+                        <SmartImage loading="lazy" src={m.url} alt="" className="w-full h-full object-cover" />
                       )}
                     </button>
                   ))}

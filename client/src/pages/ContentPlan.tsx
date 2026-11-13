@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, Suspense, lazy } from 'react';
+import SmartImage from '../components/ui/SmartImage';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus,
@@ -1123,7 +1124,7 @@ export default function ContentPlan() {
                             >
                               <div className="px-4 pb-4 pt-1 border-t border-white/5">
                                 {post.imageUrl && (
-                                  <img src={(post as any).thumbnailUrl || post.imageUrl} alt="" className="w-full max-h-40 object-cover rounded-lg mb-3" />
+                                  <SmartImage src={(post as any).thumbnailUrl || post.imageUrl} alt="" className="w-full max-h-40 object-cover rounded-lg mb-3" />
                                 )}
                                 <p className="text-xs text-gray-400 mb-3 whitespace-pre-wrap">{post.content}</p>
                                 {post.scheduledDate && (
