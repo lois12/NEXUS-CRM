@@ -38,8 +38,8 @@ export default function ImageUpload({ images, onImagesChange, onFilesChange, max
         continue;
       }
 
-      const base64 = await fileToBase64(file);
-      newImages.push(base64);
+      // объект-URL вместо base64: без FileReader, без фризов на слабых машинах
+      newImages.push(URL.createObjectURL(file));
       newFiles.push(file);
     }
 
@@ -48,15 +48,6 @@ export default function ImageUpload({ images, onImagesChange, onFilesChange, max
     if (onFilesChange) onFilesChange(filesRef.current);
     setUploadingCount(0);
   }, [images, maxImages, maxSizeMB, onImagesChange, onFilesChange]);
-
-  const fileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-  };
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -85,7 +76,8 @@ export default function ImageUpload({ images, onImagesChange, onFilesChange, max
 
   const removeImage = (index: number) => {
     const newImages = [...images];
-    newImages.splice(index, 1);
+    const [removed] = newImages.splice(index, 1);
+    if (removed && removed.startsWith('blob:')) URL.revokeObjectURL(removed);
     onImagesChange(newImages);
     filesRef.current.splice(index, 1);
     if (onFilesChange) onFilesChange(filesRef.current);
@@ -112,20 +104,9 @@ export default function ImageUpload({ images, onImagesChange, onFilesChange, max
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
             >
-              {/* Nexus mini spinner */}
-              <div className="relative w-10 h-10">
-                <motion.div
-                  className="absolute inset-0 rounded-full"
-                  style={{ border: '2px solid transparent', borderTopColor: 'var(--color-primary)' }}
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 0.8, repeat: Infinity, ease: 'linear' }}
-                />
-                <motion.div
-                  className="absolute inset-1.5 rounded-full"
-                  style={{ border: '2px solid transparent', borderBottomColor: 'var(--color-accent)' }}
-                  animate={{ rotate: -360 }}
-                  transition={{ duration: 1.2, repeat: Infinity, ease: 'linear' }}
-                />
+              {/* лёгкий CSS-спиннер (framer-анимации фризили слабые машины) */}
+              <div className="w-10 h-10 flex items-center justify-center">
+                <span className="smart-image-spinner" style={{ width: 28, height: 28 }} />
               </div>
               <span className="font-mono text-xs" style={{ color: 'var(--color-primary)' }}>
                 // ЗАГРУЗКА {uploadingCount} ФАЙЛОВ...

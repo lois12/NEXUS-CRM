@@ -94,9 +94,8 @@ export default function BrandBank() {
     setSelectedFile(file);
     if (!form.name) setForm(prev => ({ ...prev, name: file.name.replace(/\.[^/.]+$/, '') }));
     if (file.type.startsWith('image/')) {
-      const reader = new FileReader();
-      reader.onload = (e) => setPreview(e.target?.result as string);
-      reader.readAsDataURL(file);
+      // объект-URL вместо base64 — превью без фризов
+      setPreview(URL.createObjectURL(file));
     } else {
       setPreview(null);
     }
