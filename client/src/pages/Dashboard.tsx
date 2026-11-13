@@ -91,7 +91,9 @@ function FloatingBadges() {
       }
     }, 2000);
 
-    const interval = setInterval(() => {
+    // не гоняем React каждые 3.5с на слабых машинах
+    const lowFx = typeof document !== 'undefined' && document.documentElement.classList.contains('low-fx');
+    const interval = lowFx ? 0 : setInterval(() => {
       if (Math.random() > 0.4) addBadge();
       if (visible.length > 3) setVisible(prev => prev.slice(1));
     }, 3500);

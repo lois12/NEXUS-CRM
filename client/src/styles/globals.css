@@ -297,7 +297,6 @@ html, body {
     linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
   background-size: 50px 50px;
-  background-attachment: fixed;
 }
 
 /* Scanline effect */
@@ -1908,8 +1907,8 @@ input[type="file"]::file-selector-button:hover {
   to { opacity: 1; transform: none; }
 }
 
-/* ===== DEPTH SYSTEM — против плоскости ===== */
-/* Слои тени: ambient (дальняя) + contact (близкая) + rim (внутренний блик) */
+/* ===== DEPTH SYSTEM пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ ===== */
+/* пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ: ambient (пїЅпїЅпїЅпїЅпїЅпїЅпїЅ) + contact (пїЅпїЅпїЅпїЅпїЅпїЅпїЅ) + rim (пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ) */
 :root {
   --depth-ambient: 0 24px 48px -12px rgba(0, 0, 0, 0.45);
   --depth-contact: 0 2px 6px -1px rgba(0, 0, 0, 0.35);
@@ -1927,7 +1926,7 @@ input[type="file"]::file-selector-button:hover {
   --depth-float: 0 24px 48px -16px rgba(15, 23, 42, 0.18), 0 8px 20px -8px rgba(15, 23, 42, 0.1);
 }
 
-/* Двойная рамка (double-bezel): внешняя обечайка + внутреннее ядро */
+/* пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ (double-bezel): пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ + пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ */
 .nx-bezel {
   padding: 6px;
   border-radius: 22px;
@@ -1946,7 +1945,7 @@ input[type="file"]::file-selector-button:hover {
   background: linear-gradient(155deg, #ffffff, #f1f5f9);
 }
 
-/* Панель с объёмом — готовая замена плоским .glass-блокам */
+/* пїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ .glass-пїЅпїЅпїЅпїЅпїЅпїЅ */
 .nx-panel {
   position: relative;
   border-radius: 18px;
@@ -1974,7 +1973,7 @@ input[type="file"]::file-selector-button:hover {
   border-color: rgba(15, 23, 42, 0.08);
 }
 
-/* Плавающая карточка для повторяющихся сущностей */
+/* пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ */
 .nx-tile {
   position: relative;
   border-radius: 16px;
@@ -1993,14 +1992,14 @@ input[type="file"]::file-selector-button:hover {
   border-color: rgba(15, 23, 42, 0.08);
 }
 
-/* Кнопка-«орех» с физикой нажатия */
+/* пїЅпїЅпїЅпїЅпїЅпїЅ-пїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ */
 .nx-press {
   transition: transform 0.18s var(--ease-spring), box-shadow 0.18s ease, filter 0.18s ease;
 }
 .nx-press:hover { transform: translateY(-1px); filter: brightness(1.06); }
 .nx-press:active { transform: translateY(1px) scale(0.975); }
 
-/* Заголовок раздела с «надзаголовком»-ярлыком */
+/* пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ-пїЅпїЅпїЅпїЅпїЅпїЅпїЅ */
 .nx-eyebrow {
   display: inline-flex;
   align-items: center;
@@ -2018,7 +2017,7 @@ input[type="file"]::file-selector-button:hover {
   box-shadow: 0 0 16px var(--color-glow);
 }
 
-/* Разделитель-«жёлоб» между секциями */
+/* пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ-пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ */
 .nx-divider {
   height: 1px;
   border: 0;
@@ -2028,7 +2027,7 @@ input[type="file"]::file-selector-button:hover {
   background: linear-gradient(90deg, transparent, rgba(15, 23, 42, 0.12) 18%, rgba(15, 23, 42, 0.12) 82%, transparent);
 }
 
-/* Сквозной фон сайта: градиентные сферы + сетка */
+/* пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ: пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ + пїЅпїЅпїЅпїЅпїЅ */
 .nx-stage {
   position: relative;
 }
@@ -2067,7 +2066,7 @@ input[type="file"]::file-selector-button:hover {
     linear-gradient(90deg, rgba(15, 23, 42, 0.03) 1px, transparent 1px);
 }
 
-/* Ступенчатое появление элементов списка */
+/* пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ */
 @keyframes nx-rise {
   from { opacity: 0; transform: translateY(14px) scale(0.985); }
   to   { opacity: 1; transform: none; }
@@ -2078,3 +2077,51 @@ input[type="file"]::file-selector-button:hover {
 .nx-rise-3 { animation-delay: 140ms; }
 .nx-rise-4 { animation-delay: 190ms; }
 .nx-rise-5 { animation-delay: 240ms; }
+
+/* ===== LOW-FX вЂ” СЃР»Р°Р±С‹Рµ СѓСЃС‚СЂРѕР№СЃС‚РІР° =====
+   Р“Р»Р°РІРЅС‹Р№ РІРѕСЂ РїСЂРѕРёР·РІРѕРґРёС‚РµР»СЊРЅРѕСЃС‚Рё: backdrop-filter РЅР° РґРµСЃСЏС‚РєР°С… РєР°СЂС‚РѕС‡РµРє.
+   РљР»Р°СЃСЃ СЃС‚Р°РІРёС‚СЃСЏ РІ main.tsx РїСЂРё cores<=4 / mem<=4 / prefers-reduced-motion. */
+html.low-fx *,
+html.low-fx *::before,
+html.low-fx *::after {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+html.low-fx .glass,
+html.low-fx .glass-card,
+html.low-fx .glass-accent,
+html.low-fx .glass-frost {
+  background: linear-gradient(155deg, rgba(28, 28, 48, 0.92), rgba(16, 16, 30, 0.96)) !important;
+}
+html.low-fx .nx-bezel > .nx-core,
+html.low-fx .nx-panel,
+html.low-fx .nx-tile {
+  background: linear-gradient(155deg, rgba(28, 28, 48, 0.92), rgba(16, 16, 30, 0.96)) !important;
+}
+html.low-fx.theme-light .glass,
+html.low-fx.theme-light .glass-card,
+html.low-fx.theme-light .glass-accent,
+html.low-fx.theme-light .glass-frost,
+html.low-fx.theme-light .nx-bezel > .nx-core,
+html.low-fx.theme-light .nx-panel,
+html.low-fx.theme-light .nx-tile {
+  background: #ffffff !important;
+}
+/* РІРµС‡РЅС‹Рµ Р°РЅРёРјР°С†РёРё вЂ” РѕРґРёРЅ РїСЂРѕС…РѕРґ РІРјРµСЃС‚Рѕ Р±РµСЃРєРѕРЅРµС‡РЅРѕРіРѕ С†РёРєР»Р° */
+html.low-fx *,
+html.low-fx *::before,
+html.low-fx *::after {
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.12s !important;
+}
+html.low-fx .nx-panel,
+html.low-fx .nx-tile,
+html.low-fx .nx-bezel {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25) !important;
+}
+/* РґР»РёРЅРЅС‹Рµ СЃРїРёСЃРєРё: РЅРµ СЂРёСЃСѓРµРј С‚Рѕ, С‡С‚Рѕ РІРЅРµ СЌРєСЂР°РЅР° */
+.low-fx .mat-card,
+.low-fx .nx-tile {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 120px;
+}

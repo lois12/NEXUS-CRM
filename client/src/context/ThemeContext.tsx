@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useMemo, ReactNode, useCallback } from 'react';
 import { ThemeName, Theme } from '../types';
 
 const themes: Record<ThemeName, Theme> = {
@@ -133,15 +133,17 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     setTimeout(() => setIsTransitioning(false), 600);
   }, [themeName]);
 
+  const value = useMemo(() => ({
+    currentTheme: themes[themeName],
+    themeName,
+    setTheme,
+    themes,
+    isTransitioning,
+  }), [themeName, setTheme, isTransitioning]);
+
   return (
     <ThemeContext.Provider
-      value={{
-        currentTheme: themes[themeName],
-        themeName,
-        setTheme,
-        themes,
-        isTransitioning,
-      }}
+      value={value}
     >
       {/* Theme transition overlay */}
       {isTransitioning && (

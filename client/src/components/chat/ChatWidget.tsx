@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo, Suspense, lazy } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageCircle, X, Send, Paperclip, Smile, Mic, ArrowLeft, Reply, File as FileIcon, Square, Maximize2, Minimize2, Users, Image as ImageIcon, UserPlus, Volume2, VolumeX, Check, Search, Pin, Forward, Edit3, Info, MoreHorizontal, Download, ZoomIn, Upload, Trash2, LogOut } from 'lucide-react';
 import { chatApi, usersApi } from '../../services/api';
@@ -10,9 +10,11 @@ import { useNavigate } from 'react-router-dom';
 import { GLASS_BG, GLASS_BORDER, GLASS_BLUR, GLOW_GREEN } from './chatConstants';
 import { playSound, url, extractMentions, renderMentions, renderRichText, fmtMsgTime, fmtTime } from './chatUtils';
 import GifPicker from './GifPicker';
-import EmojiPicker from './EmojiPicker';
+// лениво: @emoji-mart/data — сотни КБ JSON, грузим только при открытии пикера
+const EmojiPicker = lazy(() => import('./EmojiPicker'));
 import StickerPicker from './StickerPicker';
-import ReactMarkdown from 'react-markdown';
+// лениво: react-markdown (~120 КБ) грузим при первом markdown-сообщении
+const ReactMarkdown = lazy(() => import('react-markdown'));
 import { Avatar, DateSeparator, isOnline, formatLastSeen } from './chatShared';
 import VoicePlayer from './VoicePlayer';
 import { ContextMenuOverlay, ForwardOverlay, ProfileModalOverlay, PollMessage } from './ChatOverlays';
@@ -624,6 +626,7 @@ export default function ChatWidget() {
                     <div className="sticker-sent text-5xl py-1">{msg.content.trim()}</div>
                   ) : (
                     <div className="text-[14px] leading-relaxed chat-markdown" style={{ color: '#d0d0e0' }}>
+                      <Suspense fallback={<p className="text-[13px] whitespace-pre-wrap leading-relaxed" style={{ color: '#d0d0e0' }}>{msg.content}</p>}>
                       <ReactMarkdown components={{
                         p: ({children}) => <p className="whitespace-pre-wrap mb-1 last:mb-0">{renderRichText(children, msg.mentionedUserIds || '', users)}</p>,
                         strong: ({children}) => <strong className="font-bold text-gray-100">{children}</strong>,
@@ -634,6 +637,7 @@ export default function ChatWidget() {
                         del: ({children}) => <del className="line-through text-gray-500">{children}</del>,
                         a: ({href, children}) => <a href={href} target="_blank" rel="noopener noreferrer" className="underline" style={{ color: '#00d4ff' }}>{children}</a>,
                       }}>{msg.content}</ReactMarkdown>
+                      </Suspense>
                     </div>
                   )
                 )}
@@ -782,7 +786,9 @@ export default function ChatWidget() {
             <button onClick={() => setShowEmoji(false)} className="absolute top-1 right-1 z-10 p-1 rounded-full bg-black/60 hover:bg-black/80 transition-colors">
               <X className="w-3.5 h-3.5 text-white" />
             </button>
-            <EmojiPicker onSelect={(emoji: any) => { setNewMessage(p => p + (emoji.native || emoji)); setShowEmoji(false); }} />
+            <Suspense fallback={<div className="p-4 text-[10px] font-mono text-gray-500">Загрузка эмодзи…</div>}>
+              <EmojiPicker onSelect={(emoji: any) => { setNewMessage(p => p + (emoji.native || emoji)); setShowEmoji(false); }} />
+            </Suspense>
           </motion.div>
         )}
         <AnimatePresence>

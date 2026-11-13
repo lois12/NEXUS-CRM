@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useRef, useMemo, useCallback, ReactNode } from 'react';
 import { User, LoginRequest } from '../types';
 import { authApi } from '../services/api';
 import { initPushNotifications } from '../services/push';
@@ -105,7 +105,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   };
 
-  const hasRole = (role: string | string[]) => {
+  const hasRole = useCallback((role: string | string[]): boolean => {
     if (!user) return false;
     const raw = user.roles?.length ? user.roles : [user.role];
     // expand legacy ↔ new role names
@@ -130,21 +130,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       for (const a of map[w] || []) expandedWanted.add(a);
     }
     return [...expandedWanted].some((w) => userRoles.has(w));
-  };
+  }, [user]);
+
+  const value = useMemo(() => ({
+    user,
+    setUser,
+    token,
+    isLoading,
+    isAuthenticated: !!user,
+    login,
+    loginWithToken,
+    logout,
+    hasRole,
+  }), [user, token, isLoading, login, loginWithToken, logout, hasRole]);
 
   return (
     <AuthContext.Provider
-      value={{
-        user,
-        setUser,
-        token,
-        isLoading,
-        isAuthenticated: !!user,
-        login,
-        loginWithToken,
-        logout,
-        hasRole,
-      }}
+      value={value}
     >
       {children}
     </AuthContext.Provider>
