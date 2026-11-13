@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import Loader from '../components/ui/Loader';
 import SmartImage from '../components/ui/SmartImage';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -349,7 +350,7 @@ export default function Projects() {
   };
 
   if (isLoading) {
-    return <div className="flex items-center justify-center h-full"><span className="smart-image-spinner" style={{ width: 40, height: 40 }} /></div>;
+    return <div className="flex items-center justify-center h-full"><Loader size={48} /></div>;
   }
 
   // ── Detail View ──

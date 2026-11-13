@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import Loader from '../components/ui/Loader';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Trash2, Edit3, Calendar, X, Archive, ArchiveRestore, Paperclip, Upload, FileText, Image, File, Download, GripVertical } from 'lucide-react';
 import { KanbanTask, KanbanStatus, KanbanPriority, KANBAN_COLUMNS } from '../types';
@@ -396,7 +397,7 @@ export default function Kanban() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <span className="smart-image-spinner" style={{ width: 40, height: 40 }} />
+        <Loader size={48} />
       </div>
     );
   }

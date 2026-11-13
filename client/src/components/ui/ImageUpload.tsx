@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from 'react';
+import Loader from './Loader';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Upload, X, ZoomIn } from 'lucide-react';
 
@@ -104,13 +105,7 @@ export default function ImageUpload({ images, onImagesChange, onFilesChange, max
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
             >
-              {/* лёгкий CSS-спиннер (framer-анимации фризили слабые машины) */}
-              <div className="w-10 h-10 flex items-center justify-center">
-                <span className="smart-image-spinner" style={{ width: 28, height: 28 }} />
-              </div>
-              <span className="font-mono text-xs" style={{ color: 'var(--color-primary)' }}>
-                // ЗАГРУЗКА {uploadingCount} ФАЙЛОВ...
-              </span>
+              <Loader size={40} label={`// ЗАГРУЗКА ${uploadingCount} ФАЙЛОВ...`} />
             </motion.div>
           ) : (
             <>
