@@ -5,6 +5,7 @@ import {
   Search, LayoutDashboard, CheckSquare, Rocket, PartyPopper,
   Lightbulb, Users, Package, FolderOpen, BookOpen, FileText,
   Calendar, Image, Zap, ArrowRight, Plus, ClipboardList,
+  Brain, ClipboardCheck,
 } from 'lucide-react';
 import { searchApi } from '../../services/api';
 import { useTheme } from '../../context/ThemeContext';
@@ -13,12 +14,14 @@ const typeIcons: Record<string, typeof Search> = {
   user: Users, task: CheckSquare, project: Rocket, event: PartyPopper,
   idea: Lightbulb, partner: Users, inventory: Package, material: FolderOpen,
   knowledge: BookOpen, content: FileText,
+  quiz: Brain, survey: ClipboardList, registration: ClipboardCheck,
 };
 
 const typeLabels: Record<string, string> = {
   user: 'Пользователь', task: 'Задача', project: 'Проект', event: 'Мероприятие',
   idea: 'Идея', partner: 'Партнёр', inventory: 'Оборудование', material: 'Материал',
   knowledge: 'Знание', content: 'Контент',
+  quiz: 'Квиз', survey: 'Опрос', registration: 'Регистрация',
 };
 
 interface PaletteItem {

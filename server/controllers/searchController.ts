@@ -13,15 +13,30 @@ function ciLike(value: string | null, term: string): boolean {
   return value.toLowerCase().includes(term);
 }
 
+/** Вырезаем HTML-теги: сниппеты должны быть текстом, а не «tml&gt;» */
+function stripHtml(s: string): string {
+  return String(s)
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function findSnippet(text: string | null, term: string, ctxLen: number = 60): string {
   if (!text) return '';
-  const idx = text.toLowerCase().indexOf(term);
+  const plain = stripHtml(String(text));
+  const idx = plain.toLowerCase().indexOf(term);
   if (idx === -1) return '';
   const start = Math.max(0, idx - ctxLen);
-  const end = Math.min(text.length, idx + term.length + ctxLen);
-  let snippet = text.slice(start, end).replace(/\n/g, ' ').trim();
+  const end = Math.min(plain.length, idx + term.length + ctxLen);
+  let snippet = plain.slice(start, end).replace(/\n/g, ' ').trim();
   if (start > 0) snippet = '...' + snippet;
-  if (end < text.length) snippet = snippet + '...';
+  if (end < plain.length) snippet = snippet + '...';
   return snippet;
 }
 
@@ -84,9 +99,49 @@ export function searchAll(req: AuthRequest, res: Response) {
     if (results.length < 20 && hasRole(user, 'super_admin', 'руководитель', 'редактор', 'smm')) {
       const rows = query(`SELECT id, title, platform AS subtitle, content FROM content_posts`);
       for (const r of rows) {
-        if (ciLike(r.title, term) || ciLike(r.content, term)) {
-          const sub = ciLike(r.content, term) ? findSnippet(r.content, term) : (r.subtitle || '');
+        const plain = stripHtml(r.content || '');
+        if (ciLike(r.title, term) || ciLike(plain, term)) {
+          const sub = ciLike(plain, term) ? findSnippet(plain, term) : (r.subtitle || '');
           results.push({ id: r.id, title: r.title, subtitle: sub, type: 'content', link: `/content?post=${r.id}`, avatar: '' });
+          if (results.length >= 20) break;
+        }
+      }
+    }
+
+    // Quizzes
+    if (results.length < 20 && hasRole(user, 'super_admin', 'руководитель', 'информационный', 'туризм', 'редактор', 'smm', 'документовед')) {
+      const rows = query(`SELECT id, title, organizer AS subtitle, description FROM quizzes`);
+      for (const r of rows) {
+        const plain = stripHtml(r.description || '');
+        if (ciLike(r.title, term) || ciLike(plain, term)) {
+          const sub = ciLike(plain, term) ? findSnippet(plain, term) : (r.subtitle || '');
+          results.push({ id: r.id, title: r.title, subtitle: sub, type: 'quiz', link: '/quizzes', avatar: '' });
+          if (results.length >= 20) break;
+        }
+      }
+    }
+
+    // Surveys
+    if (results.length < 20) {
+      const rows = query(`SELECT id, name AS title, description FROM surveys`);
+      for (const r of rows) {
+        const plain = stripHtml(r.description || '');
+        if (ciLike(r.title, term) || ciLike(plain, term)) {
+          const sub = ciLike(plain, term) ? findSnippet(plain, term) : '';
+          results.push({ id: r.id, title: r.title, subtitle: sub, type: 'survey', link: '/surveys', avatar: '' });
+          if (results.length >= 20) break;
+        }
+      }
+    }
+
+    // Registrations
+    if (results.length < 20) {
+      const rows = query(`SELECT id, title, description, location, eventDate FROM registrations`);
+      for (const r of rows) {
+        const plain = stripHtml(r.description || '');
+        if (ciLike(r.title, term) || ciLike(plain, term) || ciLike(r.location, term)) {
+          const sub = ciLike(plain, term) ? findSnippet(plain, term) : (r.location || r.eventDate || '');
+          results.push({ id: r.id, title: r.title, subtitle: sub, type: 'registration', link: '/registrations', avatar: '' });
           if (results.length >= 20) break;
         }
       }
@@ -107,8 +162,9 @@ export function searchAll(req: AuthRequest, res: Response) {
     if (results.length < 20 && hasRole(user, 'super_admin', 'руководитель', 'редактор', 'smm', 'документовед')) {
       const rows = query(`SELECT id, title, content FROM ideas`);
       for (const r of rows) {
-        if (ciLike(r.title, term) || ciLike(r.content, term)) {
-          const sub = ciLike(r.content, term) ? findSnippet(r.content, term) : '';
+        const plain = stripHtml(r.content || '');
+        if (ciLike(r.title, term) || ciLike(plain, term)) {
+          const sub = ciLike(plain, term) ? findSnippet(plain, term) : '';
           results.push({ id: r.id, title: r.title, subtitle: sub, type: 'idea', link: '/ideas', avatar: '' });
           if (results.length >= 20) break;
         }
@@ -119,8 +175,9 @@ export function searchAll(req: AuthRequest, res: Response) {
     if (results.length < 20) {
       const rows = query(`SELECT id, title, content, category, tags FROM knowledge_base`);
       for (const r of rows) {
-        if (ciLike(r.title, term) || ciLike(r.category, term) || ciLike(r.tags, term) || ciLike(r.content, term)) {
-          const subtitle = ciLike(r.content, term) ? findSnippet(r.content, term) : (r.category || '');
+        const plain = stripHtml(r.content || '');
+        if (ciLike(r.title, term) || ciLike(r.category, term) || ciLike(r.tags, term) || ciLike(plain, term)) {
+          const subtitle = ciLike(plain, term) ? findSnippet(plain, term) : (r.category || '');
           results.push({ id: r.id, title: r.title, subtitle, type: 'knowledge', link: '/knowledge', avatar: '' });
           if (results.length >= 20) break;
         }
