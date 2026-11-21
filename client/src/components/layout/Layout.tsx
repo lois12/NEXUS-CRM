@@ -1,37 +1,20 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
-import { AnimatePresence, motion } from 'framer-motion';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import Breadcrumbs from './Breadcrumbs';
 import PresenceToasts from '../common/PresenceToasts';
 
-const pageVariants = {
-  initial: {
-    opacity: 0,
-    y: 12,
-  },
-  animate: {
-    opacity: 1,
-    y: 0,
-    transition: {
-      duration: 0.2,
-      ease: 'easeOut',
-    },
-  },
-  exit: {
-    opacity: 0,
-    y: -6,
-    transition: {
-      duration: 0.1,
-      ease: 'easeIn',
-    },
-  },
-};
-
 export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
+  const mainRef = useRef<HTMLElement>(null);
+
+  // переход между страницами — всегда сверху: без этого новая страница
+  // открывается на старом смещении скролла и «прыгает» картинкой
+  useEffect(() => {
+    mainRef.current?.scrollTo(0, 0);
+  }, [location.pathname]);
 
   return (
     <div className="flex h-dvh overflow-hidden">
@@ -40,20 +23,11 @@ export default function Layout() {
       <div className="flex-1 flex flex-col overflow-hidden min-w-0 nx-stage">
         <div className="flex-shrink-0" style={{ height: 'env(safe-area-inset-top, 0px)' }} />
         <Header onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
-        <main className="flex-1 overflow-y-auto px-3 md:px-6">
+        <main ref={mainRef} className="flex-1 overflow-y-auto px-3 md:px-6">
           <div className="max-w-[1600px] mx-auto py-6 md:py-8">
             <Breadcrumbs />
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={location.pathname}
-                variants={pageVariants}
-                initial="initial"
-                animate="animate"
-                exit="exit"
-              >
-                <Outlet />
-              </motion.div>
-            </AnimatePresence>
+            {/* без exit-анимации: AnimatePresence mode="wait" давал пустой кадр между страницами */}
+            <Outlet />
           </div>
         </main>
       </div>
