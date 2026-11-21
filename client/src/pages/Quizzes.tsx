@@ -1224,12 +1224,6 @@ export default function Quizzes() {
               <p className="font-mono text-[10px] text-gray-500 mt-3 break-all max-w-[260px] mx-auto">
                 {window.location.origin}/quiz/{qrFor.publicSlug || qrFor.id}
               </p>
-              <button
-                onClick={() => copyLink(qrFor)}
-                className="mt-3 px-4 py-2 rounded-lg font-mono text-[10px] glass hover:bg-white/10 nx-press"
-              >
-                <Copy className="w-3.5 h-3.5 inline mr-1" />СКОПИРОВАТЬ ССЫЛКУ
-              </button>
             </div>
           </div>
         </div>

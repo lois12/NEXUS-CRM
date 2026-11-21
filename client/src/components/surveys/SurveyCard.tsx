@@ -241,17 +241,6 @@ export default function SurveyCard({
               <QRCodeSVG value={publicUrl} size={180} id="survey-qr-svg" />
             </div>
             <p className="font-mono text-[10px] text-gray-500 mt-3 break-all max-w-[260px] mx-auto">{publicUrl}</p>
-            <button
-              onClick={() => {
-                const ta = document.createElement('textarea');
-                ta.value = publicUrl; ta.style.cssText = 'position:fixed;left:-9999px';
-                document.body.appendChild(ta); ta.select(); document.execCommand('copy');
-                document.body.removeChild(ta);
-              }}
-              className="mt-3 px-4 py-2 rounded-lg font-mono text-[10px] glass hover:bg-white/10 nx-press"
-            >
-              <Copy className="w-3.5 h-3.5 inline mr-1" />СКОПИРОВАТЬ ССЫЛКУ
-            </button>
           </div>
         </div>
       </div>
