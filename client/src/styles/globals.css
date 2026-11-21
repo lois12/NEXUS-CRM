@@ -2233,3 +2233,27 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   padding: 0;
   flex-shrink: 0;
 }
+
+/* iOS Safari: нативные date/time игнорируют width/min-width и вылезают за блок.
+   appearance:none делает контрол «обычным» по размеру, пикер по тапу сохраняется. */
+input[type="date"],
+input[type="time"],
+input[type="datetime-local"],
+input[type="month"],
+input[type="week"] {
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  -moz-appearance: textfield !important;
+}
+/* иконку календаря возвращаем компактной после appearance:none */
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  width: 16px;
+  height: 16px;
+  margin-left: 4px;
+  opacity: 0.65;
+  cursor: pointer;
+}
