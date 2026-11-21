@@ -565,7 +565,7 @@ export default function Quizzes() {
       </div>
 
       {/* folders */}
-      <div className="flex items-center gap-1.5 overflow-x-auto md:overflow-x-visible md:flex-wrap pb-0.5 -mx-1 px-1">
+      <div className="flex flex-wrap items-center gap-1.5 pb-0.5 -mx-1 px-1">
         {([['all', `Все (${counts.all})`], ['draft', `Черновики (${counts.draft})`], ['scheduled', `Запланирован (${counts.scheduled})`], ['conducted', `Проведён (${counts.conducted})`]] as const).map(([k, label]) => (
           <button
             key={k}
@@ -578,7 +578,7 @@ export default function Quizzes() {
             <FolderOpen className="w-3.5 h-3.5" /> {label}
           </button>
         ))}
-        <div className="relative flex-1 min-w-[140px] flex-shrink-0">
+        <div className="relative w-full basis-full mt-1.5 md:mt-0 md:w-auto md:basis-0 md:flex-1 md:min-w-[140px] flex-shrink-0">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
           <input
             value={search}
