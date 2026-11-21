@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus, Search, Edit3, Trash2, Copy, QrCode, Calendar, Play, FolderOpen,
   X, Save, Image as ImageIcon, Link2, ArrowLeft, ChevronDown, ChevronRight,
-  Film, Music, BarChart3, ChevronsUp, ChevronsDown, Eye,
+  Film, Music, BarChart3, ChevronsUp, ChevronsDown, Eye, Download,
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { quizzesApi, materialsApi } from '../services/api';
@@ -85,6 +85,7 @@ export default function Quizzes() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [uploads, setUploads] = useState<Record<UploadKey, number>>({});
   const [qrFor, setQrFor] = useState<Quiz | null>(null);
+  const [showQrFormats, setShowQrFormats] = useState(false);
   const [view, setView] = useState<'list' | 'results'>('list');
   const [resultsFor, setResultsFor] = useState<Quiz | null>(null);
   const [results, setResults] = useState<any[]>([]);
@@ -350,6 +351,41 @@ export default function Quizzes() {
       () => showToast('Ссылка скопирована', 'success'),
       () => showToast(url, 'info')
     );
+  };
+
+  /** Скачать QR в выбранном формате */
+  const downloadQr = (format: 'svg' | 'png' | 'jpg') => {
+    const svg = document.getElementById('quiz-qr-svg');
+    if (!svg || !qrFor) return;
+    const base = `qr-${qrFor.publicSlug || qrFor.id}`;
+    if (format === 'svg') {
+      const xml = new XMLSerializer().serializeToString(svg);
+      const blob = new Blob([xml], { type: 'image/svg+xml' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `${base}.svg`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } else {
+      const xml = new XMLSerializer().serializeToString(svg);
+      const img = new Image();
+      const url = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(xml)));
+      img.onload = () => {
+        const c = document.createElement('canvas');
+        c.width = 512; c.height = 512;
+        const ctx = c.getContext('2d')!;
+        // белый фон обязателен для JPG
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0, 0, 512, 512);
+        ctx.drawImage(img, 0, 0, 512, 512);
+        const a = document.createElement('a');
+        a.href = c.toDataURL(format === 'jpg' ? 'image/jpeg' : 'image/png', 0.92);
+        a.download = `${base}.${format}`;
+        a.click();
+      };
+      img.src = url;
+    }
+    setShowQrFormats(false);
   };
 
   const del = (q: Quiz) => {
@@ -1131,59 +1167,69 @@ export default function Quizzes() {
         </div>
       )}
 
-      {/* QR */}
+      {/* QR модалка — как в опросах */}
       {qrFor && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4"
-          style={{ background: 'rgba(0,0,0,0.65)' }} onClick={() => setQrFor(null)}>
+        <div
+          className="fixed inset-0 z-[120] flex items-center justify-center p-4"
+          style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)' }}
+          onClick={() => setQrFor(null)}
+        >
           <div className="nx-bezel" onClick={(e) => e.stopPropagation()}>
             <div className="nx-core p-6 text-center">
-            <h3 className="font-mono text-sm font-bold mb-3" style={{ color: 'var(--color-primary)' }}>QR КВИЗА</h3>
-            <div className="bg-white p-4 rounded-xl inline-block">
-              <QRCodeSVG value={`${window.location.origin}/quiz/${qrFor.publicSlug || qrFor.id}`} size={200} id="quiz-qr-svg" />
-            </div>
-            <div className="flex gap-2 justify-center mt-3">
+              <div className="flex items-center justify-between mb-3">
+                <span className="nx-eyebrow">QR-КОД</span>
+                <div className="flex items-center gap-1 relative">
+                  <button
+                    onClick={() => copyLink(qrFor)}
+                    className="p-1 rounded-lg hover:bg-white/10 nx-press"
+                    aria-label="Скопировать ссылку"
+                    title="Скопировать ссылку"
+                  >
+                    <Copy className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />
+                  </button>
+                  <button
+                    onClick={() => setShowQrFormats(v => !v)}
+                    className="p-1 rounded-lg hover:bg-white/10 nx-press"
+                    aria-label="Скачать QR"
+                    title="Скачать"
+                  >
+                    <Download className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />
+                  </button>
+                  {showQrFormats && (
+                    <div
+                      className="absolute top-full right-0 mt-1 flex gap-1 p-1 rounded-xl z-10"
+                      style={{ background: 'rgba(20,20,35,0.98)', border: '1px solid rgba(255,255,255,0.12)' }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {(['svg', 'png', 'jpg'] as const).map(f => (
+                        <button
+                          key={f}
+                          onClick={() => downloadQr(f)}
+                          className="px-2 py-1 rounded-lg font-mono text-[9px] font-bold uppercase hover:bg-white/10 nx-press"
+                          style={{ color: 'var(--color-primary)' }}
+                        >
+                          {f}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  <button onClick={() => setQrFor(null)} className="p-1 rounded-lg hover:bg-white/10 nx-press" aria-label="Закрыть">
+                    <X className="w-4 h-4 text-gray-400" />
+                  </button>
+                </div>
+              </div>
+              <div className="inline-block p-3 bg-white rounded-xl">
+                <QRCodeSVG value={`${window.location.origin}/quiz/${qrFor.publicSlug || qrFor.id}`} size={180} id="quiz-qr-svg" />
+              </div>
+              <p className="font-mono text-[10px] text-gray-500 mt-3 break-all max-w-[260px] mx-auto">
+                {window.location.origin}/quiz/{qrFor.publicSlug || qrFor.id}
+              </p>
               <button
-                onClick={() => {
-                  const svg = document.getElementById('quiz-qr-svg');
-                  if (!svg) return;
-                  const xml = new XMLSerializer().serializeToString(svg);
-                  const blob = new Blob([xml], { type: 'image/svg+xml' });
-                  const a = document.createElement('a');
-                  a.href = URL.createObjectURL(blob);
-                  a.download = `qr-${qrFor.publicSlug || qrFor.id}.svg`;
-                  a.click();
-                  URL.revokeObjectURL(a.href);
-                }}
-                className="btn-ghost nx-press px-3 py-1.5 text-[10px]"
-              >СКАЧАТЬ SVG</button>
-              <button
-                onClick={() => {
-                  const svg = document.getElementById('quiz-qr-svg');
-                  if (!svg) return;
-                  const xml = new XMLSerializer().serializeToString(svg);
-                  const img = new Image();
-                  const url = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(xml)));
-                  img.onload = () => {
-                    const c = document.createElement('canvas');
-                    c.width = 512; c.height = 512;
-                    const ctx = c.getContext('2d')!;
-                    ctx.fillStyle = '#fff';
-                    ctx.fillRect(0, 0, 512, 512);
-                    ctx.drawImage(img, 0, 0, 512, 512);
-                    const a = document.createElement('a');
-                    a.href = c.toDataURL('image/png');
-                    a.download = `qr-${qrFor.publicSlug || qrFor.id}.png`;
-                    a.click();
-                  };
-                  img.src = url;
-                }}
-                className="btn-primary nx-press px-3 py-1.5 text-[10px]"
-              >СКАЧАТЬ PNG</button>
-            </div>
-            <p className="text-[10px] font-mono text-gray-500 mt-3 break-all px-4">
-              {window.location.origin}/quiz/{qrFor.publicSlug || qrFor.id}
-            </p>
-            <button onClick={() => setQrFor(null)} className="btn-primary nx-press mt-4">ЗАКРЫТЬ</button>
+                onClick={() => copyLink(qrFor)}
+                className="mt-3 px-4 py-2 rounded-lg font-mono text-[10px] glass hover:bg-white/10 nx-press"
+              >
+                <Copy className="w-3.5 h-3.5 inline mr-1" />СКОПИРОВАТЬ ССЫЛКУ
+              </button>
             </div>
           </div>
         </div>

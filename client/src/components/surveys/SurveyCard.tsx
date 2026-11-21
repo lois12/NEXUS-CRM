@@ -194,6 +194,19 @@ export default function SurveyCard({
               <span className="nx-eyebrow">QR-КОД</span>
               <div className="flex items-center gap-1 relative">
                 <button
+                  onClick={() => {
+                    const ta = document.createElement('textarea');
+                    ta.value = publicUrl; ta.style.cssText = 'position:fixed;left:-9999px';
+                    document.body.appendChild(ta); ta.select(); document.execCommand('copy');
+                    document.body.removeChild(ta);
+                  }}
+                  className="p-1 rounded-lg hover:bg-white/10 nx-press"
+                  aria-label="Скопировать ссылку"
+                  title="Скопировать ссылку"
+                >
+                  <Copy className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />
+                </button>
+                <button
                   onClick={() => setShowQrFormats(v => !v)}
                   className="p-1 rounded-lg hover:bg-white/10 nx-press"
                   aria-label="Скачать QR"
@@ -237,7 +250,7 @@ export default function SurveyCard({
               }}
               className="mt-3 px-4 py-2 rounded-lg font-mono text-[10px] glass hover:bg-white/10 nx-press"
             >
-              СКОПИРОВАТЬ ССЫЛКУ
+              <Copy className="w-3.5 h-3.5 inline mr-1" />СКОПИРОВАТЬ ССЫЛКУ
             </button>
           </div>
         </div>
