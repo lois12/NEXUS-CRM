@@ -148,7 +148,7 @@ export default function SurveyFillForm({ survey, slug }: Props) {
       <div className="glass rounded-xl p-4 space-y-1">
         <h1 className="font-mono text-xl font-bold text-white">{survey.name}</h1>
         {survey.description && (
-          <p className="font-mono text-xs text-gray-400 leading-relaxed">{survey.description}</p>
+          <p className="font-mono text-xs text-gray-400 leading-relaxed break-words">{survey.description}</p>
         )}
         <p className="font-mono text-[9px] text-gray-600">
           {isAnon ? 'Анонимный опрос' : 'Опрос с указанием контактов'} · 1 ответ с устройства

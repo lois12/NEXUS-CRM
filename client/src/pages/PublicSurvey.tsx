@@ -68,7 +68,7 @@ export default function PublicSurvey() {
           <Clock className="w-12 h-12 mx-auto" style={{ color: '#eab308' }} />
           <h1 className="font-mono text-xl font-bold text-white">{survey.name}</h1>
           {survey.description && (
-            <p className="font-mono text-xs text-gray-400 leading-relaxed">{survey.description}</p>
+            <p className="font-mono text-xs text-gray-400 leading-relaxed break-words">{survey.description}</p>
           )}
           <p className="font-mono text-sm" style={{ color: '#eab308' }}>
             Приём ответов откроется{' '}

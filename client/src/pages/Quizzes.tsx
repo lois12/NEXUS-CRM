@@ -601,31 +601,6 @@ export default function Quizzes() {
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2 md:gap-4">
           {filtered.map((q) => (
             <div key={q.id} className={`nx-tile p-3 md:p-4 relative ${openStatus === q.id ? 'z-30' : ''}`}>
-                            {/* Статус — компактная выпадашка в правом верхнем углу */}
-              <div className="absolute top-2 right-2 z-40">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (openStatus === q.id) { setOpenStatus(null); return; }
-                    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                    setStatusPos({ x: Math.min(r.left, window.innerWidth - 170), y: r.bottom + 6 });
-                    setOpenStatus(q.id);
-                  }}
-                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-full nx-press"
-                  style={{
-                    background: `${STATUS[q.status]?.color || '#6b7280'}26`,
-                    color: STATUS[q.status]?.color || '#6b7280',
-                    border: `1px solid ${STATUS[q.status]?.color || '#6b7280'}55`,
-                    minHeight: 28,
-                  }}
-                  title="Сменить статус"
-                >
-                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: STATUS[q.status]?.color }} />
-                  <span className="font-mono text-[9px]">{STATUS[q.status]?.label}</span>
-                </button>
-                
-              </div>
 <div className="flex items-start gap-2 md:gap-3">
                 {q.imageUrl ? (
                   <SmartImage loading="lazy" src={q.imageUrl} alt="" className="w-10 h-10 md:w-14 md:h-14 rounded-xl object-cover flex-shrink-0" />
@@ -635,8 +610,33 @@ export default function Quizzes() {
                   </div>
                 )}
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-bold text-gray-200 line-clamp-2 text-sm md:text-base">{q.title}</h3>
-                  <p className="text-[10px] font-mono text-gray-500 line-clamp-2">{q.organizer || '—'}</p>
+                  <div className="flex items-start justify-between gap-2">
+                    <h3 className="font-bold text-gray-200 line-clamp-2 text-sm md:text-base min-w-0 break-words">{q.title}</h3>
+                    {/* Статус — компактная выпадашка */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (openStatus === q.id) { setOpenStatus(null); return; }
+                        const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                        setStatusPos({ x: Math.min(r.left, window.innerWidth - 170), y: r.bottom + 6 });
+                        setOpenStatus(q.id);
+                      }}
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-full nx-press flex-shrink-0"
+                      style={{
+                        background: `${STATUS[q.status]?.color || '#6b7280'}26`,
+                        color: STATUS[q.status]?.color || '#6b7280',
+                        border: `1px solid ${STATUS[q.status]?.color || '#6b7280'}55`,
+                        minHeight: 28,
+                      }}
+                      title="Сменить статус"
+                      aria-label="Сменить статус"
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full" style={{ background: STATUS[q.status]?.color }} />
+                      <span className="font-mono text-[9px] whitespace-nowrap">{STATUS[q.status]?.label}</span>
+                    </button>
+                  </div>
+                  <p className="text-[10px] font-mono text-gray-500 line-clamp-2 break-words">{q.organizer || '—'}</p>
                   <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
                     <span className="text-[9px] font-mono text-gray-500 flex items-center gap-1">
                       <Calendar className="w-3 h-3" /> {q.startsAt ? new Date(q.startsAt).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—'}

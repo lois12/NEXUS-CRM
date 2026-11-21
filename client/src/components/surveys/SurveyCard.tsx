@@ -75,33 +75,6 @@ export default function SurveyCard({
   return (
     <>
     <div className={`nx-tile p-3 md:p-4 relative ${openStatus ? 'z-30' : ''}`}>
-      {/* Статус — компактная выпадашка в правом верхнем углу */}
-      <div className="absolute top-2 right-2 z-40">
-        <button
-          ref={statusBtnRef}
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            if (openStatus) { setOpenStatus(false); return; }
-            const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
-            setStatusPos({ x: Math.min(r.left, window.innerWidth - 170), y: r.bottom + 6 });
-            setOpenStatus(true);
-          }}
-          className="flex items-center gap-1 px-2.5 py-1.5 rounded-full nx-press"
-          style={{
-            background: `${meta.color}26`,
-            color: meta.color,
-            border: `1px solid ${meta.color}55`,
-            minHeight: 28,
-          }}
-          title="Сменить статус"
-          aria-label="Сменить статус"
-        >
-          <span className="w-1.5 h-1.5 rounded-full" style={{ background: meta.color }} />
-          <span className="font-mono text-[9px]">{meta.label}</span>
-        </button>
-      </div>
-
       <div className="flex items-start gap-2 md:gap-3">
         {survey.imageUrl ? (
           <SmartImage loading="lazy" src={survey.imageUrl} alt="" className="w-10 h-10 md:w-14 md:h-14 rounded-xl object-cover flex-shrink-0" />
@@ -110,10 +83,36 @@ export default function SurveyCard({
             <ImageIcon className="w-5 h-5 text-gray-500" />
           </div>
         )}
-        <div className="flex-1 min-w-0 pr-16">
-          <h3 className="font-bold text-gray-200 line-clamp-2 text-sm md:text-base">{survey.name}</h3>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start justify-between gap-2">
+            <h3 className="font-bold text-gray-200 line-clamp-2 text-sm md:text-base min-w-0 break-words">{survey.name}</h3>
+            {/* Статус — компактная выпадашка */}
+            <button
+              ref={statusBtnRef}
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (openStatus) { setOpenStatus(false); return; }
+                const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                setStatusPos({ x: Math.min(r.left, window.innerWidth - 170), y: r.bottom + 6 });
+                setOpenStatus(true);
+              }}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-full nx-press flex-shrink-0"
+              style={{
+                background: `${meta.color}26`,
+                color: meta.color,
+                border: `1px solid ${meta.color}55`,
+                minHeight: 28,
+              }}
+              title="Сменить статус"
+              aria-label="Сменить статус"
+            >
+              <span className="w-1.5 h-1.5 rounded-full" style={{ background: meta.color }} />
+              <span className="font-mono text-[9px] whitespace-nowrap">{meta.label}</span>
+            </button>
+          </div>
           {survey.description && (
-            <p className="text-[10px] font-mono text-gray-500 line-clamp-2">{survey.description}</p>
+            <p className="text-[10px] font-mono text-gray-500 line-clamp-2 break-words">{survey.description}</p>
           )}
           <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
             <span className="text-[9px] font-mono text-gray-500 flex items-center gap-1">

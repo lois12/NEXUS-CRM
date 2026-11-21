@@ -56,7 +56,7 @@ export default function SurveyPreviewModal({ open, onClose, survey }: Props) {
               {survey.name || 'Без названия'}
             </h1>
             {survey.description && (
-              <p className="font-mono text-xs text-gray-400 leading-relaxed">{survey.description}</p>
+              <p className="font-mono text-xs text-gray-400 leading-relaxed break-words">{survey.description}</p>
             )}
             <p className="font-mono text-[9px] text-gray-600">
               {isAnon ? 'Анонимный опрос' : 'Опрос с указанием контактов'} · 1 ответ с устройства
