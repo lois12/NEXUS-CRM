@@ -61,6 +61,7 @@ export default function Quizzes() {
     startsAt: '', endsAt: '', afterEndText: '', status: 'draft' as QuizStatus,
   });
   const [openStatus, setOpenStatus] = useState<string | null>(null);
+  const [statusPos, setStatusPos] = useState<{ x: number; y: number } | null>(null);
   const [showPreviewQ, setShowPreviewQ] = useState(false);
   const [previewQ, setPreviewQ] = useState<any | null>(null);
 
@@ -604,7 +605,13 @@ export default function Quizzes() {
               <div className="absolute top-2 right-2 z-40">
                 <button
                   type="button"
-                  onClick={(e) => { e.stopPropagation(); setOpenStatus(openStatus === q.id ? null : q.id); }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (openStatus === q.id) { setOpenStatus(null); return; }
+                    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                    setStatusPos({ x: Math.min(r.left, window.innerWidth - 170), y: r.bottom + 6 });
+                    setOpenStatus(q.id);
+                  }}
                   className="flex items-center gap-1 px-2.5 py-1.5 rounded-full nx-press"
                   style={{
                     background: `${STATUS[q.status]?.color || '#6b7280'}26`,
@@ -617,24 +624,7 @@ export default function Quizzes() {
                   <span className="w-1.5 h-1.5 rounded-full" style={{ background: STATUS[q.status]?.color }} />
                   <span className="font-mono text-[9px]">{STATUS[q.status]?.label}</span>
                 </button>
-                {openStatus === q.id && (
-                  <div className="absolute right-0 top-full mt-1 rounded-xl overflow-hidden"
-                    style={{ background: 'rgba(20,20,35,0.98)', border: '1px solid rgba(255,255,255,0.12)', minWidth: 150, zIndex: 50 }}
-                    onClick={(e) => e.stopPropagation()}>
-                    {(Object.keys(STATUS) as QuizStatus[]).map((st) => (
-                      <button
-                        key={st}
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); setOpenStatus(null); if (q.status !== st) changeStatus(q, st); }}
-                        className="w-full flex items-center gap-2 px-3 py-2.5 text-left nx-press hover:bg-white/5"
-                        style={{ color: STATUS[st].color }}
-                      >
-                        <span className="w-1.5 h-1.5 rounded-full" style={{ background: STATUS[st].color }} />
-                        <span className="font-mono text-[10px]">{STATUS[st].label}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
+                
               </div>
 <div className="flex items-start gap-2 md:gap-3">
                 {q.imageUrl ? (
@@ -1194,7 +1184,33 @@ export default function Quizzes() {
         </div>
       )}
 
-      <ConfirmModal
+            {/* Статус — фиксированная выпадашка */}
+      {openStatus && statusPos && (
+        <div
+          className="fixed rounded-xl overflow-hidden"
+          style={{ left: statusPos.x, top: statusPos.y, zIndex: 300, minWidth: 150, background: 'rgba(20,20,35,0.98)', border: '1px solid rgba(255,255,255,0.12)', boxShadow: '0 12px 32px rgba(0,0,0,0.5)' }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {(Object.keys(STATUS) as QuizStatus[]).map((st) => (
+            <button
+              key={st}
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                const target = quizzes.find((x) => x.id === openStatus);
+                setOpenStatus(null);
+                if (target && target.status !== st) changeStatus(target, st);
+              }}
+              className="w-full flex items-center gap-2 px-3 py-2.5 text-left nx-press hover:bg-white/5"
+              style={{ color: STATUS[st].color }}
+            >
+              <span className="w-1.5 h-1.5 rounded-full" style={{ background: STATUS[st].color }} />
+              <span className="font-mono text-[10px]">{STATUS[st].label}</span>
+            </button>
+          ))}
+        </div>
+      )}
+<ConfirmModal
         isOpen={confirmState.isOpen}
         title={confirmState.title}
         message={confirmState.message}
