@@ -3,7 +3,7 @@ import SmartImage from '../components/ui/SmartImage';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus, Search, Edit3, Trash2, Copy, QrCode, Calendar, Play, FolderOpen,
-  X, Save, Image as ImageIcon, Link2, Users, ArrowLeft, ChevronDown, ChevronRight,
+  X, Save, Image as ImageIcon, Link2, ArrowLeft, ChevronDown, ChevronRight,
   Film, Music, BarChart3,
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
@@ -60,6 +60,14 @@ export default function Quizzes() {
     title: '', description: '', organizer: '', imageUrl: '',
     startsAt: '', endsAt: '', afterEndText: '', status: 'draft' as QuizStatus,
   });
+  const [openStatus, setOpenStatus] = useState<string | null>(null);
+
+  /** textarea растёт по содержимому */
+  const autoGrow = (el: HTMLTextAreaElement | null) => {
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = el.scrollHeight + 'px';
+  };
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
   const [collapsed, setCollapsed] = useState<Record<number, boolean>>({});
   const [step, setStep] = useState<1 | 2>(1);
@@ -581,8 +589,44 @@ export default function Quizzes() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2 md:gap-4">
           {filtered.map((q) => (
-            <div key={q.id} className="nx-tile p-3 md:p-4">
-              <div className="flex items-start gap-2 md:gap-3">
+            <div key={q.id} className="nx-tile p-3 md:p-4 relative">
+                            {/* Статус — компактная выпадашка в правом верхнем углу */}
+              <div className="absolute top-2 right-2 z-20">
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); setOpenStatus(openStatus === q.id ? null : q.id); }}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-full nx-press"
+                  style={{
+                    background: `${STATUS[q.status]?.color || '#6b7280'}26`,
+                    color: STATUS[q.status]?.color || '#6b7280',
+                    border: `1px solid ${STATUS[q.status]?.color || '#6b7280'}55`,
+                    minHeight: 28,
+                  }}
+                  title="Сменить статус"
+                >
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: STATUS[q.status]?.color }} />
+                  <span className="font-mono text-[9px]">{STATUS[q.status]?.label}</span>
+                </button>
+                {openStatus === q.id && (
+                  <div className="absolute right-0 top-full mt-1 rounded-xl overflow-hidden"
+                    style={{ background: 'rgba(20,20,35,0.98)', border: '1px solid rgba(255,255,255,0.12)', minWidth: 150, zIndex: 30 }}
+                    onClick={(e) => e.stopPropagation()}>
+                    {(Object.keys(STATUS) as QuizStatus[]).map((st) => (
+                      <button
+                        key={st}
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setOpenStatus(null); if (q.status !== st) changeStatus(q, st); }}
+                        className="w-full flex items-center gap-2 px-3 py-2.5 text-left nx-press hover:bg-white/5"
+                        style={{ color: STATUS[st].color }}
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full" style={{ background: STATUS[st].color }} />
+                        <span className="font-mono text-[10px]">{STATUS[st].label}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+<div className="flex items-start gap-2 md:gap-3">
                 {q.imageUrl ? (
                   <SmartImage loading="lazy" src={q.imageUrl} alt="" className="w-10 h-10 md:w-14 md:h-14 rounded-xl object-cover flex-shrink-0" />
                 ) : (
@@ -594,51 +638,17 @@ export default function Quizzes() {
                   <h3 className="font-bold text-gray-200 line-clamp-2 text-sm md:text-base">{q.title}</h3>
                   <p className="text-[10px] font-mono text-gray-500 line-clamp-2">{q.organizer || '—'}</p>
                   <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-                    <div
-                      className="inline-flex rounded-full overflow-hidden flex-shrink-0"
-                      style={{ border: '1px solid rgba(255,255,255,0.12)' }}
-                      role="group"
-                      aria-label="Статус квиза"
-                    >
-                      {(Object.keys(STATUS) as QuizStatus[]).map((s) => {
-                        const active = q.status === s;
-                        const c = STATUS[s].color;
-                        return (
-                          <button
-                            key={s}
-                            type="button"
-                            onClick={() => { if (!active) changeStatus(q, s); }}
-                            title={`Статус: ${STATUS[s].label}`}
-                            aria-label={STATUS[s].label}
-                            aria-pressed={active}
-                            className="flex items-center gap-1 px-2 min-h-[40px] text-[8px] font-mono whitespace-nowrap transition-colors nx-press"
-                            style={{
-                              background: active ? `${c}26` : 'transparent',
-                              color: active ? c : '#8b9bbb',
-                            }}
-                          >
-                            <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: c }} />
-                            {STATUS[s].label}
-                          </button>
-                        );
-                      })}
-                    </div>
                     <span className="text-[9px] font-mono text-gray-500 flex items-center gap-1">
-                      <Users className="w-3 h-3" /> {q.participantCount || 0}
+                      <Calendar className="w-3 h-3" /> {q.startsAt ? new Date(q.startsAt).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—'}
                     </span>
-                    {q.startsAt && (
-                      <span className="text-[9px] font-mono text-gray-500 flex items-center gap-1">
-                        <Calendar className="w-3 h-3" /> {new Date(q.startsAt).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                    )}
                   </div>
                 </div>
               </div>
               <div className="flex gap-1.5 mt-2 md:mt-3 flex-wrap">
-                <button onClick={() => openEdit(q)} title="Редактировать" aria-label="Редактировать" className="btn-ghost nx-press w-10 h-10 flex items-center justify-center rounded-lg flex-shrink-0"><Edit3 className="w-4 h-4" /></button>
-                <button onClick={() => { setQrFor(q); }} title="QR-код" aria-label="QR-код" className="btn-ghost nx-press w-10 h-10 flex items-center justify-center rounded-lg flex-shrink-0"><QrCode className="w-4 h-4" /></button>
-                <button onClick={() => copyLink(q)} title="Скопировать ссылку" aria-label="Скопировать ссылку" className="btn-ghost nx-press w-10 h-10 flex items-center justify-center rounded-lg flex-shrink-0"><Link2 className="w-4 h-4" /></button>
-                <button onClick={() => openResults(q)} title="Итоги" aria-label="Итоги" className="btn-ghost nx-press w-10 h-10 flex items-center justify-center rounded-lg flex-shrink-0"><Play className="w-4 h-4" /></button>
+                <button onClick={() => openEdit(q)} title="Редактировать" aria-label="Редактировать" className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0"><Edit3 className="w-3.5 h-3.5 text-gray-400" /></button>
+                <button onClick={() => { setQrFor(q); }} title="QR-код" aria-label="QR-код" className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0"><QrCode className="w-3.5 h-3.5 text-gray-400" /></button>
+                <button onClick={() => copyLink(q)} title="Скопировать ссылку" aria-label="Скопировать ссылку" className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0"><Link2 className="w-3.5 h-3.5 text-gray-400" /></button>
+                <button onClick={() => openResults(q)} title="Итоги" aria-label="Итоги" className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0"><Play className="w-3.5 h-3.5 text-gray-400" /></button>
                 <button
                   onClick={async () => {
                     await quizzesApi.duplicate(q.id);
@@ -646,10 +656,10 @@ export default function Quizzes() {
                     load();
                   }}
                   title="Дублировать" aria-label="Дублировать"
-                  className="btn-ghost nx-press w-10 h-10 flex items-center justify-center rounded-lg flex-shrink-0"
-                ><Copy className="w-4 h-4" /></button>
-                <button onClick={() => del(q)} title="Удалить" aria-label="Удалить" className="btn-ghost nx-press w-10 h-10 flex items-center justify-center rounded-lg flex-shrink-0" style={{ color: '#ff6b6b' }}>
-                  <Trash2 className="w-4 h-4" />
+                  className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0"
+                ><Copy className="w-3.5 h-3.5 text-gray-400" /></button>
+                <button onClick={() => del(q)} title="Удалить" aria-label="Удалить" className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0" style={{ color: '#ff6b6b' }}>
+                  <Trash2 className="w-3.5 h-3.5 text-red-400" />
                 </button>
               </div>
             </div>
@@ -669,20 +679,20 @@ export default function Quizzes() {
               initial={{ scale: 0.95, y: 16 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0 }}
               className="nx-bezel w-full max-w-2xl my-6"
             >
-              <div className="nx-core p-5">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="font-mono text-lg font-bold" style={{ color: 'var(--color-primary)' }}>
+              <div className="nx-core p-3 sm:p-5">
+              <div className="flex items-center justify-between gap-2 mb-3">
+                <h2 className="font-mono text-base sm:text-lg font-bold" style={{ color: 'var(--color-primary)' }}>
                   {editing ? 'РЕДАКТИРОВАТЬ КВИЗ' : 'НОВЫЙ КВИЗ'}
                 </h2>
                 <span className="text-[10px] font-mono text-gray-500">черновик сохраняется</span>
               </div>
 
               {/* шаги мастера — кликабельны, можно переключаться в любой момент */}
-              <div className="flex items-center gap-2 mb-4">
+              <div className="flex items-center gap-2 mb-3 flex-wrap">
                 <button
                   type="button"
                   onClick={() => setStep(1)}
-                  className="flex items-center gap-1.5 px-3 min-h-[40px] rounded-full text-[10px] font-mono tracking-wider nx-press"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 min-h-[40px] rounded-full text-[9px] sm:text-[10px] font-mono tracking-wider nx-press"
                   style={step === 1
                     ? { background: 'color-mix(in srgb, var(--color-primary) 16%, transparent)', color: 'var(--color-primary)', border: '1px solid color-mix(in srgb, var(--color-primary) 35%, transparent)' }
                     : { background: 'rgba(255,255,255,0.04)', color: '#8b9bbb', border: '1px solid rgba(255,255,255,0.08)' }}
@@ -715,7 +725,7 @@ export default function Quizzes() {
               </div>
 
               {step === 1 && (
-              <div className="space-y-3">
+              <div className="space-y-2.5 sm:space-y-3">
                 <div>
                   <label className="text-[10px] font-mono text-gray-500 tracking-wider">НАЗВАНИЕ *</label>
                   <input value={form.title} onChange={(e) => { setForm({ ...form, title: e.target.value }); if (errors.title) setErrors((p) => ({ ...p, title: '' })); }}
@@ -740,8 +750,8 @@ export default function Quizzes() {
                 </div>
                 <div>
                   <label className="text-[10px] font-mono text-gray-500 tracking-wider">ОПИСАНИЕ</label>
-                  <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
-                    rows={2} className="w-full px-3 py-2.5 rounded-xl text-sm bg-white/5 border border-white/10 text-gray-200 [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]" />
+                  <textarea value={form.description} onChange={(e) => { const v = e.target.value; setForm({ ...form, description: v }); autoGrow(e.target); }}
+                    rows={2} ref={autoGrow} className="w-full px-3 py-2.5 rounded-xl text-sm bg-white/5 border border-white/10 text-gray-200 resize-none overflow-hidden [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]" />
                 </div>
 
                 <div>
@@ -776,8 +786,8 @@ export default function Quizzes() {
                 </div>
                 <div>
                   <label className="text-[10px] font-mono text-gray-500 tracking-wider">ТЕКСТ ПОСЛЕ ОКОНЧАНИЯ</label>
-                  <textarea value={form.afterEndText} onChange={(e) => setForm({ ...form, afterEndText: e.target.value })}
-                    rows={2} placeholder="Благодарим за участие…"
+                  <textarea value={form.afterEndText} onChange={(e) => { const v = e.target.value; setForm({ ...form, afterEndText: v }); autoGrow(e.target); }}
+                    rows={2} ref={autoGrow} placeholder="Благодарим за участие…"
                     className="w-full px-3 py-2.5 rounded-xl text-sm bg-white/5 border border-white/10 text-gray-200 [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]" />
                 </div>
               </div>
@@ -848,19 +858,23 @@ export default function Quizzes() {
                         </div>
 
                         {!isCollapsed && (
-                          <div className="px-3 pb-3">
-                            <input
+                          <div className="px-3 pb-3 min-w-0">
+                            <textarea
                               value={q.text}
-                              onChange={(e) => setQuestions((p) => p.map((x, i) => i === qi ? { ...x, text: e.target.value } : x))}
+                              onChange={(e) => { const v = e.target.value; setQuestions((p) => p.map((x, i) => i === qi ? { ...x, text: v } : x)); autoGrow(e.target); }}
                               placeholder="Текст вопроса…"
-                              className="w-full px-3 py-2 rounded-lg text-sm bg-white/5 border border-white/10 text-gray-200 mb-2 [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]"
+                              rows={1}
+                              ref={autoGrow}
+                              className="w-full px-3 py-2 rounded-lg text-sm bg-white/5 border border-white/10 text-gray-200 mb-2 resize-none overflow-hidden [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]"
                             />
                             {/* комментарий мелким шрифтом — сразу под вопросом */}
-                            <input
+                            <textarea
                               value={q.comment || ''}
-                              onChange={(e) => setQuestions((p) => p.map((x, i) => i === qi ? { ...x, comment: e.target.value } : x))}
+                              onChange={(e) => { const v = e.target.value; setQuestions((p) => p.map((x, i) => i === qi ? { ...x, comment: v } : x)); autoGrow(e.target); }}
                               placeholder="Комментарий к вопросу (мелким шрифтом под вопросом)"
-                              className="w-full px-3 py-1.5 rounded-lg text-[11px] bg-white/5 border border-white/10 text-gray-400 mb-2 [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]"
+                              rows={1}
+                              ref={autoGrow}
+                              className="w-full px-3 py-1.5 rounded-lg text-[11px] bg-white/5 border border-white/10 text-gray-400 mb-2 resize-none overflow-hidden [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]"
                             />
                             <div className="flex items-center gap-2 mb-2 min-h-[40px]">
                               <input
@@ -1008,16 +1022,16 @@ export default function Quizzes() {
               )}
 
               {/* только эти кнопки закрывают форму */}
-              <div className="flex items-center gap-2 mt-5 sticky bottom-0 pt-3" style={{ background: 'linear-gradient(transparent, rgba(10,10,15,0.9) 30%)' }}>
+              <div className="flex items-center gap-2 mt-4 sticky bottom-0 pt-2" style={{ background: 'linear-gradient(transparent, rgba(10,10,15,0.9) 30%)' }}>
                 {step === 2 && (
-                  <button onClick={() => setStep(1)} className="btn-ghost nx-press px-5 py-2.5 min-h-[40px]">НАЗАД</button>
+                  <button onClick={() => setStep(1)} className="btn-ghost nx-press px-3 sm:px-5 py-2.5 min-h-[40px]">НАЗАД</button>
                 )}
                 <div className="flex-1" />
-                <button onClick={cancelForm} className="btn-ghost nx-press px-5 py-2.5 min-h-[40px]">ОТМЕНА</button>
+                <button onClick={cancelForm} className="btn-ghost nx-press px-3 sm:px-5 py-2.5 min-h-[40px]">ОТМЕНА</button>
                 {step === 1 ? (
-                  <button onClick={goStep2} className="btn-primary nx-press px-5 py-2.5 min-h-[40px]">ДАЛЕЕ</button>
+                  <button onClick={goStep2} className="btn-primary nx-press px-3 sm:px-5 py-2.5 min-h-[40px]">ДАЛЕЕ</button>
                 ) : (
-                  <button onClick={save} className="btn-primary nx-press px-5 py-2.5 min-h-[40px]"><Save className="w-4 h-4 inline mr-1" />СОХРАНИТЬ</button>
+                  <button onClick={save} className="btn-primary nx-press px-3 sm:px-5 py-2.5 min-h-[40px]"><Save className="w-4 h-4 inline mr-1" />СОХРАНИТЬ</button>
                 )}
               </div>
               </div>
