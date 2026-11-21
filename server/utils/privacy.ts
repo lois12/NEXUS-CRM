@@ -1,21 +1,20 @@
 /** Маскирование персональных данных для «PDF с блюром»:
- *  телефон — видны только последние 4 цифры,
- *  email — только первые 4 символа,
+ *  телефон — последние 4 цифры скрыты, остальное видно,
+ *  email — видны только первые 4 символа,
  *  фамилия — целиком. */
 
 export function maskPhone(v?: string | null): string {
   if (!v) return '';
   const s = String(v);
-  let kept = 0;
+  // прячем последние 4 цифры, остальные символы оставляем как есть
+  const digitIdx: number[] = [];
+  for (let i = 0; i < s.length; i++) {
+    if (s[i] >= '0' && s[i] <= '9') digitIdx.push(i);
+  }
+  const hide = new Set(digitIdx.slice(-4));
   let out = '';
-  for (let i = s.length - 1; i >= 0; i--) {
-    const ch = s[i];
-    if (ch >= '0' && ch <= '9') {
-      if (kept < 4) { out = ch + out; kept++; }
-      else out = '•' + out;
-    } else {
-      out = ch + out;
-    }
+  for (let i = 0; i < s.length; i++) {
+    out += hide.has(i) ? '•' : s[i];
   }
   return out;
 }
