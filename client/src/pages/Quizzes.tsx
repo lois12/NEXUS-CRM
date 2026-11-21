@@ -62,6 +62,7 @@ export default function Quizzes() {
   });
   const [openStatus, setOpenStatus] = useState<string | null>(null);
   const [showPreviewQ, setShowPreviewQ] = useState(false);
+  const [previewQ, setPreviewQ] = useState<any | null>(null);
 
   /** textarea растёт по содержимому */
   const autoGrow = (el: HTMLTextAreaElement | null) => {
@@ -650,6 +651,7 @@ export default function Quizzes() {
                 <button onClick={() => { setQrFor(q); }} title="QR-код" aria-label="QR-код" className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0"><QrCode className="w-3.5 h-3.5 text-gray-400" /></button>
                 <button onClick={() => copyLink(q)} title="Скопировать ссылку" aria-label="Скопировать ссылку" className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0"><Link2 className="w-3.5 h-3.5 text-gray-400" /></button>
                 <button onClick={() => openResults(q)} title="Итоги" aria-label="Итоги" className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0"><Play className="w-3.5 h-3.5 text-gray-400" /></button>
+                <button onClick={() => { setPreviewQ({ title: q.title, organizer: q.organizer, imageUrl: q.imageUrl, description: (q as any).description, startsAt: q.startsAt, endsAt: q.endsAt, afterEndText: (q as any).afterEndText, questions: q.questions }); setShowPreviewQ(true); }} title="Предпросмотр" aria-label="Предпросмотр" className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0"><Eye className="w-3.5 h-3.5 text-gray-400" /></button>
                 <button
                   onClick={async () => {
                     await quizzesApi.duplicate(q.id);
@@ -818,7 +820,7 @@ export default function Quizzes() {
                       <Plus className="w-4 h-4" />
                     </button>
                     <button
-                      onClick={() => setShowPreviewQ(true)}
+                      onClick={() => { setPreviewQ({ title: form.title, organizer: form.organizer, imageUrl: form.imageUrl, description: form.description, startsAt: form.startsAt, endsAt: form.endsAt, afterEndText: form.afterEndText, questions }); setShowPreviewQ(true); }}
                       className="btn-ghost nx-press p-2 min-h-[36px] min-w-[36px] flex items-center justify-center rounded-lg"
                       title="Предпросмотр квиза" aria-label="Предпросмотр"
                     ><Eye className="w-4 h-4" /></button>
@@ -1033,16 +1035,16 @@ export default function Quizzes() {
               )}
 
               {/* только эти кнопки закрывают форму */}
-              <div className="flex items-center gap-2 mt-4 sticky bottom-0 pt-2" style={{ background: 'linear-gradient(transparent, rgba(10,10,15,0.9) 30%)' }}>
+              <div className="flex items-center gap-2 mt-4 sticky bottom-0 pt-2 flex-wrap" style={{ background: 'linear-gradient(transparent, rgba(10,10,15,0.9) 30%)' }}>
                 {step === 2 && (
-                  <button onClick={() => setStep(1)} className="btn-ghost nx-press px-3 sm:px-5 py-2.5 min-h-[40px]">НАЗАД</button>
+                  <button onClick={() => setStep(1)} className="btn-ghost nx-press px-3 sm:px-5 py-2.5 min-h-[40px] flex-shrink-0">НАЗАД</button>
                 )}
-                <div className="flex-1" />
-                <button onClick={cancelForm} className="btn-ghost nx-press px-3 sm:px-5 py-2.5 min-h-[40px]">ОТМЕНА</button>
+                <div className="flex-1 min-w-0" />
+                <button onClick={cancelForm} className="btn-ghost nx-press px-3 sm:px-5 py-2.5 min-h-[40px] flex-shrink-0">ОТМЕНА</button>
                 {step === 1 ? (
-                  <button onClick={goStep2} className="btn-primary nx-press px-3 sm:px-5 py-2.5 min-h-[40px]">ДАЛЕЕ</button>
+                  <button onClick={goStep2} className="btn-primary nx-press px-3 sm:px-5 py-2.5 min-h-[40px] flex-shrink-0">ДАЛЕЕ</button>
                 ) : (
-                  <button onClick={save} className="btn-primary nx-press px-3 sm:px-5 py-2.5 min-h-[40px]"><Save className="w-4 h-4 inline mr-1" />СОХРАНИТЬ</button>
+                  <button onClick={save} className="btn-primary nx-press px-3 sm:px-5 py-2.5 min-h-[40px] flex-shrink-0"><Save className="w-4 h-4 inline mr-1" />СОХРАНИТЬ</button>
                 )}
               </div>
               </div>
@@ -1065,23 +1067,23 @@ export default function Quizzes() {
                 </button>
               </div>
               <div className="space-y-3">
-                {form.imageUrl && (
+                {previewQ?.imageUrl && (
                   <div className="rounded-xl overflow-hidden">
-                    <img src={form.imageUrl} alt="" className="w-full max-h-40 object-contain" />
+                    <img src={previewQ.imageUrl} alt="" className="w-full max-h-40 object-contain" />
                   </div>
                 )}
-                <h3 className="font-mono text-lg font-bold" style={{ color: 'var(--color-primary)' }}>{form.title || 'Название квиза'}</h3>
-                {form.organizer && <p className="text-[10px] font-mono text-gray-500">ОРГАНИЗАТОР · {form.organizer}</p>}
-                {form.description && <p className="text-xs text-gray-400 leading-relaxed">{form.description}</p>}
-                {(form.startsAt || form.endsAt) && (
+                <h3 className="font-mono text-lg font-bold" style={{ color: 'var(--color-primary)' }}>{previewQ?.title || 'Название квиза'}</h3>
+                {previewQ?.organizer && <p className="text-[10px] font-mono text-gray-500">ОРГАНИЗАТОР · {previewQ.organizer}</p>}
+                {previewQ?.description && <p className="text-xs text-gray-400 leading-relaxed">{previewQ.description}</p>}
+                {(previewQ?.startsAt || previewQ?.endsAt) && (
                   <p className="text-[10px] font-mono text-gray-500">
-                    {form.startsAt && <>СТАРТ {new Date(form.startsAt).toLocaleString('ru-RU')}</>}
-                    {form.startsAt && form.endsAt && ' · '}
-                    {form.endsAt && <>ФИНИШ {new Date(form.endsAt).toLocaleString('ru-RU')}</>}
+                    {previewQ?.startsAt && <>СТАРТ {new Date(previewQ.startsAt).toLocaleString('ru-RU')}</>}
+                    {previewQ?.startsAt && previewQ?.endsAt && ' · '}
+                    {previewQ?.endsAt && <>ФИНИШ {new Date(previewQ.endsAt).toLocaleString('ru-RU')}</>}
                   </p>
                 )}
                 <div className="nx-divider" />
-                {(questions || []).filter((q: any) => (q.text || '').trim()).map((q: any, qi: number) => (
+                {(previewQ?.questions || []).filter((q: any) => (q.text || '').trim()).map((q: any, qi: number) => (
                   <div key={qi} className="nx-tile p-3">
                     <p className="text-sm text-gray-200">{qi + 1}. {q.text}</p>
                     {q.comment && <p className="text-[11px] text-gray-500 mt-1">{q.comment}</p>}
@@ -1104,8 +1106,8 @@ export default function Quizzes() {
                     )}
                   </div>
                 ))}
-                {form.afterEndText && (
-                  <p className="text-[10px] font-mono text-gray-500 text-center pt-2">{form.afterEndText}</p>
+                {previewQ?.afterEndText && (
+                  <p className="text-[10px] font-mono text-gray-500 text-center pt-2">{previewQ.afterEndText}</p>
                 )}
               </div>
             </div>

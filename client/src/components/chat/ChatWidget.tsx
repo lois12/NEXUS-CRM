@@ -1082,9 +1082,9 @@ export default function ChatWidget() {
           if (isMobile && !isOpen) { setIsFullscreen(true); setIsOpen(true); }
           else { setIsOpen(!isOpen); }
         }}
-          className="fixed right-6 w-14 h-14 rounded-full flex items-center justify-center z-[50]"
+          className="fixed right-5 w-10 h-10 rounded-full flex items-center justify-center z-[50]"
           style={{ bottom: 'calc(1.5rem + 25px)', background: `linear-gradient(135deg, var(--color-primary), var(--color-secondary))`, color: '#000', boxShadow: `0 0 20px var(--color-glow), 0 4px 16px rgba(0,0,0,0.3)` }}>
-          {isOpen ? <X className="w-6 h-6" /> : <MessageCircle className="w-6 h-6" />}
+          {isOpen ? <X className="w-4 h-4" /> : <MessageCircle className="w-4 h-4" />}
           {!isOpen && isDndActive() && <span className="absolute -top-1 -left-1 w-4 h-4 rounded-full flex items-center justify-center text-[8px]" style={{ background: '#4a4a60', border: '2px solid var(--color-bg)' }}>🔇</span>}
           {!isOpen && unreadTotal > 0 && <span className="absolute -top-1 -right-1 min-w-[20px] h-[20px] rounded-full flex items-center justify-center text-[10px] font-bold font-mono px-1"
             style={{ background: 'linear-gradient(135deg, #ff3b30, #cc0000)', color: '#fff', boxShadow: '0 0 12px rgba(255,59,48,0.5)' }}>{unreadTotal > 99 ? '99+' : unreadTotal}</span>}
