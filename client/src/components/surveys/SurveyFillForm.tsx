@@ -207,7 +207,7 @@ export default function SurveyFillForm({ survey, slug }: Props) {
             {q.type === 'choice' ? (
               <div className="space-y-1">
                 {(q.options || []).map((opt, oi) => (
-                  <label key={oi} className="flex items-center gap-2 cursor-pointer px-2 py-1.5 rounded hover:bg-white/5">
+                  <label key={oi} className="flex items-center gap-2 cursor-pointer px-3 py-2.5 min-h-[40px] rounded hover:bg-white/5">
                     <input
                       type="radio"
                       name={qid}

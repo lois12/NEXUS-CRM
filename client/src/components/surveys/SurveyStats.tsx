@@ -52,7 +52,7 @@ export default function SurveyStats({ surveyId, onBack }: Props) {
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2 flex-wrap">
-        <button onClick={onBack} className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-xs glass hover:bg-white/10 nx-press">
+        <button onClick={onBack} className="flex items-center gap-1.5 px-3 py-2 min-h-[40px] rounded-lg font-mono text-xs glass hover:bg-white/10 nx-press">
           <ArrowLeft className="w-3.5 h-3.5" /> НАЗАД
         </button>
         <h2 className="font-mono text-base sm:text-lg font-bold flex-1 min-w-0 truncate" style={{ color: 'var(--color-primary)' }}>

@@ -122,7 +122,10 @@ export const getPublicSurvey = (req: AuthRequest, res: Response) => {
     const thanksText = row.thanksText || DEFAULT_THANKS;
     const thanksRedirectUrl = row.thanksRedirectUrl || DEFAULT_THANKS_URL;
 
-    if (status === 'completed') {
+    // время окончания наступило → опрос закрыт, даже если статус ещё published
+    const pastEnd = !!row.closesAt && !isNaN(Date.parse(row.closesAt)) && Date.now() > Date.parse(row.closesAt);
+
+    if (status === 'completed' || pastEnd) {
       return res.json({
         success: true,
         data: {
@@ -188,6 +191,9 @@ export const submitSurveyResponse = (req: AuthRequest, res: Response) => {
     if (!survey) return res.status(404).json({ success: false, error: 'Опрос не найден или не опубликован' });
     const status = normalizeStatus(survey.status, survey.isPublic);
     if (status !== 'published') {
+      return res.status(400).json({ success: false, error: 'Приём ответов сейчас закрыт' });
+    }
+    if (survey.closesAt && !isNaN(Date.parse(survey.closesAt)) && Date.now() > Date.parse(survey.closesAt)) {
       return res.status(400).json({ success: false, error: 'Приём ответов сейчас закрыт' });
     }
 

@@ -73,6 +73,7 @@ function publicShape(row: any) {
     thanksText: row.thanksText || DEFAULT_THANKS,
     thanksRedirectUrl: row.thanksRedirectUrl || DEFAULT_THANKS_URL,
     opensAt: toIsoUtc(row.opensAt),
+    closesAt: toIsoUtc(row.closesAt),
     closedAt: toIsoUtc(row.closedAt),
     createdAt: toIsoUtc(row.createdAt),
     updatedAt: toIsoUtc(row.updatedAt),
@@ -162,7 +163,7 @@ export const updateSurvey = (req: AuthRequest, res: Response) => {
     if (!cur) return res.status(404).json({ success: false, error: 'Опрос не найден' });
     const {
       name, description, isAnonymous, imageUrl, thanksText, thanksRedirectUrl,
-      publicSlug,
+      publicSlug, opensAt, closesAt,
     } = req.body || {};
     run(
       `UPDATE surveys SET
@@ -191,6 +192,17 @@ export const updateSurvey = (req: AuthRequest, res: Response) => {
       if (taken) throw new HttpError(400, 'Такой адрес уже занят другим опросом');
       run('UPDATE surveys SET publicSlug = ? WHERE id = ?', [wantSlug, id]);
     }
+    // время старта/окончания: '' или null → очистить, ISO → записать, undefined → не трогать
+    const dtVal = (v: unknown): string | null | undefined => {
+      if (v === undefined) return undefined;
+      if (v === null || v === '') return null;
+      const d = new Date(String(v));
+      return isNaN(d.getTime()) ? undefined : d.toISOString();
+    };
+    const opensVal = dtVal(opensAt);
+    if (opensVal !== undefined) run('UPDATE surveys SET opensAt = ? WHERE id = ?', [opensVal, id]);
+    const closesVal = dtVal(closesAt);
+    if (closesVal !== undefined) run('UPDATE surveys SET closesAt = ? WHERE id = ?', [closesVal, id]);
     res.json({ success: true, message: 'Обновлено' });
   } catch (error: any) {
     console.error('UpdateSurvey error:', error);

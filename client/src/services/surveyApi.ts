@@ -21,6 +21,7 @@ export interface Survey {
   isPublic: boolean;
   status?: SurveyStatus;
   opensAt?: string | null;
+  closesAt?: string | null;
   closedAt?: string | null;
   publicSlug: string | null;
   thanksText?: string;

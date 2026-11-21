@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { Plus, Save, ArrowLeft, Globe, EyeOff, Copy, ExternalLink, Eye } from 'lucide-react';
+import { Plus, Save, ArrowLeft, Globe, EyeOff, Copy, ExternalLink, Eye, Clock } from 'lucide-react';
 import SurveyMetaFields from './SurveyMetaFields';
 import SurveyQuestionCard from './SurveyQuestionCard';
 import SurveyPreviewModal from './SurveyPreviewModal';
 import type { Survey, SurveyQuestion, SurveyStatus } from '../../services/surveyApi';
 import { surveyApi } from '../../services/surveyApi';
-import SurveyStatusSelect, { STATUS_META } from './SurveyStatusSelect';
+import SurveyStatusSelect, { STATUS_META, toLocalInput } from './SurveyStatusSelect';
 import { showToast } from '../ui/NexusModal';
 
 interface Props {
@@ -14,8 +14,15 @@ interface Props {
   onBack: () => void;
 }
 
-/** Block-builder: meta + questions + save */
+const STEPS = [
+  { n: 1, label: 'ДАННЫЕ' },
+  { n: 2, label: 'ВРЕМЯ' },
+  { n: 3, label: 'ВОПРОСЫ' },
+] as const;
+
+/** Block-builder wizard: 1 данные → 2 время → 3 вопросы */
 export default function SurveyBuilder({ survey, onSaved, onBack }: Props) {
+  const [step, setStep] = useState<1 | 2 | 3>(1);
   const [name, setName] = useState(survey.name);
   const [description, setDescription] = useState(survey.description || '');
   const [imageUrl, setImageUrl] = useState(survey.imageUrl || '');
@@ -23,6 +30,7 @@ export default function SurveyBuilder({ survey, onSaved, onBack }: Props) {
   const [isPublic, setIsPublic] = useState(!!survey.isPublic);
   const [status, setStatus] = useState<SurveyStatus>(survey.status || (survey.isPublic ? 'published' : 'draft'));
   const [opensAt, setOpensAt] = useState<string | null>(survey.opensAt || null);
+  const [closesAt, setClosesAt] = useState<string | null>(survey.closesAt || null);
   const [publicSlug, setPublicSlug] = useState(survey.publicSlug || '');
   const [thanksText, setThanksText] = useState(
     survey.thanksText || 'Спасибо что уделили время и проши опрос, Ваше мнение важно для нас',
@@ -66,6 +74,14 @@ export default function SurveyBuilder({ survey, onSaved, onBack }: Props) {
   const publicUrl = (publicSlug || '')
     ? `${window.location.origin}/opros/${publicSlug}`
     : null;
+
+  const goStep = (n: 1 | 2 | 3) => {
+    if (n > 1 && !name.trim()) {
+      showToast('Укажите название', 'error');
+      return;
+    }
+    setStep(n);
+  };
 
   const togglePublish = async () => {
     try {
@@ -125,6 +141,8 @@ export default function SurveyBuilder({ survey, onSaved, onBack }: Props) {
         thanksText,
         thanksRedirectUrl,
         publicSlug,
+        opensAt,
+        closesAt,
       });
 
       // questions: create missing, update existing, delete removed
@@ -166,159 +184,222 @@ export default function SurveyBuilder({ survey, onSaved, onBack }: Props) {
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2 flex-wrap">
-        <button onClick={onBack} className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-xs glass hover:bg-white/10 nx-press">
+        <button onClick={onBack} className="flex items-center gap-1.5 px-3 py-2 min-h-[40px] rounded-lg font-mono text-xs glass hover:bg-white/10 nx-press">
           <ArrowLeft className="w-3.5 h-3.5" /> НАЗАД
         </button>
-        <h2 className="font-mono text-lg font-bold flex-1 min-w-0 truncate" style={{ color: 'var(--color-primary)' }}>
+        <h2 className="font-mono text-base sm:text-lg font-bold flex-1 min-w-0 truncate" style={{ color: 'var(--color-primary)' }}>
           КОНСТРУКТОР · {name || 'новый опрос'}
         </h2>
         <button
-          onClick={() => save()}
-          disabled={saving}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-xs font-bold disabled:opacity-50 nx-press"
-          style={{ background: 'rgba(255,255,255,0.08)', color: '#ccc' }}
-        >
-          <Save className="w-3.5 h-3.5" />
-          {saving ? 'СОХРАНЕНИЕ…' : 'СОХРАНИТЬ'}
-        </button>
-        <button
           onClick={() => setPreviewOpen(true)}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-xs font-bold nx-press"
-          style={{ background: 'rgba(255,255,255,0.1)', color: '#eee' }}
-          title="Превью формы"
+          className="flex items-center justify-center p-2 min-h-[40px] min-w-[40px] rounded-xl glass hover:bg-white/10 nx-press flex-shrink-0"
+          title="Предпросмотр"
         >
-          <Eye className="w-3.5 h-3.5" /> ПРЕВЬЮ
-        </button>
-        <button
-          onClick={togglePublish}
-          disabled={saving}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-lg font-mono text-xs font-bold disabled:opacity-50 nx-press"
-          style={isPublic
-            ? { background: 'rgba(234,179,8,0.2)', color: '#eab308', border: '1px solid rgba(234,179,8,0.4)' }
-            : { background: 'var(--color-primary)', color: '#000' }}
-          title={isPublic ? 'Снять с публикации' : 'Сохранить и опубликовать'}
-        >
-          {isPublic ? <><EyeOff className="w-3.5 h-3.5" /> СНЯТЬ С ПУБЛИКАЦИИ</> : <><Globe className="w-3.5 h-3.5" /> ОПУБЛИКОВАТЬ</>}
+          <Eye className="w-4 h-4" />
         </button>
       </div>
 
-        <div
-          className="rounded-xl p-3 space-y-2 [box-shadow:var(--depth-contact),var(--depth-rim-top),var(--depth-rim-bottom)]"
-          style={{
-            background: status === 'published' ? 'rgba(0,255,136,0.08)' : STATUS_META[status]?.bg || 'rgba(255,255,255,0.03)',
-            border: `1px solid ${status === 'published' ? 'rgba(0,255,136,0.25)' : (STATUS_META[status]?.color + '33') || 'rgba(255,255,255,0.08)'}`,
-          }}
-        >
-          <div className="nx-eyebrow">
-            Статус и ссылка для пользователей
-          </div>
-          <div className="flex items-stretch gap-2 flex-wrap">
-            <div className="w-40 shrink-0">
-              <SurveyStatusSelect
-                value={status}
-                opensAt={opensAt}
-                onChange={changeStatus}
-              />
-            </div>
-            <div className="flex items-stretch flex-1 min-w-[180px]">
-              <span className="px-2.5 flex items-center rounded-l-lg font-mono text-[11px] text-gray-400 border border-r-0 border-gray-700 bg-white/5">
-                /opros/
-              </span>
-              <input
-                value={publicSlug}
-                onChange={(e) => setPublicSlug(e.target.value.toLowerCase().replace(/[^a-z0-9а-яё_-]/g, '-'))}
-                placeholder="ocenka-meropriyatiya"
-                className="flex-1 px-2 py-2.5 rounded-r-lg font-mono text-sm bg-black/40 border border-gray-700 text-white focus:outline-none focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]"
-              />
-            </div>
+      {/* шаги мастера — кликабельны */}
+      <div className="flex items-center gap-2 flex-wrap">
+        {STEPS.map((s, i) => (
+          <div key={s.n} className="flex items-center gap-2 flex-1 min-w-fit">
+            {i > 0 && <div className="flex-1 h-px min-w-3" style={{ background: 'rgba(255,255,255,0.1)' }} />}
             <button
-              onClick={() => save()}
-              disabled={saving}
-              className="px-3 py-2 rounded-lg font-mono text-[11px] font-bold disabled:opacity-50 nx-press"
-              style={{ background: 'rgba(255,255,255,0.1)', color: '#ddd' }}
-              title="Сохранить адрес"
+              type="button"
+              onClick={() => goStep(s.n)}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 min-h-[40px] rounded-full text-[9px] sm:text-[10px] font-mono tracking-wider nx-press"
+              style={step === s.n
+                ? { background: 'color-mix(in srgb, var(--color-primary) 16%, transparent)', color: 'var(--color-primary)', border: '1px solid color-mix(in srgb, var(--color-primary) 35%, transparent)' }
+                : { background: 'rgba(255,255,255,0.04)', color: '#8b9bbb', border: '1px solid rgba(255,255,255,0.08)' }}
             >
-              <Save className="w-3.5 h-3.5 inline mr-1" />АДРЕС
+              <span
+                className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold flex-shrink-0"
+                style={step === s.n
+                  ? { background: 'var(--color-primary)', color: '#000' }
+                  : { background: 'rgba(255,255,255,0.08)', color: '#8b9bbb' }}
+              >{s.n}</span>
+              {s.label}
             </button>
-            <button
-              onClick={copyLink}
-              disabled={!publicSlug}
-              className="btn-primary nx-press flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-[11px] font-bold disabled:opacity-40"
+          </div>
+        ))}
+      </div>
 
-            >
-              <Copy className="w-3.5 h-3.5" /> КОПИРОВАТЬ
-            </button>
-            {publicUrl && (
-              <button
-                onClick={() => window.open(publicUrl, '_blank')}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-[11px] glass hover:bg-white/10 nx-press"
-              >
-                <ExternalLink className="w-3.5 h-3.5" /> ОТКРЫТЬ
-              </button>
-            )}
+      {step === 1 && (
+        <SurveyMetaFields
+          name={name}
+          description={description}
+          imageUrl={imageUrl}
+          isAnonymous={isAnonymous}
+          thanksText={thanksText}
+          thanksRedirectUrl={thanksRedirectUrl}
+          onChange={(p) => {
+            if (p.name !== undefined) setName(p.name);
+            if (p.description !== undefined) setDescription(p.description);
+            if (p.imageUrl !== undefined) setImageUrl(p.imageUrl);
+            if (p.isAnonymous !== undefined) setIsAnonymous(p.isAnonymous);
+            if (p.thanksText !== undefined) setThanksText(p.thanksText);
+            if (p.thanksRedirectUrl !== undefined) setThanksRedirectUrl(p.thanksRedirectUrl);
+            if (p.publicSlug !== undefined) setPublicSlug(p.publicSlug || '');
+          }}
+          onUploadCover={async (file) => {
+            try {
+              const res = await surveyApi.uploadImage(survey.id, file);
+              if (res?.data?.imageUrl) setImageUrl(res.data.imageUrl);
+            } catch {
+              showToast('Ошибка загрузки обложки', 'error');
+            }
+          }}
+        />
+      )}
+
+      {step === 2 && (
+        <div className="space-y-3">
+          <div className="glass rounded-xl p-4 space-y-3">
+            <span className="nx-eyebrow"><Clock className="w-3 h-3" /> ВРЕМЯ ПРОВЕДЕНИЯ</span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="font-mono text-[10px] text-gray-500 mb-1 block">ВРЕМЯ СТАРТА</label>
+                <input
+                  type="datetime-local"
+                  value={opensAt ? toLocalInput(opensAt) : ''}
+                  onChange={(e) => setOpensAt(e.target.value ? new Date(e.target.value).toISOString() : null)}
+                  className="w-full px-3 py-2.5 rounded-xl font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]"
+                />
+              </div>
+              <div>
+                <label className="font-mono text-[10px] text-gray-500 mb-1 block">ВРЕМЯ ОКОНЧАНИЯ</label>
+                <input
+                  type="datetime-local"
+                  value={closesAt ? toLocalInput(closesAt) : ''}
+                  onChange={(e) => setClosesAt(e.target.value ? new Date(e.target.value).toISOString() : null)}
+                  className="w-full px-3 py-2.5 rounded-xl font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]"
+                />
+              </div>
+            </div>
+            <p className="font-mono text-[10px] text-gray-600">после времени окончания приём ответов закрывается автоматически</p>
           </div>
-          <div className="font-mono text-[11px] truncate" style={{ color: status === 'published' ? 'var(--color-primary)' : '#666' }}>
-            {publicUrl || `/opros/${publicSlug || '…'}`}
+
+          <div
+            className="rounded-xl p-3 space-y-2 [box-shadow:var(--depth-contact),var(--depth-rim-top),var(--depth-rim-bottom)]"
+            style={{
+              background: status === 'published' ? 'rgba(0,255,136,0.08)' : STATUS_META[status]?.bg || 'rgba(255,255,255,0.03)',
+              border: `1px solid ${status === 'published' ? 'rgba(0,255,136,0.25)' : (STATUS_META[status]?.color + '33') || 'rgba(255,255,255,0.08)'}`,
+            }}
+          >
+            <div className="nx-eyebrow">
+              Статус и ссылка для пользователей
+            </div>
+            <div className="flex items-stretch gap-2 flex-wrap">
+              <div className="w-40 shrink-0">
+                <SurveyStatusSelect
+                  value={status}
+                  opensAt={opensAt}
+                  hideOpensAt
+                  onChange={changeStatus}
+                />
+              </div>
+              <div className="flex items-stretch flex-1 min-w-[180px]">
+                <span className="px-2.5 flex items-center rounded-l-lg font-mono text-[11px] text-gray-400 border border-r-0 border-gray-700 bg-white/5">
+                  /opros/
+                </span>
+                <input
+                  value={publicSlug}
+                  onChange={(e) => setPublicSlug(e.target.value.toLowerCase().replace(/[^a-z0-9а-яё_-]/g, '-'))}
+                  placeholder="ocenka-meropriyatiya"
+                  className="flex-1 min-w-0 px-2 py-2.5 rounded-r-lg font-mono text-sm bg-black/40 border border-gray-700 text-white focus:outline-none focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]"
+                />
+              </div>
+              <button
+                onClick={() => save()}
+                disabled={saving}
+                className="px-3 py-2 min-h-[40px] rounded-lg font-mono text-[11px] font-bold disabled:opacity-50 nx-press"
+                style={{ background: 'rgba(255,255,255,0.1)', color: '#ddd' }}
+                title="Сохранить адрес"
+              >
+                <Save className="w-3.5 h-3.5 inline mr-1" />АДРЕС
+              </button>
+              <button
+                onClick={copyLink}
+                disabled={!publicSlug}
+                className="btn-primary nx-press flex items-center gap-1.5 px-3 py-2 min-h-[40px] rounded-lg font-mono text-[11px] font-bold disabled:opacity-40"
+              >
+                <Copy className="w-3.5 h-3.5" /> КОПИРОВАТЬ
+              </button>
+              {publicUrl && (
+                <button
+                  onClick={() => window.open(publicUrl, '_blank')}
+                  className="flex items-center gap-1.5 px-3 py-2 min-h-[40px] rounded-lg font-mono text-[11px] glass hover:bg-white/10 nx-press"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" /> ОТКРЫТЬ
+                </button>
+              )}
+              <button
+                onClick={togglePublish}
+                disabled={saving}
+                className="flex items-center gap-1.5 px-3 py-2 min-h-[40px] rounded-lg font-mono text-[11px] font-bold disabled:opacity-50 nx-press"
+                style={isPublic
+                  ? { background: 'rgba(234,179,8,0.2)', color: '#eab308', border: '1px solid rgba(234,179,8,0.4)' }
+                  : { background: 'var(--color-primary)', color: '#000' }}
+                title={isPublic ? 'Снять с публикации' : 'Сохранить и опубликовать'}
+              >
+                {isPublic ? <><EyeOff className="w-3.5 h-3.5" /> СНЯТЬ</> : <><Globe className="w-3.5 h-3.5" /> ОПУБЛИКОВАТЬ</>}
+              </button>
+            </div>
+            <div className="font-mono text-[11px] truncate" style={{ color: status === 'published' ? 'var(--color-primary)' : '#666' }}>
+              {publicUrl || `/opros/${publicSlug || '…'}`}
+            </div>
           </div>
         </div>
+      )}
 
-      <SurveyMetaFields
-        name={name}
-        description={description}
-        imageUrl={imageUrl}
-        isAnonymous={isAnonymous}
-        thanksText={thanksText}
-        thanksRedirectUrl={thanksRedirectUrl}
-        onChange={(p) => {
-          if (p.name !== undefined) setName(p.name);
-          if (p.description !== undefined) setDescription(p.description);
-          if (p.imageUrl !== undefined) setImageUrl(p.imageUrl);
-          if (p.isAnonymous !== undefined) setIsAnonymous(p.isAnonymous);
-          if (p.thanksText !== undefined) setThanksText(p.thanksText);
-          if (p.thanksRedirectUrl !== undefined) setThanksRedirectUrl(p.thanksRedirectUrl);
-          if (p.publicSlug !== undefined) setPublicSlug(p.publicSlug || '');
-        }}
-        onUploadCover={async (file) => {
-          try {
-            const res = await surveyApi.uploadImage(survey.id, file);
-            if (res?.data?.imageUrl) setImageUrl(res.data.imageUrl);
-          } catch {
-            showToast('Ошибка загрузки обложки', 'error');
-          }
-        }}
-      />
+      {step === 3 && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="nx-eyebrow">ВОПРОСЫ ({questions.length})</span>
+            <button
+              onClick={() => setQuestions((prev) => [...prev, { type: 'choice', title: '', options: ['', ''], required: false }])}
+              className="flex items-center gap-1.5 px-3 py-1.5 min-h-[40px] rounded-lg font-mono text-[11px] glass hover:bg-white/10 nx-press"
+            >
+              <Plus className="w-3.5 h-3.5" /> ВОПРОС
+            </button>
+          </div>
 
-      <div className="nx-divider my-3" />
+          <div className="space-y-2">
+            {questions.map((q, i) => (
+              <SurveyQuestionCard
+                key={q.id || `new-${i}`}
+                q={q}
+                index={i}
+                total={questions.length}
+                onChange={(patch) => setQ(i, patch)}
+                onRemove={() => setQuestions((prev) => prev.filter((_, j) => j !== i))}
+                onMove={(d) => moveQ(i, d)}
+                onDragStart={() => setDragIdx(i)}
+                onDrop={() => {
+                  if (dragIdx !== null) reorderQ(dragIdx, i);
+                  setDragIdx(null);
+                }}
+              />
+            ))}
+            {questions.length === 0 && (
+              <p className="font-mono text-[10px] text-gray-600 text-center py-4">добавьте первый вопрос</p>
+            )}
+          </div>
+        </div>
+      )}
 
-      <div className="flex items-center justify-between">
-        <span className="nx-eyebrow">ВОПРОСЫ ({questions.length})</span>
-        <button
-          onClick={() => setQuestions((prev) => [...prev, { type: 'choice', title: '', options: ['', ''], required: false }])}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-mono text-[11px] glass hover:bg-white/10 nx-press"
-        >
-          <Plus className="w-3.5 h-3.5" /> ВОПРОС
-        </button>
-      </div>
-
-      <div className="space-y-2">
-        {questions.map((q, i) => (
-          <SurveyQuestionCard
-            key={q.id || `new-${i}`}
-            q={q}
-            index={i}
-            total={questions.length}
-            onChange={(patch) => setQ(i, patch)}
-            onRemove={() => setQuestions((prev) => prev.filter((_, j) => j !== i))}
-            onMove={(d) => moveQ(i, d)}
-            onDragStart={() => setDragIdx(i)}
-            onDrop={() => {
-              if (dragIdx !== null) reorderQ(dragIdx, i);
-              setDragIdx(null);
-            }}
-          />
-        ))}
-        {questions.length === 0 && (
-          <p className="font-mono text-[10px] text-gray-600 text-center py-4">добавьте первый вопрос</p>
+      {/* нижняя панель мастера */}
+      <div className="flex items-center gap-2 sticky bottom-0 pt-2 flex-wrap" style={{ background: 'linear-gradient(transparent, rgba(10,10,15,0.9) 30%)' }}>
+        {step > 1 && (
+          <button onClick={() => setStep((s) => (s - 1) as 1 | 2 | 3)} className="btn-ghost nx-press px-3 sm:px-5 py-2.5 min-h-[40px] flex-shrink-0">НАЗАД</button>
+        )}
+        <div className="flex-1 min-w-0" />
+        {step < 3 ? (
+          <button onClick={() => goStep((step + 1) as 2 | 3)} className="btn-primary nx-press px-3 sm:px-5 py-2.5 min-h-[40px] flex-shrink-0">ДАЛЕЕ</button>
+        ) : (
+          <button onClick={() => save()} disabled={saving} className="btn-primary nx-press px-3 sm:px-5 py-2.5 min-h-[40px] flex-shrink-0">
+            <Save className="w-4 h-4 inline mr-1" />{saving ? 'СОХРАНЕНИЕ…' : 'СОХРАНИТЬ'}
+          </button>
         )}
       </div>
 

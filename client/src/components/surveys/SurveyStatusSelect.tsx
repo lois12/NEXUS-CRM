@@ -15,10 +15,11 @@ interface Props {
   opensAt?: string | null;
   compact?: boolean;
   disabled?: boolean;
+  hideOpensAt?: boolean;
 }
 
 /** Status dropdown (published / scheduled / completed / draft) */
-export default function SurveyStatusSelect({ value, onChange, opensAt, compact, disabled }: Props) {
+export default function SurveyStatusSelect({ value, onChange, opensAt, compact, disabled, hideOpensAt }: Props) {
   const meta = STATUS_META[value] || STATUS_META.draft;
 
   return (
@@ -40,7 +41,7 @@ export default function SurveyStatusSelect({ value, onChange, opensAt, compact, 
           </option>
         ))}
       </select>
-      {value === 'scheduled' && (
+      {value === 'scheduled' && !hideOpensAt && (
         <input
           type="datetime-local"
           value={opensAt ? toLocalInput(opensAt) : ''}
@@ -53,7 +54,7 @@ export default function SurveyStatusSelect({ value, onChange, opensAt, compact, 
   );
 }
 
-function toLocalInput(iso: string) {
+export function toLocalInput(iso: string) {
   try {
     const d = new Date(iso);
     const pad = (n: number) => String(n).padStart(2, '0');

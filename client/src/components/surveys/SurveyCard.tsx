@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import SmartImage from '../ui/SmartImage';
-import { BarChart3, Image as ImageIcon, Copy, Link2, Trash2, QrCode, X, Download } from 'lucide-react';
+import { BarChart3, Image as ImageIcon, Copy, Link2, Trash2, QrCode, X, Download, Edit3, ExternalLink } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import SurveyStatusSelect, { STATUS_META } from './SurveyStatusSelect';
 import type { Survey, SurveyStatus } from '../../services/surveyApi';
@@ -65,7 +65,7 @@ export default function SurveyCard({
   return (
     <>
     <motion.div
-      className="nx-tile overflow-hidden cursor-pointer"
+      className="nx-tile overflow-hidden cursor-pointer group"
       onClick={onOpen}
     >
       <div className="h-16 md:h-24 bg-black/40 relative">
@@ -107,28 +107,32 @@ export default function SurveyCard({
           />
         </div>
 
-        <div className="flex gap-1.5 overflow-x-auto pb-0.5" onClick={(e) => e.stopPropagation()}>
-          <button onClick={onEdit} className="flex-1 min-w-[72px] py-2 rounded-lg font-mono text-[10px] glass hover:bg-white/10 nx-press flex-shrink-0">
-            РЕДАКТОР
+        <div className="nx-divider" />
+        <div className="flex flex-wrap gap-1.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity pt-1" onClick={(e) => e.stopPropagation()}>
+          <button onClick={onEdit} title="Редактировать" className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0">
+            <Edit3 className="w-3.5 h-3.5 text-gray-400" />
           </button>
-          <button onClick={onStats} className="flex-1 min-w-[72px] py-2 rounded-lg font-mono text-[10px] glass hover:bg-white/10 nx-press flex-shrink-0">
-            СТАТИСТИКА
+          <button onClick={onStats} title="Статистика" className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0">
+            <BarChart3 className="w-3.5 h-3.5 text-gray-400" />
           </button>
           {(status === 'published' || status === 'completed') && survey.publicSlug && (
             <>
-              <button onClick={onCopyLink} className="px-2 py-2 rounded-lg font-mono text-[10px] glass hover:bg-white/10 nx-press flex-shrink-0" title="Ссылка">
-                <Link2 className="w-3 h-3" />
+              <button onClick={onCopyLink} title="Ссылка" className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0">
+                <Link2 className="w-3.5 h-3.5 text-gray-400" />
               </button>
-              <button onClick={() => setShowQr(true)} className="px-2 py-2 rounded-lg font-mono text-[10px] glass hover:bg-white/10 nx-press flex-shrink-0" title="QR-код">
-                <QrCode className="w-3 h-3" />
+              <button onClick={() => setShowQr(true)} title="QR-код" className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0">
+                <QrCode className="w-3.5 h-3.5 text-gray-400" />
+              </button>
+              <button onClick={onOpen} title="Открыть" className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0">
+                <ExternalLink className="w-3.5 h-3.5 text-gray-400" />
               </button>
             </>
           )}
-          <button onClick={onDuplicate} className="px-2 py-2 rounded-lg font-mono text-[10px] glass hover:bg-white/10 nx-press flex-shrink-0" title="Дублировать">
-            <Copy className="w-3 h-3" />
+          <button onClick={onDuplicate} title="Копировать" className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0">
+            <Copy className="w-3.5 h-3.5 text-gray-400" />
           </button>
-          <button onClick={onDelete} className="px-2 py-2 rounded-lg font-mono text-[10px] hover:bg-red-500/15 text-red-400 nx-press flex-shrink-0" title="Удалить">
-            <Trash2 className="w-3 h-3" />
+          <button onClick={onDelete} title="Удалить" className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-red-500/20 nx-press flex-shrink-0">
+            <Trash2 className="w-3.5 h-3.5 text-red-400" />
           </button>
         </div>
       </div>
