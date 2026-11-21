@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { ImageIcon } from 'lucide-react';
+import SmartImage from '../ui/SmartImage';
 import type { Survey } from '../../services/surveyApi';
 
 interface Props {
@@ -13,6 +14,9 @@ interface Props {
   onUploadCover: (file: File) => void;
 }
 
+const FIELD = 'w-full px-3 py-2.5 rounded-xl text-sm bg-white/5 border border-white/10 text-gray-200 [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]';
+const LABEL = 'text-[10px] font-mono text-gray-500 tracking-wider';
+
 /** Survey meta: name, description, cover, anonymity, thanks */
 export default function SurveyMetaFields({
   name, description, imageUrl, isAnonymous, thanksText, thanksRedirectUrl, onChange, onUploadCover,
@@ -21,83 +25,79 @@ export default function SurveyMetaFields({
   const [preview, setPreview] = useState('');
 
   return (
-    <div className="glass rounded-xl p-4 space-y-3">
-      <label className="nx-eyebrow">ДАННЫЕ ОПРОСА</label>
+    <div className="space-y-3">
       <div>
-        <label className="font-mono text-[10px] text-gray-500 mb-1 block">НАЗВАНИЕ *</label>
+        <label className={LABEL}>НАЗВАНИЕ *</label>
         <input
           value={name}
           onChange={(e) => onChange({ name: e.target.value })}
-          className="w-full px-2 py-2 rounded font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]"
+          className={FIELD}
           placeholder="Например: Оценка мероприятия"
         />
       </div>
       <div>
-        <label className="font-mono text-[10px] text-gray-500 mb-1 block">ОПИСАНИЕ</label>
+        <label className={LABEL}>ОПИСАНИЕ</label>
         <textarea
           value={description}
           onChange={(e) => onChange({ description: e.target.value })}
           rows={2}
-          className="w-full px-2 py-2 rounded font-mono text-xs bg-black/30 border border-gray-700 text-gray-200 focus:outline-none [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)] resize-none"
+          className={`${FIELD} resize-none`}
         />
       </div>
       <div>
-        <label className="font-mono text-[10px] text-gray-500 mb-1 block">ОБЛОЖКА</label>
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            e.target.value = '';
-            if (!f) return;
-            setPreview(URL.createObjectURL(f));
-            onUploadCover(f);
-          }}
-        />
-        <button
-          onClick={() => fileRef.current?.click()}
-          className="flex items-center gap-2 px-3 py-2 rounded-lg font-mono text-[11px] glass hover:bg-white/10 nx-press"
-        >
-          <ImageIcon className="w-3.5 h-3.5" />
-          {(imageUrl || preview) ? 'Заменить обложку' : 'Загрузить обложку'}
-        </button>
-        {(preview || imageUrl) && (
-          <img
-            src={preview || imageUrl}
-            alt=""
-            className="mt-2 w-full max-h-32 object-cover rounded-lg border border-white/10"
+        <label className={LABEL}>ОБЛОЖКА</label>
+        <div className="flex items-center gap-2 min-h-[48px]">
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              e.target.value = '';
+              if (!f) return;
+              setPreview(URL.createObjectURL(f));
+              onUploadCover(f);
+            }}
           />
-        )}
+          <button
+            onClick={() => fileRef.current?.click()}
+            className="btn-ghost nx-press px-3 py-2 text-[10px]"
+          >
+            <ImageIcon className="w-3.5 h-3.5 inline mr-1" /> {(imageUrl || preview) ? 'ЗАМЕНИТЬ' : 'ЗАГРУЗИТЬ'}
+          </button>
+          {(preview || imageUrl) && (
+            <SmartImage loading="lazy" src={preview || imageUrl} alt="" className="w-12 h-12 rounded-lg object-cover" />
+          )}
+        </div>
       </div>
       <button
         type="button"
         onClick={() => onChange({ isAnonymous: !isAnonymous })}
-        className="w-full py-2 rounded-lg font-mono text-xs transition-all nx-press"
+        className="w-full py-2.5 rounded-xl text-sm transition-all nx-press"
         style={isAnonymous
           ? { background: 'var(--color-primary)', color: '#000' }
-          : { background: 'rgba(255,255,255,0.05)', color: '#888' }}
+          : { background: 'rgba(255,255,255,0.05)', color: '#888', border: '1px solid rgba(255,255,255,0.1)' }}
       >
         {isAnonymous ? '✓ АНОНИМНЫЙ ОПРОС' : 'ИДЕНТИФИЦИРОВАННЫЙ (ФИО / телефон / email)'}
       </button>
       <div>
-        <label className="font-mono text-[10px] text-gray-500 mb-1 block">ТЕКСТ ПОСЛЕ ОТПРАВКИ (5 сек → редирект)</label>
+        <label className={LABEL}>ТЕКСТ ПОСЛЕ ОТПРАВКИ (5 сек → редирект)</label>
         <textarea
           value={thanksText}
           onChange={(e) => onChange({ thanksText: e.target.value })}
           rows={2}
           placeholder="Спасибо что уделили время и проши опрос…"
-          className="w-full px-2 py-2 rounded font-mono text-xs bg-black/30 border border-gray-700 text-gray-200 focus:outline-none [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)] resize-none"
+          className={`${FIELD} resize-none`}
         />
       </div>
       <div>
-        <label className="font-mono text-[10px] text-gray-500 mb-1 block">КУДА РЕДИРЕКТ (через 5 сек)</label>
+        <label className={LABEL}>КУДА РЕДИРЕКТ (через 5 сек)</label>
         <input
           value={thanksRedirectUrl}
           onChange={(e) => onChange({ thanksRedirectUrl: e.target.value })}
           placeholder="https://visit-norilsk.ru"
-          className="w-full px-2 py-2 rounded font-mono text-xs bg-black/30 border border-gray-700 text-gray-200 focus:outline-none [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]"
+          className={FIELD}
         />
       </div>
     </div>

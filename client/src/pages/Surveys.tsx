@@ -120,35 +120,34 @@ export default function Surveys() {
     }
   };
 
-  if (view === 'builder' && current) {
-    return (
-      <SurveyBuilder
-        survey={current}
-        onBack={() => { setView('list'); refresh(); }}
-        onSaved={async () => {
-          const res = await surveyApi.getOne(current.id);
-          if (res?.success) setCurrent(res.data);
-          refresh();
-        }}
-      />
-    );
-  }
-
   if (view === 'stats' && current) {
     return <SurveyStats surveyId={current.id} onBack={() => { setView('list'); refresh(); }} />;
   }
 
   return (
-    <SurveyList
-      surveys={surveys}
-      onCreate={createSurvey}
-      onEdit={openEdit}
-      onStats={openStats}
-      onOpenPublic={openPublic}
-      onSetStatus={setStatus}
-      onDuplicate={duplicate}
-      onDelete={remove}
-      onCopyLink={copyLink}
-    />
+    <>
+      <SurveyList
+        surveys={surveys}
+        onCreate={createSurvey}
+        onEdit={openEdit}
+        onStats={openStats}
+        onOpenPublic={openPublic}
+        onSetStatus={setStatus}
+        onDuplicate={duplicate}
+        onDelete={remove}
+        onCopyLink={copyLink}
+      />
+      {view === 'builder' && current && (
+        <SurveyBuilder
+          survey={current}
+          onBack={() => { setView('list'); refresh(); }}
+          onSaved={async () => {
+            const res = await surveyApi.getOne(current.id);
+            if (res?.success) setCurrent(res.data);
+            refresh();
+          }}
+        />
+      )}
+    </>
   );
 }

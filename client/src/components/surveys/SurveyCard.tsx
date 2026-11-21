@@ -1,9 +1,8 @@
-import { useState } from 'react';
-import { motion } from 'framer-motion';
+import { useEffect, useRef, useState } from 'react';
 import SmartImage from '../ui/SmartImage';
 import { BarChart3, Image as ImageIcon, Copy, Link2, Trash2, QrCode, X, Download, Edit3, ExternalLink } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
-import SurveyStatusSelect, { STATUS_META } from './SurveyStatusSelect';
+import { STATUS_META, STATUS_ORDER } from './SurveyStatusSelect';
 import type { Survey, SurveyStatus } from '../../services/surveyApi';
 import { formatRuDate } from '../../utils/collageStore';
 
@@ -25,7 +24,18 @@ export default function SurveyCard({
   const meta = STATUS_META[status];
   const [showQr, setShowQr] = useState(false);
   const [showQrFormats, setShowQrFormats] = useState(false);
+  const [openStatus, setOpenStatus] = useState(false);
+  const [statusPos, setStatusPos] = useState<{ x: number; y: number } | null>(null);
+  const statusBtnRef = useRef<HTMLButtonElement>(null);
   const publicUrl = survey.publicSlug ? `${window.location.origin}/opros/${survey.publicSlug}` : '';
+
+  // клик мимо — закрываем выпадашку статуса
+  useEffect(() => {
+    if (!openStatus) return;
+    const close = () => setOpenStatus(false);
+    document.addEventListener('click', close);
+    return () => document.removeEventListener('click', close);
+  }, [openStatus]);
 
   /** Скачать QR в выбранном формате */
   const downloadQr = (format: 'svg' | 'png' | 'jpg') => {
@@ -64,79 +74,113 @@ export default function SurveyCard({
 
   return (
     <>
-    <motion.div
-      className="nx-tile overflow-hidden cursor-pointer group"
-      onClick={onOpen}
-    >
-      <div className="h-16 md:h-24 bg-black/40 relative">
+    <div className={`nx-tile p-3 md:p-4 relative ${openStatus ? 'z-30' : ''}`}>
+      {/* Статус — компактная выпадашка в правом верхнем углу */}
+      <div className="absolute top-2 right-2 z-40">
+        <button
+          ref={statusBtnRef}
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            if (openStatus) { setOpenStatus(false); return; }
+            const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+            setStatusPos({ x: Math.min(r.left, window.innerWidth - 170), y: r.bottom + 6 });
+            setOpenStatus(true);
+          }}
+          className="flex items-center gap-1 px-2.5 py-1.5 rounded-full nx-press"
+          style={{
+            background: `${meta.color}26`,
+            color: meta.color,
+            border: `1px solid ${meta.color}55`,
+            minHeight: 28,
+          }}
+          title="Сменить статус"
+          aria-label="Сменить статус"
+        >
+          <span className="w-1.5 h-1.5 rounded-full" style={{ background: meta.color }} />
+          <span className="font-mono text-[9px]">{meta.label}</span>
+        </button>
+      </div>
+
+      <div className="flex items-start gap-2 md:gap-3">
         {survey.imageUrl ? (
-          <SmartImage src={survey.imageUrl} alt="" className="w-full h-full object-cover" />
+          <SmartImage loading="lazy" src={survey.imageUrl} alt="" className="w-10 h-10 md:w-14 md:h-14 rounded-xl object-cover flex-shrink-0" />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-gray-700">
-            <ImageIcon className="w-7 h-7" />
+          <div className="w-10 h-10 md:w-14 md:h-14 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(0,255,136,0.1)', border: '1px solid var(--color-border)' }}>
+            <ImageIcon className="w-5 h-5 text-gray-500" />
           </div>
         )}
-        <span
-          className="absolute top-2 right-2 px-1.5 py-0.5 rounded font-mono text-[8px]"
-          style={{ background: meta.bg, color: meta.color, border: `1px solid ${meta.color}44` }}
-        >
-          {meta.label}
-        </span>
-      </div>
-      <div className="p-2.5 md:p-3 space-y-1.5 md:space-y-2">
-        <h3 className="font-mono text-xs md:text-sm font-bold text-white line-clamp-2">{survey.name}</h3>
-        {survey.description && (
-          <p className="font-mono text-[10px] text-gray-400" style={{
-            display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
-          }}>{survey.description}</p>
-        )}
-        <div className="flex items-center justify-between font-mono text-[9px] text-gray-600">
-          <span className="flex items-center gap-1">
-            <BarChart3 className="w-3 h-3" /> {survey.responseCount ?? 0} чел.
-          </span>
-          <span>{survey.isAnonymous ? 'аноним' : 'идент.'}</span>
-          <span>{survey.updatedAt ? formatRuDate(Date.parse(survey.updatedAt) || Date.now()) : ''}</span>
-        </div>
-
-        <div onClick={(e) => e.stopPropagation()}>
-          <SurveyStatusSelect
-            value={status}
-            opensAt={survey.opensAt}
-            compact
-            onChange={onSetStatus}
-          />
-        </div>
-
-        <div className="nx-divider" />
-        <div className="flex flex-wrap gap-1.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity pt-1" onClick={(e) => e.stopPropagation()}>
-          <button onClick={onEdit} title="Редактировать" className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0">
-            <Edit3 className="w-3.5 h-3.5 text-gray-400" />
-          </button>
-          <button onClick={onStats} title="Статистика" className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0">
-            <BarChart3 className="w-3.5 h-3.5 text-gray-400" />
-          </button>
-          {(status === 'published' || status === 'completed') && survey.publicSlug && (
-            <>
-              <button onClick={onCopyLink} title="Ссылка" className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0">
-                <Link2 className="w-3.5 h-3.5 text-gray-400" />
-              </button>
-              <button onClick={() => setShowQr(true)} title="QR-код" className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0">
-                <QrCode className="w-3.5 h-3.5 text-gray-400" />
-              </button>
-              <button onClick={onOpen} title="Открыть" className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0">
-                <ExternalLink className="w-3.5 h-3.5 text-gray-400" />
-              </button>
-            </>
+        <div className="flex-1 min-w-0 pr-16">
+          <h3 className="font-bold text-gray-200 line-clamp-2 text-sm md:text-base">{survey.name}</h3>
+          {survey.description && (
+            <p className="text-[10px] font-mono text-gray-500 line-clamp-2">{survey.description}</p>
           )}
-          <button onClick={onDuplicate} title="Копировать" className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0">
-            <Copy className="w-3.5 h-3.5 text-gray-400" />
-          </button>
-          <button onClick={onDelete} title="Удалить" className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-red-500/20 nx-press flex-shrink-0">
-            <Trash2 className="w-3.5 h-3.5 text-red-400" />
-          </button>
+          <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+            <span className="text-[9px] font-mono text-gray-500 flex items-center gap-1">
+              <BarChart3 className="w-3 h-3" /> {survey.responseCount ?? 0} чел.
+            </span>
+            <span className="text-[9px] font-mono text-gray-500">{survey.isAnonymous ? 'аноним' : 'идент.'}</span>
+            <span className="text-[9px] font-mono text-gray-500">
+              {survey.updatedAt ? formatRuDate(Date.parse(survey.updatedAt) || Date.now()) : ''}
+            </span>
+          </div>
         </div>
       </div>
-    </motion.div>
+
+      <div className="flex gap-1.5 mt-2 md:mt-3 flex-wrap">
+        <button onClick={onEdit} title="Редактировать" aria-label="Редактировать" className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0">
+          <Edit3 className="w-3.5 h-3.5 text-gray-400" />
+        </button>
+        <button onClick={onStats} title="Статистика" aria-label="Статистика" className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0">
+          <BarChart3 className="w-3.5 h-3.5 text-gray-400" />
+        </button>
+        {(status === 'published' || status === 'completed') && survey.publicSlug && (
+          <>
+            <button onClick={onCopyLink} title="Скопировать ссылку" aria-label="Скопировать ссылку" className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0">
+              <Link2 className="w-3.5 h-3.5 text-gray-400" />
+            </button>
+            <button onClick={() => setShowQr(true)} title="QR-код" aria-label="QR-код" className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0">
+              <QrCode className="w-3.5 h-3.5 text-gray-400" />
+            </button>
+            <button onClick={onOpen} title="Открыть" aria-label="Открыть" className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0">
+              <ExternalLink className="w-3.5 h-3.5 text-gray-400" />
+            </button>
+          </>
+        )}
+        <button onClick={onDuplicate} title="Дублировать" aria-label="Дублировать" className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0">
+          <Copy className="w-3.5 h-3.5 text-gray-400" />
+        </button>
+        <button onClick={onDelete} title="Удалить" aria-label="Удалить" className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0" style={{ color: '#ff6b6b' }}>
+          <Trash2 className="w-3.5 h-3.5 text-red-400" />
+        </button>
+      </div>
+    </div>
+
+    {/* Статус — фиксированная выпадашка */}
+    {openStatus && statusPos && (
+      <div
+        className="fixed rounded-xl overflow-hidden"
+        style={{ left: statusPos.x, top: statusPos.y, zIndex: 300, minWidth: 150, background: 'rgba(20,20,35,0.98)', border: '1px solid rgba(255,255,255,0.12)', boxShadow: '0 12px 32px rgba(0,0,0,0.5)' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {STATUS_ORDER.map((st) => (
+          <button
+            key={st}
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setOpenStatus(false);
+              if (status !== st) onSetStatus(st);
+            }}
+            className="w-full flex items-center gap-2 px-3 py-2.5 text-left nx-press hover:bg-white/5"
+            style={{ color: STATUS_META[st].color }}
+          >
+            <span className="w-1.5 h-1.5 rounded-full" style={{ background: STATUS_META[st].color }} />
+            <span className="font-mono text-[10px]">{STATUS_META[st].label}</span>
+          </button>
+        ))}
+      </div>
+    )}
 
     {/* QR модалка */}
     {showQr && (

@@ -28,11 +28,10 @@ export default function SurveyStatusSelect({ value, onChange, opensAt, compact, 
         value={value}
         disabled={disabled}
         onChange={(e) => onChange(e.target.value as SurveyStatus)}
-        className="w-full px-2 py-2 rounded-lg font-mono text-[11px] bg-black/40 border transition-colors focus:outline-none hover:border-white/25 cursor-pointer"
+        className="w-full px-2 py-2 rounded-lg font-mono text-[11px] bg-white/5 border transition-colors focus:outline-none hover:border-white/25 cursor-pointer"
         style={{
           color: meta.color,
           borderColor: meta.color + '55',
-          background: meta.bg,
         }}
       >
         {STATUS_ORDER.map((s) => (
@@ -46,7 +45,7 @@ export default function SurveyStatusSelect({ value, onChange, opensAt, compact, 
           type="datetime-local"
           value={opensAt ? toLocalInput(opensAt) : ''}
           onChange={(e) => onChange('scheduled', e.target.value ? new Date(e.target.value).toISOString() : undefined)}
-          className="w-full px-2 py-1.5 rounded-lg font-mono text-[10px] bg-black/30 border border-gray-700 text-gray-200 focus:outline-none"
+          className="w-full px-2 py-1.5 rounded-lg font-mono text-[10px] bg-white/5 border border-white/10 text-gray-200 focus:outline-none"
           placeholder="когда открыть"
         />
       )}

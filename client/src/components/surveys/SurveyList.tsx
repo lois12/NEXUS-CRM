@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { Plus, ClipboardList } from 'lucide-react';
+import { Plus, ClipboardList, Search, FolderOpen } from 'lucide-react';
 import SurveyCard from './SurveyCard';
+import EmptyState from '../ui/EmptyState';
 import type { Survey, SurveyStatus } from '../../services/surveyApi';
-import { STATUS_META } from './SurveyStatusSelect';
 
 interface Props {
   surveys: Survey[];
@@ -34,6 +34,7 @@ export default function SurveyList({
   surveys, onCreate, onEdit, onStats, onOpenPublic, onSetStatus, onDuplicate, onDelete, onCopyLink,
 }: Props) {
   const [tab, setTab] = useState<Tab>('all');
+  const [search, setSearch] = useState('');
 
   const counts: Record<Tab, number> = {
     all: surveys.length,
@@ -41,64 +42,60 @@ export default function SurveyList({
   };
   for (const s of surveys) counts[statusOf(s)]++;
 
-  const visible = tab === 'all' ? surveys : surveys.filter((s) => statusOf(s) === tab);
+  const q = search.trim().toLowerCase();
+  const visible = surveys.filter((s) => {
+    if (tab !== 'all' && statusOf(s) !== tab) return false;
+    if (q && !`${s.name} ${s.description || ''}`.toLowerCase().includes(q)) return false;
+    return true;
+  });
 
   return (
-    <div className="space-y-2 md:space-y-4">
-      <div className="flex flex-wrap items-end justify-between gap-2 md:gap-3">
+    <div className="space-y-3 md:space-y-5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 md:gap-3">
         <div>
-          <h1 className="text-lg md:text-3xl font-bold font-mono neon-text flex items-center gap-2 md:gap-3" style={{ color: 'var(--color-primary)' }}>
-            <ClipboardList className="w-5 h-5 md:w-7 md:h-7" /> ОПРОСЫ
-          </h1>
+          <h1 className="text-lg md:text-3xl font-bold font-mono neon-text" style={{ color: 'var(--color-primary)' }}>ОПРОСЫ</h1>
           <p className="text-gray-400 mt-0.5 md:mt-1 font-mono text-[10px] md:text-sm">// СОЗДАВАЙТЕ ОПРОСЫ И СОБИРАЙТЕ ОТВЕТЫ</p>
         </div>
-        <button
-          onClick={onCreate}
-          className="btn-primary nx-press px-3 md:px-4 py-2 rounded-xl font-mono text-xs md:text-sm font-bold flex items-center gap-2 flex-shrink-0"
-
-        >
+        <button onClick={onCreate} className="btn-primary nx-press flex items-center gap-2 px-3 md:px-4 py-2 rounded-xl font-mono text-[10px] md:text-xs flex-shrink-0">
           <Plus className="w-4 h-4" /> НОВЫЙ ОПРОС
         </button>
       </div>
 
-      {/* tabs */}
-      <div className="flex gap-1.5 overflow-x-auto md:overflow-x-visible pb-0.5 -mx-1 px-1">
-        {TABS.map((t) => {
-          const active = tab === t.key;
-          const meta = t.key !== 'all' ? STATUS_META[t.key] : null;
-          return (
-            <button
-              key={t.key}
-              onClick={() => setTab(t.key)}
-              className="px-2.5 md:px-3 py-2 rounded-xl font-mono text-[10px] md:text-[11px] transition-all duration-200 hover:scale-105 flex items-center gap-1.5 nx-press flex-shrink-0"
-              style={active
-                ? {
-                    background: meta ? meta.bg : 'var(--color-primary)',
-                    color: meta ? meta.color : '#000',
-                    border: `1px solid ${meta ? meta.color + '55' : 'transparent'}`,
-                    boxShadow: '0 0 16px rgba(0,255,136,0.15)',
-                  }
-                : { background: 'rgba(255,255,255,0.04)', color: '#888', border: '1px solid transparent' }}
-            >
-              {t.label}
-              <span className="opacity-70">({counts[t.key]})</span>
-            </button>
-          );
-        })}
+      {/* folders + поиск */}
+      <div className="flex flex-wrap items-center gap-1.5 pb-0.5 -mx-1 px-1">
+        {TABS.map((t) => (
+          <button
+            key={t.key}
+            onClick={() => setTab(t.key)}
+            className={`flex items-center gap-1.5 px-2.5 md:px-3 py-2 rounded-lg text-[10px] md:text-xs font-mono transition-all nx-press flex-shrink-0 ${
+              tab === t.key ? 'glass-accent' : 'bg-white/5 text-gray-400 hover:text-gray-200'
+            }`}
+            style={tab === t.key ? { color: 'var(--color-primary)' } : {}}
+          >
+            <FolderOpen className="w-3.5 h-3.5" /> {t.label} ({counts[t.key]})
+          </button>
+        ))}
+        <div className="relative w-full basis-full mt-1.5 md:mt-0 md:w-auto md:basis-0 md:flex-1 md:min-w-[140px] flex-shrink-0">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Поиск опроса…"
+            className="w-full pl-9 pr-3 py-2 rounded-lg text-sm bg-white/5 border border-white/10 text-gray-200 [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]"
+          />
+        </div>
       </div>
 
       {visible.length === 0 ? (
-        <div className="nx-tile p-5 md:p-10 text-center">
-          <ClipboardList className="w-8 h-8 md:w-10 md:h-10 mx-auto text-gray-600 mb-2 md:mb-3" />
-          <p className="font-mono text-sm text-gray-400">
-            {tab === 'all' ? 'Пока нет опросов' : `Нет опросов: ${TABS.find(t => t.key === tab)?.label.toLowerCase()}`}
-          </p>
-          {tab === 'all' && (
-            <p className="font-mono text-[10px] text-gray-600 mt-1">нажмите «НОВЫЙ ОПРОС»</p>
-          )}
-        </div>
+        <EmptyState
+          title={search || tab !== 'all' ? 'Ничего не найдено' : 'Опросов пока нет'}
+          description="Создайте первый опрос — вопросы, анонимность, QR и статистика."
+          actionLabel={!search && tab === 'all' ? 'СОЗДАТЬ ОПРОС' : undefined}
+          onAction={!search && tab === 'all' ? onCreate : undefined}
+          icon={<ClipboardList className="w-7 h-7" style={{ color: 'var(--color-primary)' }} />}
+        />
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 md:gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2 md:gap-4">
           {visible.map((s) => (
             <SurveyCard
               key={s.id}
