@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus, Search, Edit3, Trash2, Copy, QrCode, Calendar, Play, FolderOpen,
   X, Save, Image as ImageIcon, Link2, ArrowLeft, ChevronDown, ChevronRight,
-  Film, Music, BarChart3,
+  Film, Music, BarChart3, ChevronsUp, ChevronsDown, Eye,
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { quizzesApi, materialsApi } from '../services/api';
@@ -61,6 +61,7 @@ export default function Quizzes() {
     startsAt: '', endsAt: '', afterEndText: '', status: 'draft' as QuizStatus,
   });
   const [openStatus, setOpenStatus] = useState<string | null>(null);
+  const [showPreviewQ, setShowPreviewQ] = useState(false);
 
   /** textarea растёт по содержимому */
   const autoGrow = (el: HTMLTextAreaElement | null) => {
@@ -801,18 +802,26 @@ export default function Quizzes() {
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => setCollapsed(Object.fromEntries(questions.map((_, i) => [i, true])))}
-                      className="btn-ghost nx-press px-2.5 py-1.5 text-[10px]"
-                    >СВЕРНУТЬ ВСЕ</button>
+                      className="btn-ghost nx-press p-2 min-h-[36px] min-w-[36px] flex items-center justify-center rounded-lg"
+                      title="Свернуть все" aria-label="Свернуть все"
+                    ><ChevronsUp className="w-4 h-4" /></button>
                     <button
                       onClick={() => setCollapsed({})}
-                      className="btn-ghost nx-press px-2.5 py-1.5 text-[10px]"
-                    >РАЗВЕРНУТЬ</button>
+                      className="btn-ghost nx-press p-2 min-h-[36px] min-w-[36px] flex items-center justify-center rounded-lg"
+                      title="Развернуть все" aria-label="Развернуть все"
+                    ><ChevronsDown className="w-4 h-4" /></button>
                     <button
                       onClick={() => setQuestions((p) => [...p, emptyQ()])}
-                      className="btn-primary nx-press px-3 py-1.5 text-[10px]"
+                      className="btn-primary nx-press p-2 min-h-[36px] min-w-[36px] flex items-center justify-center rounded-lg"
+                      title="Добавить вопрос" aria-label="Добавить вопрос"
                     >
-                      <Plus className="w-3 h-3 inline mr-1" /> ДОБАВИТЬ
+                      <Plus className="w-4 h-4" />
                     </button>
+                    <button
+                      onClick={() => setShowPreviewQ(true)}
+                      className="btn-ghost nx-press p-2 min-h-[36px] min-w-[36px] flex items-center justify-center rounded-lg"
+                      title="Предпросмотр квиза" aria-label="Предпросмотр"
+                    ><Eye className="w-4 h-4" /></button>
                   </div>
                 </div>
 
@@ -876,32 +885,30 @@ export default function Quizzes() {
                               ref={autoGrow}
                               className="w-full px-3 py-1.5 rounded-lg text-[11px] bg-white/5 border border-white/10 text-gray-400 mb-2 resize-none overflow-hidden [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]"
                             />
-                            <div className="flex items-center gap-2 mb-2 min-h-[40px]">
+                            <div className="flex items-center gap-1.5 mb-2 min-h-[40px] flex-wrap">
                               <input
                                 ref={(el) => { qFileRefs.current[`q${qi}`] = el; }}
                                 type="file" accept="image/*" className="hidden"
                                 onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadQuestionImage(qi, f); e.target.value = ''; }}
                               />
-                              <button onClick={() => qFileRefs.current[`q${qi}`]?.click()} className="btn-ghost nx-press px-2 py-1 text-[10px]">
-                                <ImageIcon className="w-3 h-3 inline mr-1" /> КАРТИНКА
+                              <button onClick={() => qFileRefs.current[`q${qi}`]?.click()} className="btn-ghost nx-press p-2 min-h-[36px] min-w-[36px] flex items-center justify-center rounded-lg" title="Картинка вопроса">
+                                <ImageIcon className="w-3.5 h-3.5" />
                               </button>
                               <input
                                 ref={(el) => { qFileRefs.current[`qv${qi}`] = el; }}
                                 type="file" accept="video/mp4,video/webm" className="hidden"
                                 onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadQuestionVideo(qi, f); e.target.value = ''; }}
                               />
-                              <button onClick={() => qFileRefs.current[`qv${qi}`]?.click()} className="btn-ghost nx-press px-2 py-1 text-[10px]"
-                                title="Видео к вопросу (MP4/WebM)">
-                                <Film className="w-3 h-3 inline mr-1" /> ВИДЕО
+                              <button onClick={() => qFileRefs.current[`qv${qi}`]?.click()} className="btn-ghost nx-press p-2 min-h-[36px] min-w-[36px] flex items-center justify-center rounded-lg" title="Видео к вопросу (MP4/WebM)">
+                                <Film className="w-3.5 h-3.5" />
                               </button>
                               <input
                                 ref={(el) => { qFileRefs.current[`qa${qi}`] = el; }}
                                 type="file" accept="audio/mpeg,audio/wav,audio/ogg,audio/mp4,audio/webm" className="hidden"
                                 onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadQuestionAudio(qi, f); e.target.value = ''; }}
                               />
-                              <button onClick={() => qFileRefs.current[`qa${qi}`]?.click()} className="btn-ghost nx-press px-2 py-1 text-[10px]"
-                                title="Аудио к вопросу (MP3/WAV/OGG)">
-                                <Music className="w-3 h-3 inline mr-1" /> АУДИО
+                              <button onClick={() => qFileRefs.current[`qa${qi}`]?.click()} className="btn-ghost nx-press p-2 min-h-[36px] min-w-[36px] flex items-center justify-center rounded-lg" title="Аудио к вопросу (MP3/WAV/OGG)">
+                                <Music className="w-3.5 h-3.5" />
                               </button>
                               {uploads[`q${qi}`] !== undefined ? (
                                 <UploadSkeleton pct={uploads[`q${qi}`]} />
@@ -958,21 +965,25 @@ export default function Quizzes() {
                                       }}
                                       title="Переключить: правильный / нет"
                                     >
-                                      {o.isCorrect ? '✓ ВЕРНО' : 'ВЕРНО?'}
+                                      {o.isCorrect ? '✓' : '○'}
                                     </button>
-                                    <input
+                                    <textarea
                                       value={o.text}
-                                      onChange={(e) =>
+                                      onChange={(e) => {
+                                        const v = e.target.value;
                                         setQuestions((p) =>
                                           p.map((x, i) =>
                                             i === qi
-                                              ? { ...x, options: (x.options || []).map((op, j) => j === oi ? { ...op, text: e.target.value } : op) }
+                                              ? { ...x, options: (x.options || []).map((op, j) => j === oi ? { ...op, text: v } : op) }
                                               : x
                                           )
-                                        )
-                                      }
+                                        );
+                                        autoGrow(e.target);
+                                      }}
                                       placeholder={`Вариант ${oi + 1}`}
-                                      className="flex-1 px-2.5 py-1.5 rounded-lg text-xs bg-white/5 border border-white/10 text-gray-200 [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]"
+                                      rows={1}
+                                      ref={autoGrow}
+                                      className="flex-1 min-w-0 px-2 py-1.5 rounded-lg text-[11px] bg-white/5 border border-white/10 text-gray-200 resize-none overflow-hidden [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]"
                                     />
                                     <input
                                       ref={(el) => { qFileRefs.current[`o${qi}_${oi}`] = el; }}
@@ -1039,6 +1050,68 @@ export default function Quizzes() {
           </motion.div>
         )}
       </AnimatePresence>
+
+            {/* Предпросмотр квиза */}
+      {showPreviewQ && (
+        <div className="fixed inset-0 z-[110] flex items-start justify-center p-3 overflow-y-auto"
+          style={{ background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(6px)' }}
+          onClick={() => setShowPreviewQ(false)}>
+          <div className="nx-bezel w-full max-w-md my-6" onClick={(e) => e.stopPropagation()}>
+            <div className="nx-core p-4">
+              <div className="flex items-center justify-between mb-3">
+                <span className="nx-eyebrow">ПРЕДПРОСМОТР</span>
+                <button onClick={() => setShowPreviewQ(false)} className="p-2 rounded-lg hover:bg-white/10 nx-press" aria-label="Закрыть">
+                  <X className="w-4 h-4 text-gray-400" />
+                </button>
+              </div>
+              <div className="space-y-3">
+                {form.imageUrl && (
+                  <div className="rounded-xl overflow-hidden">
+                    <img src={form.imageUrl} alt="" className="w-full max-h-40 object-contain" />
+                  </div>
+                )}
+                <h3 className="font-mono text-lg font-bold" style={{ color: 'var(--color-primary)' }}>{form.title || 'Название квиза'}</h3>
+                {form.organizer && <p className="text-[10px] font-mono text-gray-500">ОРГАНИЗАТОР · {form.organizer}</p>}
+                {form.description && <p className="text-xs text-gray-400 leading-relaxed">{form.description}</p>}
+                {(form.startsAt || form.endsAt) && (
+                  <p className="text-[10px] font-mono text-gray-500">
+                    {form.startsAt && <>СТАРТ {new Date(form.startsAt).toLocaleString('ru-RU')}</>}
+                    {form.startsAt && form.endsAt && ' · '}
+                    {form.endsAt && <>ФИНИШ {new Date(form.endsAt).toLocaleString('ru-RU')}</>}
+                  </p>
+                )}
+                <div className="nx-divider" />
+                {(questions || []).filter((q: any) => (q.text || '').trim()).map((q: any, qi: number) => (
+                  <div key={qi} className="nx-tile p-3">
+                    <p className="text-sm text-gray-200">{qi + 1}. {q.text}</p>
+                    {q.comment && <p className="text-[11px] text-gray-500 mt-1">{q.comment}</p>}
+                    {q.type === 'choice' ? (
+                      <div className="mt-2 space-y-1.5">
+                        {(q.options || []).filter((o: any) => (o.text || '').trim()).map((o: any, oi: number) => (
+                          <div key={oi} className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-gray-300"
+                            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                            <span className="w-4 h-4 rounded-full border flex items-center justify-center flex-shrink-0"
+                              style={{ borderColor: 'rgba(255,255,255,0.2)' }} />
+                            <span className="min-w-0 break-words">{o.text}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="mt-2 px-3 py-2 rounded-lg text-xs text-gray-500"
+                        style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                        Ваш ответ…
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {form.afterEndText && (
+                  <p className="text-[10px] font-mono text-gray-500 text-center pt-2">{form.afterEndText}</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* QR */}
       {qrFor && (
