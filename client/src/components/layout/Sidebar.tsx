@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
@@ -19,6 +19,7 @@ import {
   Sparkles,
   CloudSun,
   BookOpen,
+  Zap,
 } from 'lucide-react';
 
 interface NavChild {
@@ -82,6 +83,17 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
+    id: 'activity',
+    icon: Zap,
+    label: 'Активность',
+    roles: ALL,
+    children: [
+      { to: '/registrations', label: 'Регистрация', roles: ALL },
+      { to: '/quizzes', label: 'Квизы', roles: ['super_admin', 'руководитель', 'информационный', 'туризм', 'редактор', 'smm', 'документовед'] },
+      { to: '/surveys', label: 'Опросы', roles: ALL },
+    ],
+  },
+  {
     id: 'tools',
     icon: Wrench,
     label: 'Инструменты',
@@ -116,11 +128,8 @@ const navGroups: NavGroup[] = [
     children: [
       { to: '/knowledge', label: 'База знаний', roles: ALL },
       { to: '/ideas', label: 'Идеи', roles: ALL },
-      { to: '/registrations', label: 'Регистрация', roles: ALL },
       { to: '/widgets', label: 'Виджеты', roles: ALL },
       { to: '/lists', label: 'Списки', roles: ALL },
-      { to: '/quizzes', label: 'Квизы', roles: ['super_admin', 'руководитель', 'информационный', 'туризм', 'редактор', 'smm', 'документовед'] },
-      { to: '/surveys', label: 'Опросы', roles: ALL },
       { to: '/materials', label: 'Материалы (файлы)', roles: ALL },
     ],
   },
@@ -165,6 +174,7 @@ interface SidebarProps {
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const { logout, hasRole } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('nexus_sidebar_collapsed') === 'true');
   const [activeGroup, setActiveGroup] = useState<string | null>(() => {
     // Find multi-child group containing current path
@@ -175,6 +185,13 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     return found ? found.id : null;
   });
 
+  // Lock background scroll while the mobile drawer is open
+  useEffect(() => {
+    if (window.innerWidth >= 768) return;
+    document.body.style.overflow = isOpen ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
+  }, [isOpen]);
+
   const toggleCollapsed = () => {
     setCollapsed(prev => {
       const next = !prev;
@@ -182,6 +199,12 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       if (next) setActiveGroup(null);
       return next;
     });
+  };
+
+  // Close the drawer and return the menu to the top level
+  const closeMenu = () => {
+    if (isOpen) setActiveGroup(null);
+    onClose();
   };
 
   const filteredGroups = navGroups
@@ -194,9 +217,8 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const handleGroupClick = (group: NavGroup) => {
     const accessible = group.children.filter(c => hasRole(c.roles));
     if (accessible.length === 1) {
-      // Direct navigation
-      window.location.hash = '';
-      onClose();
+      navigate(accessible[0].to);
+      closeMenu();
       return;
     }
     setActiveGroup(group.id);
@@ -206,7 +228,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     <>
       {/* Mobile overlay */}
       {isOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden" onClick={onClose} />
+        <div className="fixed inset-0 bg-black/60 z-40 md:hidden" onClick={closeMenu} />
       )}
 
       {/* Sidebar */}
@@ -242,7 +264,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             <button onClick={toggleCollapsed} className="nx-press p-2 rounded-xl hover:bg-white/5 hidden md:flex" aria-label={collapsed ? 'Развернуть боковое меню' : 'Свернуть боковое меню'} title={collapsed ? 'Развернуть' : 'Свернуть'}>
               {collapsed ? <PanelLeftOpen className="w-4 h-4 text-gray-400" /> : <PanelLeftClose className="w-4 h-4 text-gray-400" />}
             </button>
-            <button onClick={onClose} className="nx-press p-2 rounded-xl hover:bg-white/5 md:hidden" aria-label="Закрыть меню">
+            <button onClick={closeMenu} className="nx-press p-2 rounded-xl hover:bg-white/5 md:hidden" aria-label="Закрыть меню">
               <X className="w-5 h-5 text-gray-400" />
             </button>
           </div>
@@ -261,7 +283,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
                 if (isSingle) {
                   return (
-                    <NavLink key={group.id} to={target.to} end={target.to === '/'} onClick={onClose}
+                    <NavLink key={group.id} to={target.to} end={target.to === '/'} onClick={closeMenu}
                       className="nx-press flex items-center justify-center w-full h-10 rounded-xl"
                       style={isGroupActive ? { background: 'color-mix(in srgb, var(--color-primary) 10%, transparent)', ...activeLift } : { color: 'var(--color-text-secondary)' }}
                       aria-label={group.label}
@@ -303,9 +325,9 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                   if (isSingle) {
                     const child = group.children.filter(c => hasRole(c.roles))[0];
                     return (
-                      <NavLink key={group.id} to={child.to} end={child.to === '/'} onClick={onClose}
+                      <NavLink key={group.id} to={child.to} end={child.to === '/'} onClick={closeMenu}
                         className={({ isActive }) =>
-                          `nx-press flex items-center gap-3 px-4 py-3 rounded-xl ${
+                          `nx-press flex items-center gap-3 px-3 py-2.5 md:px-4 md:py-3 rounded-xl ${
                             isActive ? 'glass-accent nav-link-active' : 'text-gray-400 hover:bg-white/5 hover:text-gray-200'
                           }`
                         }
@@ -318,7 +340,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
                   return (
                     <button key={group.id} onClick={() => handleGroupClick(group)}
-                      className={`nx-press w-full flex items-center gap-3 px-4 py-3 rounded-xl ${
+                      className={`nx-press w-full flex items-center gap-3 px-3 py-2.5 md:px-4 md:py-3 rounded-xl ${
                         isGroupActive ? 'text-gray-200 bg-white/5' : 'text-gray-400 hover:bg-white/5 hover:text-gray-200'
                       }`}>
                       <group.icon className="w-5 h-5 flex-shrink-0" />
@@ -339,11 +361,11 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                 className="space-y-1"
               >
                 <button onClick={() => setActiveGroup(null)}
-                  className="nx-press w-full flex items-center gap-2 px-4 py-2.5 rounded-xl text-gray-400 hover:text-gray-200 hover:bg-white/5 mb-2">
+                  className="nx-press w-full flex items-center gap-2 px-3 py-2.5 md:px-4 rounded-xl text-gray-400 hover:text-gray-200 hover:bg-white/5 mb-2">
                   <ArrowLeft className="w-4 h-4" />
                   <span className="text-sm font-mono">НАЗАД</span>
                 </button>
-                <div className="px-4 py-2 mb-1">
+                <div className="px-3 py-2 md:px-4 mb-1">
                   <span className="text-xs font-mono text-gray-500 uppercase">{currentGroup?.label}</span>
                 </div>
                 {filteredChildren.map((child, i) => (
@@ -353,9 +375,9 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.12, delay: i * 0.03 }}
                   >
-                    <NavLink to={child.to} end={child.to === '/'} onClick={onClose}
+                    <NavLink to={child.to} end={child.to === '/'} onClick={closeMenu}
                       className={({ isActive }) =>
-                        `nx-press flex items-center gap-3 px-4 py-3 rounded-xl ${
+                        `nx-press flex items-center gap-3 px-3 py-2.5 md:px-4 md:py-3 rounded-xl ${
                           isActive ? 'glass-accent nav-link-active' : 'text-gray-400 hover:bg-white/5 hover:text-gray-200'
                         }`
                       }

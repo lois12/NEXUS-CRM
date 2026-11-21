@@ -68,7 +68,7 @@ export default function SurveyCard({
       className="nx-tile overflow-hidden cursor-pointer"
       onClick={onOpen}
     >
-      <div className="h-24 bg-black/40 relative">
+      <div className="h-16 md:h-24 bg-black/40 relative">
         {survey.imageUrl ? (
           <SmartImage src={survey.imageUrl} alt="" className="w-full h-full object-cover" />
         ) : (
@@ -83,8 +83,8 @@ export default function SurveyCard({
           {meta.label}
         </span>
       </div>
-      <div className="p-3 space-y-2">
-        <h3 className="font-mono text-sm font-bold text-white truncate">{survey.name}</h3>
+      <div className="p-2.5 md:p-3 space-y-1.5 md:space-y-2">
+        <h3 className="font-mono text-xs md:text-sm font-bold text-white truncate">{survey.name}</h3>
         {survey.description && (
           <p className="font-mono text-[10px] text-gray-400" style={{
             display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
@@ -107,27 +107,27 @@ export default function SurveyCard({
           />
         </div>
 
-        <div className="flex flex-wrap gap-1.5" onClick={(e) => e.stopPropagation()}>
-          <button onClick={onEdit} className="flex-1 py-1.5 rounded-lg font-mono text-[10px] glass hover:bg-white/10 nx-press">
+        <div className="flex gap-1.5 overflow-x-auto pb-0.5" onClick={(e) => e.stopPropagation()}>
+          <button onClick={onEdit} className="flex-1 min-w-[72px] py-2 rounded-lg font-mono text-[10px] glass hover:bg-white/10 nx-press flex-shrink-0">
             РЕДАКТОР
           </button>
-          <button onClick={onStats} className="flex-1 py-1.5 rounded-lg font-mono text-[10px] glass hover:bg-white/10 nx-press">
+          <button onClick={onStats} className="flex-1 min-w-[72px] py-2 rounded-lg font-mono text-[10px] glass hover:bg-white/10 nx-press flex-shrink-0">
             СТАТИСТИКА
           </button>
           {(status === 'published' || status === 'completed') && survey.publicSlug && (
             <>
-              <button onClick={onCopyLink} className="px-2 py-1.5 rounded-lg font-mono text-[10px] glass hover:bg-white/10 nx-press" title="Ссылка">
+              <button onClick={onCopyLink} className="px-2 py-2 rounded-lg font-mono text-[10px] glass hover:bg-white/10 nx-press flex-shrink-0" title="Ссылка">
                 <Link2 className="w-3 h-3" />
               </button>
-              <button onClick={() => setShowQr(true)} className="px-2 py-1.5 rounded-lg font-mono text-[10px] glass hover:bg-white/10 nx-press" title="QR-код">
+              <button onClick={() => setShowQr(true)} className="px-2 py-2 rounded-lg font-mono text-[10px] glass hover:bg-white/10 nx-press flex-shrink-0" title="QR-код">
                 <QrCode className="w-3 h-3" />
               </button>
             </>
           )}
-          <button onClick={onDuplicate} className="px-2 py-1.5 rounded-lg font-mono text-[10px] glass hover:bg-white/10 nx-press" title="Дублировать">
+          <button onClick={onDuplicate} className="px-2 py-2 rounded-lg font-mono text-[10px] glass hover:bg-white/10 nx-press flex-shrink-0" title="Дублировать">
             <Copy className="w-3 h-3" />
           </button>
-          <button onClick={onDelete} className="px-2 py-1.5 rounded-lg font-mono text-[10px] hover:bg-red-500/15 text-red-400 nx-press" title="Удалить">
+          <button onClick={onDelete} className="px-2 py-2 rounded-lg font-mono text-[10px] hover:bg-red-500/15 text-red-400 nx-press flex-shrink-0" title="Удалить">
             <Trash2 className="w-3 h-3" />
           </button>
         </div>

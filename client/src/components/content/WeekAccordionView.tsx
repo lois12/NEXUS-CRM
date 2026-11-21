@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronDown,
   ChevronLeft,
@@ -11,6 +10,7 @@ import {
   Calendar,
 } from 'lucide-react';
 import { ContentPost, SocialPlatform } from '../../types';
+import EmptyState from '../ui/EmptyState';
 
 const platformColors: Record<SocialPlatform, string> = {
   telegram: '#0088cc',
@@ -131,15 +131,24 @@ export default function WeekAccordionView({
     return list;
   }, [anchor]);
 
-  const postsForDay = (date: Date) =>
-    posts.filter((post) => {
+  /** Posts indexed by local calendar day (platform filter applied) — O(1) lookups */
+  const postsByDay = useMemo(() => {
+    const map = new Map<string, ContentPost[]>();
+    for (const post of posts) {
       const src = post.scheduledDate || post.createdAt;
-      if (!src) return false;
-      const postDate = parseLocalDate(src);
-      if (!sameDay(postDate, date)) return false;
-      if (filterPlatform !== 'all' && !getPostPlatforms(post).includes(filterPlatform)) return false;
-      return true;
-    });
+      if (!src) continue;
+      if (filterPlatform !== 'all' && !getPostPlatforms(post).includes(filterPlatform)) continue;
+      const d = parseLocalDate(src);
+      const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+      const bucket = map.get(key);
+      if (bucket) bucket.push(post);
+      else map.set(key, [post]);
+    }
+    return map;
+  }, [posts, filterPlatform]);
+
+  const postsForDay = (date: Date) =>
+    postsByDay.get(`${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`) ?? [];
 
   const countForWeek = (weekStart: Date) => {
     let n = 0;
@@ -154,43 +163,37 @@ export default function WeekAccordionView({
     <div>
       {/* Header nav */}
       <div className="flex items-center justify-between mb-4 md:mb-5 gap-2">
-        <motion.button
-          whileHover={{ scale: 1.08, x: -2 }}
-          whileTap={{ scale: 0.92 }}
+        <button
           onClick={() => setAnchor((p) => addDays(p, -7))}
-          className="p-2 md:p-2.5 rounded-xl glass hover:glass-accent transition-all flex-shrink-0"
+          className="p-2 md:p-2.5 rounded-xl glass hover:glass-accent transition-all flex-shrink-0 nx-press"
         >
           <ChevronLeft className="w-4 h-4 md:w-5 md:h-5" style={{ color: 'var(--color-primary)' }} />
-        </motion.button>
+        </button>
 
         <div className="flex items-center gap-2 md:gap-3 min-w-0">
           <h2 className="text-xs sm:text-sm md:text-lg font-bold font-mono text-gray-200 tracking-wider truncate">
             {navLabel}
           </h2>
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
+          <button
             onClick={() => {
               const t = startOfWeek(new Date());
               setAnchor(t);
               setOpenWeekKey(formatShort(t));
               setOpenDayKey(formatShort(new Date()));
             }}
-            className="px-2.5 md:px-3 py-1.5 rounded-xl text-[10px] md:text-xs font-mono glass hover:glass-accent transition-all flex-shrink-0"
+            className="px-2.5 md:px-3 py-1.5 rounded-xl text-[10px] md:text-xs font-mono glass hover:glass-accent transition-all flex-shrink-0 nx-press"
             style={{ color: 'var(--color-primary)' }}
           >
             СЕГОДНЯ
-          </motion.button>
+          </button>
         </div>
 
-        <motion.button
-          whileHover={{ scale: 1.08, x: 2 }}
-          whileTap={{ scale: 0.92 }}
+        <button
           onClick={() => setAnchor((p) => addDays(p, 7))}
-          className="p-2 md:p-2.5 rounded-xl glass hover:glass-accent transition-all flex-shrink-0"
+          className="p-2 md:p-2.5 rounded-xl glass hover:glass-accent transition-all flex-shrink-0 nx-press"
         >
           <ChevronRight className="w-4 h-4 md:w-5 md:h-5" style={{ color: 'var(--color-primary)' }} />
-        </motion.button>
+        </button>
       </div>
 
       {/* Month strip */}
@@ -265,16 +268,9 @@ export default function WeekAccordionView({
                 />
               </button>
 
-              {/* Days */}
-              <AnimatePresence>
-                {isOpen && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.22 }}
-                    className="overflow-hidden"
-                  >
+              {/* Days — CSS grid-rows transition (cheap for the 42-row inner list) */}
+              <div className={`grid transition-[grid-template-rows] duration-200 ease-out ${isOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
+                <div className="overflow-hidden min-h-0">
                     <div className="px-3 pb-3 space-y-1.5">
                       {Array.from({ length: 7 }, (_, di) => {
                         const day = addDays(weekStart, di);
@@ -352,20 +348,17 @@ export default function WeekAccordionView({
                               />
                             </button>
 
-                            <AnimatePresence>
-                              {isDayOpen && (
-                                <motion.div
-                                  initial={{ height: 0, opacity: 0 }}
-                                  animate={{ height: 'auto', opacity: 1 }}
-                                  exit={{ height: 0, opacity: 0 }}
-                                  transition={{ duration: 0.18 }}
-                                  className="overflow-hidden"
-                                >
+                            {/* CSS grid-rows expand — no per-row AnimatePresence */}
+                            <div className={`grid transition-[grid-template-rows] duration-200 ease-out ${isDayOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
+                              <div className="overflow-hidden min-h-0">
                                   <div className="px-3 pb-3 space-y-2">
                                     {dayPosts.length === 0 ? (
-                                      <div className="text-xs font-mono text-gray-500 py-2 px-1">
-                                        // ПОСТОВ НЕТ
-                                      </div>
+                                      <EmptyState
+                                        title="Нет постов"
+                                        description="В этот день публикаций нет."
+                                        actionLabel={canEdit ? 'СОЗДАТЬ ПОСТ' : undefined}
+                                        onAction={canEdit ? () => onCreateForDate(day) : undefined}
+                                      />
                                     ) : (
                                       dayPosts.map((post) => {
                                         const tags = getPostPlatforms(post);
@@ -429,16 +422,14 @@ export default function WeekAccordionView({
                                       })
                                     )}
                                   </div>
-                                </motion.div>
-                              )}
-                            </AnimatePresence>
+                              </div>
+                            </div>
                           </div>
                         );
                       })}
                     </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+                </div>
+              </div>
             </div>
           );
         })}

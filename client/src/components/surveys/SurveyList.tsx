@@ -44,17 +44,17 @@ export default function SurveyList({
   const visible = tab === 'all' ? surveys : surveys.filter((s) => statusOf(s) === tab);
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
+    <div className="space-y-2 md:space-y-4">
+      <div className="flex flex-wrap items-end justify-between gap-2 md:gap-3">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold font-mono neon-text flex items-center gap-3" style={{ color: 'var(--color-primary)' }}>
-            <ClipboardList className="w-7 h-7" /> ОПРОСЫ
+          <h1 className="text-lg md:text-3xl font-bold font-mono neon-text flex items-center gap-2 md:gap-3" style={{ color: 'var(--color-primary)' }}>
+            <ClipboardList className="w-5 h-5 md:w-7 md:h-7" /> ОПРОСЫ
           </h1>
-          <p className="text-gray-400 mt-1 font-mono text-sm">// СОЗДАВАЙТЕ ОПРОСЫ И СОБИРАЙТЕ ОТВЕТЫ</p>
+          <p className="text-gray-400 mt-0.5 md:mt-1 font-mono text-[10px] md:text-sm">// СОЗДАВАЙТЕ ОПРОСЫ И СОБИРАЙТЕ ОТВЕТЫ</p>
         </div>
         <button
           onClick={onCreate}
-          className="btn-primary nx-press px-4 py-2.5 rounded-xl font-mono text-sm font-bold flex items-center gap-2"
+          className="btn-primary nx-press px-3 md:px-4 py-2 rounded-xl font-mono text-xs md:text-sm font-bold flex items-center gap-2 flex-shrink-0"
 
         >
           <Plus className="w-4 h-4" /> НОВЫЙ ОПРОС
@@ -62,7 +62,7 @@ export default function SurveyList({
       </div>
 
       {/* tabs */}
-      <div className="flex gap-1.5 flex-wrap">
+      <div className="flex gap-1.5 overflow-x-auto md:overflow-x-visible pb-0.5 -mx-1 px-1">
         {TABS.map((t) => {
           const active = tab === t.key;
           const meta = t.key !== 'all' ? STATUS_META[t.key] : null;
@@ -70,7 +70,7 @@ export default function SurveyList({
             <button
               key={t.key}
               onClick={() => setTab(t.key)}
-              className="px-3 py-2 rounded-xl font-mono text-[11px] transition-all duration-200 hover:scale-105 flex items-center gap-1.5 nx-press"
+              className="px-2.5 md:px-3 py-2 rounded-xl font-mono text-[10px] md:text-[11px] transition-all duration-200 hover:scale-105 flex items-center gap-1.5 nx-press flex-shrink-0"
               style={active
                 ? {
                     background: meta ? meta.bg : 'var(--color-primary)',
@@ -88,8 +88,8 @@ export default function SurveyList({
       </div>
 
       {visible.length === 0 ? (
-        <div className="nx-tile p-10 text-center">
-          <ClipboardList className="w-10 h-10 mx-auto text-gray-600 mb-3" />
+        <div className="nx-tile p-5 md:p-10 text-center">
+          <ClipboardList className="w-8 h-8 md:w-10 md:h-10 mx-auto text-gray-600 mb-2 md:mb-3" />
           <p className="font-mono text-sm text-gray-400">
             {tab === 'all' ? 'Пока нет опросов' : `Нет опросов: ${TABS.find(t => t.key === tab)?.label.toLowerCase()}`}
           </p>
@@ -98,7 +98,7 @@ export default function SurveyList({
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 md:gap-3">
           {visible.map((s) => (
             <SurveyCard
               key={s.id}

@@ -473,20 +473,20 @@ export default function Registrations() {
   if (view === 'submissions' && editing) {
     const subStatus = STATUS_CONFIG[editing.status] || STATUS_CONFIG.draft;
     return (
-      <div className="space-y-4">
+      <div className="space-y-2.5 md:space-y-4">
         {/* Hero band */}
         <div className="nx-bezel nx-rise">
-          <div className="nx-core px-6 py-5 flex items-center justify-between gap-4 flex-wrap">
-            <div className="flex items-center gap-4">
-              <button onClick={() => setView('list')} className="flex items-center gap-2 px-3.5 py-2 rounded-xl font-mono text-sm text-gray-400 hover:text-gray-200 glass transition-colors nx-press">
+          <div className="nx-core px-3 py-2.5 md:px-6 md:py-5 flex items-center justify-between gap-2.5 md:gap-4 flex-wrap">
+            <div className="flex items-center gap-2.5 md:gap-4">
+              <button onClick={() => setView('list')} className="flex items-center gap-2 px-3 py-2 rounded-xl font-mono text-xs md:text-sm text-gray-400 hover:text-gray-200 glass transition-colors nx-press">
                 <ArrowLeft className="w-4 h-4" /> НАЗАД
               </button>
               <div>
-                <div className="nx-eyebrow mb-2"
+                <div className="nx-eyebrow mb-1 md:mb-2"
                   style={{ color: subStatus.color, background: `${subStatus.color}18`, borderColor: `${subStatus.color}40`, boxShadow: `0 0 16px ${subStatus.color}25` }}>
                   {subStatus.label}
                 </div>
-                <h1 className="text-xl md:text-2xl font-bold font-mono neon-text" style={{ color: 'var(--color-primary)' }}>{editing.title}</h1>
+                <h1 className="text-base md:text-2xl font-bold font-mono neon-text" style={{ color: 'var(--color-primary)' }}>{editing.title}</h1>
               </div>
             </div>
           </div>
@@ -494,31 +494,31 @@ export default function Registrations() {
 
         {/* Statistics cards */}
         {stats && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="nx-tile p-5 text-center nx-rise nx-rise-1">
-              <p className="font-mono text-[9px] text-gray-500 mb-2 tracking-[0.18em] uppercase">ВСЕГО ЗАЯВОК</p>
-              <p className="font-mono text-3xl font-bold" style={{ color: 'var(--color-primary)' }}>{stats.total || submissions.length}</p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 md:gap-4">
+            <div className="nx-tile p-2.5 md:p-5 text-center nx-rise nx-rise-1">
+              <p className="font-mono text-[9px] text-gray-500 mb-1 md:mb-2 tracking-[0.18em] uppercase">ВСЕГО ЗАЯВОК</p>
+              <p className="font-mono text-xl md:text-3xl font-bold" style={{ color: 'var(--color-primary)' }}>{stats.total || submissions.length}</p>
             </div>
-            <div className="nx-tile p-5 text-center nx-rise nx-rise-2">
-              <p className="font-mono text-[9px] text-gray-500 mb-2 tracking-[0.18em] uppercase">ПОДТВЕРЖДЕНО</p>
-              <p className="font-mono text-3xl font-bold" style={{ color: '#00d4ff' }}>{stats.confirmed || submissions.filter(s => s.status === 'confirmed').length}</p>
+            <div className="nx-tile p-2.5 md:p-5 text-center nx-rise nx-rise-2">
+              <p className="font-mono text-[9px] text-gray-500 mb-1 md:mb-2 tracking-[0.18em] uppercase">ПОДТВЕРЖДЕНО</p>
+              <p className="font-mono text-xl md:text-3xl font-bold" style={{ color: '#00d4ff' }}>{stats.confirmed || submissions.filter(s => s.status === 'confirmed').length}</p>
             </div>
-            <div className="nx-tile p-5 text-center nx-rise nx-rise-3">
-              <p className="font-mono text-[9px] text-gray-500 mb-2 tracking-[0.18em] uppercase">ЗАРЕГИСТРИРОВАНО</p>
-              <p className="font-mono text-3xl font-bold" style={{ color: '#00ff88' }}>{stats.registered || submissions.filter(s => s.status === 'registered').length}</p>
+            <div className="nx-tile p-2.5 md:p-5 text-center nx-rise nx-rise-3">
+              <p className="font-mono text-[9px] text-gray-500 mb-1 md:mb-2 tracking-[0.18em] uppercase">ЗАРЕГИСТРИРОВАНО</p>
+              <p className="font-mono text-xl md:text-3xl font-bold" style={{ color: '#00ff88' }}>{stats.registered || submissions.filter(s => s.status === 'registered').length}</p>
             </div>
-            <div className="nx-tile p-5 text-center nx-rise nx-rise-4">
-              <p className="font-mono text-[9px] text-gray-500 mb-2 tracking-[0.18em] uppercase">В ОЖИДАНИИ</p>
-              <p className="font-mono text-3xl font-bold" style={{ color: '#eab308' }}>{stats.waitlist || submissions.filter(s => s.status === 'waitlist').length}</p>
+            <div className="nx-tile p-2.5 md:p-5 text-center nx-rise nx-rise-4">
+              <p className="font-mono text-[9px] text-gray-500 mb-1 md:mb-2 tracking-[0.18em] uppercase">В ОЖИДАНИИ</p>
+              <p className="font-mono text-xl md:text-3xl font-bold" style={{ color: '#eab308' }}>{stats.waitlist || submissions.filter(s => s.status === 'waitlist').length}</p>
             </div>
           </div>
         )}
 
         {/* Daily trend */}
         {stats?.dailyTrend && stats.dailyTrend.length > 0 && (
-          <div className="nx-panel p-5">
-            <h3 className="nx-eyebrow mb-3"><BarChart3 className="w-3.5 h-3.5" /> РЕГИСТРАЦИИ ПО ДНЯМ</h3>
-            <div className="nx-divider mb-4" />
+          <div className="nx-panel p-3 md:p-5">
+            <h3 className="nx-eyebrow mb-2 md:mb-3"><BarChart3 className="w-3.5 h-3.5" /> РЕГИСТРАЦИИ ПО ДНЯМ</h3>
+            <div className="nx-divider mb-2.5 md:mb-4" />
             <div className="flex items-end gap-1 h-20">
               {stats.dailyTrend.map((d: any, i: number) => {
                 const max = Math.max(...stats.dailyTrend.map((x: any) => x.count), 1);
@@ -544,20 +544,20 @@ export default function Registrations() {
   // ── Constructor View ──
   if (view === 'constructor') {
     return (
-      <div className="space-y-6">
+      <div className="space-y-3 md:space-y-6">
         {/* Workshop toolbar */}
-        <div className="nx-tile px-4 py-3 flex items-center justify-between flex-wrap gap-3">
-          <button onClick={() => setView('list')} className="flex items-center gap-2 px-3.5 py-2 rounded-xl font-mono text-sm text-gray-400 hover:text-gray-200 transition-colors nx-press">
+        <div className="nx-tile px-3 py-2 md:px-4 md:py-3 flex items-center justify-between gap-2 md:gap-3 overflow-x-auto">
+          <button onClick={() => setView('list')} className="flex items-center gap-2 px-3 py-2 rounded-xl font-mono text-xs md:text-sm text-gray-400 hover:text-gray-200 transition-colors nx-press flex-shrink-0">
             <ArrowLeft className="w-4 h-4" /> НАЗАД
           </button>
 
           {/* Status toggle — prominent */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
             <button onClick={() => {
               const newStatus = form.status === 'active' ? 'draft' : 'active';
               setForm(prev => ({ ...prev, status: newStatus }));
             }}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl font-mono text-sm font-bold transition-all nx-press"
+              className="flex items-center gap-2 px-3 md:px-4 py-2 rounded-xl font-mono text-xs md:text-sm font-bold transition-all nx-press whitespace-nowrap"
               style={form.status === 'active'
                 ? { background: 'rgba(0,255,136,0.15)', border: '1px solid rgba(0,255,136,0.3)', color: '#00ff88', boxShadow: '0 0 12px rgba(0,255,136,0.2)' }
                 : form.status === 'closed'
@@ -567,30 +567,30 @@ export default function Registrations() {
             </button>
           </div>
 
-          <div className="flex flex-wrap gap-2">
+          <div className="flex gap-2 overflow-x-auto pb-0.5">
             {editing && (
               <>
-                <button onClick={() => openSubmissions(editing)} className="flex items-center gap-1.5 px-2 sm:px-3 py-2 rounded-xl font-mono text-[10px] sm:text-xs glass hover:bg-white/10 nx-press">
+                <button onClick={() => openSubmissions(editing)} className="flex items-center gap-1.5 px-2 sm:px-3 py-2 rounded-xl font-mono text-[10px] sm:text-xs glass hover:bg-white/10 nx-press flex-shrink-0">
                   <Eye className="w-3.5 h-3.5" /> ЗАЯВКИ ({editing.confirmedCount || 0})
                 </button>
-                <button onClick={() => setShowQR(true)} className="flex items-center gap-1.5 px-2 sm:px-3 py-2 rounded-xl font-mono text-[10px] sm:text-xs glass hover:bg-white/10 nx-press">
+                <button onClick={() => setShowQR(true)} className="flex items-center gap-1.5 px-2 sm:px-3 py-2 rounded-xl font-mono text-[10px] sm:text-xs glass hover:bg-white/10 nx-press flex-shrink-0">
                   <QrCode className="w-3.5 h-3.5" /> QR
                 </button>
                 {publicUrl && (
-                  <button onClick={copyLink} className="flex items-center gap-1.5 px-2 sm:px-3 py-2 rounded-xl font-mono text-[10px] sm:text-xs glass hover:bg-white/10 nx-press">
+                  <button onClick={copyLink} className="flex items-center gap-1.5 px-2 sm:px-3 py-2 rounded-xl font-mono text-[10px] sm:text-xs glass hover:bg-white/10 nx-press flex-shrink-0">
                     <Copy className="w-3.5 h-3.5" /> ССЫЛКА
                   </button>
                 )}
               </>
             )}
             <button onClick={handleSave} disabled={uploading}
-              className="btn-primary nx-press flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl font-mono text-xs sm:text-sm font-bold disabled:opacity-50"
+              className="btn-primary nx-press flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl font-mono text-[10px] sm:text-sm font-bold disabled:opacity-50 flex-shrink-0"
               >
               {uploading ? 'СОХРАНЕНИЕ...' : 'СОХРАНИТЬ'}
             </button>
             {editing && (
               <button onClick={handleSaveAndNotify} disabled={uploading}
-                className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-xl font-mono text-[10px] sm:text-sm font-bold disabled:opacity-50 nx-press"
+                className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-xl font-mono text-[10px] sm:text-sm font-bold disabled:opacity-50 nx-press flex-shrink-0 whitespace-nowrap"
                 style={{ backgroundColor: 'rgba(234,179,8,0.15)', color: '#eab308', border: '1px solid rgba(234,179,8,0.3)' }}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4"><path d="M22 2L11 13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
                 ИЗМЕНИТЬ И ОПОВЕСТИТЬ
@@ -599,10 +599,10 @@ export default function Registrations() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 md:gap-6">
           {/* Left: Basic info */}
-          <div className="space-y-4">
-            <div className="nx-panel p-6 space-y-4">
+          <div className="space-y-2.5 md:space-y-4">
+            <div className="nx-panel p-3 md:p-6 space-y-2.5 md:space-y-4">
               <h2 className="nx-eyebrow">ИНФОРМАЦИЯ</h2>
               <div className="nx-divider" />
               <input data-field="title" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="// НАЗВАНИЕ МЕРОПРИЯТИЯ *"
@@ -799,16 +799,16 @@ export default function Registrations() {
               )}
             </div>
 
-            <div className="nx-panel p-6">
-              <h2 className="nx-eyebrow mb-3">ОПИСАНИЕ</h2>
-              <div className="nx-divider mb-4" />
+            <div className="nx-panel p-3 md:p-6">
+              <h2 className="nx-eyebrow mb-2 md:mb-3">ОПИСАНИЕ</h2>
+              <div className="nx-divider mb-2.5 md:mb-4" />
               <RichEditor content={form.description} onChange={html => setForm({ ...form, description: html })} placeholder="// ОПИСАНИЕ МЕРОПРИЯТИЯ..." />
               <ErrMsg k="description" />
             </div>
 
-            <div className="nx-panel p-6">
-              <h2 className="nx-eyebrow mb-3">ОБЛОЖКА</h2>
-              <div className="nx-divider mb-4" />
+            <div className="nx-panel p-3 md:p-6">
+              <h2 className="nx-eyebrow mb-2 md:mb-3">ОБЛОЖКА</h2>
+              <div className="nx-divider mb-2.5 md:mb-4" />
               {/* Current image preview */}
               {imageUrl && !imageFiles.length ? (
                 <div className="relative rounded-xl overflow-hidden mb-3 group">
@@ -872,9 +872,9 @@ export default function Registrations() {
             </div>
 
             {/* Video */}
-            <div className="nx-panel p-6">
-              <h2 className="nx-eyebrow mb-3">ВИДЕО</h2>
-              <div className="nx-divider mb-4" />
+            <div className="nx-panel p-3 md:p-6">
+              <h2 className="nx-eyebrow mb-2 md:mb-3">ВИДЕО</h2>
+              <div className="nx-divider mb-2.5 md:mb-4" />
               {videoUrl && !videoFile ? (
                 <div className="relative rounded-xl overflow-hidden mb-3 group">
                   <video src={videoUrl} controls draggable="false" className="w-full rounded-xl select-none" style={{ maxHeight: 300 }} />
@@ -935,8 +935,8 @@ export default function Registrations() {
             </div>
 
             {/* Media Gallery */}
-            <div className="nx-panel p-6">
-              <div className="flex items-center justify-between mb-3">
+            <div className="nx-panel p-3 md:p-6">
+              <div className="flex items-center justify-between mb-2 md:mb-3">
                 <h2 className="nx-eyebrow">МЕДИАГАЛЕРЕЯ ({mediaItems.length + mediaFiles.length})</h2>
                 {editing && mediaFiles.length > 0 && (
                   <button onClick={async () => {
@@ -956,7 +956,7 @@ export default function Registrations() {
                   </button>
                 )}
               </div>
-              <div className="nx-divider mb-4" />
+              <div className="nx-divider mb-2.5 md:mb-4" />
               {/* Existing media */}
               {mediaItems.length > 0 && (
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-3">
@@ -1017,16 +1017,16 @@ export default function Registrations() {
           </div>
 
           {/* Right: Field Builder */}
-          <div className="nx-panel p-6">
+          <div className="nx-panel p-3 md:p-6">
             {/* System blocks — always first on the public form (expandable preview) */}
-            <div className="mb-5">
+            <div className="mb-3 md:mb-5">
               <button type="button"
                 onClick={() => setShowSysBlocks(v => !v)}
-                className="w-full flex items-center justify-between mb-2 nx-press">
+                className="w-full flex items-center justify-between mb-1.5 md:mb-2 nx-press">
                 <span className="nx-eyebrow">СИСТЕМНЫЕ БЛОКИ</span>
                 <span className="font-mono text-[9px] text-gray-500">{showSysBlocks ? "Свернуть" : "Развернуть просмотр"}</span>
               </button>
-              <div className="nx-divider mb-3" />
+              <div className="nx-divider mb-2 md:mb-3" />
               {showSysBlocks && (
                 <div className="space-y-2 mb-2">
                   <div className="nx-tile p-3 opacity-90">
@@ -1060,7 +1060,7 @@ export default function Registrations() {
 
         {/* Public link display */}
         {editing && publicUrl && (
-          <div className="nx-tile p-5 flex items-center gap-4 flex-wrap">
+          <div className="nx-tile p-3 md:p-5 flex items-center gap-2.5 md:gap-4 flex-wrap">
             <span className="nx-eyebrow">ПУБЛИЧНАЯ ССЫЛКА:</span>
             <code className="font-mono text-sm px-3 py-1.5 rounded-xl bg-black/30 border border-gray-700 text-green-400 break-all [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]">{publicUrl}</code>
             <button onClick={copyLink} className="p-2 rounded-lg hover:bg-white/10 nx-press"><Copy className="w-4 h-4 text-gray-400" /></button>
@@ -1075,11 +1075,11 @@ export default function Registrations() {
               onClick={() => setShowQR(false)}>
               <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }}
                 className="nx-bezel" onClick={e => e.stopPropagation()}>
-                <div className="nx-core p-6 text-center">
-                <div className="nx-eyebrow mb-3">QR</div>
-                <h3 className="font-mono text-sm font-bold mb-4" style={{ color: 'var(--color-primary)' }}>QR-КОД РЕГИСТРАЦИИ</h3>
-                <div className="nx-divider mb-4" />
-                <div className="inline-block p-4 bg-white rounded-xl">
+                <div className="nx-core p-4 md:p-6 text-center">
+                <div className="nx-eyebrow mb-2 md:mb-3">QR</div>
+                <h3 className="font-mono text-xs md:text-sm font-bold mb-3 md:mb-4" style={{ color: 'var(--color-primary)' }}>QR-КОД РЕГИСТРАЦИИ</h3>
+                <div className="nx-divider mb-3 md:mb-4" />
+                <div className="inline-block p-3 md:p-4 bg-white rounded-xl">
                   <QRCodeSVG value={publicUrl} size={200} />
                 </div>
                 <p className="font-mono text-xs text-gray-400 mt-3 break-all max-w-xs mx-auto">{publicUrl}</p>
@@ -1097,45 +1097,45 @@ export default function Registrations() {
 
   // ── List View ──
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 md:space-y-6">
       {/* Hero band */}
       <div className="nx-bezel nx-rise">
-        <div className="nx-core p-6 md:p-8">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+        <div className="nx-core px-4 py-3 md:p-8">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 md:gap-6">
             <div>
-              <div className="nx-eyebrow mb-3">ФОРМЫ</div>
-              <h1 className="text-3xl md:text-4xl font-bold font-mono neon-text flex items-center gap-3" style={{ color: 'var(--color-primary)' }}>
-                <ClipboardList className="w-8 h-8 md:w-9 md:h-9" /> РЕГИСТРАЦИЯ
+              <div className="nx-eyebrow mb-1.5 md:mb-3">ФОРМЫ</div>
+              <h1 className="text-lg md:text-4xl font-bold font-mono neon-text flex items-center gap-2 md:gap-3" style={{ color: 'var(--color-primary)' }}>
+                <ClipboardList className="w-5 h-5 md:w-9 md:h-9" /> РЕГИСТРАЦИЯ
               </h1>
-              <p className="text-gray-400 mt-2 font-mono text-sm">// {registrations.length} ФОРМ</p>
+              <p className="text-gray-400 mt-1 md:mt-2 font-mono text-[10px] md:text-sm">// {registrations.length} ФОРМ</p>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <a href="/checkin-scanner" className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-mono text-sm glass hover:bg-white/10 transition-all nx-press">
+            <div className="flex gap-2 overflow-x-auto -mx-1 px-1 pb-0.5">
+              <a href="/checkin-scanner" className="flex items-center gap-2 px-3 md:px-4 py-2 rounded-xl font-mono text-[10px] md:text-sm glass hover:bg-white/10 transition-all nx-press flex-shrink-0">
                 <Camera className="w-4 h-4" /> СКАНЕР
               </a>
-              <button onClick={() => { setShowContacts(true); fetchContacts(); }} className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-mono text-sm glass hover:bg-white/10 transition-all nx-press">
+              <button onClick={() => { setShowContacts(true); fetchContacts(); }} className="flex items-center gap-2 px-3 md:px-4 py-2 rounded-xl font-mono text-[10px] md:text-sm glass hover:bg-white/10 transition-all nx-press flex-shrink-0">
                 <Users className="w-4 h-4" /> БАЗА
               </button>
-              <button onClick={openCreate} className="btn-primary nx-press flex items-center gap-2 px-5 py-2.5 rounded-xl font-mono text-sm font-bold">
+              <button onClick={openCreate} className="btn-primary nx-press flex items-center gap-2 px-4 md:px-5 py-2 rounded-xl font-mono text-[10px] md:text-sm font-bold flex-shrink-0">
                 <Plus className="w-4 h-4" /> СОЗДАТЬ
               </button>
             </div>
           </div>
-          <div className="nx-divider my-6" />
+          <div className="nx-divider my-3 md:my-6" />
           {/* Live counters */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-4">
             {[
               { label: 'ВСЕГО ФОРМ', value: registrations.length, icon: ClipboardList },
               { label: 'АКТИВНЫХ', value: registrations.filter(r => r.status === 'active').length, icon: CheckCircle },
               { label: 'УЧАСТНИКОВ', value: registrations.reduce((s, r) => s + (r.confirmedCount || 0), 0), icon: Users },
               { label: 'ВЕЙТЛИСТ', value: registrations.reduce((s, r) => s + (r.waitlistCount || 0), 0), icon: Clock },
             ].map((chip, i) => (
-              <div key={chip.label} className={`nx-tile p-4 nx-rise nx-rise-${Math.min(i + 1, 5)}`}>
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center glass-accent mb-3">
-                  <chip.icon className="w-5 h-5" style={{ color: 'var(--color-primary)' }} />
+              <div key={chip.label} className={`nx-tile p-2.5 md:p-4 nx-rise nx-rise-${Math.min(i + 1, 5)}`}>
+                <div className="w-7 h-7 md:w-10 md:h-10 rounded-xl flex items-center justify-center glass-accent mb-1.5 md:mb-3">
+                  <chip.icon className="w-4 h-4 md:w-5 md:h-5" style={{ color: 'var(--color-primary)' }} />
                 </div>
-                <p className="text-2xl font-bold font-mono text-gray-200">{chip.value}</p>
-                <p className="text-[10px] font-mono text-gray-500 mt-1 tracking-[0.18em] uppercase">{chip.label}</p>
+                <p className="text-xl md:text-2xl font-bold font-mono text-gray-200">{chip.value}</p>
+                <p className="text-[9px] md:text-[10px] font-mono text-gray-500 mt-0.5 md:mt-1 tracking-[0.18em] uppercase">{chip.label}</p>
               </div>
             ))}
           </div>
@@ -1143,15 +1143,15 @@ export default function Registrations() {
       </div>
 
       {/* Search + tabs toolbar */}
-      <div className="nx-panel p-4 space-y-3">
+      <div className="nx-panel p-3 md:p-4 space-y-2 md:space-y-3">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="ПОИСК..."
-            className="w-full pl-10 pr-4 py-2.5 rounded-xl font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]" />
+            className="w-full pl-10 pr-4 py-2 rounded-xl font-mono text-xs md:text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]" />
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1.5 p-1.5 rounded-2xl bg-black/30 border border-gray-800 w-fit">
+        <div className="flex gap-1.5 p-1.5 rounded-2xl bg-black/30 border border-gray-800 w-fit max-w-full overflow-x-auto">
           {([
             { key: 'active' as const, label: 'АКТИВНЫЕ', color: '#00ff88' },
             { key: 'planned' as const, label: 'ЗАПЛАНИРОВАНЫ', color: '#eab308' },
@@ -1164,7 +1164,7 @@ export default function Registrations() {
               : registrations.filter(r => r.status === 'archived' || r.status === 'closed').length;
             return (
               <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl font-mono text-xs font-bold transition-all nx-press"
+                className="flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-2 rounded-xl font-mono text-[10px] md:text-xs font-bold transition-all nx-press flex-shrink-0"
                 style={activeTab === tab.key
                   ? { background: `${tab.color}18`, color: tab.color, boxShadow: `0 0 12px ${tab.color}20` }
                   : { color: '#4a4a60' }}>
@@ -1181,7 +1181,7 @@ export default function Registrations() {
         </div>
       </div>
 
-      <div ref={listRef} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div ref={listRef} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 md:gap-4">
         {filtered.map(reg => {
           const status = STATUS_CONFIG[reg.status] || STATUS_CONFIG.draft;
           return (
@@ -1189,13 +1189,13 @@ export default function Registrations() {
               className="nx-tile overflow-hidden group cursor-pointer"
               onClick={() => openEdit(reg)}>
               {reg.imageUrl && (
-                <div className="h-36 overflow-hidden">
+                <div className="h-24 md:h-36 overflow-hidden">
                   <SmartImage loading="lazy" src={reg.imageUrl} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                 </div>
               )}
-              <div className="p-5 space-y-3">
+              <div className="p-3 md:p-5 space-y-2 md:space-y-3">
                 <div className="flex items-start justify-between gap-2">
-                  <h3 className="font-mono text-base font-bold text-gray-200 truncate flex-1">
+                  <h3 className="font-mono text-sm md:text-base font-bold text-gray-200 truncate flex-1">
                     {reg.color && <span className="inline-block w-2.5 h-2.5 rounded-full mr-2 align-middle" style={{ backgroundColor: reg.color }} />}
                     {reg.title}
                   </h3>
@@ -1204,26 +1204,30 @@ export default function Registrations() {
                     {status.label}
                   </span>
                 </div>
-                <div className="flex items-center gap-3 text-[10px] font-mono text-gray-500 flex-wrap">
+                <div className="flex items-center gap-2 md:gap-3 text-[10px] font-mono text-gray-500 flex-wrap">
                   {reg.eventDate && <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{reg.eventDate}</span>}
                   {reg.location && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{reg.location}</span>}
                   <span className="flex items-center gap-1"><Users className="w-3 h-3" />{reg.confirmedCount || 0}{reg.maxParticipants > 0 ? `/${reg.maxParticipants}` : ''}</span>
                   {(reg.waitlistCount || 0) > 0 && <span className="flex items-center gap-1" style={{ color: '#eab308' }}><Clock className="w-3 h-3" />{reg.waitlistCount}</span>}
                 </div>
                 <div className="nx-divider" />
-                <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity pt-1">
-                  <button onClick={e => { e.stopPropagation(); openEdit(reg); }} className="p-2 rounded-lg hover:bg-white/10 nx-press"><Edit3 className="w-3.5 h-3.5 text-gray-400" /></button>
-                  <button onClick={e => { e.stopPropagation(); openSubmissions(reg); }} className="p-2 rounded-lg hover:bg-white/10 nx-press"><Eye className="w-3.5 h-3.5 text-gray-400" /></button>
-                  <a href={`/registrations/${reg.id}/participants`} onClick={e => e.stopPropagation()} className="p-2 rounded-lg hover:bg-white/10 nx-press"><Users className="w-3.5 h-3.5 text-gray-400" /></a>
+                <div className="flex flex-wrap gap-1.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity pt-1">
+                  <button onClick={e => { e.stopPropagation(); openEdit(reg); }} className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0"><Edit3 className="w-3.5 h-3.5 text-gray-400" /></button>
+                  <button onClick={e => { e.stopPropagation(); openSubmissions(reg); }} className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0"><Eye className="w-3.5 h-3.5 text-gray-400" /></button>
+                  <button onClick={e => { e.stopPropagation(); openSubmissions(reg); }}
+                    className="flex items-center gap-1.5 px-2.5 min-h-[40px] rounded-lg hover:bg-white/10 nx-press font-mono text-[10px] text-gray-400 whitespace-nowrap flex-shrink-0">
+                    <BarChart3 className="w-3.5 h-3.5" /> СТАТИСТИКА
+                  </button>
+                  <a href={`/registrations/${reg.id}/participants`} onClick={e => e.stopPropagation()} className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0"><Users className="w-3.5 h-3.5 text-gray-400" /></a>
                   {reg.publicSlug && (
                     <a href={`/reg/${reg.publicSlug}`} target="_blank" rel="noopener"
                       onClick={e => e.stopPropagation()}
-                      className="p-2 rounded-lg hover:bg-white/10 nx-press" title="Предпросмотр">
+                      className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0" title="Предпросмотр">
                       <ExternalLink className="w-3.5 h-3.5 text-gray-400" />
                     </a>
                   )}
-                  <button onClick={e => { e.stopPropagation(); handleDuplicate(reg.id); }} className="p-2 rounded-lg hover:bg-white/10 nx-press" title="Копировать"><Copy className="w-3.5 h-3.5 text-gray-400" /></button>
-                  <button onClick={e => { e.stopPropagation(); handleDelete(reg); }} className="p-2 rounded-lg hover:bg-red-500/20 nx-press"><Trash2 className="w-3.5 h-3.5 text-red-400" /></button>
+                  <button onClick={e => { e.stopPropagation(); handleDuplicate(reg.id); }} className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0" title="Копировать"><Copy className="w-3.5 h-3.5 text-gray-400" /></button>
+                  <button onClick={e => { e.stopPropagation(); handleDelete(reg); }} className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-red-500/20 nx-press flex-shrink-0"><Trash2 className="w-3.5 h-3.5 text-red-400" /></button>
                 </div>
               </div>
             </motion.div>
@@ -1232,8 +1236,8 @@ export default function Registrations() {
       </div>
 
       {filtered.length === 0 && (
-        <div className="nx-tile p-12 text-center">
-          <ClipboardList className="w-16 h-16 mx-auto mb-4 opacity-30 text-gray-500" />
+        <div className="nx-tile p-6 md:p-12 text-center">
+          <ClipboardList className="w-10 h-10 md:w-16 md:h-16 mx-auto mb-3 md:mb-4 opacity-30 text-gray-500" />
           <p className="font-mono text-gray-500">// НЕТ РЕГИСТРАЦИЙ</p>
         </div>
       )}
@@ -1260,8 +1264,8 @@ export default function Registrations() {
             >
               <div className="nx-core flex-1 min-h-0 flex flex-col overflow-hidden">
               {/* Header */}
-              <div className="flex items-center justify-between px-6 py-4">
-                <h3 className="font-mono text-lg font-bold" style={{ color: 'var(--color-primary)' }}>БАЗА КОНТАКТОВ</h3>
+              <div className="flex items-center justify-between px-3 py-2.5 md:px-6 md:py-4">
+                <h3 className="font-mono text-base md:text-lg font-bold" style={{ color: 'var(--color-primary)' }}>БАЗА КОНТАКТОВ</h3>
                 <button onClick={() => { setShowContacts(false); setSelectedContact(null); }} className="p-1.5 rounded-lg hover:bg-white/10 nx-press" aria-label="Закрыть">
                   <X className="w-4 h-4 text-gray-400" />
                 </button>
@@ -1269,7 +1273,7 @@ export default function Registrations() {
               <div className="nx-divider" />
               
               {/* Search */}
-              <div className="px-6 py-3">
+              <div className="px-3 py-2 md:px-6 md:py-3">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" />
                   <input
@@ -1282,7 +1286,7 @@ export default function Registrations() {
               </div>
               
               {/* Table */}
-              <div className="flex-1 overflow-y-auto px-6">
+              <div className="flex-1 overflow-y-auto px-2 md:px-6">
                 {contactsLoading ? (
                   <div className="text-center py-8">
                     <div className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin mx-auto" style={{ borderColor: 'var(--color-primary)', borderTopColor: 'transparent' }} />
@@ -1291,12 +1295,12 @@ export default function Registrations() {
                   <table className="w-full text-left">
                     <thead>
                       <tr className="border-b border-white/5">
-                        <th className="px-3 py-2.5 font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-gray-500">№</th>
-                        <th className="px-3 py-2.5 font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-gray-500">ФАМИЛИЯ</th>
-                        <th className="px-3 py-2.5 font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-gray-500">ИМЯ</th>
-                        <th className="px-3 py-2.5 font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-gray-500">ОТЧЕСТВО</th>
-                        <th className="px-3 py-2.5 font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-gray-500">ТЕЛЕФОН</th>
-                        <th className="px-3 py-2.5 font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-gray-500">ПОЧТА</th>
+                        <th className="px-2 py-2 md:px-3 md:py-2.5 font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-gray-500">№</th>
+                        <th className="px-2 py-2 md:px-3 md:py-2.5 font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-gray-500">ФАМИЛИЯ</th>
+                        <th className="px-2 py-2 md:px-3 md:py-2.5 font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-gray-500">ИМЯ</th>
+                        <th className="px-2 py-2 md:px-3 md:py-2.5 font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-gray-500">ОТЧЕСТВО</th>
+                        <th className="px-2 py-2 md:px-3 md:py-2.5 font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-gray-500">ТЕЛЕФОН</th>
+                        <th className="px-2 py-2 md:px-3 md:py-2.5 font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-gray-500">ПОЧТА</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1316,12 +1320,12 @@ export default function Registrations() {
                         .map((c, i) => (
                           <tr key={i} className="group border-b border-white/5 hover:bg-white/[0.04] cursor-pointer transition-colors"
                             onClick={() => setSelectedContact(c)}>
-                            <td className="px-3 py-2.5 font-mono text-xs text-gray-500 group-hover:[box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)] transition-shadow duration-200">{i + 1}</td>
-                            <td className="px-3 py-2.5 font-mono text-sm text-gray-200 group-hover:[box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)] transition-shadow duration-200">{c.contactLastName || c.contactName?.split(' ')[0] || '—'}</td>
-                            <td className="px-3 py-2.5 font-mono text-sm text-gray-200 group-hover:[box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)] transition-shadow duration-200">{c.contactFirstName || c.contactName?.split(' ')[1] || '—'}</td>
-                            <td className="px-3 py-2.5 font-mono text-xs text-gray-400 group-hover:[box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)] transition-shadow duration-200">{c.contactPatronymic || c.contactName?.split(' ')[2] || '—'}</td>
-                            <td className="px-3 py-2.5 font-mono text-xs text-gray-300 group-hover:[box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)] transition-shadow duration-200">{c.contactPhone || '—'}</td>
-                            <td className="px-3 py-2.5 font-mono text-xs text-gray-300 group-hover:[box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)] transition-shadow duration-200">{c.contactEmail || '—'}</td>
+                            <td className="px-2 py-2 md:px-3 md:py-2.5 font-mono text-xs text-gray-500 group-hover:[box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)] transition-shadow duration-200">{i + 1}</td>
+                            <td className="px-2 py-2 md:px-3 md:py-2.5 font-mono text-sm text-gray-200 group-hover:[box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)] transition-shadow duration-200">{c.contactLastName || c.contactName?.split(' ')[0] || '—'}</td>
+                            <td className="px-2 py-2 md:px-3 md:py-2.5 font-mono text-sm text-gray-200 group-hover:[box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)] transition-shadow duration-200">{c.contactFirstName || c.contactName?.split(' ')[1] || '—'}</td>
+                            <td className="px-2 py-2 md:px-3 md:py-2.5 font-mono text-xs text-gray-400 group-hover:[box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)] transition-shadow duration-200">{c.contactPatronymic || c.contactName?.split(' ')[2] || '—'}</td>
+                            <td className="px-2 py-2 md:px-3 md:py-2.5 font-mono text-xs text-gray-300 group-hover:[box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)] transition-shadow duration-200">{c.contactPhone || '—'}</td>
+                            <td className="px-2 py-2 md:px-3 md:py-2.5 font-mono text-xs text-gray-300 group-hover:[box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)] transition-shadow duration-200">{c.contactEmail || '—'}</td>
                           </tr>
                         ))}
                     </tbody>
@@ -1336,7 +1340,7 @@ export default function Registrations() {
               
               <div className="nx-divider" />
               {/* Footer */}
-              <div className="px-6 py-3 text-right">
+              <div className="px-3 py-2 md:px-6 md:py-3 text-right">
                 <span className="font-mono text-[10px] text-gray-500">{contacts.length} контактов</span>
               </div>
               </div>
@@ -1373,15 +1377,15 @@ export default function Registrations() {
               >
                 <div className="nx-core">
                 {/* Header */}
-                <div className="flex items-center justify-between px-6 py-4">
-                  <h3 className="font-mono text-lg font-bold" style={{ color: 'var(--color-primary)' }}>КОНТАКТ</h3>
-                  <button onClick={() => setSelectedContact(null)} className="p-1.5 rounded-lg hover:bg-white/10 nx-press" aria-label="Закрыть">
+                <div className="flex items-center justify-between px-3 py-2.5 md:px-6 md:py-4">
+                  <h3 className="font-mono text-base md:text-lg font-bold" style={{ color: 'var(--color-primary)' }}>КОНТАКТ</h3>
+                  <button onClick={() => setSelectedContact(null)} className="p-2 rounded-lg hover:bg-white/10 nx-press" aria-label="Закрыть">
                     <X className="w-4 h-4 text-gray-400" />
                   </button>
                 </div>
                 <div className="nx-divider" />
 
-                <div className="p-6 space-y-4">
+                <div className="p-3 md:p-6 space-y-2.5 md:space-y-4">
                   {/* Avatar + name */}
                   <div className="flex items-center gap-3">
                     <div className="w-14 h-14 rounded-full flex items-center justify-center text-2xl font-bold shrink-0"

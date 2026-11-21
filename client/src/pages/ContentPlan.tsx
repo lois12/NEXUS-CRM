@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, Suspense, lazy } from 'react';
+import { useState, useEffect, useRef, useMemo, Suspense, lazy } from 'react';
 import SmartImage from '../components/ui/SmartImage';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -123,6 +123,41 @@ const MONTHS = [
   'ЯНВАРЬ', 'ФЕВРАЛЬ', 'МАРТ', 'АПРЕЛЬ', 'МАЙ', 'ИЮНЬ',
   'ИЮЛЬ', 'АВГУСТ', 'СЕНТЯБРЬ', 'ОКТЯБРЬ', 'НОЯБРЬ', 'ДЕКАБРЬ'
 ];
+
+const formatLocalDate = (date: Date) => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  const h = String(date.getHours()).padStart(2, '0');
+  const min = String(date.getMinutes()).padStart(2, '0');
+  return `${y}-${m}-${d}T${h}:${min}`;
+};
+
+const parseLocalDate = (dateStr: string): Date => {
+  // Parse as local time, not UTC
+  if (!dateStr) return new Date();
+  const parts = dateStr.split('T');
+  if (parts.length === 2) {
+    const [datePart, timePart] = parts;
+    const [y, m, d] = datePart.split('-').map(Number);
+    const [h, min] = timePart.split(':').map(Number);
+    return new Date(y, m - 1, d, h || 0, min || 0);
+  }
+  return new Date(dateStr);
+};
+
+const getDaysInMonth = (date: Date) => {
+  return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+};
+
+const getFirstDayOfMonth = (date: Date) => {
+  const day = new Date(date.getFullYear(), date.getMonth(), 1).getDay();
+  return day === 0 ? 6 : day - 1;
+};
+
+/** Stable bucket key for a local calendar day */
+const dayKeyOf = (date: Date) =>
+  `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
 
 interface ContextMenu {
   x: number;
@@ -400,51 +435,24 @@ export default function ContentPlan() {
       showToast('Ошибка обновления даты', 'error');
       fetchPosts();
     }
-  };  const formatLocalDate = (date: Date) => {
-    const y = date.getFullYear();
-    const m = String(date.getMonth() + 1).padStart(2, '0');
-    const d = String(date.getDate()).padStart(2, '0');
-    const h = String(date.getHours()).padStart(2, '0');
-    const min = String(date.getMinutes()).padStart(2, '0');
-    return `${y}-${m}-${d}T${h}:${min}`;
   };
 
-  const parseLocalDate = (dateStr: string): Date => {
-    // Parse as local time, not UTC
-    if (!dateStr) return new Date();
-    const parts = dateStr.split('T');
-    if (parts.length === 2) {
-      const [datePart, timePart] = parts;
-      const [y, m, d] = datePart.split('-').map(Number);
-      const [h, min] = timePart.split(':').map(Number);
-      return new Date(y, m - 1, d, h || 0, min || 0);
+  /** Posts indexed by local calendar day (platform filter applied) — O(1) day lookups */
+  const postsByDate = useMemo(() => {
+    const map = new Map<string, ContentPost[]>();
+    for (const post of posts) {
+      if (filterPlatform !== 'all' && !getPostPlatforms(post).includes(filterPlatform)) continue;
+      const src = post.scheduledDate || post.createdAt;
+      if (!src) continue;
+      const key = dayKeyOf(parseLocalDate(src));
+      const bucket = map.get(key);
+      if (bucket) bucket.push(post);
+      else map.set(key, [post]);
     }
-    return new Date(dateStr);
-  };
+    return map;
+  }, [posts, filterPlatform]);
 
-  const getDaysInMonth = (date: Date) => {
-    return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
-  };
-
-  const getFirstDayOfMonth = (date: Date) => {
-    const day = new Date(date.getFullYear(), date.getMonth(), 1).getDay();
-    return day === 0 ? 6 : day - 1;
-  };
-
-  const getPostsForDate = (date: Date) => {
-    return posts.filter((post) => {
-      if (!post.scheduledDate && !post.createdAt) return false;
-      const postDate = parseLocalDate(post.scheduledDate || post.createdAt);
-      const matchesDate = postDate.getDate() === date.getDate() &&
-        postDate.getMonth() === date.getMonth() &&
-        postDate.getFullYear() === date.getFullYear();
-
-      if (filterPlatform !== 'all') {
-        return matchesDate && getPostPlatforms(post).includes(filterPlatform);
-      }
-      return matchesDate;
-    });
-  };
+  const getPostsForDate = (date: Date) => postsByDate.get(dayKeyOf(date)) ?? [];
 
   const navigateMonth = (direction: 'prev' | 'next') => {
     setCurrentDate((prev) => {
@@ -480,10 +488,29 @@ export default function ContentPlan() {
     setContextMenu(null);
   };
 
-  const renderCalendar = () => {
+  const selectedDatePosts = useMemo(
+    () => (selectedDate ? getPostsForDate(selectedDate) : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [postsByDate, selectedDate]
+  );
+
+  /** Post counts by legacy primary platform — sidebar stats */
+  const platformCounts = useMemo(() => {
+    const counts = {} as Record<string, number>;
+    for (const platform of Object.keys(platformConfig) as SocialPlatform[]) counts[platform] = 0;
+    for (const post of posts) {
+      if (post.platform in counts) counts[post.platform] += 1;
+    }
+    return counts;
+  }, [posts]);
+
+  /** Month grid cells — memoized so typing in the post form skips the 30+ cell rebuild */
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const calendarDays = useMemo(() => {
     const daysInMonth = getDaysInMonth(currentDate);
     const firstDay = getFirstDayOfMonth(currentDate);
-    const days = [];
+    const days: React.ReactNode[] = [];
+    const todayKey = dayKeyOf(new Date());
 
     // Empty cells
     for (let i = 0; i < firstDay; i++) {
@@ -493,59 +520,65 @@ export default function ContentPlan() {
     // Days
     for (let day = 1; day <= daysInMonth; day++) {
       const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
-      const dayPosts = getPostsForDate(date);
-      const isToday = new Date().toDateString() === date.toDateString();
-      const isSelected = selectedDate?.toDateString() === date.toDateString();
+      const key = dayKeyOf(date);
+      const dayPosts = postsByDate.get(key) ?? [];
+      const isToday = todayKey === key;
+      const isSelected = !!selectedDate && dayKeyOf(selectedDate) === key;
       const dayOfWeek = (firstDay + day - 1) % 7;
       const isWeekend = dayOfWeek >= 5;
 
       days.push(
-        <motion.div
+        <div
           key={day}
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: day * 0.02 }}
           onClick={() => openDayModal(date)}
           onContextMenu={(e) => handleContextMenu(e, date)}
           className={`nx-tile relative h-20 sm:h-20 md:h-24 lg:h-28 p-1.5 md:p-2 cursor-pointer overflow-hidden group ${
             isWeekend ? 'weekend-cell' : ''
           }`}
-          style={{
-            ...(isSelected || isToday ? {
-              background: isSelected
-                ? 'linear-gradient(135deg, var(--color-glow), rgba(0,0,0,0.3))'
-                : 'linear-gradient(135deg, var(--color-glow), rgba(0,0,0,0.5))',
-              border: isToday
-                ? '2px solid var(--color-primary)'
-                : '2px solid var(--color-accent)',
-              boxShadow: isToday
-                ? '0 0 20px var(--color-glow), inset 0 0 20px var(--color-glow)'
-                : '0 0 15px var(--color-glow)',
-            } : {}),
-          }}
+          style={
+            isSelected || isToday
+              ? {
+                  background: isSelected
+                    ? 'linear-gradient(135deg, var(--color-glow), rgba(0,0,0,0.3))'
+                    : 'linear-gradient(135deg, var(--color-glow), rgba(0,0,0,0.5))',
+                }
+              : undefined
+          }
         >
           {/* Glow effect on hover */}
-          <div 
+          <div
             className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
             style={{
               background: 'radial-gradient(circle at center, var(--color-glow), transparent 70%)',
             }}
           />
 
+          {/* Selected / today ring — child overlay keeps .nx-tile shadow intact */}
+          {(isSelected || isToday) && (
+            <div
+              className="absolute inset-0 rounded-2xl border-2 pointer-events-none z-20 [box-shadow:0_0_18px_var(--color-glow),inset_0_0_14px_var(--color-glow)]"
+              style={{ borderColor: isSelected ? 'var(--color-accent)' : 'var(--color-primary)' }}
+            />
+          )}
+
           {/* Day number + actions */}
           <div className="relative z-10 flex items-center justify-between mb-1">
             <span
               className={`text-sm font-mono font-bold w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
-                isToday ? 'text-black' : isWeekend ? '' : 'text-gray-400'
+                isToday ? 'text-black [box-shadow:0_0_10px_var(--color-glow)]' : isWeekend ? '' : 'text-gray-400'
               }`}
-              style={isToday ? { 
+              style={isToday ? {
                 backgroundColor: 'var(--color-primary)',
-                boxShadow: '0 0 10px var(--color-glow)'
               } : isWeekend ? { color: '#ff6b6b' } : {}}
             >
               {day}
             </span>
           </div>
+
+          {/* Empty-day marker */}
+          {dayPosts.length === 0 && (
+            <span className="absolute inset-x-0 bottom-2 text-center text-xs font-mono text-gray-600 pointer-events-none select-none opacity-60">—</span>
+          )}
 
           {/* Planned post indicator dot + count */}
           {dayPosts.length > 0 && (
@@ -569,22 +602,20 @@ export default function ContentPlan() {
 
           {/* Today indicator line */}
           {isToday && (
-            <div 
-              className="absolute bottom-0 left-0 right-0 h-1"
-              style={{ 
+            <div
+              className="absolute bottom-0 left-0 right-0 h-1 [box-shadow:0_0_10px_var(--color-glow)]"
+              style={{
                 background: 'var(--color-primary)',
-                boxShadow: '0 0 10px var(--color-glow)'
               }}
             />
           )}
-        </motion.div>
+        </div>
       );
     }
 
     return days;
-  };
-
-  const selectedDatePosts = selectedDate ? getPostsForDate(selectedDate) : [];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentDate, selectedDate, postsByDate]);
 
   if (isLoading) {
     return (
@@ -620,7 +651,7 @@ export default function ContentPlan() {
           <div className="nx-eyebrow mt-2">// КАЛЕНДАРЬ ПУБЛИКАЦИЙ В СОЦСЕТЯХ</div>
         </div>
         
-        <div className="flex items-center gap-2 md:gap-3 flex-wrap">
+        <div className="flex items-center gap-2 md:gap-3 overflow-x-auto pb-1 flex-nowrap md:flex-wrap">
           {/* Calendar view toggle */}
           <div className="flex rounded-lg overflow-hidden border border-gray-700">
             <button onClick={() => setCalendarView('grid')}
@@ -709,7 +740,7 @@ export default function ContentPlan() {
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="nx-panel p-4 md:p-6 overflow-hidden"
+              className="nx-panel p-3 md:p-5 overflow-hidden"
             >
               <Suspense fallback={<div className="h-64 flex items-center justify-center"><NexusSpinner isVisible /></div>}>
                 <FullCalendarView
@@ -725,7 +756,7 @@ export default function ContentPlan() {
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="nx-panel p-4 md:p-6 overflow-hidden"
+              className="nx-panel p-3 md:p-5 overflow-hidden"
             >
               <Suspense fallback={<div className="h-64 flex items-center justify-center"><NexusSpinner isVisible /></div>}>
                 <WeekAccordionView
@@ -749,7 +780,7 @@ export default function ContentPlan() {
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="nx-panel p-4 md:p-6 overflow-hidden"
+            className="nx-panel p-3 md:p-5 overflow-hidden"
           >
             {/* Calendar Navigation */}
             <div className="flex items-center justify-between mb-6">
@@ -798,7 +829,7 @@ export default function ContentPlan() {
             </div>
 
             {/* Calendar Grid */}
-            <div className="grid grid-cols-7 gap-1 sm:gap-2">{renderCalendar()}</div>
+            <div className="grid grid-cols-7 gap-1 sm:gap-2">{calendarDays}</div>
 
             {/* Legend */}
             <div className="nx-divider mt-6" />
@@ -837,11 +868,11 @@ export default function ContentPlan() {
           <motion.div 
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="nx-panel p-4 sticky top-6"
+            className="nx-panel p-3 md:p-5 sticky top-6"
           >
             {/* Selected Date */}
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold font-mono text-gray-200">
+              <h3 className="text-base md:text-lg font-bold font-mono text-gray-200">
                 {selectedDate
                   ? selectedDate.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }).toUpperCase()
                   : 'ВЫБЕРИТЕ ДАТУ'}
@@ -870,14 +901,11 @@ export default function ContentPlan() {
               <>
                 {selectedDatePosts.length > 0 ? (
                   <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1">
-                    {selectedDatePosts.map((post, index) => {
+                    {selectedDatePosts.map((post) => {
                       const status = statusConfig[post.status] || statusConfig['черновик'];
                       return (
-                        <motion.div
+                        <div
                           key={post.id}
-                          initial={{ opacity: 0, x: 20 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: index * 0.1 }}
                           className="nx-tile p-3 group"
                         >
                           <div className="flex items-start justify-between mb-2 gap-2">
@@ -913,7 +941,7 @@ export default function ContentPlan() {
                               </>
                             )}
                           </div>
-                        </motion.div>
+                        </div>
                       );
                     })}
                   </div>
@@ -958,7 +986,7 @@ export default function ContentPlan() {
                       className="text-sm font-mono font-bold"
                       style={{ color: platformConfig[platform].color }}
                     >
-                      {posts.filter((p) => p.platform === platform).length}
+                      {platformCounts[platform] ?? 0}
                     </span>
                   </div>
                 ))}
@@ -1053,7 +1081,7 @@ export default function ContentPlan() {
               {/* Header */}
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h2 className="text-xl font-bold font-mono text-gray-200 flex items-center gap-2">
+                  <h2 className="text-lg md:text-xl font-bold font-mono text-gray-200 flex items-center gap-2">
                     <Calendar className="w-5 h-5" style={{ color: 'var(--color-primary)' }} />
                     {selectedDate.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}
                   </h2>
@@ -1085,15 +1113,12 @@ export default function ContentPlan() {
               {/* Posts list */}
               {selectedDatePosts.length > 0 ? (
                 <div className="space-y-2">
-                  {selectedDatePosts.map((post, index) => {
+                  {selectedDatePosts.map((post) => {
                     const status = statusConfig[post.status] || statusConfig['черновик'];
                     const isExpanded = expandedPost === post.id;
                     return (
-                      <motion.div
+                      <div
                         key={post.id}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: index * 0.05 }}
                         className="nx-tile overflow-hidden"
                       >
                         {/* Compact header — always visible */}
@@ -1112,54 +1137,48 @@ export default function ContentPlan() {
                           <ChevronRight className={`w-4 h-4 text-gray-500 transition-transform flex-shrink-0 ${isExpanded ? 'rotate-90' : ''}`} />
                         </button>
 
-                        {/* Expanded content */}
-                        <AnimatePresence>
-                          {isExpanded && (
-                            <motion.div
-                              initial={{ height: 0, opacity: 0 }}
-                              animate={{ height: 'auto', opacity: 1 }}
-                              exit={{ height: 0, opacity: 0 }}
-                              transition={{ duration: 0.2 }}
-                              className="overflow-hidden"
-                            >
-                              <div className="px-4 pb-4 pt-1 border-t border-white/5">
-                                {post.imageUrl && (
-                                  <SmartImage src={(post as any).thumbnailUrl || post.imageUrl} alt="" className="w-full max-h-40 object-cover rounded-lg mb-3" />
-                                )}
-                                <p className="text-xs text-gray-400 mb-3 whitespace-pre-wrap">{post.content}</p>
-                                {post.scheduledDate && (
-                                  <p className="text-xs font-mono text-gray-500 mb-3">
-                                    <Clock className="w-3 h-3 inline mr-1" />
-                                    {formatTimeKR(parseLocalDate(post.scheduledDate))}
-                                  </p>
-                                )}
-                                {canEdit && (
-                                  <div className="flex items-center gap-2">
-                                    <button
-                                      onClick={() => handleDuplicate(post)}
-                                      className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs text-gray-400 hover:text-gray-200 hover:bg-white/5 transition-colors"
-                                    >
-                                      <Copy className="w-3 h-3" /> Копия
-                                    </button>
-                                    <button
-                                      onClick={() => handleEdit(post)}
-                                      className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs text-gray-400 hover:text-gray-200 hover:bg-white/5 transition-colors"
-                                    >
-                                      <Edit className="w-3 h-3" /> Изменить
-                                    </button>
-                                    <button
-                                      onClick={() => handleDelete(post.id)}
-                                      className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs text-red-400 hover:bg-red-500/10 transition-colors"
-                                    >
-                                      <Trash className="w-3 h-3" /> Удалить
-                                    </button>
-                                  </div>
-                                )}
-                              </div>
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      </motion.div>
+                        {/* Expanded content — CSS height transition, no per-item AnimatePresence */}
+                        <div
+                          className={`grid transition-[grid-template-rows] duration-200 ease-out ${isExpanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}
+                        >
+                          <div className="overflow-hidden min-h-0">
+                            <div className="px-4 pb-4 pt-1 border-t border-white/5">
+                              {post.imageUrl && (
+                                <SmartImage src={(post as any).thumbnailUrl || post.imageUrl} alt="" className="w-full max-h-40 object-cover rounded-lg mb-3" />
+                              )}
+                              <p className="text-xs text-gray-400 mb-3 whitespace-pre-wrap">{post.content}</p>
+                              {post.scheduledDate && (
+                                <p className="text-xs font-mono text-gray-500 mb-3">
+                                  <Clock className="w-3 h-3 inline mr-1" />
+                                  {formatTimeKR(parseLocalDate(post.scheduledDate))}
+                                </p>
+                              )}
+                              {canEdit && (
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={() => handleDuplicate(post)}
+                                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs text-gray-400 hover:text-gray-200 hover:bg-white/5 transition-colors"
+                                  >
+                                    <Copy className="w-3 h-3" /> Копия
+                                  </button>
+                                  <button
+                                    onClick={() => handleEdit(post)}
+                                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs text-gray-400 hover:text-gray-200 hover:bg-white/5 transition-colors"
+                                  >
+                                    <Edit className="w-3 h-3" /> Изменить
+                                  </button>
+                                  <button
+                                    onClick={() => handleDelete(post.id)}
+                                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs text-red-400 hover:bg-red-500/10 transition-colors"
+                                  >
+                                    <Trash className="w-3 h-3" /> Удалить
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     );
                   })}
                 </div>
@@ -1211,7 +1230,7 @@ export default function ContentPlan() {
               className="glass-frost rounded-2xl p-4 md:p-6 w-full max-w-xl max-h-[90vh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
             >
-              <h2 className="text-xl font-bold font-mono text-gray-200 mb-4 flex items-center gap-2">
+              <h2 className="text-lg md:text-xl font-bold font-mono text-gray-200 mb-4 flex items-center gap-2">
                 <Sparkles className="w-5 h-5" style={{ color: 'var(--color-primary)' }} />
                 {!canEdit && editingPost ? 'ПРОСМОТР ПОСТА' : editingPost ? 'РЕДАКТИРОВАТЬ ПОСТ' : 'НОВЫЙ ПОСТ'}
               </h2>
