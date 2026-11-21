@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { AnimatePresence, motion } from 'framer-motion';
 import {
   LayoutDashboard,
   LogOut,
@@ -307,17 +306,9 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
               })}
             </div>
           ) : (
-          <AnimatePresence mode="wait" initial={false}>
-            {!activeGroup ? (
+          !activeGroup ? (
               // MAIN MENU
-              <motion.div
-                key="main-menu"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.15, ease: 'easeOut' }}
-                className="space-y-1"
-              >
+              <div className="space-y-1">
                 {filteredGroups.map(group => {
                   const isSingle = group.children.filter(c => hasRole(c.roles)).length === 1;
                   const isGroupActive = group.children.some(c => c.to === '/' ? location.pathname === '/' : location.pathname.startsWith(c.to));
@@ -349,17 +340,10 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                     </button>
                   );
                 })}
-              </motion.div>
+              </div>
             ) : (
               // SUB MENU
-              <motion.div
-                key={`sub-${activeGroup}`}
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                transition={{ duration: 0.15, ease: 'easeOut' }}
-                className="space-y-1"
-              >
+              <div className="space-y-1">
                 <button onClick={() => setActiveGroup(null)}
                   className="nx-press w-full flex items-center gap-2 px-3 py-2.5 md:px-4 rounded-xl text-gray-400 hover:text-gray-200 hover:bg-white/5 mb-2">
                   <ArrowLeft className="w-4 h-4" />
@@ -368,27 +352,19 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                 <div className="px-3 py-2 md:px-4 mb-1">
                   <span className="text-xs font-mono text-gray-500 uppercase">{currentGroup?.label}</span>
                 </div>
-                {filteredChildren.map((child, i) => (
-                  <motion.div
-                    key={child.to}
-                    initial={{ opacity: 0, x: 12 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.12, delay: i * 0.03 }}
-                  >
-                    <NavLink to={child.to} end={child.to === '/'} onClick={closeMenu}
-                      className={({ isActive }) =>
-                        `nx-press flex items-center gap-3 px-3 py-2.5 md:px-4 md:py-3 rounded-xl ${
-                          isActive ? 'glass-accent nav-link-active' : 'text-gray-400 hover:bg-white/5 hover:text-gray-200'
-                        }`
-                      }
-                      style={({ isActive }) => isActive ? activeLift : {}}>
-                      <span className="text-sm font-medium">{child.label}</span>
-                    </NavLink>
-                  </motion.div>
+                {filteredChildren.map((child) => (
+                  <NavLink key={child.to} to={child.to} end={child.to === '/'} onClick={closeMenu}
+                    className={({ isActive }) =>
+                      `nx-press flex items-center gap-3 px-3 py-2.5 md:px-4 md:py-3 rounded-xl ${
+                        isActive ? 'glass-accent nav-link-active' : 'text-gray-400 hover:bg-white/5 hover:text-gray-200'
+                      }`
+                    }
+                    style={({ isActive }) => isActive ? activeLift : {}}>
+                    <span className="text-sm font-medium">{child.label}</span>
+                  </NavLink>
                 ))}
-              </motion.div>
-            )}
-          </AnimatePresence>
+              </div>
+            )
           )}
         </nav>
 
