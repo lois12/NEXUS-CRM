@@ -657,9 +657,13 @@ export default function PublicRegistration() {
               </div>
             )}
             {(reg.eventDate || reg.eventTime || reg.location || (reg.showLimit !== 0 && reg.maxParticipants > 0)) && (
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                {reg.eventDate && <FactTile icon={Calendar} label="ДАТА" value={reg.eventDate} />}
-                {reg.eventTime && <FactTile icon={Clock} label="ВРЕМЯ" value={reg.eventTime} />}
+              <div className="space-y-3">
+                {(reg.eventDate || reg.eventTime) && (
+                  <div className="grid grid-cols-2 gap-3">
+                    {reg.eventDate && <FactTile icon={Calendar} label="ДАТА" value={reg.eventDate} />}
+                    {reg.eventTime && <FactTile icon={Clock} label="ВРЕМЯ" value={reg.eventTime} />}
+                  </div>
+                )}
                 {reg.location && <FactTile icon={MapPin} label="МЕСТО" value={reg.location} />}
                 {reg.showLimit !== 0 && reg.maxParticipants > 0 && (
                   <FactTile icon={Users} label="УЧАСТНИКИ" value={`${reg.confirmedCount || 0} / ${reg.maxParticipants}`} />
