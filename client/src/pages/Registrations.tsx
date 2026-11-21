@@ -540,46 +540,7 @@ export default function Registrations() {
         )}
 
         <SubmissionsTable registrationId={editing.id} fields={regFields} submissions={submissions} onRefresh={() => openSubmissions(editing)} onClose={() => setView('list')} />
-              {/* Предпросмотр публичной страницы */}
-      {showPreview && (() => {
-        const t = REG_THEMES.find(th => th.id === form.theme) || REG_THEMES[0];
-        return (
-          <div className="fixed inset-0 z-[110] flex items-center justify-center p-3"
-            style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)' }}
-            onClick={() => setShowPreview(false)}>
-            <div className="nx-bezel w-full max-w-md" onClick={e => e.stopPropagation()}>
-              <div className="nx-core p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="nx-eyebrow">ПРЕДПРОСМОТР</span>
-                  <button onClick={() => setShowPreview(false)} className="p-1 rounded-lg hover:bg-white/10 nx-press" aria-label="Закрыть">
-                    <X className="w-4 h-4 text-gray-400" />
-                  </button>
-                </div>
-                <div className="rounded-xl overflow-hidden" style={{ background: t.preview.bg, border: `1px solid ${t.preview.border}`, padding: '16px' }}>
-                  <h3 className="font-mono text-sm font-bold mb-2" style={{ color: t.preview.primary }}>{form.title || 'Название мероприятия'}</h3>
-                  <p className="text-[11px] mb-3 leading-relaxed" style={{ color: t.preview.text, opacity: 0.75 }}>{stripHtml(form.description) || 'Описание мероприятия'}</p>
-                  <div className="space-y-2">
-                    <div className="rounded-lg px-3 py-2" style={{ background: 'rgba(0,0,0,0.3)', border: `1px solid ${t.preview.border}` }}>
-                      <span className="text-[10px] font-mono" style={{ color: t.preview.text, opacity: 0.5 }}>// ФАМИЛИЯ *</span>
-                    </div>
-                    <div className="rounded-lg px-3 py-2" style={{ background: 'rgba(0,0,0,0.3)', border: `1px solid ${t.preview.border}` }}>
-                      <span className="text-[10px] font-mono" style={{ color: t.preview.text, opacity: 0.5 }}>// ИМЯ *</span>
-                    </div>
-                    <div className="rounded-lg px-3 py-2" style={{ background: 'rgba(0,0,0,0.3)', border: `1px solid ${t.preview.border}` }}>
-                      <span className="text-[10px] font-mono" style={{ color: t.preview.text, opacity: 0.5 }}>// EMAIL *</span>
-                    </div>
-                    <div className="rounded-lg px-3 py-2 text-center" style={{ background: t.preview.primary, color: t.preview.bg }}>
-                      <span className="text-[10px] font-mono font-bold">ЗАРЕГИСТРИРОВАТЬСЯ</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
-
-      <ConfirmModal isOpen={confirmState.isOpen} onConfirm={() => { confirmState.onConfirm(); closeConfirm(); }} onCancel={closeConfirm} title={confirmState.title} message={confirmState.message} type={confirmState.type} />
+              <ConfirmModal isOpen={confirmState.isOpen} onConfirm={() => { confirmState.onConfirm(); closeConfirm(); }} onCancel={closeConfirm} title={confirmState.title} message={confirmState.message} type={confirmState.type} />
       </div>
     );
   }
@@ -1106,7 +1067,46 @@ export default function Registrations() {
           )}
         </AnimatePresence>
 
-        <ConfirmModal isOpen={confirmState.isOpen} onConfirm={() => { confirmState.onConfirm(); closeConfirm(); }} onCancel={closeConfirm} title={confirmState.title} message={confirmState.message} type={confirmState.type} />
+        {/* Предпросмотр публичной страницы */}
+      {showPreview && (() => {
+        const t = REG_THEMES.find(th => th.id === form.theme) || REG_THEMES[0];
+        return (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-3"
+            style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)' }}
+            onClick={() => setShowPreview(false)}>
+            <div className="nx-bezel w-full max-w-md" onClick={e => e.stopPropagation()}>
+              <div className="nx-core p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="nx-eyebrow">ПРЕДПРОСМОТР</span>
+                  <button onClick={() => setShowPreview(false)} className="p-1 rounded-lg hover:bg-white/10 nx-press" aria-label="Закрыть">
+                    <X className="w-4 h-4 text-gray-400" />
+                  </button>
+                </div>
+                <div className="rounded-xl overflow-hidden" style={{ background: t.preview.bg, border: `1px solid ${t.preview.border}`, padding: '16px' }}>
+                  <h3 className="font-mono text-sm font-bold mb-2" style={{ color: t.preview.primary }}>{form.title || 'Название мероприятия'}</h3>
+                  <p className="text-[11px] mb-3 leading-relaxed" style={{ color: t.preview.text, opacity: 0.75 }}>{stripHtml(form.description) || 'Описание мероприятия'}</p>
+                  <div className="space-y-2">
+                    <div className="rounded-lg px-3 py-2" style={{ background: 'rgba(0,0,0,0.3)', border: `1px solid ${t.preview.border}` }}>
+                      <span className="text-[10px] font-mono" style={{ color: t.preview.text, opacity: 0.5 }}>// ФАМИЛИЯ *</span>
+                    </div>
+                    <div className="rounded-lg px-3 py-2" style={{ background: 'rgba(0,0,0,0.3)', border: `1px solid ${t.preview.border}` }}>
+                      <span className="text-[10px] font-mono" style={{ color: t.preview.text, opacity: 0.5 }}>// ИМЯ *</span>
+                    </div>
+                    <div className="rounded-lg px-3 py-2" style={{ background: 'rgba(0,0,0,0.3)', border: `1px solid ${t.preview.border}` }}>
+                      <span className="text-[10px] font-mono" style={{ color: t.preview.text, opacity: 0.5 }}>// EMAIL *</span>
+                    </div>
+                    <div className="rounded-lg px-3 py-2 text-center" style={{ background: t.preview.primary, color: t.preview.bg }}>
+                      <span className="text-[10px] font-mono font-bold">ЗАРЕГИСТРИРОВАТЬСЯ</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      <ConfirmModal isOpen={confirmState.isOpen} onConfirm={() => { confirmState.onConfirm(); closeConfirm(); }} onCancel={closeConfirm} title={confirmState.title} message={confirmState.message} type={confirmState.type} />
       </div>
     );
   }

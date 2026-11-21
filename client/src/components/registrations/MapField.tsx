@@ -112,6 +112,16 @@ export default function MapField({ value, onChange, label }: MapFieldProps) {
       mapRef.current!.appendChild(infoDiv);
     }
 
+    // сразу гасим взаимодействие, пока не включён режим выбора точки
+    // (иначе карта живая с первого кадра и «цепляется» при скролле)
+    if (isInteractive && !pickingRef.current) {
+      map.dragging.disable();
+      map.touchZoom.disable();
+      map.doubleClickZoom.disable();
+      map.scrollWheelZoom.disable();
+      map.boxZoom.disable();
+    }
+
     mapInstanceRef.current = map;
   };
 
