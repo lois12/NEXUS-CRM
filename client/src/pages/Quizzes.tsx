@@ -651,7 +651,20 @@ export default function Quizzes() {
                 <button onClick={() => { setQrFor(q); }} title="QR-код" aria-label="QR-код" className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0"><QrCode className="w-3.5 h-3.5 text-gray-400" /></button>
                 <button onClick={() => copyLink(q)} title="Скопировать ссылку" aria-label="Скопировать ссылку" className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0"><Link2 className="w-3.5 h-3.5 text-gray-400" /></button>
                 <button onClick={() => openResults(q)} title="Итоги" aria-label="Итоги" className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0"><Play className="w-3.5 h-3.5 text-gray-400" /></button>
-                <button onClick={() => { setPreviewQ({ title: q.title, organizer: q.organizer, imageUrl: q.imageUrl, description: (q as any).description, startsAt: q.startsAt, endsAt: q.endsAt, afterEndText: (q as any).afterEndText, questions: q.questions }); setShowPreviewQ(true); }} title="Предпросмотр" aria-label="Предпросмотр" className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0"><Eye className="w-3.5 h-3.5 text-gray-400" /></button>
+                <button onClick={async () => {
+                  // в списке нет вопросов — подгружаем квиз целиком
+                  let full: any = q;
+                  try {
+                    const res = await quizzesApi.get(q.id);
+                    if (res.success && res.data) full = res.data;
+                  } catch { /* показываем хотя бы то, что есть */ }
+                  setPreviewQ({
+                    title: full.title, organizer: full.organizer, imageUrl: full.imageUrl,
+                    description: full.description, startsAt: full.startsAt, endsAt: full.endsAt,
+                    afterEndText: full.afterEndText, questions: full.questions || [],
+                  });
+                  setShowPreviewQ(true);
+                }} title="Предпросмотр" aria-label="Предпросмотр" className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0"><Eye className="w-3.5 h-3.5 text-gray-400" /></button>
                 <button
                   onClick={async () => {
                     await quizzesApi.duplicate(q.id);
