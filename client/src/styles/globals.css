@@ -1998,6 +1998,12 @@ input[type="file"]::file-selector-button:hover {
 .nx-press:hover { transform: translateY(-1px); filter: brightness(1.06); }
 .nx-press:active { transform: translateY(1px) scale(0.975); }
 
+/* line-clamp на iOS: -webkit-box-orient иногда теряется минификатором — возвращаем */
+[class*="line-clamp-"] {
+  -webkit-box-orient: vertical;
+  overflow-wrap: break-word;
+}
+
 /* ��������� ������� � ��������������-������� */
 .nx-eyebrow {
   display: inline-flex;

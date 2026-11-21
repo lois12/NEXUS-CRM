@@ -347,7 +347,7 @@ export default function SubmissionsTable({ registrationId, fields, submissions, 
               <SortHeader label="EMAIL" colKey="email" sortCol={sortCol} sortDir={sortDir} onSort={toggleSort} />
               <SortHeader label="ТЕЛЕФОН" colKey="phone" sortCol={sortCol} sortDir={sortDir} onSort={toggleSort} />
               {dataFields.map(f => (
-                <SortHeader key={f.id} label={f.label} colKey={`field_${f.id}`} sortCol={sortCol} sortDir={sortDir} onSort={toggleSort} className="max-w-[150px] truncate" />
+                <SortHeader key={f.id} label={f.label} colKey={`field_${f.id}`} sortCol={sortCol} sortDir={sortDir} onSort={toggleSort} className="max-w-[150px] whitespace-normal break-words" />
               ))}
               <SortHeader label="СТАТУС" colKey="status" sortCol={sortCol} sortDir={sortDir} onSort={toggleSort} />
               <th className="px-3 py-2.5 font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-gray-500 cursor-pointer hover:text-gray-300" onClick={() => toggleSort('date')}>

@@ -574,18 +574,18 @@ export default function Registrations() {
           <div className="flex gap-2 overflow-x-auto pb-0.5">
             {editing && (
               <>
-                <button onClick={() => openSubmissions(editing)} className="flex items-center gap-1.5 px-2 sm:px-3 py-2 rounded-xl font-mono text-[10px] sm:text-xs glass hover:bg-white/10 nx-press flex-shrink-0">
-                  <Eye className="w-3.5 h-3.5" /> ЗАЯВКИ ({editing.confirmedCount || 0})
+                <button onClick={() => openSubmissions(editing)} title={`Заявки (${editing.confirmedCount || 0})`} className="flex items-center justify-center p-2 min-h-[40px] min-w-[40px] rounded-xl glass hover:bg-white/10 nx-press flex-shrink-0">
+                  <Eye className="w-3.5 h-3.5" />
                 </button>
-                <button onClick={() => setShowQR(true)} className="flex items-center gap-1.5 px-2 sm:px-3 py-2 rounded-xl font-mono text-[10px] sm:text-xs glass hover:bg-white/10 nx-press flex-shrink-0">
-                  <QrCode className="w-3.5 h-3.5" /> QR
+                <button onClick={() => setShowQR(true)} title="QR-код" className="flex items-center justify-center p-2 min-h-[40px] min-w-[40px] rounded-xl glass hover:bg-white/10 nx-press flex-shrink-0">
+                  <QrCode className="w-3.5 h-3.5" />
                 </button>
-                <button onClick={() => setShowPreview(true)} className="flex items-center gap-1.5 px-2 sm:px-3 py-2 rounded-xl font-mono text-[10px] sm:text-xs glass hover:bg-white/10 nx-press flex-shrink-0" title="Предпросмотр">
+                <button onClick={() => setShowPreview(true)} title="Предпросмотр" className="flex items-center justify-center p-2 min-h-[40px] min-w-[40px] rounded-xl glass hover:bg-white/10 nx-press flex-shrink-0">
                   <Eye className="w-3.5 h-3.5" />
                 </button>
                 {publicUrl && (
-                  <button onClick={copyLink} className="flex items-center gap-1.5 px-2 sm:px-3 py-2 rounded-xl font-mono text-[10px] sm:text-xs glass hover:bg-white/10 nx-press flex-shrink-0">
-                    <Copy className="w-3.5 h-3.5" /> ССЫЛКА
+                  <button onClick={copyLink} title="Ссылка" className="flex items-center justify-center p-2 min-h-[40px] min-w-[40px] rounded-xl glass hover:bg-white/10 nx-press flex-shrink-0">
+                    <Copy className="w-3.5 h-3.5" />
                   </button>
                 )}
               </>
@@ -1218,7 +1218,7 @@ export default function Registrations() {
               )}
               <div className="p-3 md:p-5 space-y-2 md:space-y-3">
                 <div className="flex items-start justify-between gap-2">
-                  <h3 className="font-mono text-sm md:text-base font-bold text-gray-200 truncate flex-1">
+                  <h3 className="font-mono text-sm md:text-base font-bold text-gray-200 line-clamp-2 min-w-0 flex-1">
                     {reg.color && <span className="inline-block w-2.5 h-2.5 rounded-full mr-2 align-middle" style={{ backgroundColor: reg.color }} />}
                     {reg.title}
                   </h3>
@@ -1235,13 +1235,13 @@ export default function Registrations() {
                 </div>
                 <div className="nx-divider" />
                 <div className="flex flex-wrap gap-1.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity pt-1">
-                  <button onClick={e => { e.stopPropagation(); openEdit(reg); }} className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0"><Edit3 className="w-3.5 h-3.5 text-gray-400" /></button>
-                  <button onClick={e => { e.stopPropagation(); openSubmissions(reg); }} className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0"><Eye className="w-3.5 h-3.5 text-gray-400" /></button>
-                  <button onClick={e => { e.stopPropagation(); openSubmissions(reg); }}
-                    className="flex items-center gap-1.5 px-2.5 min-h-[40px] rounded-lg hover:bg-white/10 nx-press font-mono text-[10px] text-gray-400 whitespace-nowrap flex-shrink-0">
-                    <BarChart3 className="w-3.5 h-3.5" /> СТАТИСТИКА
+                  <button onClick={e => { e.stopPropagation(); openEdit(reg); }} title="Редактировать" className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0"><Edit3 className="w-3.5 h-3.5 text-gray-400" /></button>
+                  <button onClick={e => { e.stopPropagation(); openSubmissions(reg); }} title="Заявки" className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0"><Eye className="w-3.5 h-3.5 text-gray-400" /></button>
+                  <button onClick={e => { e.stopPropagation(); openSubmissions(reg); }} title="Статистика"
+                    className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0">
+                    <BarChart3 className="w-3.5 h-3.5 text-gray-400" />
                   </button>
-                  <a href={`/registrations/${reg.id}/participants`} onClick={e => e.stopPropagation()} className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0"><Users className="w-3.5 h-3.5 text-gray-400" /></a>
+                  <a href={`/registrations/${reg.id}/participants`} onClick={e => e.stopPropagation()} title="Участники" className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0"><Users className="w-3.5 h-3.5 text-gray-400" /></a>
                   {reg.publicSlug && (
                     <a href={`/reg/${reg.publicSlug}`} target="_blank" rel="noopener"
                       onClick={e => e.stopPropagation()}
@@ -1250,7 +1250,7 @@ export default function Registrations() {
                     </a>
                   )}
                   <button onClick={e => { e.stopPropagation(); handleDuplicate(reg.id); }} className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0" title="Копировать"><Copy className="w-3.5 h-3.5 text-gray-400" /></button>
-                  <button onClick={e => { e.stopPropagation(); handleDelete(reg); }} className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-red-500/20 nx-press flex-shrink-0"><Trash2 className="w-3.5 h-3.5 text-red-400" /></button>
+                  <button onClick={e => { e.stopPropagation(); handleDelete(reg); }} title="Удалить" className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-red-500/20 nx-press flex-shrink-0"><Trash2 className="w-3.5 h-3.5 text-red-400" /></button>
                 </div>
               </div>
             </motion.div>
@@ -1416,9 +1416,9 @@ export default function Registrations() {
                       {(c.contactLastName || displayName)[0]?.toUpperCase() || '?'}
                     </div>
                     <div className="min-w-0">
-                      <h4 className="font-mono text-sm font-bold text-gray-200 truncate">{displayName}</h4>
+                      <h4 className="font-mono text-sm font-bold text-gray-200 line-clamp-2">{displayName}</h4>
                       {c.contactPhone && <p className="font-mono text-xs text-gray-400">{c.contactPhone}</p>}
-                      {c.contactEmail && <p className="font-mono text-xs text-gray-500 truncate">{c.contactEmail}</p>}
+                      {c.contactEmail && <p className="font-mono text-xs text-gray-500 break-all">{c.contactEmail}</p>}
                     </div>
                   </div>
 

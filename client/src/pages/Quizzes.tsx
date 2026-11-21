@@ -62,6 +62,8 @@ export default function Quizzes() {
   });
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
   const [collapsed, setCollapsed] = useState<Record<number, boolean>>({});
+  const [step, setStep] = useState<1 | 2>(1);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [uploads, setUploads] = useState<Record<UploadKey, number>>({});
   const [qrFor, setQrFor] = useState<Quiz | null>(null);
   const [view, setView] = useState<'list' | 'results'>('list');
@@ -117,6 +119,8 @@ export default function Quizzes() {
   });
 
   const openCreate = () => {
+    setStep(1);
+    setErrors({});
     const draft = readDraft();
     if (draft && !draft.editingId) {
       setEditing(null);
@@ -156,6 +160,8 @@ export default function Quizzes() {
         options: (q.options?.length ? q.options : [{ text: '', isCorrect: true }]).map((o) => ({ ...o, isCorrect: !!o.isCorrect })),
       })));
       setCollapsed({});
+      setStep(1);
+      setErrors({});
       setShowForm(true);
     } catch {
       showToast('Ошибка открытия', 'error');
@@ -176,8 +182,41 @@ export default function Quizzes() {
     }, 'danger');
   };
 
+  type FormErrors = Record<string, string>;
+
+  /** Валидация шага 1 «Основное» */
+  const validateStep1 = (): FormErrors => {
+    const errs: FormErrors = {};
+    if (!form.title.trim()) errs.title = 'Укажите название квиза';
+    return errs;
+  };
+
+  /** Класс поля с ошибкой */
+  const errCls = (key: string) => (errors[key] ? ' border-[var(--color-danger)]' : '');
+
+  /** Подпись ошибки под полем */
+  const ErrMsg = ({ k }: { k: string }) =>
+    errors[k] ? <p className="text-[10px] font-mono mt-1" style={{ color: 'var(--color-danger)' }}>{errors[k]}</p> : null;
+
+  /** Шаг 1 -> Шаг 2 (с валидацией) */
+  const goStep2 = () => {
+    const errs = validateStep1();
+    setErrors(errs);
+    if (Object.keys(errs).length > 0) {
+      showToast('Заполните обязательные поля', 'error');
+      return;
+    }
+    setStep(2);
+  };
+
   const save = async () => {
-    if (!form.title.trim()) { showToast('Название обязательно', 'error'); return; }
+    const errs = validateStep1();
+    setErrors(errs);
+    if (Object.keys(errs).length > 0) {
+      showToast('Заполните обязательные поля', 'error');
+      setStep(1);
+      return;
+    }
     try {
       const payload = {
         ...form,
@@ -403,7 +442,7 @@ export default function Quizzes() {
                 {results.map((r, i) => (
                   <tr key={r.id} className="border-t border-white/5 hover:bg-white/[0.03]">
                     <td className="px-2 py-2 md:p-3" style={{ color: i < 3 ? 'var(--color-primary)' : '#8b9bbb' }}>{i + 1}</td>
-                    <td className="px-2 py-2 md:p-3 text-gray-200 truncate">
+                    <td className="px-2 py-2 md:p-3 text-gray-200 break-words whitespace-normal">
                       {r.lastName} {r.firstName} {r.patronymic || ''}
                     </td>
                     <td className="px-2 py-2 md:p-3 text-gray-400">{r.phone || '—'}</td>
@@ -456,7 +495,7 @@ export default function Quizzes() {
                   <div key={s.questionId || i}>
                     <div className="flex items-center gap-2 text-[11px] font-mono mb-1">
                       <span className="text-gray-500 w-6">Q{i + 1}</span>
-                      <span className="text-gray-300 truncate flex-1">{s.text || '—'}</span>
+                      <span className="text-gray-300 line-clamp-2 min-w-0 flex-1">{s.text || '—'}</span>
                       <span className="text-gray-500 flex-shrink-0">
                         {s.correct}/{s.answered}
                       </span>
@@ -552,28 +591,38 @@ export default function Quizzes() {
                   </div>
                 )}
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-bold text-gray-200 truncate text-sm md:text-base">{q.title}</h3>
-                  <p className="text-[10px] font-mono text-gray-500 truncate">{q.organizer || '—'}</p>
+                  <h3 className="font-bold text-gray-200 line-clamp-2 text-sm md:text-base">{q.title}</h3>
+                  <p className="text-[10px] font-mono text-gray-500 line-clamp-2">{q.organizer || '—'}</p>
                   <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-                    <select
-                      value={q.status}
-                      onChange={(e) => changeStatus(q, e.target.value as QuizStatus)}
-                      onClick={(e) => e.stopPropagation()}
-                      className="text-[9px] font-mono px-1.5 py-0.5 rounded cursor-pointer appearance-none pr-5"
-                      style={{
-                        background: `${STATUS[q.status]?.color || '#6b7280'}20`,
-                        color: STATUS[q.status]?.color,
-                        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'%3E%3Cpath fill='${encodeURIComponent(STATUS[q.status]?.color || '#6b7280')}' d='M0 0l4 5 4-5z'/%3E%3C/svg%3E")`,
-                        backgroundRepeat: 'no-repeat',
-                        backgroundPosition: 'right 6px center',
-                        border: 'none',
-                      }}
-                      title="Сменить статус"
+                    <div
+                      className="inline-flex rounded-full overflow-hidden flex-shrink-0"
+                      style={{ border: '1px solid rgba(255,255,255,0.12)' }}
+                      role="group"
+                      aria-label="Статус квиза"
                     >
-                      <option value="draft">ЧЕРНОВИК</option>
-                      <option value="scheduled">ЗАПЛАНИРОВАН</option>
-                      <option value="conducted">ПРОВЕДЁН</option>
-                    </select>
+                      {(Object.keys(STATUS) as QuizStatus[]).map((s) => {
+                        const active = q.status === s;
+                        const c = STATUS[s].color;
+                        return (
+                          <button
+                            key={s}
+                            type="button"
+                            onClick={() => { if (!active) changeStatus(q, s); }}
+                            title={`Статус: ${STATUS[s].label}`}
+                            aria-label={STATUS[s].label}
+                            aria-pressed={active}
+                            className="flex items-center gap-1 px-2 min-h-[40px] text-[8px] font-mono whitespace-nowrap transition-colors nx-press"
+                            style={{
+                              background: active ? `${c}26` : 'transparent',
+                              color: active ? c : '#8b9bbb',
+                            }}
+                          >
+                            <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: c }} />
+                            {STATUS[s].label}
+                          </button>
+                        );
+                      })}
+                    </div>
                     <span className="text-[9px] font-mono text-gray-500 flex items-center gap-1">
                       <Users className="w-3 h-3" /> {q.participantCount || 0}
                     </span>
@@ -585,21 +634,22 @@ export default function Quizzes() {
                   </div>
                 </div>
               </div>
-              <div className="flex gap-1.5 mt-2 md:mt-3 overflow-x-auto pb-0.5">
-                <button onClick={() => openEdit(q)} className="btn-ghost nx-press px-2.5 py-2 text-[10px] flex-shrink-0"><Edit3 className="w-3 h-3 inline mr-1" />ПРАВИТЬ</button>
-                <button onClick={() => { setQrFor(q); }} className="btn-ghost nx-press px-2.5 py-2 text-[10px] flex-shrink-0"><QrCode className="w-3 h-3 inline mr-1" />QR</button>
-                <button onClick={() => copyLink(q)} className="btn-ghost nx-press px-2.5 py-2 text-[10px] flex-shrink-0"><Link2 className="w-3 h-3 inline mr-1" />ССЫЛКА</button>
-                <button onClick={() => openResults(q)} className="btn-ghost nx-press px-2.5 py-2 text-[10px] flex-shrink-0"><Play className="w-3 h-3 inline mr-1" />ИТОГИ</button>
+              <div className="flex gap-1.5 mt-2 md:mt-3 flex-wrap">
+                <button onClick={() => openEdit(q)} title="Редактировать" aria-label="Редактировать" className="btn-ghost nx-press w-10 h-10 flex items-center justify-center rounded-lg flex-shrink-0"><Edit3 className="w-4 h-4" /></button>
+                <button onClick={() => { setQrFor(q); }} title="QR-код" aria-label="QR-код" className="btn-ghost nx-press w-10 h-10 flex items-center justify-center rounded-lg flex-shrink-0"><QrCode className="w-4 h-4" /></button>
+                <button onClick={() => copyLink(q)} title="Скопировать ссылку" aria-label="Скопировать ссылку" className="btn-ghost nx-press w-10 h-10 flex items-center justify-center rounded-lg flex-shrink-0"><Link2 className="w-4 h-4" /></button>
+                <button onClick={() => openResults(q)} title="Итоги" aria-label="Итоги" className="btn-ghost nx-press w-10 h-10 flex items-center justify-center rounded-lg flex-shrink-0"><Play className="w-4 h-4" /></button>
                 <button
                   onClick={async () => {
                     await quizzesApi.duplicate(q.id);
                     showToast('Копия создана', 'success');
                     load();
                   }}
-                  className="btn-ghost nx-press px-2.5 py-2 text-[10px] flex-shrink-0"
-                ><Copy className="w-3 h-3 inline mr-1" />КОПИЯ</button>
-                <button onClick={() => del(q)} className="btn-ghost nx-press px-2.5 py-2 text-[10px] flex-shrink-0" style={{ color: '#ff6b6b' }}>
-                  <Trash2 className="w-3 h-3 inline" />
+                  title="Дублировать" aria-label="Дублировать"
+                  className="btn-ghost nx-press w-10 h-10 flex items-center justify-center rounded-lg flex-shrink-0"
+                ><Copy className="w-4 h-4" /></button>
+                <button onClick={() => del(q)} title="Удалить" aria-label="Удалить" className="btn-ghost nx-press w-10 h-10 flex items-center justify-center rounded-lg flex-shrink-0" style={{ color: '#ff6b6b' }}>
+                  <Trash2 className="w-4 h-4" />
                 </button>
               </div>
             </div>
@@ -627,11 +677,50 @@ export default function Quizzes() {
                 <span className="text-[10px] font-mono text-gray-500">черновик сохраняется</span>
               </div>
 
+              {/* шаги мастера — кликабельны, можно переключаться в любой момент */}
+              <div className="flex items-center gap-2 mb-4">
+                <button
+                  type="button"
+                  onClick={() => setStep(1)}
+                  className="flex items-center gap-1.5 px-3 min-h-[40px] rounded-full text-[10px] font-mono tracking-wider nx-press"
+                  style={step === 1
+                    ? { background: 'color-mix(in srgb, var(--color-primary) 16%, transparent)', color: 'var(--color-primary)', border: '1px solid color-mix(in srgb, var(--color-primary) 35%, transparent)' }
+                    : { background: 'rgba(255,255,255,0.04)', color: '#8b9bbb', border: '1px solid rgba(255,255,255,0.08)' }}
+                >
+                  <span
+                    className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold flex-shrink-0"
+                    style={step === 1
+                      ? { background: 'var(--color-primary)', color: '#000' }
+                      : { background: 'rgba(255,255,255,0.08)', color: '#8b9bbb' }}
+                  >1</span>
+                  ОСНОВНОЕ
+                </button>
+                <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.1)' }} />
+                <button
+                  type="button"
+                  onClick={() => (step === 2 ? undefined : goStep2())}
+                  className="flex items-center gap-1.5 px-3 min-h-[40px] rounded-full text-[10px] font-mono tracking-wider nx-press"
+                  style={step === 2
+                    ? { background: 'color-mix(in srgb, var(--color-primary) 16%, transparent)', color: 'var(--color-primary)', border: '1px solid color-mix(in srgb, var(--color-primary) 35%, transparent)' }
+                    : { background: 'rgba(255,255,255,0.04)', color: '#8b9bbb', border: '1px solid rgba(255,255,255,0.08)' }}
+                >
+                  <span
+                    className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold flex-shrink-0"
+                    style={step === 2
+                      ? { background: 'var(--color-primary)', color: '#000' }
+                      : { background: 'rgba(255,255,255,0.08)', color: '#8b9bbb' }}
+                  >2</span>
+                  ВОПРОСЫ
+                </button>
+              </div>
+
+              {step === 1 && (
               <div className="space-y-3">
                 <div>
                   <label className="text-[10px] font-mono text-gray-500 tracking-wider">НАЗВАНИЕ *</label>
-                  <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-xl text-sm bg-white/5 border border-white/10 text-gray-200 [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]" />
+                  <input value={form.title} onChange={(e) => { setForm({ ...form, title: e.target.value }); if (errors.title) setErrors((p) => ({ ...p, title: '' })); }}
+                    className={`w-full px-3 py-2.5 rounded-xl text-sm bg-white/5 border border-white/10 text-gray-200 [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]${errCls('title')}`} />
+                  <ErrMsg k="title" />
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
@@ -692,9 +781,11 @@ export default function Quizzes() {
                     className="w-full px-3 py-2.5 rounded-xl text-sm bg-white/5 border border-white/10 text-gray-200 [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]" />
                 </div>
               </div>
+              )}
 
               {/* QUESTIONS */}
-              <div className="mt-5">
+              {step === 2 && (
+              <div>
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="font-mono text-xs font-bold tracking-wider text-gray-400">ВОПРОСЫ ({questions.length})</h3>
                   <div className="flex items-center gap-2">
@@ -727,7 +818,7 @@ export default function Quizzes() {
                         >
                           {isCollapsed ? <ChevronRight className="w-4 h-4 text-gray-500" /> : <ChevronDown className="w-4 h-4 text-gray-500" />}
                           <span className="font-mono text-[10px] text-gray-500">ВОПРОС {qi + 1}</span>
-                          <span className="text-[11px] text-gray-300 truncate flex-1">
+                          <span className="text-[11px] text-gray-300 line-clamp-2 min-w-0 flex-1">
                             {q.text || (isCollapsed ? '—' : '')}
                           </span>
                           <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
@@ -914,11 +1005,20 @@ export default function Quizzes() {
                   })}
                 </div>
               </div>
+              )}
 
-              {/* только эти две кнопки закрывают форму */}
-              <div className="flex justify-end gap-2 mt-5 sticky bottom-0 pt-3" style={{ background: 'linear-gradient(transparent, rgba(10,10,15,0.9) 30%)' }}>
-                <button onClick={cancelForm} className="btn-ghost nx-press px-5 py-2.5">ОТМЕНА</button>
-                <button onClick={save} className="btn-primary nx-press px-5 py-2.5"><Save className="w-4 h-4 inline mr-1" />СОХРАНИТЬ</button>
+              {/* только эти кнопки закрывают форму */}
+              <div className="flex items-center gap-2 mt-5 sticky bottom-0 pt-3" style={{ background: 'linear-gradient(transparent, rgba(10,10,15,0.9) 30%)' }}>
+                {step === 2 && (
+                  <button onClick={() => setStep(1)} className="btn-ghost nx-press px-5 py-2.5 min-h-[40px]">НАЗАД</button>
+                )}
+                <div className="flex-1" />
+                <button onClick={cancelForm} className="btn-ghost nx-press px-5 py-2.5 min-h-[40px]">ОТМЕНА</button>
+                {step === 1 ? (
+                  <button onClick={goStep2} className="btn-primary nx-press px-5 py-2.5 min-h-[40px]">ДАЛЕЕ</button>
+                ) : (
+                  <button onClick={save} className="btn-primary nx-press px-5 py-2.5 min-h-[40px]"><Save className="w-4 h-4 inline mr-1" />СОХРАНИТЬ</button>
+                )}
               </div>
               </div>
             </motion.div>

@@ -84,7 +84,7 @@ export default function SurveyCard({
         </span>
       </div>
       <div className="p-2.5 md:p-3 space-y-1.5 md:space-y-2">
-        <h3 className="font-mono text-xs md:text-sm font-bold text-white truncate">{survey.name}</h3>
+        <h3 className="font-mono text-xs md:text-sm font-bold text-white line-clamp-2">{survey.name}</h3>
         {survey.description && (
           <p className="font-mono text-[10px] text-gray-400" style={{
             display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
