@@ -64,6 +64,14 @@ export default function Quizzes() {
   const [showPreviewQ, setShowPreviewQ] = useState(false);
   const [previewQ, setPreviewQ] = useState<any | null>(null);
 
+  // клик мимо — закрываем выпадашку статуса
+  useEffect(() => {
+    if (!openStatus) return;
+    const close = () => setOpenStatus(null);
+    document.addEventListener('click', close);
+    return () => document.removeEventListener('click', close);
+  }, [openStatus]);
+
   /** textarea растёт по содержимому */
   const autoGrow = (el: HTMLTextAreaElement | null) => {
     if (!el) return;
@@ -591,9 +599,9 @@ export default function Quizzes() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2 md:gap-4">
           {filtered.map((q) => (
-            <div key={q.id} className="nx-tile p-3 md:p-4 relative">
+            <div key={q.id} className={`nx-tile p-3 md:p-4 relative ${openStatus === q.id ? 'z-30' : ''}`}>
                             {/* Статус — компактная выпадашка в правом верхнем углу */}
-              <div className="absolute top-2 right-2 z-20">
+              <div className="absolute top-2 right-2 z-40">
                 <button
                   type="button"
                   onClick={(e) => { e.stopPropagation(); setOpenStatus(openStatus === q.id ? null : q.id); }}
@@ -611,7 +619,7 @@ export default function Quizzes() {
                 </button>
                 {openStatus === q.id && (
                   <div className="absolute right-0 top-full mt-1 rounded-xl overflow-hidden"
-                    style={{ background: 'rgba(20,20,35,0.98)', border: '1px solid rgba(255,255,255,0.12)', minWidth: 150, zIndex: 30 }}
+                    style={{ background: 'rgba(20,20,35,0.98)', border: '1px solid rgba(255,255,255,0.12)', minWidth: 150, zIndex: 50 }}
                     onClick={(e) => e.stopPropagation()}>
                     {(Object.keys(STATUS) as QuizStatus[]).map((st) => (
                       <button
