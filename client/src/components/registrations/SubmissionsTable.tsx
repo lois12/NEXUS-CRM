@@ -285,22 +285,6 @@ export default function SubmissionsTable({ registrationId, fields, submissions, 
         </div>
       </div>
 
-      {/* Stat strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-        {[
-          { label: 'ВСЕГО', value: submissions.length, color: 'var(--color-primary)' },
-          { label: STATUS_CONFIG.registered.label, value: submissions.filter(s => s.status === 'registered').length, color: STATUS_CONFIG.registered.color },
-          { label: STATUS_CONFIG.confirmed.label, value: submissions.filter(s => s.status === 'confirmed').length, color: STATUS_CONFIG.confirmed.color },
-          { label: STATUS_CONFIG.waitlist.label, value: submissions.filter(s => s.status === 'waitlist').length, color: STATUS_CONFIG.waitlist.color },
-          { label: STATUS_CONFIG.cancelled.label, value: submissions.filter(s => s.status === 'cancelled').length, color: STATUS_CONFIG.cancelled.color },
-        ].map((chip, i) => (
-          <div key={chip.label} className={`nx-tile p-4 text-center nx-rise nx-rise-${Math.min(i + 1, 5)}`}>
-            <p className="font-mono text-[9px] text-gray-500 mb-1.5 tracking-[0.18em] uppercase">{chip.label}</p>
-            <p className="font-mono text-2xl font-bold" style={{ color: chip.color }}>{chip.value}</p>
-          </div>
-        ))}
-      </div>
-
       {/* Filters + Search */}
       <div className="nx-panel p-3 flex items-center gap-2 flex-wrap">
         <div className="relative flex-1 min-w-[150px]">
