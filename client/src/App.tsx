@@ -195,7 +195,20 @@ function ChatWidgetWrapper() {
   const { pathname } = useLocation();
   if (!isAuthenticated) return null;
   if (pathname.startsWith('/reg/') || pathname.startsWith('/control') || pathname.startsWith('/w/')) return null;
-  return <ErrorBoundary><Suspense fallback={null}><ChatWidget /></Suspense></ErrorBoundary>;
+  // в опросах / регистрации / квизах на мобиле виджет перекрывает контент — прячем
+  const hideOnMobile =
+    pathname.startsWith('/surveys') ||
+    pathname.startsWith('/registrations') ||
+    pathname.startsWith('/quizzes');
+  return (
+    <ErrorBoundary>
+      <Suspense fallback={null}>
+        <div className={hideOnMobile ? 'hidden md:block' : undefined}>
+          <ChatWidget />
+        </div>
+      </Suspense>
+    </ErrorBoundary>
+  );
 }
 
 function isPublicPath(pathname: string): boolean {
