@@ -686,15 +686,15 @@ export default function Quizzes() {
         {showForm && (
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-start justify-center p-3 overflow-y-auto"
+            className="fixed inset-0 z-[100] flex items-start justify-center p-3"
             style={{ background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(6px)' }}
           >
             <motion.div
               initial={{ scale: 0.95, y: 16 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0 }}
-              className="nx-bezel w-full max-w-2xl my-6"
+              className="nx-bezel w-full max-w-2xl my-6 flex flex-col max-h-[calc(100dvh-4.5rem)]"
             >
-              <div className="nx-core p-3 sm:p-5">
-              <div className="flex items-center justify-between gap-2 mb-3">
+              <div className="nx-core p-3 sm:p-5 flex flex-col min-h-0 flex-1">
+              <div className="flex items-center justify-between gap-2 mb-3 shrink-0">
                 <h2 className="font-mono text-base sm:text-lg font-bold" style={{ color: 'var(--color-primary)' }}>
                   {editing ? 'РЕДАКТИРОВАТЬ КВИЗ' : 'НОВЫЙ КВИЗ'}
                 </h2>
@@ -702,7 +702,7 @@ export default function Quizzes() {
               </div>
 
               {/* шаги мастера — кликабельны, можно переключаться в любой момент */}
-              <div className="flex items-center gap-2 mb-3 flex-wrap">
+              <div className="flex items-center gap-2 mb-3 flex-wrap shrink-0">
                 <button
                   type="button"
                   onClick={() => setStep(1)}
@@ -738,6 +738,7 @@ export default function Quizzes() {
                 </button>
               </div>
 
+              <div className="flex-1 min-h-0 overflow-y-auto">
               {step === 1 && (
               <div className="space-y-2.5 sm:space-y-3">
                 <div>
@@ -1047,8 +1048,10 @@ export default function Quizzes() {
               </div>
               )}
 
-              {/* только эти кнопки закрывают форму */}
-              <div className="flex items-center gap-2 mt-4 sticky bottom-0 pt-2 flex-wrap" style={{ background: 'linear-gradient(transparent, rgba(10,10,15,0.9) 30%)' }}>
+              </div>
+
+              {/* кнопки всегда внизу модалки — не уезжают за экран на мобиле */}
+              <div className="flex items-center gap-2 mt-3 pt-3 flex-wrap shrink-0" style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
                 {step === 2 && (
                   <button onClick={() => setStep(1)} className="btn-ghost nx-press px-3 sm:px-5 py-2.5 min-h-[40px] flex-shrink-0">НАЗАД</button>
                 )}

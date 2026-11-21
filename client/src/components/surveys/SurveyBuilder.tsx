@@ -186,12 +186,12 @@ export default function SurveyBuilder({ survey, onSaved, onBack }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-start justify-center p-3 overflow-y-auto"
+      className="fixed inset-0 z-[100] flex items-start justify-center p-3"
       style={{ background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(6px)' }}
     >
-      <div className="nx-bezel w-full max-w-2xl my-6">
-        <div className="nx-core p-3 sm:p-5">
-          <div className="flex items-center justify-between gap-2 mb-3">
+      <div className="nx-bezel w-full max-w-2xl my-6 flex flex-col max-h-[calc(100dvh-4.5rem)]">
+        <div className="nx-core p-3 sm:p-5 flex flex-col min-h-0 flex-1">
+          <div className="flex items-center justify-between gap-2 mb-3 shrink-0">
             <h2 className="font-mono text-base sm:text-lg font-bold" style={{ color: 'var(--color-primary)' }}>
               РЕДАКТИРОВАТЬ ОПРОС
             </h2>
@@ -206,7 +206,7 @@ export default function SurveyBuilder({ survey, onSaved, onBack }: Props) {
           </div>
 
           {/* шаги мастера — кликабельны */}
-          <div className="flex items-center gap-2 mb-3 flex-wrap">
+          <div className="flex items-center gap-2 mb-3 flex-wrap shrink-0">
             {STEPS.map((s, i) => (
               <div key={s.n} className="flex items-center gap-2 flex-1 min-w-fit">
                 {i > 0 && <div className="flex-1 h-px min-w-3" style={{ background: 'rgba(255,255,255,0.1)' }} />}
@@ -230,6 +230,7 @@ export default function SurveyBuilder({ survey, onSaved, onBack }: Props) {
             ))}
           </div>
 
+          <div className="flex-1 min-h-0 overflow-y-auto">
           {step === 1 && (
             <SurveyMetaFields
               name={name}
@@ -394,8 +395,10 @@ export default function SurveyBuilder({ survey, onSaved, onBack }: Props) {
             </div>
           )}
 
-          {/* только эти кнопки закрывают форму */}
-          <div className="flex items-center gap-2 mt-4 sticky bottom-0 pt-2 flex-wrap" style={{ background: 'linear-gradient(transparent, rgba(10,10,15,0.9) 30%)' }}>
+          </div>
+
+          {/* кнопки всегда внизу модалки — не уезжают за экран на мобиле */}
+          <div className="flex items-center gap-2 mt-3 pt-3 flex-wrap shrink-0" style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
             {step > 1 && (
               <button onClick={() => setStep((s) => (s - 1) as 1 | 2 | 3)} className="btn-ghost nx-press px-3 sm:px-5 py-2.5 min-h-[40px] flex-shrink-0">НАЗАД</button>
             )}
