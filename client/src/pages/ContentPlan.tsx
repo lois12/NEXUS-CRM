@@ -656,18 +656,18 @@ export default function ContentPlan() {
           <div className="flex rounded-lg overflow-hidden border border-gray-700">
             <button onClick={() => setCalendarView('grid')}
               title="Сетка месяца"
-              className={`p-2 transition-all nx-press ${calendarView === 'grid' ? 'bg-white/10 text-white' : 'text-gray-500 hover:text-gray-300'}`}>
-              <LayoutGrid className="w-4 h-4" />
+              className={`flex items-center gap-1.5 px-2.5 min-h-[40px] font-mono text-[10px] font-bold transition-all nx-press ${calendarView === 'grid' ? 'glass-accent text-white' : 'text-gray-500 hover:text-gray-300'}`}>
+              <LayoutGrid className="w-4 h-4" /> СЕТКА
             </button>
             <button onClick={() => setCalendarView('week')}
               title="Недели"
-              className={`p-2 transition-all nx-press ${calendarView === 'week' ? 'bg-white/10 text-white' : 'text-gray-500 hover:text-gray-300'}`}>
-              <Rows className="w-4 h-4" />
+              className={`flex items-center gap-1.5 px-2.5 min-h-[40px] font-mono text-[10px] font-bold transition-all nx-press ${calendarView === 'week' ? 'glass-accent text-white' : 'text-gray-500 hover:text-gray-300'}`}>
+              <Rows className="w-4 h-4" /> НЕДЕЛИ
             </button>
             <button onClick={() => setCalendarView('full')}
               title="Полный календарь"
-              className={`p-2 transition-all nx-press ${calendarView === 'full' ? 'bg-white/10 text-white' : 'text-gray-500 hover:text-gray-300'}`}>
-              <CalendarDays className="w-4 h-4" />
+              className={`flex items-center gap-1.5 px-2.5 min-h-[40px] font-mono text-[10px] font-bold transition-all nx-press ${calendarView === 'full' ? 'glass-accent text-white' : 'text-gray-500 hover:text-gray-300'}`}>
+              <CalendarDays className="w-4 h-4" /> ПОЛНЫЙ
             </button>
           </div>
 
