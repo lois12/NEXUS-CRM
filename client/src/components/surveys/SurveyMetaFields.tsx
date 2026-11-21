@@ -35,10 +35,13 @@ export default function SurveyMetaFields({
     <div className="space-y-3">
       <div>
         <label className={LABEL}>НАЗВАНИЕ *</label>
-        <input
+        <textarea
           value={name}
-          onChange={(e) => onChange({ name: e.target.value })}
-          className={FIELD}
+          onChange={(e) => { onChange({ name: e.target.value }); autoGrow(e.target); }}
+          onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
+          rows={1}
+          ref={autoGrow}
+          className={`${FIELD} resize-none overflow-hidden`}
           placeholder="Например: Оценка мероприятия"
         />
       </div>

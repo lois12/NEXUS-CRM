@@ -742,8 +742,10 @@ export default function Quizzes() {
               <div className="space-y-2.5 sm:space-y-3">
                 <div>
                   <label className="text-[10px] font-mono text-gray-500 tracking-wider">НАЗВАНИЕ *</label>
-                  <input value={form.title} onChange={(e) => { setForm({ ...form, title: e.target.value }); if (errors.title) setErrors((p) => ({ ...p, title: '' })); }}
-                    className={`w-full px-3 py-2.5 rounded-xl text-sm bg-white/5 border border-white/10 text-gray-200 [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]${errCls('title')}`} />
+                  <textarea value={form.title} rows={1} ref={autoGrow}
+                    onChange={(e) => { const v = e.target.value; setForm({ ...form, title: v }); autoGrow(e.target); if (errors.title) setErrors((p) => ({ ...p, title: '' })); }}
+                    onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
+                    className={`w-full px-3 py-2.5 rounded-xl text-sm bg-white/5 border border-white/10 text-gray-200 resize-none overflow-hidden [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]${errCls('title')}`} />
                   <ErrMsg k="title" />
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
