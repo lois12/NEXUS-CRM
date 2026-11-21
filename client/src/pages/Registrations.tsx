@@ -618,17 +618,17 @@ export default function Registrations() {
               <input data-field="organizer" value={form.organizer} onChange={e => setForm({ ...form, organizer: e.target.value })} placeholder="// ОРГАНИЗАТОР"
                 className={`w-full px-4 py-2.5 rounded-xl font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]${errCls('organizer')}`} />
                 <ErrMsg k="organizer" />
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 min-w-0">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-3 min-w-0">
                 <div className="min-w-0">
                   <label className="font-mono text-[9px] sm:text-[10px] text-gray-500 mb-1 block break-words">ДАТА</label>
                   <input data-field="eventDate" type="date" value={form.eventDate} onChange={e => setForm({ ...form, eventDate: e.target.value })}
-                    className={`w-full min-w-0 px-3 py-2.5 rounded-xl font-mono text-[12px] sm:text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]${errCls('eventDate')}`} />
+                    className={`w-full min-w-0 max-w-full px-3 py-2.5 rounded-xl text-[12px] sm:text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)]${errCls('eventDate')}`} />
                 <ErrMsg k="eventDate" />
                 </div>
                 <div className="min-w-0">
                   <label className="font-mono text-[9px] sm:text-[10px] text-gray-500 mb-1 block break-words">ВРЕМЯ</label>
                   <input data-field="eventTime" type="time" value={form.eventTime} onChange={e => setForm({ ...form, eventTime: e.target.value })}
-                    className={`w-full min-w-0 px-3 py-2.5 rounded-xl font-mono text-[12px] sm:text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]${errCls('eventTime')}`} />
+                    className={`w-full min-w-0 max-w-full px-3 py-2.5 rounded-xl text-[12px] sm:text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)]${errCls('eventTime')}`} />
                 <ErrMsg k="eventTime" />
                 </div>
               </div>
@@ -676,17 +676,17 @@ export default function Registrations() {
                 </div>
               </div>
               {/* Registration time window */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 min-w-0">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-3 min-w-0">
                 <div className="min-w-0">
                   <label className="font-mono text-[9px] sm:text-[10px] text-gray-500 mb-1 block break-words">НАЧАЛО РЕГИСТРАЦИИ</label>
                   <input data-field="registrationStart" type="datetime-local" value={form.registrationStart} onChange={e => setForm({ ...form, registrationStart: e.target.value })}
-                    className={`w-full min-w-0 px-3 py-2.5 rounded-xl font-mono text-[12px] sm:text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]${errCls('registrationStart')}`} />
+                    className={`w-full min-w-0 max-w-full px-3 py-2.5 rounded-xl text-[12px] sm:text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)]${errCls('registrationStart')}`} />
                 <ErrMsg k="registrationStart" />
                 </div>
                 <div className="min-w-0">
                   <label className="font-mono text-[9px] sm:text-[10px] text-gray-500 mb-1 block break-words">КОНЕЦ РЕГИСТРАЦИИ</label>
                   <input data-field="registrationEnd" type="datetime-local" value={form.registrationEnd} onChange={e => setForm({ ...form, registrationEnd: e.target.value })}
-                    className={`w-full min-w-0 px-3 py-2.5 rounded-xl font-mono text-[12px] sm:text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]${errCls('registrationEnd')}`} />
+                    className={`w-full min-w-0 max-w-full px-3 py-2.5 rounded-xl text-[12px] sm:text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)]${errCls('registrationEnd')}`} />
                 <ErrMsg k="registrationEnd" />
                 </div>
               </div>
