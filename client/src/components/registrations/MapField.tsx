@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import 'leaflet/dist/leaflet.css';
-import { Maximize2, Minimize2 } from 'lucide-react';
+import { Maximize2, Minimize2, MapPin } from 'lucide-react';
 
 interface MapFieldProps {
   value: string;
@@ -38,6 +38,9 @@ export default function MapField({ value, onChange, label }: MapFieldProps) {
   const tileLayerRef = useRef<any>(null);
   const [tileLayer, setTileLayer] = useState<keyof typeof TILES>('satellite');
   const [expanded, setExpanded] = useState(false);
+  // режим выбора точки: карта интерактивна только пока picking=true
+  const [picking, setPicking] = useState(false);
+  const pickingRef = useRef(false);
   const isInteractive = !!onChange;
 
   const parseValue = () => {
@@ -80,13 +83,17 @@ export default function MapField({ value, onChange, label }: MapFieldProps) {
       iconSize: [0, 0],
     });
 
-    const marker = L.marker([lat, lng], { icon: neonIcon, draggable: isInteractive }).addTo(map);
+    const marker = L.marker([lat, lng], { icon: neonIcon, draggable: false }).addTo(map);
     markerRef.current = marker;
 
     if (isInteractive) {
       map.on('click', (e: any) => {
+        // клик ставит точку только в режиме выбора
+        if (!pickingRef.current) return;
         marker.setLatLng(e.latlng);
         onChange!(JSON.stringify({ lat: e.latlng.lat, lng: e.latlng.lng, zoom: map.getZoom() }));
+        // после установки точки карта снова неактивна
+        setPicking(false);
       });
       marker.on('dragend', () => {
         const pos = marker.getLatLng();
@@ -115,6 +122,31 @@ export default function MapField({ value, onChange, label }: MapFieldProps) {
       if (mapInstanceRef.current) { mapInstanceRef.current.remove(); mapInstanceRef.current = null; }
     };
   }, []);
+
+  // Режим выбора точки: пока выключен — карта не реагирует на тап/скролл/перетаскивание
+  useEffect(() => {
+    pickingRef.current = picking;
+    const map = mapInstanceRef.current;
+    const marker = markerRef.current;
+    if (!map) return;
+    const enable = picking && isInteractive;
+    try {
+      if (enable) {
+        map.dragging.enable();
+        map.touchZoom.enable();
+        map.doubleClickZoom.enable();
+        map.scrollWheelZoom.enable();
+        map.boxZoom.enable();
+      } else {
+        map.dragging.disable();
+        map.touchZoom.disable();
+        map.doubleClickZoom.disable();
+        map.scrollWheelZoom.disable();
+        map.boxZoom.disable();
+      }
+      if (marker) marker.dragging?.[enable ? 'enable' : 'disable']();
+    } catch { /* карта ещё не инициализирована */ }
+  }, [picking, isInteractive]);
 
   // Update tile layer
   useEffect(() => {
@@ -166,6 +198,20 @@ export default function MapField({ value, onChange, label }: MapFieldProps) {
             </button>
           ))}
         </div>
+        {isInteractive && (
+          <button
+            type="button"
+            onClick={() => setPicking(p => !p)}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-mono transition-all flex-shrink-0 nx-press"
+            style={picking
+              ? { background: 'var(--color-primary)', color: '#000', boxShadow: '0 0 12px var(--color-glow)' }
+              : { color: '#5a5a70', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
+            title={picking ? 'Кликните по карте, чтобы поставить точку' : 'Включить выбор точки на карте'}
+          >
+            <MapPin className="w-3.5 h-3.5" />
+            {picking ? 'ВЫБЕРИТЕ ТОЧКУ' : 'УКАЗАТЬ ТОЧКУ'}
+          </button>
+        )}
         <button type="button" onClick={() => setExpanded(!expanded)}
           className="p-2 rounded-lg hover:bg-white/10 transition-colors flex-shrink-0 nx-press"
           title={expanded ? 'Свернуть' : 'Развернуть'}>

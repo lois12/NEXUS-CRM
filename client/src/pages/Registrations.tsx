@@ -41,6 +41,10 @@ export default function Registrations() {
   const [form, setForm] = useState({ title: '', description: '', eventDate: '', eventTime: '', location: '', videoUrl: '', maxParticipants: 0, status: 'draft' as string, registrationStart: '', registrationEnd: '', closedMessage: '', mapCoords: '', showLimit: 1, showTimer: 1, organizer: '', color: '', theme: 'cyberpunk', waitlistEnabled: 1, maxWaitlist: 0, checkinEnabled: 1, showMap: 1 });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showSysBlocks, setShowSysBlocks] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+  /** убираем HTML-теги из описания (RichEditor хранит html) */
+  const stripHtml = (html: string) =>
+    (html || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
   const [regFields, setRegFields] = useState<RegistrationField[]>([]);
   const [submissions, setSubmissions] = useState<RegistrationSubmission[]>([]);
   const [showQR, setShowQR] = useState(false);
@@ -536,7 +540,46 @@ export default function Registrations() {
         )}
 
         <SubmissionsTable registrationId={editing.id} fields={regFields} submissions={submissions} onRefresh={() => openSubmissions(editing)} onClose={() => setView('list')} />
-        <ConfirmModal isOpen={confirmState.isOpen} onConfirm={() => { confirmState.onConfirm(); closeConfirm(); }} onCancel={closeConfirm} title={confirmState.title} message={confirmState.message} type={confirmState.type} />
+              {/* Предпросмотр публичной страницы */}
+      {showPreview && (() => {
+        const t = REG_THEMES.find(th => th.id === form.theme) || REG_THEMES[0];
+        return (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-3"
+            style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)' }}
+            onClick={() => setShowPreview(false)}>
+            <div className="nx-bezel w-full max-w-md" onClick={e => e.stopPropagation()}>
+              <div className="nx-core p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="nx-eyebrow">ПРЕДПРОСМОТР</span>
+                  <button onClick={() => setShowPreview(false)} className="p-1 rounded-lg hover:bg-white/10 nx-press" aria-label="Закрыть">
+                    <X className="w-4 h-4 text-gray-400" />
+                  </button>
+                </div>
+                <div className="rounded-xl overflow-hidden" style={{ background: t.preview.bg, border: `1px solid ${t.preview.border}`, padding: '16px' }}>
+                  <h3 className="font-mono text-sm font-bold mb-2" style={{ color: t.preview.primary }}>{form.title || 'Название мероприятия'}</h3>
+                  <p className="text-[11px] mb-3 leading-relaxed" style={{ color: t.preview.text, opacity: 0.75 }}>{stripHtml(form.description) || 'Описание мероприятия'}</p>
+                  <div className="space-y-2">
+                    <div className="rounded-lg px-3 py-2" style={{ background: 'rgba(0,0,0,0.3)', border: `1px solid ${t.preview.border}` }}>
+                      <span className="text-[10px] font-mono" style={{ color: t.preview.text, opacity: 0.5 }}>// ФАМИЛИЯ *</span>
+                    </div>
+                    <div className="rounded-lg px-3 py-2" style={{ background: 'rgba(0,0,0,0.3)', border: `1px solid ${t.preview.border}` }}>
+                      <span className="text-[10px] font-mono" style={{ color: t.preview.text, opacity: 0.5 }}>// ИМЯ *</span>
+                    </div>
+                    <div className="rounded-lg px-3 py-2" style={{ background: 'rgba(0,0,0,0.3)', border: `1px solid ${t.preview.border}` }}>
+                      <span className="text-[10px] font-mono" style={{ color: t.preview.text, opacity: 0.5 }}>// EMAIL *</span>
+                    </div>
+                    <div className="rounded-lg px-3 py-2 text-center" style={{ background: t.preview.primary, color: t.preview.bg }}>
+                      <span className="text-[10px] font-mono font-bold">ЗАРЕГИСТРИРОВАТЬСЯ</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      <ConfirmModal isOpen={confirmState.isOpen} onConfirm={() => { confirmState.onConfirm(); closeConfirm(); }} onCancel={closeConfirm} title={confirmState.title} message={confirmState.message} type={confirmState.type} />
       </div>
     );
   }
@@ -575,6 +618,9 @@ export default function Registrations() {
                 </button>
                 <button onClick={() => setShowQR(true)} className="flex items-center gap-1.5 px-2 sm:px-3 py-2 rounded-xl font-mono text-[10px] sm:text-xs glass hover:bg-white/10 nx-press flex-shrink-0">
                   <QrCode className="w-3.5 h-3.5" /> QR
+                </button>
+                <button onClick={() => setShowPreview(true)} className="flex items-center gap-1.5 px-2 sm:px-3 py-2 rounded-xl font-mono text-[10px] sm:text-xs glass hover:bg-white/10 nx-press flex-shrink-0" title="Предпросмотр">
+                  <Eye className="w-3.5 h-3.5" />
                 </button>
                 {publicUrl && (
                   <button onClick={copyLink} className="flex items-center gap-1.5 px-2 sm:px-3 py-2 rounded-xl font-mono text-[10px] sm:text-xs glass hover:bg-white/10 nx-press flex-shrink-0">
@@ -649,7 +695,7 @@ export default function Registrations() {
                   <label className="font-mono text-[10px] text-gray-500 mb-1 block">ЛИМИТ УЧАСТНИКОВ</label>
                   <input type="number" min={0} value={form.maxParticipants} onChange={e => setForm({ ...form, maxParticipants: Number(e.target.value) })}
                     placeholder="0 = без лимита"
-                    className="w-full px-3 py-2 rounded-xl font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]" />
+                    className="w-full min-w-0 px-2 sm:px-3 py-2 rounded-xl font-mono text-[12px] sm:text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]" />
                 </div>
                 <div>
                   <label className="font-mono text-[10px] text-gray-500 mb-1 block">СТАТУС</label>
@@ -662,7 +708,7 @@ export default function Registrations() {
                 </div>
               </div>
               {/* Registration time window */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 min-w-0">
                 <div>
                   <label className="font-mono text-[10px] text-gray-500 mb-1 block">НАЧАЛО РЕГИСТРАЦИИ</label>
                   <input data-field="registrationStart" type="datetime-local" value={form.registrationStart} onChange={e => setForm({ ...form, registrationStart: e.target.value })}
@@ -680,8 +726,8 @@ export default function Registrations() {
               <div>
                 <label className="font-mono text-[10px] text-gray-500 mb-1 block">СООБЩЕНИЕ ПОСЛЕ ЗАКРЫТИЯ</label>
                 <textarea value={form.closedMessage} onChange={e => setForm({ ...form, closedMessage: e.target.value })}
-                  placeholder="// ТЕКСТ КОТОРЫЙ УВИДЯТ ПОЛЬЗОВАТЕЛИ ПОСЛЕ ЗАКРЫТИЯ РЕГИСТРАЦИИ"
-                  rows={2}
+                  placeholder="// ТЕКСТ ПОСЛЕ ЗАКРЫТИЯ"
+                  rows={3}
                   className="w-full px-3 py-2 rounded-xl font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)] resize-none [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]" />
               </div>
               {/* Display toggles */}
@@ -767,36 +813,6 @@ export default function Registrations() {
                   ))}
                 </div>
               </div>
-              {/* Live preview */}
-              {form.theme && (
-                <div>
-                  <label className="text-xs font-mono text-gray-500 mb-2 block">ПРЕДПРОСМОТР</label>
-                  {(() => {
-                    const t = REG_THEMES.find(th => th.id === form.theme);
-                    if (!t) return null;
-                    return (
-                      <div className="rounded-xl overflow-hidden" style={{ background: t.preview.bg, border: `1px solid ${t.preview.border}`, padding: '16px' }}>
-                        <h3 className="font-mono text-sm font-bold mb-2" style={{ color: t.preview.primary }}>{form.title || 'Название мероприятия'}</h3>
-                        <p className="text-[10px] mb-3" style={{ color: t.preview.text, opacity: 0.7 }}>{form.description || 'Описание мероприятия'}</p>
-                        <div className="space-y-2">
-                          <div className="rounded-lg px-3 py-2" style={{ background: 'rgba(0,0,0,0.3)', border: `1px solid ${t.preview.border}` }}>
-                            <span className="text-[10px] font-mono" style={{ color: t.preview.text, opacity: 0.5 }}>// ФАМИЛИЯ *</span>
-                          </div>
-                          <div className="rounded-lg px-3 py-2" style={{ background: 'rgba(0,0,0,0.3)', border: `1px solid ${t.preview.border}` }}>
-                            <span className="text-[10px] font-mono" style={{ color: t.preview.text, opacity: 0.5 }}>// ИМЯ *</span>
-                          </div>
-                          <div className="rounded-lg px-3 py-2" style={{ background: 'rgba(0,0,0,0.3)', border: `1px solid ${t.preview.border}` }}>
-                            <span className="text-[10px] font-mono" style={{ color: t.preview.text, opacity: 0.5 }}>// EMAIL *</span>
-                          </div>
-                          <div className="rounded-lg px-3 py-2 text-center" style={{ background: t.preview.primary, color: t.preview.bg }}>
-                            <span className="text-[10px] font-mono font-bold">ЗАРЕГИСТРИРОВАТЬСЯ</span>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })()}
-                </div>
-              )}
             </div>
 
             <div className="nx-panel p-3 md:p-6">
