@@ -4,6 +4,7 @@ import { query, get, run } from '../db/database';
 import { AuthRequest } from '../middleware/auth';
 import { updateById } from '../db/sqlBuilder';
 import { HttpError } from '../middleware/errorHandler';
+import { maskTextPII } from '../utils/privacy';
 
 // ── Admin CRUD ────────────────────────────────────────────────
 
@@ -515,6 +516,7 @@ export const exportPDF = (req: AuthRequest, res: Response) => {
     if (!survey) return res.status(404).json({ success: false, error: 'Опрос не найден' });
     const questions = withQuestions(id);
     const responses = query('SELECT * FROM survey_responses WHERE surveyId = ? ORDER BY datetime(createdAt) ASC', [id]);
+    const blur = String(req.query.blur || '') === '1';
 
     const rowsFor = (q: any) => {
       if (q.type === 'choice') {
@@ -538,7 +540,7 @@ export const exportPDF = (req: AuthRequest, res: Response) => {
         let a: any = {};
         try { a = JSON.parse(r.answers || '{}'); } catch { /* skip */ }
         const v = a[q.id];
-        if (typeof v === 'string' && v.trim()) texts.push(v.trim());
+        if (typeof v === 'string' && v.trim()) texts.push(blur ? maskTextPII(v.trim()) : v.trim());
       }
       return texts.map((t) => `<tr><td colspan="3">${t.replace(/</g, '&lt;')}</td></tr>`).join('') || '<tr><td colspan="3">—</td></tr>';
     };
@@ -568,7 +570,7 @@ tr{break-inside:avoid}
 </div>
 <h2 style="margin-top:0">${survey.name}</h2>
 <div class="total">ПРОГОЛОСОВАЛО: ${responses.length} ${responses.length === 1 ? 'ЧЕЛОВЕК' : 'ЧЕЛ.'}</div>
-<div class="meta">сформировано ${fmtRu(new Date().toISOString())} (${REPORT_TZ})</div>
+<div class="meta">сформировано ${fmtRu(new Date().toISOString())} (${REPORT_TZ})${blur ? ' · ДАННЫЕ ОБЕЗЛИЧЕНЫ (PDF с блюром)' : ''}</div>
 ${questions.map((q: any) => `
 <h2>${q.title} <small style="color:#666;font-weight:400">(${q.type === 'choice' ? 'варианты' : 'открытый'})</small></h2>
 <table><thead><tr>${q.type === 'choice' ? '<th>Вариант</th><th>Чел.</th><th>%</th>' : '<th>Ответ</th>'}</tr></thead>

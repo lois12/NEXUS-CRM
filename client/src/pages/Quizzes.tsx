@@ -10,6 +10,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { quizzesApi, materialsApi } from '../services/api';
 import { showToast, useNexusConfirm, ConfirmModal } from '../components/ui/NexusModal';
 import EmptyState from '../components/ui/EmptyState';
+import ExportMenu, { downloadHtml, downloadCsv } from '../components/ui/ExportMenu';
 import type { Quiz, QuizQuestion, QuizStatus } from '../types';
 
 const STATUS: Record<QuizStatus, { label: string; color: string }> = {
@@ -388,6 +389,44 @@ export default function Quizzes() {
     setShowQrFormats(false);
   };
 
+  /** Экспорт итогов: PDF / PDF блюр / CSV / HTML */
+  const exportResults = async (key: string) => {
+    if (!resultsFor) return;
+    try {
+      if (key === 'csv') {
+        const headers = ['№', 'ФИО', 'Телефон', 'Email', 'Балл', 'Начал', 'Время (с)'];
+        const rows = results.map((r: any, i: number) => [
+          i + 1,
+          `${r.lastName || ''} ${r.firstName || ''} ${r.patronymic || ''}`.trim(),
+          r.phone || '',
+          r.email || '',
+          `${r.score}/${r.totalPoints}`,
+          r.startedAt ? new Date(r.startedAt).toLocaleString('ru-RU') : '',
+          Math.round((r.durationMs || 0) / 1000),
+        ]);
+        const csv = [headers, ...rows].map((row) => row.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(';')).join('\n');
+        downloadCsv(csv, `quiz-${resultsFor.id}.csv`);
+        showToast('CSV сохранён', 'success');
+        return;
+      }
+      const token = localStorage.getItem('nexus_token') || sessionStorage.getItem('nexus_token') || '';
+      const res = await fetch(`/api/quizzes/${resultsFor.id}/results/pdf${key === 'pdf-blur' ? '?blur=1' : ''}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error('export');
+      const html = await res.text();
+      if (key === 'html') {
+        downloadHtml(html, `quiz-${resultsFor.id}.html`);
+        showToast('HTML сохранён', 'success');
+        return;
+      }
+      const w = window.open('', '_blank');
+      if (w) { w.document.write(html); w.document.close(); }
+    } catch {
+      showToast('Ошибка экспорта', 'error');
+    }
+  };
+
   const del = (q: Quiz) => {
     showConfirm('УДАЛИТЬ КВИЗ?', q.title, async () => {
       await quizzesApi.delete(q.id);
@@ -432,22 +471,15 @@ export default function Quizzes() {
               {resultsFor.organizer || '—'} · участников: {results.length}
             </p>
           </div>
-          <button
-            onClick={async () => {
-              try {
-                const token = localStorage.getItem('nexus_token') || sessionStorage.getItem('nexus_token') || '';
-                const res = await fetch(`/api/quizzes/${resultsFor.id}/results/pdf`, {
-                  headers: { Authorization: `Bearer ${token}` },
-                });
-                const html = await res.text();
-                const w = window.open('', '_blank');
-                if (w) { w.document.write(html); w.document.close(); }
-              } catch {
-                showToast('Ошибка PDF', 'error');
-              }
-            }}
-            className="btn-primary nx-press px-3 md:px-4 py-2 rounded-xl font-mono text-[10px] md:text-xs flex-shrink-0"
-          >PDF</button>
+          <ExportMenu
+            items={[
+              { key: 'pdf', label: 'PDF', hint: 'отчёт' },
+              { key: 'pdf-blur', label: 'PDF · БЛЮР', hint: 'без личных данных' },
+              { key: 'csv', label: 'CSV', hint: 'таблица' },
+              { key: 'html', label: 'HTML', hint: 'страница' },
+            ]}
+            onPick={exportResults}
+          />
         </div>
 
         {results.length > 0 && (

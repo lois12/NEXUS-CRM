@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { query, get, run, transaction } from '../db/database';
 import { AuthRequest } from '../middleware/auth';
+import { maskPhone, maskEmail, maskSurname } from '../utils/privacy';
 
 function slugify(s: string): string {
   const base = String(s || 'quiz')
@@ -225,12 +226,13 @@ export const exportResultsPdf = (req: AuthRequest, res: Response) => {
     `, [quiz.id]) as any[];
 
     const esc = (s: any) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const blur = String(req.query.blur || '') === '1';
     const trs = rows.map((r, i) => `
       <tr>
         <td>${i + 1}</td>
-        <td>${esc(r.lastName)} ${esc(r.firstName)} ${esc(r.patronymic || '')}</td>
-        <td>${esc(r.phone || '')}</td>
-        <td>${esc(r.email || '')}</td>
+        <td>${esc(blur ? maskSurname(r.lastName) : r.lastName)} ${esc(r.firstName)} ${esc(r.patronymic || '')}</td>
+        <td>${esc(blur ? maskPhone(r.phone) : r.phone || '')}</td>
+        <td>${esc(blur ? maskEmail(r.email) : r.email || '')}</td>
         <td><b>${r.score}/${r.totalPoints}</b></td>
         <td>${r.startedAt ? esc(new Date(r.startedAt).toLocaleString('ru-RU')) : '—'}</td>
         <td>${Math.round((r.durationMs || 0) / 1000)} с</td>
@@ -248,7 +250,7 @@ export const exportResultsPdf = (req: AuthRequest, res: Response) => {
   .footer{margin-top:18px;color:#888;font-size:10px}
 </style></head><body>
   <h1>${esc(quiz.title)}</h1>
-  <div class="sub">Организатор: ${esc(quiz.organizer || '—')} · участников: ${rows.length}</div>
+  <div class="sub">Организатор: ${esc(quiz.organizer || '—')} · участников: ${rows.length}${blur ? ' · ДАННЫЕ ОБЕЗЛИЧЕНЫ (PDF с блюром)' : ''}</div>
   <table>
     <thead><tr><th>#</th><th>Участник</th><th>Телефон</th><th>Email</th><th>Балл</th><th>Начал</th><th>Время</th></tr></thead>
     <tbody>${trs || '<tr><td colspan="7">нет данных</td></tr>'}</tbody>

@@ -1,7 +1,8 @@
-import { Download, FileText, Link2, BarChart3, Table2 } from 'lucide-react';
+import { Link2, BarChart3 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { surveyApi } from '../../services/surveyApi';
 import { showToast } from '../ui/NexusModal';
+import ExportMenu, { downloadHtml } from '../ui/ExportMenu';
 
 interface Props {
   surveyId: string;
@@ -86,9 +87,9 @@ export default function SurveyExportBar({ surveyId, publicSlug }: Props) {
     }
   };
 
-  const openPdf = async () => {
+  const openPdf = async (blur = false) => {
     try {
-      const html = await fetchAuthed(surveyApi.exportPdfUrl(surveyId));
+      const html = await fetchAuthed(`${surveyApi.exportPdfUrl(surveyId)}${blur ? '?blur=1' : ''}`);
       const w = window.open('', '_blank');
       if (w) {
         w.document.open();
@@ -98,6 +99,24 @@ export default function SurveyExportBar({ surveyId, publicSlug }: Props) {
     } catch {
       showToast('Ошибка PDF', 'error');
     }
+  };
+
+  const downloadHtmlReport = async () => {
+    try {
+      const html = await fetchAuthed(`/api/surveys/${surveyId}/export/html`);
+      downloadHtml(html, `survey_${surveyId}.html`);
+      showToast('HTML сохранён', 'success');
+    } catch {
+      showToast('Ошибка HTML', 'error');
+    }
+  };
+
+  const handleExport = (key: string) => {
+    if (key === 'pdf') openPdf(false);
+    else if (key === 'pdf-blur') openPdf(true);
+    else if (key === 'csv') downloadCsv();
+    else if (key === 'xlsx') downloadXlsx();
+    else if (key === 'html') downloadHtmlReport();
   };
 
   const openLiveStats = () => {
@@ -135,24 +154,16 @@ export default function SurveyExportBar({ surveyId, publicSlug }: Props) {
       >
         <Link2 className="w-3.5 h-3.5" /> ССЫЛКА
       </button>
-      <button
-        onClick={downloadCsv}
-        className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-[11px] glass hover:bg-white/10 nx-press"
-      >
-        <Download className="w-3.5 h-3.5" /> CSV
-      </button>
-      <button
-        onClick={downloadXlsx}
-        className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-[11px] glass hover:bg-white/10 nx-press"
-      >
-        <Table2 className="w-3.5 h-3.5" /> XLSX
-      </button>
-      <button
-        onClick={openPdf}
-        className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-[11px] glass hover:bg-white/10 nx-press"
-      >
-        <FileText className="w-3.5 h-3.5" /> PDF
-      </button>
+      <ExportMenu
+        items={[
+          { key: 'pdf', label: 'PDF', hint: 'отчёт' },
+          { key: 'pdf-blur', label: 'PDF · БЛЮР', hint: 'без личных данных' },
+          { key: 'csv', label: 'CSV', hint: 'таблица' },
+          { key: 'html', label: 'HTML', hint: 'страница' },
+          { key: 'xlsx', label: 'EXCEL', hint: 'xlsx' },
+        ]}
+        onPick={handleExport}
+      />
     </div>
   );
 }

@@ -1,10 +1,11 @@
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Download, X, CheckCircle, Clock, XCircle, Search, ArrowUpDown, ArrowUp, ArrowDown, Layers, UserPlus, Mail, FileText } from 'lucide-react';
+import { X, CheckCircle, Clock, XCircle, Search, ArrowUpDown, ArrowUp, ArrowDown, Layers, UserPlus, Mail } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { RegistrationField, RegistrationSubmission } from '../../types';
 import { registrationsApi } from '../../services/api';
 import { showToast, useNexusConfirm, ConfirmModal } from '../ui/NexusModal';
+import ExportMenu, { downloadHtml } from '../ui/ExportMenu';
 import FieldRenderer from './FieldRenderer';
 
 interface SubmissionsTableProps {
@@ -212,6 +213,23 @@ export default function SubmissionsTable({ registrationId, fields, submissions, 
     showToast('CSV загружен', 'success');
   };
 
+  const handleExport = async (key: string) => {
+    try {
+      if (key === 'csv') { handleExportCSV(); return; }
+      const token = localStorage.getItem('nexus_token') || sessionStorage.getItem('nexus_token');
+      const res = await fetch(`/api/registrations/${registrationId}/submissions/export-pdf${key === 'pdf-blur' ? '?blur=1' : ''}`, { headers: { 'Authorization': `Bearer ${token}` } });
+      if (!res.ok) { showToast('Ошибка загрузки PDF', 'error'); return; }
+      const html = await res.text();
+      if (key === 'html') {
+        downloadHtml(html, `registration-${registrationId}.html`);
+        showToast('HTML сохранён', 'success');
+        return;
+      }
+      const win = window.open('', '_blank');
+      if (win) { win.document.write(html); win.document.close(); }
+    } catch { showToast('Ошибка экспорта', 'error'); }
+  };
+
   const handleAddSubmit = async () => {
     if (!addForm.contactLastName.trim()) { showToast('Введите фамилию участника', 'error'); return; }
     if (!addForm.contactFirstName.trim()) { showToast('Введите имя участника', 'error'); return; }
@@ -254,21 +272,15 @@ export default function SubmissionsTable({ registrationId, fields, submissions, 
           <button onClick={() => setShowAddModal(true)} className="btn-primary nx-press flex items-center gap-1.5 px-3.5 py-2 rounded-xl font-mono text-xs font-bold">
             <UserPlus className="w-3.5 h-3.5" /> ДОБАВИТЬ
           </button>
-          <button onClick={handleExportCSV} className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl font-mono text-xs glass hover:bg-white/10 transition-colors nx-press">
-            <Download className="w-3.5 h-3.5" /> CSV
-          </button>
-          <button onClick={async () => {
-            try {
-              const token = localStorage.getItem('nexus_token') || sessionStorage.getItem('nexus_token');
-              const res = await fetch(`/api/registrations/${registrationId}/submissions/export-pdf`, { headers: { 'Authorization': `Bearer ${token}` } });
-              if (!res.ok) { showToast('Ошибка загрузки PDF', 'error'); return; }
-              const html = await res.text();
-              const win = window.open('', '_blank');
-              if (win) { win.document.write(html); win.document.close(); }
-            } catch { showToast('Ошибка', 'error'); }
-          }} className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl font-mono text-xs glass hover:bg-white/10 transition-colors nx-press">
-            <FileText className="w-3.5 h-3.5" /> PDF
-          </button>
+          <ExportMenu
+            items={[
+              { key: 'pdf', label: 'PDF', hint: 'отчёт' },
+              { key: 'pdf-blur', label: 'PDF · БЛЮР', hint: 'без личных данных' },
+              { key: 'csv', label: 'CSV', hint: 'таблица' },
+              { key: 'html', label: 'HTML', hint: 'страница' },
+            ]}
+            onPick={handleExport}
+          />
           <button onClick={onClose} className="p-2 rounded-lg hover:bg-white/10 nx-press" aria-label="Закрыть"><X className="w-4 h-4 text-gray-400" /></button>
         </div>
       </div>

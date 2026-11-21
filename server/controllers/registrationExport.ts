@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { query, get, run } from '../db/database';
 import { AuthRequest } from '../middleware/auth';
+import { maskPhone, maskEmail, maskSurname, maskFullName } from '../utils/privacy';
 
 // ── Export CSV ──
 
@@ -236,15 +237,21 @@ export const exportPDF = (req: AuthRequest, res: Response) => {
 
     const tableHeaders = ['№', 'ФИО', 'Email', 'Телефон', 'Статус', 'Дата регистрации', ...fields.map((f: any) => escapeHtml(f.label))];
     
+    const blur = String(req.query.blur || '') === '1';
     const tableRows = submissions.map((sub: any, i: number) => {
       const answers = JSON.parse(sub.answers || '{}');
       const fullName = [sub.contactLastName, sub.contactFirstName, sub.contactPatronymic].filter(Boolean).join(' ') || sub.contactName || '—';
+      const safeName = blur
+        ? (sub.contactLastName
+            ? [maskSurname(sub.contactLastName), sub.contactFirstName, sub.contactPatronymic].filter(Boolean).join(' ')
+            : maskFullName(fullName))
+        : fullName;
       const regDate = sub.createdAt ? new Date(sub.createdAt + 'Z').toLocaleString('ru-RU') : '—';
       return [
         i + 1,
-        escapeHtml(fullName),
-        escapeHtml(sub.contactEmail || '—'),
-        escapeHtml(sub.contactPhone || '—'),
+        escapeHtml(safeName),
+        escapeHtml(blur ? (maskEmail(sub.contactEmail) || '—') : (sub.contactEmail || '—')),
+        escapeHtml(blur ? (maskPhone(sub.contactPhone) || '—') : (sub.contactPhone || '—')),
         statusLabels[sub.status] || sub.status,
         regDate,
         ...fields.map((f: any) => escapeHtml(answers[f.id] || '—')),
@@ -281,7 +288,7 @@ export const exportPDF = (req: AuthRequest, res: Response) => {
 </head>
 <body>
   <h1>${escapeHtml(reg.title)}</h1>
-  <div class="meta">NEXUS CRM • Список участников • ${new Date().toLocaleString('ru-RU')}</div>
+  <div class="meta">NEXUS CRM • Список участников • ${new Date().toLocaleString('ru-RU')}${blur ? ' • ДАННЫЕ ОБЕЗЛИЧЕНЫ (PDF с блюром)' : ''}</div>
   <div class="stats">
     <span>Всего: <b>${submissions.length}</b></span>
     <span>Подтверждено: <b>${submissions.filter((s: any) => s.status === 'registered' || s.status === 'confirmed').length}</b></span>
