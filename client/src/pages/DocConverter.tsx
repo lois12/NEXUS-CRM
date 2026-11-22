@@ -234,8 +234,8 @@ function HubView({ onOpen }: { onOpen: (id: ToolId) => void }) {
                     disabled={disabled}
                     className={`glass-card rounded-2xl p-6 text-left transition-all ${disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
                   >
-                    <div className="w-12 h-12 rounded-xl flex items-center justify-center glass-accent mb-4">
-                      <t.icon className="w-6 h-6" style={{ color: 'var(--color-primary)' }} />
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center glass-accent mb-3">
+                      <t.icon className="w-[18px] h-[18px]" style={{ color: 'var(--color-primary)' }} />
                     </div>
                     <h3 className="font-mono text-sm font-bold text-gray-200">{t.label}</h3>
                     <p className="font-mono text-xs text-gray-500 mt-1">{t.desc}</p>
