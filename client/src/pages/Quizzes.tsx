@@ -713,10 +713,10 @@ export default function Quizzes() {
                 </div>
               </div>
               <div className="flex gap-1.5 mt-2 md:mt-3 flex-wrap">
-                <button onClick={() => openEdit(q)} title="Редактировать" aria-label="Редактировать" className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0"><Edit3 className="w-3.5 h-3.5 text-gray-400" /></button>
-                <button onClick={() => { setQrFor(q); }} title="QR-код" aria-label="QR-код" className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0"><QrCode className="w-3.5 h-3.5 text-gray-400" /></button>
-                <button onClick={() => copyLink(q)} title="Скопировать ссылку" aria-label="Скопировать ссылку" className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0"><Link2 className="w-3.5 h-3.5 text-gray-400" /></button>
-                <button onClick={() => openResults(q)} title="Итоги" aria-label="Итоги" className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0"><Play className="w-3.5 h-3.5 text-gray-400" /></button>
+                <button onClick={() => openEdit(q)} title="Редактировать" aria-label="Редактировать" className="flex items-center justify-center p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0"><Edit3 className="w-3.5 h-3.5 text-gray-400" /></button>
+                <button onClick={() => { setQrFor(q); }} title="QR-код" aria-label="QR-код" className="flex items-center justify-center p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0"><QrCode className="w-3.5 h-3.5 text-gray-400" /></button>
+                <button onClick={() => copyLink(q)} title="Скопировать ссылку" aria-label="Скопировать ссылку" className="flex items-center justify-center p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0"><Link2 className="w-3.5 h-3.5 text-gray-400" /></button>
+                <button onClick={() => openResults(q)} title="Итоги" aria-label="Итоги" className="flex items-center justify-center p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0"><Play className="w-3.5 h-3.5 text-gray-400" /></button>
                 <button onClick={async () => {
                   // в списке нет вопросов — подгружаем квиз целиком
                   let full: any = q;
@@ -730,7 +730,7 @@ export default function Quizzes() {
                     afterEndText: full.afterEndText, questions: full.questions || [],
                   });
                   setShowPreviewQ(true);
-                }} title="Предпросмотр" aria-label="Предпросмотр" className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0"><Eye className="w-3.5 h-3.5 text-gray-400" /></button>
+                }} title="Предпросмотр" aria-label="Предпросмотр" className="flex items-center justify-center p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0"><Eye className="w-3.5 h-3.5 text-gray-400" /></button>
                 <button
                   onClick={async () => {
                     await quizzesApi.duplicate(q.id);
@@ -738,9 +738,9 @@ export default function Quizzes() {
                     load();
                   }}
                   title="Дублировать" aria-label="Дублировать"
-                  className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0"
+                  className="flex items-center justify-center p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0"
                 ><Copy className="w-3.5 h-3.5 text-gray-400" /></button>
-                <button onClick={() => del(q)} title="Удалить" aria-label="Удалить" className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0" style={{ color: '#ff6b6b' }}>
+                <button onClick={() => del(q)} title="Удалить" aria-label="Удалить" className="flex items-center justify-center p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0" style={{ color: '#ff6b6b' }}>
                   <Trash2 className="w-3.5 h-3.5 text-red-400" />
                 </button>
               </div>
@@ -1140,13 +1140,17 @@ export default function Quizzes() {
             {/* Предпросмотр квиза */}
       {showPreviewQ && (
         <div className="fixed inset-0 z-[110] flex items-start justify-center p-3 overflow-y-auto"
-          style={{ background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(6px)' }}
+          style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)' }}
           onClick={() => setShowPreviewQ(false)}>
           <div className="nx-bezel w-full max-w-md my-6" onClick={(e) => e.stopPropagation()}>
             <div className="nx-core p-4">
-              <div className="flex items-center justify-between mb-3">
-                <span className="nx-eyebrow">ПРЕДПРОСМОТР</span>
-                <button onClick={() => setShowPreviewQ(false)} className="p-2 rounded-lg hover:bg-white/10 nx-press" aria-label="Закрыть">
+              <div className="flex items-center justify-between gap-2 mb-3">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Eye className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--color-primary)' }} />
+                  <span className="nx-eyebrow">ПРЕДПРОСМОТР</span>
+                  <span className="font-mono text-[9px] text-gray-600 truncate">так видит пользователь</span>
+                </div>
+                <button onClick={() => setShowPreviewQ(false)} className="flex items-center justify-center p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0" aria-label="Закрыть">
                   <X className="w-4 h-4 text-gray-400" />
                 </button>
               </div>
@@ -1213,7 +1217,7 @@ export default function Quizzes() {
                 <div className="flex items-center gap-1 relative">
                   <button
                     onClick={() => copyLink(qrFor)}
-                    className="p-1 rounded-lg hover:bg-white/10 nx-press"
+                    className="flex items-center justify-center p-1 rounded-lg hover:bg-white/10 nx-press"
                     aria-label="Скопировать ссылку"
                     title="Скопировать ссылку"
                   >
@@ -1221,7 +1225,7 @@ export default function Quizzes() {
                   </button>
                   <button
                     onClick={() => setShowQrFormats(v => !v)}
-                    className="p-1 rounded-lg hover:bg-white/10 nx-press"
+                    className="flex items-center justify-center p-1 rounded-lg hover:bg-white/10 nx-press"
                     aria-label="Скачать QR"
                     title="Скачать"
                   >
@@ -1245,7 +1249,7 @@ export default function Quizzes() {
                       ))}
                     </div>
                   )}
-                  <button onClick={() => setQrFor(null)} className="p-1 rounded-lg hover:bg-white/10 nx-press" aria-label="Закрыть">
+                  <button onClick={() => setQrFor(null)} className="flex items-center justify-center p-1 rounded-lg hover:bg-white/10 nx-press" aria-label="Закрыть">
                     <X className="w-4 h-4 text-gray-400" />
                   </button>
                 </div>

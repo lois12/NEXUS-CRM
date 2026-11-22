@@ -1173,14 +1173,18 @@ export default function Registrations() {
       {showPreview && (() => {
         const t = REG_THEMES.find(th => th.id === form.theme) || REG_THEMES[0];
         return (
-          <div className="fixed inset-0 z-[110] flex items-center justify-center p-3"
+          <div className="fixed inset-0 z-[110] flex items-start justify-center p-3 overflow-y-auto"
             style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)' }}
             onClick={() => setShowPreview(false)}>
-            <div className="nx-bezel w-full max-w-md" onClick={e => e.stopPropagation()}>
+            <div className="nx-bezel w-full max-w-md my-6" onClick={e => e.stopPropagation()}>
               <div className="nx-core p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="nx-eyebrow">ПРЕДПРОСМОТР</span>
-                  <button onClick={() => setShowPreview(false)} className="p-1 rounded-lg hover:bg-white/10 nx-press" aria-label="Закрыть">
+                <div className="flex items-center justify-between gap-2 mb-3">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Eye className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--color-primary)' }} />
+                    <span className="nx-eyebrow">ПРЕДПРОСМОТР</span>
+                    <span className="font-mono text-[9px] text-gray-600 truncate">так видит пользователь</span>
+                  </div>
+                  <button onClick={() => setShowPreview(false)} className="flex items-center justify-center p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0" aria-label="Закрыть">
                     <X className="w-4 h-4 text-gray-400" />
                   </button>
                 </div>
@@ -1348,22 +1352,22 @@ export default function Registrations() {
               </div>
               <div className="nx-divider mt-2" />
               <div className="flex flex-wrap gap-1.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity pt-1">
-                <button onClick={e => { e.stopPropagation(); openEdit(reg); }} title="Редактировать" aria-label="Редактировать" className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0"><Edit3 className="w-3.5 h-3.5 text-gray-400" /></button>
-                <button onClick={e => { e.stopPropagation(); openSubmissions(reg); }} title="Заявки" aria-label="Заявки" className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0"><Eye className="w-3.5 h-3.5 text-gray-400" /></button>
+                <button onClick={e => { e.stopPropagation(); openEdit(reg); }} title="Редактировать" aria-label="Редактировать" className="flex items-center justify-center p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0"><Edit3 className="w-3.5 h-3.5 text-gray-400" /></button>
+                <button onClick={e => { e.stopPropagation(); openSubmissions(reg); }} title="Заявки" aria-label="Заявки" className="flex items-center justify-center p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0"><Eye className="w-3.5 h-3.5 text-gray-400" /></button>
                 <button onClick={e => { e.stopPropagation(); openSubmissions(reg); }} title="Статистика" aria-label="Статистика"
-                  className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0">
+                  className="flex items-center justify-center p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0">
                   <BarChart3 className="w-3.5 h-3.5 text-gray-400" />
                 </button>
-                <a href={`/registrations/${reg.id}/participants`} onClick={e => e.stopPropagation()} title="Участники" aria-label="Участники" className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0"><Users className="w-3.5 h-3.5 text-gray-400" /></a>
+                <a href={`/registrations/${reg.id}/participants`} onClick={e => e.stopPropagation()} title="Участники" aria-label="Участники" className="flex items-center justify-center p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0"><Users className="w-3.5 h-3.5 text-gray-400" /></a>
                 {reg.publicSlug && (
                   <a href={`/reg/${reg.publicSlug}`} target="_blank" rel="noopener"
                     onClick={e => e.stopPropagation()}
-                    className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0" title="Предпросмотр" aria-label="Предпросмотр">
+                    className="flex items-center justify-center p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0" title="Предпросмотр" aria-label="Предпросмотр">
                     <ExternalLink className="w-3.5 h-3.5 text-gray-400" />
                   </a>
                 )}
-                <button onClick={e => { e.stopPropagation(); handleDuplicate(reg.id); }} className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0" title="Копировать" aria-label="Копировать"><Copy className="w-3.5 h-3.5 text-gray-400" /></button>
-                <button onClick={e => { e.stopPropagation(); handleDelete(reg); }} title="Удалить" aria-label="Удалить" className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-red-500/20 nx-press flex-shrink-0"><Trash2 className="w-3.5 h-3.5 text-red-400" /></button>
+                <button onClick={e => { e.stopPropagation(); handleDuplicate(reg.id); }} className="flex items-center justify-center p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0" title="Копировать" aria-label="Копировать"><Copy className="w-3.5 h-3.5 text-gray-400" /></button>
+                <button onClick={e => { e.stopPropagation(); handleDelete(reg); }} title="Удалить" aria-label="Удалить" className="flex items-center justify-center p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-red-500/20 nx-press flex-shrink-0"><Trash2 className="w-3.5 h-3.5 text-red-400" /></button>
               </div>
             </motion.div>
           );

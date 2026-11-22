@@ -127,29 +127,29 @@ export default function SurveyCard({
       </div>
 
       <div className="flex gap-1.5 mt-2 md:mt-3 flex-wrap">
-        <button onClick={onEdit} title="Редактировать" aria-label="Редактировать" className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0">
+        <button onClick={onEdit} title="Редактировать" aria-label="Редактировать" className="flex items-center justify-center p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0">
           <Edit3 className="w-3.5 h-3.5 text-gray-400" />
         </button>
-        <button onClick={onStats} title="Статистика" aria-label="Статистика" className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0">
+        <button onClick={onStats} title="Статистика" aria-label="Статистика" className="flex items-center justify-center p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0">
           <BarChart3 className="w-3.5 h-3.5 text-gray-400" />
         </button>
         {(status === 'published' || status === 'completed') && survey.publicSlug && (
           <>
-            <button onClick={onCopyLink} title="Скопировать ссылку" aria-label="Скопировать ссылку" className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0">
+            <button onClick={onCopyLink} title="Скопировать ссылку" aria-label="Скопировать ссылку" className="flex items-center justify-center p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0">
               <Link2 className="w-3.5 h-3.5 text-gray-400" />
             </button>
-            <button onClick={() => setShowQr(true)} title="QR-код" aria-label="QR-код" className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0">
+            <button onClick={() => setShowQr(true)} title="QR-код" aria-label="QR-код" className="flex items-center justify-center p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0">
               <QrCode className="w-3.5 h-3.5 text-gray-400" />
             </button>
-            <button onClick={onOpen} title="Открыть" aria-label="Открыть" className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0">
+            <button onClick={onOpen} title="Открыть" aria-label="Открыть" className="flex items-center justify-center p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0">
               <ExternalLink className="w-3.5 h-3.5 text-gray-400" />
             </button>
           </>
         )}
-        <button onClick={onDuplicate} title="Дублировать" aria-label="Дублировать" className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0">
+        <button onClick={onDuplicate} title="Дублировать" aria-label="Дублировать" className="flex items-center justify-center p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0">
           <Copy className="w-3.5 h-3.5 text-gray-400" />
         </button>
-        <button onClick={onDelete} title="Удалить" aria-label="Удалить" className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0" style={{ color: '#ff6b6b' }}>
+        <button onClick={onDelete} title="Удалить" aria-label="Удалить" className="flex items-center justify-center p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0" style={{ color: '#ff6b6b' }}>
           <Trash2 className="w-3.5 h-3.5 text-red-400" />
         </button>
       </div>
@@ -200,7 +200,7 @@ export default function SurveyCard({
                     document.body.appendChild(ta); ta.select(); document.execCommand('copy');
                     document.body.removeChild(ta);
                   }}
-                  className="p-1 rounded-lg hover:bg-white/10 nx-press"
+                  className="flex items-center justify-center p-1 rounded-lg hover:bg-white/10 nx-press"
                   aria-label="Скопировать ссылку"
                   title="Скопировать ссылку"
                 >
@@ -208,7 +208,7 @@ export default function SurveyCard({
                 </button>
                 <button
                   onClick={() => setShowQrFormats(v => !v)}
-                  className="p-1 rounded-lg hover:bg-white/10 nx-press"
+                  className="flex items-center justify-center p-1 rounded-lg hover:bg-white/10 nx-press"
                   aria-label="Скачать QR"
                   title="Скачать"
                 >
@@ -232,7 +232,7 @@ export default function SurveyCard({
                     ))}
                   </div>
                 )}
-                <button onClick={() => setShowQr(false)} className="p-1 rounded-lg hover:bg-white/10 nx-press" aria-label="Закрыть">
+                <button onClick={() => setShowQr(false)} className="flex items-center justify-center p-1 rounded-lg hover:bg-white/10 nx-press" aria-label="Закрыть">
                   <X className="w-4 h-4 text-gray-400" />
                 </button>
               </div>
