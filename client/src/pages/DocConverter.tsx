@@ -414,7 +414,10 @@ function ToolPanel({ tool, onBack }: { tool: ToolDef; onBack: () => void }) {
       const res = await fetch('/api/converter/history', { method: 'POST', body: fd, headers: authHeaders() });
       const json = await res.json();
       if (json.success) await loadToolHistory(tool.id);
-    } catch { /* не роняем конвертацию из-за истории */ }
+      else showToast(json.error || 'Результат не сохранился в историю', 'error');
+    } catch {
+      showToast('Результат не сохранился в историю', 'error');
+    }
   };
 
   const downloadHistoryFile = async (row: { origName: string; downloadUrl: string }) => {
