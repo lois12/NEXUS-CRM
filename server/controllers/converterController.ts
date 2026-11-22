@@ -8,6 +8,7 @@ import {
   registerJob, getJob, removeJob, pendingCount, ConvJob,
 } from '../utils/libreoffice';
 import { pdfToXlsxBuffer } from '../utils/pdfTableExtract';
+import { pdfToDocxBuffer, pdfToPptxBuffer } from '../utils/pdfTextExport';
 
 const OFFICE_EXTS = new Set(['.docx', '.doc', '.xlsx', '.xls', '.pptx', '.ppt', '.odt', '.ods', '.odp', '.rtf', '.csv', '.txt']);
 
@@ -71,29 +72,29 @@ export const officeToPdf = async (req: AuthRequest, res: Response) => {
 };
 
 /** POST /api/converter/pdf-to-docx */
+/** POST /api/converter/pdf-to-docx — текстовый слой PDF → DOCX (pdfjs + docx; LibreOffice Draw не умеет DOCX) */
 export const pdfToDocx = async (req: AuthRequest, res: Response) => {
   try {
     const file = req.file;
     if (!file) return fail(res, 400, 'Файл не загружен');
     if (path.extname(file.originalname).toLowerCase() !== '.pdf') return fail(res, 400, 'Ожидается PDF-файл');
 
-    const lo = await ensureLibreOffice();
-    if (!lo.ok) return fail(res, 503, 'LibreOffice не установлен на сервере');
-
-    const { jobDir, inputPath } = prepareJobDir(file.originalname);
-    moveFile(file.path, inputPath);
-
+    const { jobDir } = prepareJobDir(file.originalname);
     const originalBase = path.basename(file.originalname, '.pdf');
     try {
-      const result = await convertWithLibreOffice(inputPath, 'docx:"MS Word 2007 XML"', originalBase);
-      const job = registerJob(result.outPath, `${originalBase}.docx`, req.user!.id);
+      const data = new Uint8Array(fs.readFileSync(file.path));
+      const buf = await pdfToDocxBuffer(data);
+      const outPath = path.join(jobDir, `${originalBase}.docx`);
+      fs.writeFileSync(outPath, buf);
+      const job = registerJob(outPath, `${originalBase}.docx`, req.user!.id);
       res.json({ success: true, data: jobResponse(job) });
     } catch (e: any) {
       try { fs.rmSync(jobDir, { recursive: true, force: true }); } catch {}
-      if (e?.message === 'QUEUE_FULL') return fail(res, 429, 'Сервер перегружен, попробуйте позже');
-      if (e?.killed) return fail(res, 500, 'Конвертация не завершилась за 60 сек');
+      if (e?.message === 'PDF_NO_TEXT') return fail(res, 400, 'PDF не содержит текстового слоя (возможно, скан) — извлечь текст нельзя');
       console.error('pdfToDocx error:', e);
-      return fail(res, 500, 'Ошибка конвертации');
+      return fail(res, 500, 'Не удалось конвертировать PDF в Word');
+    } finally {
+      try { fs.unlinkSync(file.path); } catch {}
     }
   } catch (error) {
     console.error('pdfToDocx error:', error);
@@ -130,30 +131,29 @@ export const pdfToXlsx = async (req: AuthRequest, res: Response) => {
   }
 };
 
-/** POST /api/converter/pdf-to-pptx — PDF pages → PowerPoint slides (LibreOffice Draw → Impress) */
+/** POST /api/converter/pdf-to-pptx — страницы PDF → слайды (pdfjs + pptxgenjs; Draw не экспортирует PPTX) */
 export const pdfToPptx = async (req: AuthRequest, res: Response) => {
   try {
     const file = req.file;
     if (!file) return fail(res, 400, 'Файл не загружен');
     if (path.extname(file.originalname).toLowerCase() !== '.pdf') return fail(res, 400, 'Ожидается PDF-файл');
 
-    const lo = await ensureLibreOffice();
-    if (!lo.ok) return fail(res, 503, 'LibreOffice не установлен на сервере');
-
-    const { jobDir, inputPath } = prepareJobDir(file.originalname);
-    moveFile(file.path, inputPath);
-
+    const { jobDir } = prepareJobDir(file.originalname);
     const originalBase = path.basename(file.originalname, '.pdf');
     try {
-      const result = await convertWithLibreOffice(inputPath, 'pptx:"Impress MS PowerPoint 2007 XML"', originalBase);
-      const job = registerJob(result.outPath, `${originalBase}.pptx`, req.user!.id);
+      const data = new Uint8Array(fs.readFileSync(file.path));
+      const buf = await pdfToPptxBuffer(data);
+      const outPath = path.join(jobDir, `${originalBase}.pptx`);
+      fs.writeFileSync(outPath, buf);
+      const job = registerJob(outPath, `${originalBase}.pptx`, req.user!.id);
       res.json({ success: true, data: jobResponse(job) });
     } catch (e: any) {
       try { fs.rmSync(jobDir, { recursive: true, force: true }); } catch {}
-      if (e?.message === 'QUEUE_FULL') return fail(res, 429, 'Сервер перегружен, попробуйте позже');
-      if (e?.killed) return fail(res, 500, 'Конвертация не завершилась за 60 сек');
+      if (e?.message === 'PDF_NO_TEXT') return fail(res, 400, 'PDF не содержит текстового слоя (возможно, скан) — извлечь текст нельзя');
       console.error('pdfToPptx error:', e);
       return fail(res, 500, 'Ошибка конвертации в PowerPoint');
+    } finally {
+      try { fs.unlinkSync(file.path); } catch {}
     }
   } catch (error) {
     console.error('pdfToPptx error:', error);

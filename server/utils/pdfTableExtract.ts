@@ -6,7 +6,7 @@ import ExcelJS from 'exceljs';
 // Text extraction needs no canvas; worker falls back to fake worker in Node.
 let pdfjsLib: any = null;
 
-async function loadPdfjs() {
+export async function loadPdfjs() {
   if (pdfjsLib) return pdfjsLib;
   const mod = await import('pdfjs-dist/legacy/build/pdf.mjs');
   pdfjsLib = mod;
@@ -21,6 +21,19 @@ async function loadPdfjs() {
     }
   } catch { /* worker fallback is fine for text extraction */ }
   return pdfjsLib;
+}
+
+/** file:// URL to pdfjs standard_fonts — нужен для корректного маппинга глифов (кириллица и т.п.) */
+let stdFontsUrl: string | null = null;
+export function standardFontDataUrl(): string {
+  if (!stdFontsUrl) {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { pathToFileURL } = require('url') as typeof import('url');
+    stdFontsUrl = pathToFileURL(
+      path.join(path.dirname(require.resolve('pdfjs-dist/package.json')), 'standard_fonts') + path.sep
+    ).href;
+  }
+  return stdFontsUrl;
 }
 
 interface TextItem {
@@ -38,7 +51,7 @@ interface TextItem {
 export async function pdfToXlsxBuffer(pdfPath: string): Promise<Buffer> {
   const pdfjs = await loadPdfjs();
   const data = new Uint8Array(fs.readFileSync(pdfPath));
-  const doc = await pdfjs.getDocument({ data, useSystemFonts: true }).promise;
+  const doc = await pdfjs.getDocument({ data, useSystemFonts: true, standardFontDataUrl: standardFontDataUrl() }).promise;
 
   const workbook = new ExcelJS.Workbook();
 
