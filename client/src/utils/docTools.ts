@@ -271,13 +271,14 @@ export async function compressPdf(file: File): Promise<{ blob: Blob; before: num
 }
 
 // ── ZIP download for batch results ──
-export async function downloadZip(files: { name: string; blob: Blob }[], zipName = 'converted.zip'): Promise<void> {
+export async function downloadZip(files: { name: string; blob: Blob }[], zipName = 'converted.zip'): Promise<Blob> {
   const zip = new JSZip();
   for (const f of files) {
     zip.file(f.name, await f.blob.arrayBuffer());
   }
   const content = await zip.generateAsync({ type: 'blob' });
   downloadBlob(content, zipName);
+  return content;
 }
 
 // ── PDF: place a drawn/typed signature image on every page ──

@@ -41,6 +41,7 @@ import './migrations/025_quiz_question_media';
 import './migrations/026_registrations_checkin_enabled';
 import './migrations/027_registrations_show_map';
 import './migrations/028_survey_closes_at';
+import './migrations/029_conversion_history';
 
 export function runMigrations(): void {
   run(`CREATE TABLE IF NOT EXISTS schema_migrations (

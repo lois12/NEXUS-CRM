@@ -264,6 +264,7 @@ function ToolPanel({ tool, onBack }: { tool: ToolDef; onBack: () => void }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const replaceInputRef = useRef<HTMLInputElement>(null);
   const [replaceId, setReplaceId] = useState<string | null>(null);
+  const [toolHistory, setToolHistory] = useState<{ id: string; origName: string; size: number; createdAt: string; downloadUrl: string }[]>([]);
 
   // Tool-specific settings
   const [splitRanges, setSplitRanges] = useState('1-3,5');
@@ -390,6 +391,56 @@ function ToolPanel({ tool, onBack }: { tool: ToolDef; onBack: () => void }) {
     showToast('Файл заменён', 'success');
   };
 
+  // ── История на сервере: последние 5 результатов по юзеру+инструменту ──
+  const authHeaders = () => ({
+    Authorization: `Bearer ${localStorage.getItem('nexus_token') || sessionStorage.getItem('nexus_token') || ''}`,
+  });
+
+  const loadToolHistory = async (toolId: string) => {
+    try {
+      const res = await fetch(`/api/converter/history?toolId=${encodeURIComponent(toolId)}`, { headers: authHeaders() });
+      const json = await res.json();
+      if (json.success) setToolHistory(json.data || []);
+    } catch { /* тихо */ }
+  };
+
+  const saveToHistory = async (blob: Blob, name: string) => {
+    if (!tool) return;
+    try {
+      const fd = new FormData();
+      fd.append('file', blob, name);
+      fd.append('toolId', tool.id);
+      fd.append('origName', name);
+      const res = await fetch('/api/converter/history', { method: 'POST', body: fd, headers: authHeaders() });
+      const json = await res.json();
+      if (json.success) await loadToolHistory(tool.id);
+    } catch { /* не роняем конвертацию из-за истории */ }
+  };
+
+  const downloadHistoryFile = async (row: { origName: string; downloadUrl: string }) => {
+    try {
+      const res = await fetch(row.downloadUrl, { headers: authHeaders() });
+      if (!res.ok) { showToast('Ошибка скачивания', 'error'); return; }
+      const blob = await res.blob();
+      downloadBlob(blob, row.origName);
+    } catch {
+      showToast('Ошибка скачивания', 'error');
+    }
+  };
+
+  const fmtHistoryDate = (utc: string) => {
+    try {
+      return new Date(String(utc).replace(' ', 'T') + 'Z').toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+    } catch { return String(utc).slice(0, 16); }
+  };
+
+  // история действий по текущему инструменту (последние 5, лежат на сервере)
+  useEffect(() => {
+    setToolHistory([]);
+    void loadToolHistory(tool.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tool.id]);
+
   const runConvert = async () => {
     if (items.length === 0) return;
     setIsBusy(true);
@@ -414,6 +465,7 @@ function ToolPanel({ tool, onBack }: { tool: ToolDef; onBack: () => void }) {
         const blob = await mergePdfs(items.map(i => i.file));
         set(first.id, { status: 'done', resultBlob: blob, resultName: 'merged.pdf', resultSize: blob.size });
         items.slice(1).forEach(i => set(i.id, { status: 'done' }));
+        void saveToHistory(blob, 'merged.pdf');
       } catch (e) {
         set(first.id, { status: 'error', error: 'Ошибка объединения' });
       }
@@ -433,8 +485,10 @@ function ToolPanel({ tool, onBack }: { tool: ToolDef; onBack: () => void }) {
             name = parts[0].name;
             set(item.id, { status: 'done', resultBlob: blob, resultName: name, resultSize: blob.size });
           } else {
-            await downloadZip(parts, `${item.file.name.replace(/\.pdf$/i, '')}_parts.zip`);
+            const zipName = `${item.file.name.replace(/\.pdf$/i, '')}_parts.zip`;
+            const zipBlob = await downloadZip(parts, zipName);
             set(item.id, { status: 'done', resultName: `${parts.length} частей (ZIP)` });
+            void saveToHistory(zipBlob, zipName);
             showToast(`Создано частей: ${parts.length}`, 'success');
           }
           continue;
@@ -447,6 +501,7 @@ function ToolPanel({ tool, onBack }: { tool: ToolDef; onBack: () => void }) {
           name = 'images.pdf';
           set(item.id, { status: 'done', resultBlob: blob, resultName: name, resultSize: blob.size });
           items.slice(1).forEach((i, idx) => idx > 0 && set(i.id, { status: 'done' }));
+          void saveToHistory(blob, name);
           showToast('PDF создан', 'success');
           return;
         } else if (tool.id === 'csv-to-xlsx') {
@@ -490,6 +545,7 @@ function ToolPanel({ tool, onBack }: { tool: ToolDef; onBack: () => void }) {
         }
         set(item.id, { status: 'done', resultBlob: blob, resultName: name, resultSize: blob.size });
         pushHistory(name, tool.label, blob.size);
+        void saveToHistory(blob, name);
       } catch (e: any) {
         // показываем понятные русские ошибки валидации ('Нарисуйте подпись' и т.п.), внутренние — маскируем
         const msg = typeof e?.message === 'string' && /[А-Яа-яЁё]/.test(e.message) ? e.message : 'Ошибка';
@@ -810,6 +866,26 @@ function ToolPanel({ tool, onBack }: { tool: ToolDef; onBack: () => void }) {
             );
           })()}
           <p className="font-mono text-[10px] text-gray-600">Нажмите и тяните мышью по превью, чтобы замазать область</p>
+        </div>
+      )}
+
+      {/* Последние 5 действий по этому инструменту — результаты хранятся на сервере */}
+      {toolHistory.length > 0 && (
+        <div className="glass rounded-xl p-4">
+          <div className="flex items-center justify-between mb-2">
+            <label className="font-mono text-xs text-gray-500">ПОСЛЕДНИЕ ДЕЙСТВИЯ ({toolHistory.length}/5 · хранятся на сервере)</label>
+            <button onClick={() => loadToolHistory(tool.id)} className="font-mono text-[10px] text-gray-500 hover:text-gray-300 px-2 py-1 rounded">ОБНОВИТЬ</button>
+          </div>
+          <div className="space-y-1">
+            {toolHistory.map(h => (
+              <div key={h.id} className="flex items-center gap-3 px-3 py-2 rounded-lg bg-black/20 text-xs font-mono">
+                <span className="text-gray-200 flex-1 truncate min-w-0">{h.origName}</span>
+                <span className="text-gray-500 flex-shrink-0">{formatFileSize(h.size)}</span>
+                <span className="text-gray-600 text-[9px] flex-shrink-0">{fmtHistoryDate(h.createdAt)}</span>
+                <button onClick={() => downloadHistoryFile(h)} className="px-2.5 py-1 rounded-lg font-mono text-[10px] font-bold flex-shrink-0" style={{ background: 'rgba(0,255,136,0.15)', color: 'var(--color-primary)' }}>СКАЧАТЬ</button>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
