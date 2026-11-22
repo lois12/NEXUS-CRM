@@ -41,7 +41,7 @@ const WRITE = ['super_admin', 'руководитель', 'информацио�
 const BOSS_ONLY = ['super_admin', 'руководитель'];
 const SUPER_ONLY = ['super_admin'];
 
-const navGroups: NavGroup[] = [
+export const navGroups: NavGroup[] = [
   {
     id: 'dashboard',
     icon: LayoutDashboard,
