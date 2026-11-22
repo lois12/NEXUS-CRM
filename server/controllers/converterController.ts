@@ -22,6 +22,13 @@ function fail(res: Response, status: number, error: string) {
   return res.status(status).json({ success: false, error });
 }
 
+/** multer отдаёт originalname в latin1 — восстанавливаем UTF-8 (как в upload.ts) */
+function displayName(file: Express.Multer.File): string {
+  const decoded = (file as any).decodedOriginalname;
+  if (typeof decoded === 'string' && decoded) return decoded;
+  try { return Buffer.from(file.originalname, 'latin1').toString('utf8'); } catch { return file.originalname; }
+}
+
 function jobResponse(job: ConvJob) {
   return {
     jobId: job.jobId,
@@ -42,17 +49,18 @@ export const officeToPdf = async (req: AuthRequest, res: Response) => {
   try {
     const file = req.file;
     if (!file) return fail(res, 400, 'Файл не загружен');
+    const originalName = displayName(file);
 
-    const ext = path.extname(file.originalname).toLowerCase();
+    const ext = path.extname(originalName).toLowerCase();
     if (!OFFICE_EXTS.has(ext)) return fail(res, 400, 'Неподдерживаемый тип файла');
 
     const lo = await ensureLibreOffice();
     if (!lo.ok) return fail(res, 503, 'LibreOffice не установлен на сервере');
 
-    const { jobDir, inputPath } = prepareJobDir(file.originalname);
+    const { jobDir, inputPath } = prepareJobDir(originalName);
     moveFile(file.path, inputPath);
 
-    const originalBase = path.basename(file.originalname, ext);
+    const originalBase = path.basename(originalName, ext);
     try {
       const result = await convertWithLibreOffice(inputPath, 'pdf', originalBase);
       const job = registerJob(result.outPath, `${originalBase}.pdf`, req.user!.id);
@@ -77,10 +85,11 @@ export const pdfToDocx = async (req: AuthRequest, res: Response) => {
   try {
     const file = req.file;
     if (!file) return fail(res, 400, 'Файл не загружен');
-    if (path.extname(file.originalname).toLowerCase() !== '.pdf') return fail(res, 400, 'Ожидается PDF-файл');
+    const originalName = displayName(file);
+    if (path.extname(originalName).toLowerCase() !== '.pdf') return fail(res, 400, 'Ожидается PDF-файл');
 
-    const { jobDir } = prepareJobDir(file.originalname);
-    const originalBase = path.basename(file.originalname, '.pdf');
+    const { jobDir } = prepareJobDir(originalName);
+    const originalBase = path.basename(originalName, '.pdf');
     try {
       const data = new Uint8Array(fs.readFileSync(file.path));
       const buf = await pdfToDocxBuffer(data);
@@ -107,10 +116,11 @@ export const pdfToXlsx = async (req: AuthRequest, res: Response) => {
   try {
     const file = req.file;
     if (!file) return fail(res, 400, 'Файл не загружен');
-    if (path.extname(file.originalname).toLowerCase() !== '.pdf') return fail(res, 400, 'Ожидается PDF-файл');
+    const originalName = displayName(file);
+    if (path.extname(originalName).toLowerCase() !== '.pdf') return fail(res, 400, 'Ожидается PDF-файл');
 
-    const { jobDir } = prepareJobDir(file.originalname);
-    const originalBase = path.basename(file.originalname, '.pdf');
+    const { jobDir } = prepareJobDir(originalName);
+    const originalBase = path.basename(originalName, '.pdf');
     try {
       const buf = await pdfToXlsxBuffer(file.path);
       const outPath = path.join(jobDir, `${originalBase}.xlsx`);
@@ -136,10 +146,11 @@ export const pdfToPptx = async (req: AuthRequest, res: Response) => {
   try {
     const file = req.file;
     if (!file) return fail(res, 400, 'Файл не загружен');
-    if (path.extname(file.originalname).toLowerCase() !== '.pdf') return fail(res, 400, 'Ожидается PDF-файл');
+    const originalName = displayName(file);
+    if (path.extname(originalName).toLowerCase() !== '.pdf') return fail(res, 400, 'Ожидается PDF-файл');
 
-    const { jobDir } = prepareJobDir(file.originalname);
-    const originalBase = path.basename(file.originalname, '.pdf');
+    const { jobDir } = prepareJobDir(originalName);
+    const originalBase = path.basename(originalName, '.pdf');
     try {
       const data = new Uint8Array(fs.readFileSync(file.path));
       const buf = await pdfToPptxBuffer(data);
@@ -168,7 +179,8 @@ export const protectPdf = async (req: AuthRequest, res: Response) => {
     const file = req.file;
     const password = (req.body?.password || '').trim();
     if (!file) return fail(res, 400, 'Файл не загружен');
-    if (path.extname(file.originalname).toLowerCase() !== '.pdf') {
+    const originalName = displayName(file);
+    if (path.extname(originalName).toLowerCase() !== '.pdf') {
       // Remove the multer temp file — converter uploads must not linger in /uploads
       try { fs.unlinkSync(file.path); } catch {}
       return fail(res, 400, 'Ожидается PDF-файл');
@@ -178,10 +190,10 @@ export const protectPdf = async (req: AuthRequest, res: Response) => {
       return fail(res, 400, 'Пароль должен быть не короче 4 символов');
     }
 
-    const prepared = prepareJobDir(file.originalname);
+    const prepared = prepareJobDir(originalName);
     jobDir = prepared.jobDir;
     moveFile(file.path, prepared.inputPath);
-    const originalBase = path.basename(file.originalname, '.pdf');
+    const originalBase = path.basename(originalName, '.pdf');
     const outPath = path.join(jobDir, `${originalBase}.pdf`);
 
     await new Promise<void>((resolve, reject) => {
