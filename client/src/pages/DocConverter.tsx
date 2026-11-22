@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import {
   FileText, FileSpreadsheet, FileImage, Scissors, Droplets,
   Upload, Download, X, CheckCircle, AlertCircle, ArrowLeft, RefreshCw, Layers,
-  RotateCw, Hash, Crop, Archive, Trash2,
+  RotateCw, Hash, Crop, Archive, Trash2, Repeat,
   Presentation, PenLine, Eraser, Shield, History as HistoryIcon,
 } from 'lucide-react';
 import {
@@ -262,6 +262,8 @@ function ToolPanel({ tool, onBack }: { tool: ToolDef; onBack: () => void }) {
   const [isBusy, setIsBusy] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const replaceInputRef = useRef<HTMLInputElement>(null);
+  const [replaceId, setReplaceId] = useState<string | null>(null);
 
   // Tool-specific settings
   const [splitRanges, setSplitRanges] = useState('1-3,5');
@@ -322,7 +324,7 @@ function ToolPanel({ tool, onBack }: { tool: ToolDef; onBack: () => void }) {
       })
       .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [items.length, tool.id]);
+  }, [items[0]?.file, tool.id]);
 
   const addFiles = useCallback((files: FileList | File[]) => {
     const arr = Array.from(files);
@@ -359,6 +361,34 @@ function ToolPanel({ tool, onBack }: { tool: ToolDef; onBack: () => void }) {
   }, [items.length, tool.multiple, tool.id]);
 
   const removeItem = (id: string) => setItems(prev => prev.filter(i => i.id !== id));
+
+  /** Заменить уже загруженный файл: тот же элемент списка, статус сбрасывается */
+  const handleReplaceFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    e.target.value = '';
+    if (!f || !replaceId) return;
+    const id = replaceId;
+    setReplaceId(null);
+    setItems(prev => prev.map(i => i.id === id ? {
+      ...i,
+      file: f,
+      status: 'pending' as ItemStatus,
+      resultUrl: undefined,
+      resultName: undefined,
+      resultSize: undefined,
+      resultBlob: undefined,
+      error: undefined,
+    } : i));
+    if (tool.id === 'organize') {
+      import('pdf-lib').then(async ({ PDFDocument }) => {
+        try {
+          const doc = await PDFDocument.load(await f.arrayBuffer());
+          setPageList(doc.getPageIndices().map(n => ({ num: n + 1, keep: true, rot: 0 })));
+        } catch { setPageList([]); }
+      });
+    }
+    showToast('Файл заменён', 'success');
+  };
 
   const runConvert = async () => {
     if (items.length === 0) return;
@@ -409,6 +439,7 @@ function ToolPanel({ tool, onBack }: { tool: ToolDef; onBack: () => void }) {
           }
           continue;
         } else if (tool.id === 'watermark') {
+          if (!wmText.trim()) throw new Error('Введите текст вотермарка');
           blob = await watermarkPdf(item.file, { text: wmText, opacity: wmOpacity / 100, position: wmPosition });
           name += '_wm.pdf';
         } else if (tool.id === 'jpg-to-pdf') {
@@ -459,14 +490,21 @@ function ToolPanel({ tool, onBack }: { tool: ToolDef; onBack: () => void }) {
         }
         set(item.id, { status: 'done', resultBlob: blob, resultName: name, resultSize: blob.size });
         pushHistory(name, tool.label, blob.size);
-      } catch (e) {
-        set(item.id, { status: 'error', error: 'Ошибка' });
+      } catch (e: any) {
+        // показываем понятные русские ошибки валидации ('Нарисуйте подпись' и т.п.), внутренние — маскируем
+        const msg = typeof e?.message === 'string' && /[А-Яа-яЁё]/.test(e.message) ? e.message : 'Ошибка';
+        set(item.id, { status: 'error', error: msg });
       }
     }
     showToast('Готово', 'success');
   };
 
   const runServer = async () => {
+    if (tool.id === 'protect' && protectPassword.length < 4) {
+      setItems(prev => prev.map(i => ({ ...i, status: 'error' as ItemStatus, error: 'Пароль минимум 4 символа' })));
+      showToast('Пароль минимум 4 символа', 'error');
+      return;
+    }
     const endpoint = tool.id === 'office-to-pdf' || tool.id === 'csv-to-pdf' || tool.id === 'xlsx-to-pdf' ? '/api/converter/office-to-pdf'
       : tool.id === 'pdf-to-docx' ? '/api/converter/pdf-to-docx'
       : tool.id === 'pdf-to-xlsx' ? '/api/converter/pdf-to-xlsx'
@@ -789,6 +827,8 @@ function ToolPanel({ tool, onBack }: { tool: ToolDef; onBack: () => void }) {
         <p className="font-mono text-[10px] text-gray-600 mt-1">до {MAX_FILES} файлов • {tool.accept}</p>
         <input ref={fileInputRef} type="file" accept={tool.accept} multiple={tool.multiple} className="hidden"
           onChange={e => { if (e.target.files) addFiles(e.target.files); e.target.value = ''; }} />
+        <input ref={replaceInputRef} type="file" accept={tool.accept} className="hidden"
+          onChange={handleReplaceFile} />
       </div>
 
       {/* File list */}
@@ -819,10 +859,25 @@ function ToolPanel({ tool, onBack }: { tool: ToolDef; onBack: () => void }) {
                   <span className="font-mono text-[10px] text-red-400">{item.error}</span>
                 </>
               )}
-              {item.status === 'pending' && (
-                <button onClick={() => removeItem(item.id)} className="p-1 rounded hover:bg-white/10" aria-label="Удалить">
-                  <X className="w-3.5 h-3.5 text-gray-500" />
-                </button>
+              {item.status !== 'converting' && !isBusy && (
+                <>
+                  <button
+                    onClick={() => { setReplaceId(item.id); replaceInputRef.current?.click(); }}
+                    className="p-1.5 rounded hover:bg-white/10 text-gray-400 hover:text-gray-200 nx-press"
+                    title="Заменить файл"
+                    aria-label="Заменить файл"
+                  >
+                    <Repeat className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => removeItem(item.id)}
+                    className="p-1.5 rounded hover:bg-red-500/20 text-gray-400 hover:text-red-400 nx-press"
+                    title="Убрать из списка"
+                    aria-label="Убрать из списка"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </>
               )}
             </div>
           ))}
