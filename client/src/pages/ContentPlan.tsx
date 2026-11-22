@@ -24,6 +24,7 @@ import { ContentPost, SocialPlatform, ContentStatus } from '../types';
 import { contentApi } from '../services/api';
 import { ConfirmModal, useNexusConfirm, NexusSpinner, showToast, showUndoToast } from '../components/ui/NexusModal';
 import EmptyState from '../components/ui/EmptyState';
+import ExportMenu from '../components/ui/ExportMenu';
 import { exportWeekCsv, exportWeekPdf } from '../utils/contentExport';
 import ImageUpload from '../components/ui/ImageUpload';
 import RichEditor from '../components/ui/RichEditor';
@@ -182,6 +183,7 @@ export default function ContentPlan() {
   const [postImageFiles, setPostImageFiles] = useState<File[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const contextMenuRef = useRef<HTMLDivElement>(null);
+  const dayModalAtRef = useRef(0);
   const { confirmState, showConfirm, closeConfirm } = useNexusConfirm();
   const [expandedPost, setExpandedPost] = useState<string | null>(null);
   const [calendarView, setCalendarView] = useState<'grid' | 'week' | 'full'>(() => {
@@ -485,6 +487,7 @@ export default function ContentPlan() {
   const openDayModal = (date: Date) => {
     setSelectedDate(date);
     setShowDayModal(true);
+    dayModalAtRef.current = Date.now();
     setContextMenu(null);
   };
 
@@ -532,7 +535,7 @@ export default function ContentPlan() {
           key={day}
           onClick={() => openDayModal(date)}
           onContextMenu={(e) => handleContextMenu(e, date)}
-          className={`nx-tile relative h-20 sm:h-20 md:h-24 lg:h-28 p-1.5 md:p-2 cursor-pointer overflow-hidden group ${
+          className={`nx-tile relative h-20 sm:h-20 md:h-24 lg:h-28 p-1.5 md:p-2 cursor-pointer overflow-hidden group select-none [touch-action:manipulation] ${
             isWeekend ? 'weekend-cell' : ''
           }`}
           style={
@@ -651,43 +654,21 @@ export default function ContentPlan() {
           <div className="nx-eyebrow mt-2">// КАЛЕНДАРЬ ПУБЛИКАЦИЙ В СОЦСЕТЯХ</div>
         </div>
         
-        <div className="flex items-center gap-2 md:gap-3 overflow-x-auto pb-1 flex-nowrap md:flex-wrap">
-          {/* Calendar view toggle */}
-          <div className="flex rounded-lg overflow-hidden border border-gray-700">
-            <button onClick={() => setCalendarView('grid')}
-              title="Сетка месяца"
-              className={`flex items-center gap-1.5 px-2.5 min-h-[40px] font-mono text-[10px] font-bold transition-all nx-press ${calendarView === 'grid' ? 'glass-accent text-white' : 'text-gray-500 hover:text-gray-300'}`}>
-              <LayoutGrid className="w-4 h-4" /> СЕТКА
-            </button>
-            <button onClick={() => setCalendarView('week')}
-              title="Недели"
-              className={`flex items-center gap-1.5 px-2.5 min-h-[40px] font-mono text-[10px] font-bold transition-all nx-press ${calendarView === 'week' ? 'glass-accent text-white' : 'text-gray-500 hover:text-gray-300'}`}>
-              <Rows className="w-4 h-4" /> НЕДЕЛИ
-            </button>
-            <button onClick={() => setCalendarView('full')}
-              title="Полный календарь"
-              className={`flex items-center gap-1.5 px-2.5 min-h-[40px] font-mono text-[10px] font-bold transition-all nx-press ${calendarView === 'full' ? 'glass-accent text-white' : 'text-gray-500 hover:text-gray-300'}`}>
-              <CalendarDays className="w-4 h-4" /> ПОЛНЫЙ
-            </button>
-          </div>
-
-          {/* Week export */}
-          <div className="flex gap-1">
+        <div className="flex flex-col gap-2 md:flex-row md:items-center md:flex-wrap md:gap-3">
+          {canEdit && (
             <button
-              onClick={() => exportWeekPdf(posts)}
-              title="Экспорт недели в PDF"
-              className="px-2.5 py-2 rounded-lg text-xs font-mono glass text-gray-400 hover:text-gray-200 transition-colors nx-press"
+              onClick={() => {
+                setEditingPost(null);
+                resetForm();
+                setShowModal(true);
+              }}
+              className="flex items-center justify-center gap-2 px-4 py-2.5 min-h-[44px] rounded-xl font-mono text-sm transition-all neon-glow-pulse nx-press"
+              style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}
             >
-              PDF
+              <Plus className="w-4 h-4" />
+              НОВЫЙ ПОСТ
             </button>
-            <button
-              onClick={() => exportWeekCsv(posts)}
-              title="Экспорт недели в CSV (Excel)"
-              className="px-2.5 py-2 rounded-lg text-xs font-mono glass text-gray-400 hover:text-gray-200 transition-colors nx-press"
-            >
-              CSV
-            </button>
-          </div>
+          )}
 
           {/* Platform filters */}
           <div className="flex gap-1 p-1 rounded-xl glass overflow-x-auto">
@@ -706,7 +687,7 @@ export default function ContentPlan() {
                 className={`px-3 py-1.5 rounded-lg text-xs font-mono transition-all nx-press ${
                   filterPlatform === platform ? 'text-white' : 'text-gray-400 hover:text-gray-200'
                 }`}
-                style={filterPlatform === platform ? { 
+                style={filterPlatform === platform ? {
                   background: platformConfig[platform].gradient,
                   boxShadow: `0 0 10px ${platformConfig[platform].color}40`
                 } : {}}
@@ -716,20 +697,36 @@ export default function ContentPlan() {
             ))}
           </div>
 
-          {canEdit && (
-            <button
-              onClick={() => {
-                setEditingPost(null);
-                resetForm();
-                setShowModal(true);
+          {/* View toggle + export */}
+          <div className="flex items-center gap-2">
+            <div className="flex rounded-lg overflow-hidden border border-gray-700">
+              <button onClick={() => setCalendarView('grid')}
+                title="Сетка месяца"
+                className={`flex items-center gap-1.5 px-2.5 min-h-[40px] font-mono text-[10px] font-bold transition-all nx-press ${calendarView === 'grid' ? 'glass-accent text-white' : 'text-gray-500 hover:text-gray-300'}`}>
+                <LayoutGrid className="w-4 h-4" /> СЕТКА
+              </button>
+              <button onClick={() => setCalendarView('week')}
+                title="Недели"
+                className={`flex items-center gap-1.5 px-2.5 min-h-[40px] font-mono text-[10px] font-bold transition-all nx-press ${calendarView === 'week' ? 'glass-accent text-white' : 'text-gray-500 hover:text-gray-300'}`}>
+                <Rows className="w-4 h-4" /> НЕДЕЛИ
+              </button>
+              <button onClick={() => setCalendarView('full')}
+                title="Полный календарь"
+                className={`flex items-center gap-1.5 px-2.5 min-h-[40px] font-mono text-[10px] font-bold transition-all nx-press ${calendarView === 'full' ? 'glass-accent text-white' : 'text-gray-500 hover:text-gray-300'}`}>
+                <CalendarDays className="w-4 h-4" /> ПОЛНЫЙ
+              </button>
+            </div>
+            <ExportMenu
+              items={[
+                { key: 'pdf', label: 'PDF', hint: 'неделя' },
+                { key: 'csv', label: 'CSV', hint: 'таблица' },
+              ]}
+              onPick={(key) => {
+                if (key === 'pdf') exportWeekPdf(posts);
+                else if (key === 'csv') exportWeekCsv(posts);
               }}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl font-mono text-sm transition-all neon-glow-pulse nx-press"
-              style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}
-            >
-              <Plus className="w-4 h-4" />
-              НОВЫЙ ПОСТ
-            </button>
-          )}
+            />
+          </div>
         </div>
       </motion.div>
 
@@ -1069,7 +1066,10 @@ export default function ContentPlan() {
             exit={{ opacity: 0 }}
             className="fixed inset-0 flex items-center justify-center z-[100] p-4"
             style={{ backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
-            onClick={() => setShowDayModal(false)}
+            onClick={() => {
+              // защита от «призрачного» тапа: модалка не должна закрыться тем же касанием, что открыло её
+              if (Date.now() - dayModalAtRef.current > 350) setShowDayModal(false);
+            }}
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
