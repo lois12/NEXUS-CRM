@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import SmartImage from '../components/ui/SmartImage';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Search, Edit3, Trash2, X, ClipboardList, Eye, QrCode, Copy, Calendar, Users, MapPin, ArrowLeft, Clock, Upload, Camera, ExternalLink, BarChart3, Phone, CheckCircle } from 'lucide-react';
+import { Plus, Search, Edit3, Trash2, X, ClipboardList, Eye, QrCode, Copy, Calendar, Users, MapPin, ArrowLeft, Clock, Upload, Camera, ExternalLink, BarChart3, Phone, CheckCircle, Save } from 'lucide-react';
 import { Registration, RegistrationField, RegistrationSubmission, FieldType, FIELD_TYPE_CONFIG } from '../types';
 import { registrationsApi } from '../services/api';
 import { showToast, useNexusConfirm, ConfirmModal } from '../components/ui/NexusModal';
@@ -38,9 +38,11 @@ export default function Registrations() {
   const [activeTab, setActiveTab] = useState<'active' | 'planned' | 'archive'>('active');
   const [view, setView] = useState<'list' | 'constructor' | 'submissions'>('list');
   const [editing, setEditing] = useState<Registration | null>(null);
-  const [form, setForm] = useState({ title: '', description: '', eventDate: '', eventTime: '', location: '', videoUrl: '', maxParticipants: 0, status: 'draft' as string, registrationStart: '', registrationEnd: '', closedMessage: '', mapCoords: '', showLimit: 1, showTimer: 1, organizer: '', color: '', theme: 'cyberpunk', waitlistEnabled: 1, maxWaitlist: 0, checkinEnabled: 1, showMap: 1 });
+  const [form, setForm] = useState({ title: '', description: '', eventDate: '', eventTime: '', location: '', videoUrl: '', maxParticipants: '', status: 'draft' as string, registrationStart: '', registrationEnd: '', closedMessage: '', mapCoords: '', showLimit: 1, showTimer: 1, organizer: '', color: '', theme: 'cyberpunk', waitlistEnabled: 1, maxWaitlist: '', checkinEnabled: 1, showMap: 1 });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showSysBlocks, setShowSysBlocks] = useState(false);
+  const [showUserBlocks, setShowUserBlocks] = useState(true);
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [showPreview, setShowPreview] = useState(false);
   /** убираем HTML-теги из описания (RichEditor хранит html) */
   const stripHtml = (html: string) =>
@@ -109,7 +111,7 @@ export default function Registrations() {
 
   const openCreate = () => {
     setEditing(null);
-    setForm({ title: '', description: '', eventDate: '', eventTime: '', location: '', videoUrl: '', maxParticipants: 0, status: 'draft', registrationStart: '', registrationEnd: '', closedMessage: '', mapCoords: '', showLimit: 1, showTimer: 1, organizer: '', color: '', theme: 'cyberpunk', waitlistEnabled: 1, maxWaitlist: 0, checkinEnabled: 1, showMap: 1 });
+    setForm({ title: '', description: '', eventDate: '', eventTime: '', location: '', videoUrl: '', maxParticipants: '', status: 'draft', registrationStart: '', registrationEnd: '', closedMessage: '', mapCoords: '', showLimit: 1, showTimer: 1, organizer: '', color: '', theme: 'cyberpunk', waitlistEnabled: 1, maxWaitlist: '', checkinEnabled: 1, showMap: 1 });
     setRegFields([]);
     setImageUrl('');
     setImageFiles([]);
@@ -117,6 +119,7 @@ export default function Registrations() {
     setVideoFile(null);
     setMediaItems([]);
     setMediaFiles([]);
+    setStep(1);
     setView('constructor');
   };
 
@@ -154,7 +157,7 @@ export default function Registrations() {
         setForm({
           title: data.title, description: data.description, eventDate: data.eventDate || '',
           eventTime: data.eventTime || '', location: data.location || '', videoUrl: data.videoUrl || '',
-          maxParticipants: data.maxParticipants || 0, status: data.status,
+          maxParticipants: String(data.maxParticipants ?? ''), status: data.status,
           registrationStart: data.registrationStart || '', registrationEnd: data.registrationEnd || '',
           closedMessage: data.closedMessage || '', mapCoords: data.mapCoords || '',
           showLimit: data.showLimit ?? 1, showTimer: data.showTimer ?? 1,
@@ -164,9 +167,10 @@ export default function Registrations() {
           waitlistEnabled: data.waitlistEnabled ?? 1,
           checkinEnabled: data.checkinEnabled ?? 1,
           showMap: data.showMap ?? 1,
-          maxWaitlist: data.maxWaitlist ?? 0,
+          maxWaitlist: String(data.maxWaitlist ?? ''),
         });
         setRegFields(normalizeFields(data.fields));
+        setStep(1);
         setImageUrl(data.imageUrl || '');
         setImageFiles([]);
         setVideoUrl(data.videoUrl || '');
@@ -227,10 +231,6 @@ export default function Registrations() {
     // Блок «Описание»
     if (!form.description.trim()) { errs.description = 'Введите описание мероприятия'; blocks.add('Описание'); }
 
-    // Блок «Лимиты»
-    if (form.maxParticipants < 0) { errs.maxParticipants = 'Лимит не может быть отрицательным'; blocks.add('Лимиты'); }
-    if (form.maxWaitlist < 0) { errs.maxWaitlist = 'Лимит не может быть отрицательным'; blocks.add('Лимиты'); }
-
     return { errs, blocks: Array.from(blocks) };
   };
 
@@ -241,6 +241,13 @@ export default function Registrations() {
   /** Подпись ошибки под полем */
   const ErrMsg = ({ k }: { k: string }) =>
     errors[k] ? <p className="text-[10px] font-mono mt-1" style={{ color: 'var(--color-danger)' }}>{errors[k]}</p> : null;
+
+  /** Числовые поля храним строками (можно стереть 0 и ввести новое число) — на сервер числа */
+  const formPayload = () => ({
+    ...form,
+    maxParticipants: Number(form.maxParticipants) || 0,
+    maxWaitlist: Number(form.maxWaitlist) || 0,
+  });
 
   const handleSave = async () => {
     const { errs, blocks } = validateForm();
@@ -256,10 +263,10 @@ export default function Registrations() {
     try {
       let regId = editing?.id;
       if (editing) {
-        await registrationsApi.update(editing.id, form);
+        await registrationsApi.update(editing.id, formPayload());
         regId = editing.id;
       } else {
-        const res = await registrationsApi.create(form);
+        const res = await registrationsApi.create(formPayload());
         if (res.success && res.data) regId = res.data.id;
       }
 
@@ -366,7 +373,7 @@ export default function Registrations() {
       }
 
       // Update and notify
-      const res = await registrationsApi.updateAndNotify(editing.id, form);
+      const res = await registrationsApi.updateAndNotify(editing.id, formPayload());
       if (res.success) {
         showToast(res.message || 'Обновлено и отправлено!', 'success');
         setView('list');
@@ -387,6 +394,26 @@ export default function Registrations() {
       }
     } catch {
       showToast('Ошибка копирования', 'error');
+    }
+  };
+
+  // Статус-чип на карточке — выпадашка как в квизах/опросах
+  const [openStatusId, setOpenStatusId] = useState<string | null>(null);
+  const [statusPos, setStatusPos] = useState<{ x: number; y: number } | null>(null);
+  useEffect(() => {
+    if (!openStatusId) return;
+    const close = () => setOpenStatusId(null);
+    document.addEventListener('click', close);
+    return () => document.removeEventListener('click', close);
+  }, [openStatusId]);
+
+  const changeRegStatus = async (reg: Registration, next: string) => {
+    try {
+      await registrationsApi.update(reg.id, { status: next });
+      showToast('Статус обновлён', 'success');
+      fetchData();
+    } catch {
+      showToast('Ошибка смены статуса', 'error');
     }
   };
 
@@ -551,7 +578,7 @@ export default function Registrations() {
       <div className="space-y-3 md:space-y-6">
         {/* Workshop toolbar */}
         <div className="nx-tile px-3 py-2 md:px-4 md:py-3 flex items-center justify-between gap-2 md:gap-3 overflow-x-auto">
-          <button onClick={() => setView('list')} className="flex items-center gap-2 px-3 py-2 rounded-xl font-mono text-xs md:text-sm text-gray-400 hover:text-gray-200 transition-colors nx-press flex-shrink-0">
+          <button onClick={() => setView('list')} className="flex items-center gap-2 px-3 py-2 min-h-[40px] rounded-xl font-mono text-xs md:text-sm text-gray-400 hover:text-gray-200 transition-colors nx-press flex-shrink-0">
             <ArrowLeft className="w-4 h-4" /> НАЗАД
           </button>
 
@@ -561,7 +588,7 @@ export default function Registrations() {
               const newStatus = form.status === 'active' ? 'draft' : 'active';
               setForm(prev => ({ ...prev, status: newStatus }));
             }}
-              className="flex items-center gap-2 px-3 md:px-4 py-2 rounded-xl font-mono text-xs md:text-sm font-bold transition-all nx-press whitespace-nowrap"
+              className="flex items-center gap-2 px-3 md:px-4 py-2 min-h-[40px] rounded-xl font-mono text-xs md:text-sm font-bold transition-all nx-press whitespace-nowrap"
               style={form.status === 'active'
                 ? { background: 'rgba(0,255,136,0.15)', border: '1px solid rgba(0,255,136,0.3)', color: '#00ff88', boxShadow: '0 0 12px rgba(0,255,136,0.2)' }
                 : form.status === 'closed'
@@ -591,13 +618,13 @@ export default function Registrations() {
               </>
             )}
             <button onClick={handleSave} disabled={uploading}
-              className="btn-primary nx-press flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl font-mono text-[10px] sm:text-sm font-bold disabled:opacity-50 flex-shrink-0"
+              className="btn-primary nx-press flex items-center gap-2 px-3 sm:px-4 py-2 min-h-[40px] rounded-xl font-mono text-[10px] sm:text-sm font-bold disabled:opacity-50 flex-shrink-0"
               >
               {uploading ? 'СОХРАНЕНИЕ...' : 'СОХРАНИТЬ'}
             </button>
             {editing && (
               <button onClick={handleSaveAndNotify} disabled={uploading}
-                className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-xl font-mono text-[10px] sm:text-sm font-bold disabled:opacity-50 nx-press flex-shrink-0 whitespace-nowrap"
+                className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 min-h-[40px] rounded-xl font-mono text-[10px] sm:text-sm font-bold disabled:opacity-50 nx-press flex-shrink-0 whitespace-nowrap"
                 style={{ backgroundColor: 'rgba(234,179,8,0.15)', color: '#eab308', border: '1px solid rgba(234,179,8,0.3)' }}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4"><path d="M22 2L11 13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
                 ИЗМЕНИТЬ И ОПОВЕСТИТЬ
@@ -606,8 +633,33 @@ export default function Registrations() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 md:gap-6">
-          {/* Left: Basic info */}
+        {/* Шаги мастера — кликабельны */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {([1, 2, 3, 4] as const).map((n, i) => (
+            <div key={n} className="flex items-center gap-2 flex-1 min-w-fit">
+              {i > 0 && <div className="flex-1 h-px min-w-3" style={{ background: 'rgba(255,255,255,0.1)' }} />}
+              <button
+                type="button"
+                onClick={() => setStep(n)}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 min-h-[40px] rounded-full text-[9px] sm:text-[10px] font-mono tracking-wider nx-press"
+                style={step === n
+                  ? { background: 'color-mix(in srgb, var(--color-primary) 16%, transparent)', color: 'var(--color-primary)', border: '1px solid color-mix(in srgb, var(--color-primary) 35%, transparent)' }
+                  : { background: 'rgba(255,255,255,0.04)', color: '#8b9bbb', border: '1px solid rgba(255,255,255,0.08)' }}
+              >
+                <span
+                  className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold flex-shrink-0"
+                  style={step === n
+                    ? { background: 'var(--color-primary)', color: '#000' }
+                    : { background: 'rgba(255,255,255,0.08)', color: '#8b9bbb' }}
+                >{n}</span>
+                {n === 1 ? 'ДАННЫЕ' : n === 2 ? 'РЕГИСТРАЦИЯ' : n === 3 ? 'ОФОРМЛЕНИЕ' : 'БЛОКИ'}
+              </button>
+            </div>
+          ))}
+        </div>
+
+        {/* ── Шаг 1: данные мероприятия ── */}
+        {step === 1 && (
           <div className="space-y-2.5 md:space-y-4">
             <div className="nx-panel p-3 md:p-6 space-y-2.5 md:space-y-4">
               <h2 className="nx-eyebrow">ИНФОРМАЦИЯ</h2>
@@ -658,129 +710,6 @@ export default function Registrations() {
               </div>
               <input value={form.videoUrl} onChange={e => setForm({ ...form, videoUrl: e.target.value })} placeholder="// ССЫЛКА НА ВИДЕО"
                 className="w-full px-4 py-2.5 rounded-xl font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]" />
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="font-mono text-[9px] sm:text-[10px] text-gray-500 mb-1 block break-words">ЛИМИТ УЧАСТНИКОВ</label>
-                  <input type="number" min={0} value={form.maxParticipants} onChange={e => setForm({ ...form, maxParticipants: Number(e.target.value) })}
-                    placeholder="0 = без лимита"
-                    className="w-full min-w-0 px-2 sm:px-3 py-2 rounded-xl font-mono text-[12px] sm:text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]" />
-                </div>
-                <div>
-                  <label className="font-mono text-[9px] sm:text-[10px] text-gray-500 mb-1 block break-words">СТАТУС</label>
-                  <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]">
-                    <option value="draft">Черновик</option>
-                    <option value="active">Активна</option>
-                    <option value="closed">Закрыта</option>
-                  </select>
-                </div>
-              </div>
-              {/* Registration time window */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-3 min-w-0">
-                <div className="min-w-0">
-                  <label className="font-mono text-[9px] sm:text-[10px] text-gray-500 mb-1 block break-words">НАЧАЛО РЕГИСТРАЦИИ</label>
-                  <input data-field="registrationStart" type="datetime-local" value={form.registrationStart} onChange={e => setForm({ ...form, registrationStart: e.target.value })}
-                    className={`w-full min-w-0 max-w-full px-3 py-2.5 rounded-xl text-[12px] sm:text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)]${errCls('registrationStart')}`} />
-                <ErrMsg k="registrationStart" />
-                </div>
-                <div className="min-w-0">
-                  <label className="font-mono text-[9px] sm:text-[10px] text-gray-500 mb-1 block break-words">КОНЕЦ РЕГИСТРАЦИИ</label>
-                  <input data-field="registrationEnd" type="datetime-local" value={form.registrationEnd} onChange={e => setForm({ ...form, registrationEnd: e.target.value })}
-                    className={`w-full min-w-0 max-w-full px-3 py-2.5 rounded-xl text-[12px] sm:text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)]${errCls('registrationEnd')}`} />
-                <ErrMsg k="registrationEnd" />
-                </div>
-              </div>
-              {/* Custom message after close */}
-              <div>
-                <label className="font-mono text-[9px] sm:text-[10px] text-gray-500 mb-1 block break-words">СООБЩЕНИЕ ПОСЛЕ ЗАКРЫТИЯ</label>
-                <textarea value={form.closedMessage} onChange={e => setForm({ ...form, closedMessage: e.target.value })}
-                  placeholder="// ТЕКСТ ПОСЛЕ ЗАКРЫТИЯ"
-                  rows={3}
-                  className="w-full px-3 py-2 rounded-xl font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)] resize-none [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]" />
-              </div>
-              {/* Display toggles */}
-              <div className="flex items-center gap-4 sm:gap-6 pt-2 flex-wrap">
-                <label className="flex items-center gap-3 cursor-pointer select-none">
-                  <div onClick={() => setForm(prev => ({ ...prev, showLimit: prev.showLimit ? 0 : 1 }))}
-                    className="w-10 h-5 rounded-full transition-colors relative cursor-pointer"
-                    style={{ background: form.showLimit ? 'var(--color-primary)' : '#3a3a50' }}>
-                    <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${form.showLimit ? 'translate-x-5' : 'translate-x-0.5'}`} />
-                  </div>
-                  <span className="font-mono text-xs text-gray-300">Показывать лимит мест</span>
-                </label>
-                <label className="flex items-center gap-3 cursor-pointer select-none">
-                  <div onClick={() => setForm(prev => ({ ...prev, showTimer: prev.showTimer ? 0 : 1 }))}
-                    className="w-10 h-5 rounded-full transition-colors relative cursor-pointer"
-                    style={{ background: form.showTimer ? 'var(--color-primary)' : '#3a3a50' }}>
-                    <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${form.showTimer ? 'translate-x-5' : 'translate-x-0.5'}`} />
-                  </div>
-                  <span className="font-mono text-xs text-gray-300">Показывать таймер</span>
-                </label>
-              </div>
-              {/* Waitlist toggle */}
-              <div>
-                <label className="text-xs font-mono text-gray-500 mb-2 block">ВЕЙТЛИСТ</label>
-                <div className="flex items-center gap-3">
-                  <button onClick={() => setForm({ ...form, waitlistEnabled: form.waitlistEnabled ? 0 : 1 })}
-                    className="w-10 h-5 rounded-full transition-colors relative"
-                    style={{ background: form.waitlistEnabled ? 'var(--color-primary)' : '#3a3a50' }}>
-                    <div className="absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform"
-                      style={{ transform: form.waitlistEnabled ? 'translateX(20px)' : 'translateX(2px)' }} />
-                  </button>
-                  <span className="text-xs font-mono text-gray-400">{form.waitlistEnabled ? 'Включён' : 'Выключен'}</span>
-                </div>
-                {form.waitlistEnabled === 1 && (
-                  <div className="mt-2">
-                    <label className="text-xs font-mono text-gray-500 mb-1 block">Лимит вейтлиста (0 = без лимита)</label>
-                    <input type="number" min="0" value={form.maxWaitlist}
-                      onChange={e => setForm({ ...form, maxWaitlist: parseInt(e.target.value) || 0 })}
-                      className="w-full px-4 py-2.5 rounded-xl font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]" />
-                  </div>
-                )}
-              </div>
-              {/* Checkin toggle */}
-              <div>
-                <label className="text-xs font-mono text-gray-500 mb-2 block">КОНТРОЛЬ ПОСЕЩЕНИЯ (С QR)</label>
-                <div className="flex items-center gap-3">
-                  <button onClick={() => setForm({ ...form, checkinEnabled: form.checkinEnabled ? 0 : 1 })}
-                    className="w-10 h-5 rounded-full transition-colors relative"
-                    style={{ background: form.checkinEnabled ? 'var(--color-primary)' : '#3a3a50' }}>
-                    <div className="absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform"
-                      style={{ transform: form.checkinEnabled ? 'translateX(20px)' : 'translateX(2px)' }} />
-                  </button>
-                  <span className="text-xs font-mono text-gray-400">{form.checkinEnabled ? 'Включён — QR в письме и на экране' : 'Выключён — только информация'}</span>
-                </div>
-                <p className="text-[10px] font-mono text-gray-600 mt-1">Когда выключен — письмо и итоговый экран содержат только основную информацию и кнопку отмены.</p>
-              </div>
-              {/* Color picker */}
-              <label className="block">
-                <span className="font-mono text-sm text-gray-300">ЦВЕТ АКЦЕНТА</span>
-                <div className="flex items-center gap-3 mt-1">
-                  <input type="color" value={form.color || '#00ff88'}
-                    onChange={e => setForm({ ...form, color: e.target.value })}
-                    className="w-10 h-10 rounded-lg cursor-pointer bg-transparent border border-gray-700" />
-                  <span className="font-mono text-xs text-gray-400">{form.color || '#00ff88'}</span>
-                  {form.color && (
-                    <button onClick={() => setForm({ ...form, color: '' })} className="text-xs text-gray-500 hover:text-gray-300 nx-press">Сбросить</button>
-                  )}
-                </div>
-              </label>
-              {/* Theme picker */}
-              <div>
-                <label className="text-xs font-mono text-gray-500 mb-2 block">ТЕМА ОФОРМЛЕНИЯ</label>
-                <div className="grid grid-cols-4 gap-2">
-                  {REG_THEMES.map(t => (
-                    <button key={t.id} onClick={() => setForm({ ...form, theme: t.id })}
-                      className="rounded-xl p-2 transition-all text-center nx-press"
-                      style={form.theme === t.id
-                        ? { background: t.preview.primary, color: t.preview.bg, border: `2px solid ${t.preview.primary}`, boxShadow: `0 0 12px ${t.preview.primary}40` }
-                        : { background: t.preview.card, color: t.preview.text, border: `1px solid ${t.preview.border}` }
-                      }>
-                      <div className="text-[10px] font-mono font-bold">{t.label}</div>
-                    </button>
-                  ))}
-                </div>
-              </div>
             </div>
 
             <div className="nx-panel p-3 md:p-6">
@@ -788,6 +717,16 @@ export default function Registrations() {
               <div className="nx-divider mb-2.5 md:mb-4" />
               <RichEditor content={form.description} onChange={html => setForm({ ...form, description: html })} placeholder="// ОПИСАНИЕ МЕРОПРИЯТИЯ..." />
               <ErrMsg k="description" />
+            </div>
+
+            {/* Custom message after close */}
+            <div className="nx-panel p-3 md:p-6">
+              <h2 className="nx-eyebrow mb-2 md:mb-3">ТЕКСТ ПОСЛЕ ЗАКРЫТИЯ</h2>
+              <div className="nx-divider mb-2.5 md:mb-4" />
+              <textarea value={form.closedMessage} onChange={e => setForm({ ...form, closedMessage: e.target.value })}
+                placeholder="// ТЕКСТ ПОСЛЕ ЗАКРЫТИЯ"
+                rows={3}
+                className="w-full px-3 py-2 rounded-xl font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)] resize-none [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]" />
             </div>
 
             <div className="nx-panel p-3 md:p-6">
@@ -843,14 +782,13 @@ export default function Registrations() {
                   e.preventDefault();
                   e.currentTarget.style.borderColor = '';
                   e.currentTarget.style.background = '';
-                  const file = e.dataTransfer.files[0];
-                  if (file && file.type.startsWith('image/')) {
-                    setImageFiles([file]);
-                  }
+                  const file = Array.from(e.dataTransfer.files).find(f => f.type.startsWith('image/'));
+                  if (file) setImageFiles([file]);
                 }}
                 className="flex flex-col items-center justify-center gap-2 px-4 py-4 rounded-xl border-2 border-dashed border-gray-700 hover:border-gray-500 cursor-pointer transition-colors">
                 <Upload className="w-5 h-5 text-gray-400" />
-                <span className="font-mono text-[10px] text-gray-500">ПЕРЕТАЩИТЕ ИЛИ ВЫБЕРИТЕ</span>
+                <span className="font-mono text-[10px] text-gray-500">ПЕРЕТАЩИТЕ ОБЛОЖКУ ИЛИ ВЫБЕРИТЕ</span>
+                <span className="font-mono text-[9px] text-gray-600">JPG, PNG, WebP</span>
                 <input type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) setImageFiles([f]); }} />
               </label>
             </div>
@@ -934,7 +872,7 @@ export default function Registrations() {
                     setMediaFiles([]);
                     try { const res = await registrationsApi.getMedia(editing.id); if (res.success && res.data) setMediaItems(Array.isArray(res.data) ? res.data : []); } catch {}
                   }} disabled={uploading}
-                    className="px-3 py-1.5 rounded-lg font-mono text-[10px] font-bold transition-all disabled:opacity-50 nx-press"
+                    className="px-3 py-1.5 min-h-[40px] rounded-lg font-mono text-[10px] font-bold transition-all disabled:opacity-50 nx-press"
                     style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}>
                     {uploading ? 'ЗАГРУЗКА...' : `ЗАГРУЗИТЬ ВСЕ (${mediaFiles.length})`}
                   </button>
@@ -999,14 +937,143 @@ export default function Registrations() {
               </label>
             </div>
           </div>
+        )}
 
-          {/* Right: Field Builder */}
+        {/* ── Шаг 2: параметры регистрации ── */}
+        {step === 2 && (
+          <div className="nx-panel p-3 md:p-6 space-y-2.5 md:space-y-4">
+            <h2 className="nx-eyebrow">РЕГИСТРАЦИЯ</h2>
+            <div className="nx-divider" />
+            <div>
+              <label className="font-mono text-[9px] sm:text-[10px] text-gray-500 mb-1 block break-words">СТАТУС</label>
+              <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}
+                className="w-full px-3 py-2 rounded-xl font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]">
+                <option value="draft">Черновик</option>
+                <option value="active">Активна</option>
+                <option value="closed">Закрыта</option>
+              </select>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-3 min-w-0">
+              <div className="min-w-0">
+                <label className="font-mono text-[9px] sm:text-[10px] text-gray-500 mb-1 block break-words">НАЧАЛО РЕГИСТРАЦИИ</label>
+                <input data-field="registrationStart" type="datetime-local" value={form.registrationStart} onChange={e => setForm({ ...form, registrationStart: e.target.value })}
+                  className={`w-full min-w-0 max-w-full px-3 py-2.5 rounded-xl text-[12px] sm:text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)]${errCls('registrationStart')}`} />
+                <ErrMsg k="registrationStart" />
+              </div>
+              <div className="min-w-0">
+                <label className="font-mono text-[9px] sm:text-[10px] text-gray-500 mb-1 block break-words">КОНЕЦ РЕГИСТРАЦИИ</label>
+                <input data-field="registrationEnd" type="datetime-local" value={form.registrationEnd} onChange={e => setForm({ ...form, registrationEnd: e.target.value })}
+                  className={`w-full min-w-0 max-w-full px-3 py-2.5 rounded-xl text-[12px] sm:text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)]${errCls('registrationEnd')}`} />
+                <ErrMsg k="registrationEnd" />
+              </div>
+            </div>
+            <div>
+              <label className="font-mono text-[9px] sm:text-[10px] text-gray-500 mb-1 block break-words">ЛИМИТ УЧАСТНИКОВ</label>
+              <input type="text" inputMode="numeric" value={form.maxParticipants}
+                onChange={e => setForm({ ...form, maxParticipants: e.target.value.replace(/\D/g, '') })}
+                placeholder="0 = без лимита"
+                className="w-full min-w-0 px-2 sm:px-3 py-2 rounded-xl font-mono text-[12px] sm:text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]" />
+              <p className="text-[10px] font-mono text-gray-600 mt-1">Можно стереть полностью и ввести новое число.</p>
+            </div>
+            <div className="flex items-center gap-4 sm:gap-6 pt-1 flex-wrap">
+              <label className="flex items-center gap-3 cursor-pointer select-none">
+                <div onClick={() => setForm(prev => ({ ...prev, showLimit: prev.showLimit ? 0 : 1 }))}
+                  className="w-10 h-5 rounded-full transition-colors relative cursor-pointer"
+                  style={{ background: form.showLimit ? 'var(--color-primary)' : '#3a3a50' }}>
+                  <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${form.showLimit ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                </div>
+                <span className="font-mono text-xs text-gray-300">Показывать лимит мест</span>
+              </label>
+              <label className="flex items-center gap-3 cursor-pointer select-none">
+                <div onClick={() => setForm(prev => ({ ...prev, showTimer: prev.showTimer ? 0 : 1 }))}
+                  className="w-10 h-5 rounded-full transition-colors relative cursor-pointer"
+                  style={{ background: form.showTimer ? 'var(--color-primary)' : '#3a3a50' }}>
+                  <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${form.showTimer ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                </div>
+                <span className="font-mono text-xs text-gray-300">Показывать таймер</span>
+              </label>
+            </div>
+            {/* Waitlist */}
+            <div>
+              <label className="text-xs font-mono text-gray-500 mb-2 block">ВЕЙТЛИСТ</label>
+              <div className="flex items-center gap-3">
+                <button onClick={() => setForm({ ...form, waitlistEnabled: form.waitlistEnabled ? 0 : 1 })}
+                  className="w-10 h-5 rounded-full transition-colors relative"
+                  style={{ background: form.waitlistEnabled ? 'var(--color-primary)' : '#3a3a50' }}>
+                  <div className="absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform"
+                    style={{ transform: form.waitlistEnabled ? 'translateX(20px)' : 'translateX(2px)' }} />
+                </button>
+                <span className="text-xs font-mono text-gray-400">{form.waitlistEnabled ? 'Включён' : 'Выключен'}</span>
+              </div>
+              {form.waitlistEnabled === 1 && (
+                <div className="mt-2">
+                  <label className="text-xs font-mono text-gray-500 mb-1 block">Лимит вейтлиста (0 = без лимита)</label>
+                  <input type="text" inputMode="numeric" value={form.maxWaitlist}
+                    onChange={e => setForm({ ...form, maxWaitlist: e.target.value.replace(/\D/g, '') })}
+                    className="w-full px-4 py-2.5 rounded-xl font-mono text-sm bg-black/30 border border-gray-700 text-gray-200 focus:outline-none focus:border-[var(--color-primary)] [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]" />
+                </div>
+              )}
+            </div>
+            {/* Checkin */}
+            <div>
+              <label className="text-xs font-mono text-gray-500 mb-2 block">КОНТРОЛЬ ПОСЕЩЕНИЯ (С QR)</label>
+              <div className="flex items-center gap-3">
+                <button onClick={() => setForm({ ...form, checkinEnabled: form.checkinEnabled ? 0 : 1 })}
+                  className="w-10 h-5 rounded-full transition-colors relative"
+                  style={{ background: form.checkinEnabled ? 'var(--color-primary)' : '#3a3a50' }}>
+                  <div className="absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform"
+                    style={{ transform: form.checkinEnabled ? 'translateX(20px)' : 'translateX(2px)' }} />
+                </button>
+                <span className="text-xs font-mono text-gray-400">{form.checkinEnabled ? 'Включён — QR в письме и на экране' : 'Выключён — только информация'}</span>
+              </div>
+              <p className="text-[10px] font-mono text-gray-600 mt-1">Когда выключен — письмо и итоговый экран содержат только основную информацию и кнопку отмены.</p>
+            </div>
+          </div>
+        )}
+
+        {/* ── Шаг 3: оформление ── */}
+        {step === 3 && (
+          <div className="nx-panel p-3 md:p-6 space-y-4">
+            <h2 className="nx-eyebrow">ОФОРМЛЕНИЕ</h2>
+            <div className="nx-divider" />
+            <label className="block">
+              <span className="font-mono text-sm text-gray-300">ЦВЕТ АКЦЕНТА</span>
+              <div className="flex items-center gap-3 mt-1">
+                <input type="color" value={form.color || '#00ff88'}
+                  onChange={e => setForm({ ...form, color: e.target.value })}
+                  className="w-10 h-10 rounded-lg cursor-pointer bg-transparent border border-gray-700" />
+                <span className="font-mono text-xs text-gray-400">{form.color || '#00ff88'}</span>
+                {form.color && (
+                  <button onClick={() => setForm({ ...form, color: '' })} className="text-xs text-gray-500 hover:text-gray-300 nx-press">Сбросить</button>
+                )}
+              </div>
+            </label>
+            <div>
+              <label className="text-xs font-mono text-gray-500 mb-2 block">ТЕМА ОФОРМЛЕНИЯ</label>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {REG_THEMES.map(t => (
+                  <button key={t.id} onClick={() => setForm({ ...form, theme: t.id })}
+                    className="rounded-xl p-2 min-h-[40px] transition-all text-center nx-press"
+                    style={form.theme === t.id
+                      ? { background: t.preview.primary, color: t.preview.bg, border: `2px solid ${t.preview.primary}`, boxShadow: `0 0 12px ${t.preview.primary}40` }
+                      : { background: t.preview.card, color: t.preview.text, border: `1px solid ${t.preview.border}` }
+                    }>
+                    <div className="text-[10px] font-mono font-bold">{t.label}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Шаг 4: блоки формы ── */}
+        {step === 4 && (
           <div className="nx-panel p-3 md:p-6">
-            {/* System blocks — always first on the public form (expandable preview) */}
+            {/* Системные блоки — аккордеон */}
             <div className="mb-3 md:mb-5">
               <button type="button"
                 onClick={() => setShowSysBlocks(v => !v)}
-                className="w-full flex items-center justify-between mb-1.5 md:mb-2 nx-press">
+                className="w-full flex items-center justify-between mb-1.5 md:mb-2 min-h-[40px] nx-press">
                 <span className="nx-eyebrow">СИСТЕМНЫЕ БЛОКИ</span>
                 <span className="font-mono text-[9px] text-gray-500">{showSysBlocks ? "Свернуть" : "Развернуть просмотр"}</span>
               </button>
@@ -1038,8 +1105,36 @@ export default function Registrations() {
                 </div>
               )}
             </div>
-            <FieldBuilder fields={regFields} onAdd={addField} onUpdate={updateField} onDelete={deleteField} onDuplicate={duplicateField} onReorder={reorderFields} />
+
+            {/* Пользовательские блоки — аккордеон */}
+            <div>
+              <button type="button"
+                onClick={() => setShowUserBlocks(v => !v)}
+                className="w-full flex items-center justify-between mb-1.5 md:mb-2 min-h-[40px] nx-press">
+                <span className="nx-eyebrow">ПОЛЬЗОВАТЕЛЬСКИЕ БЛОКИ ({regFields.length})</span>
+                <span className="font-mono text-[9px] text-gray-500">{showUserBlocks ? "Свернуть" : "Развернуть"}</span>
+              </button>
+              <div className="nx-divider mb-2 md:mb-3" />
+              {showUserBlocks && (
+                <FieldBuilder fields={regFields} onAdd={addField} onUpdate={updateField} onDelete={deleteField} onDuplicate={duplicateField} onReorder={reorderFields} />
+              )}
+            </div>
           </div>
+        )}
+
+        {/* Нижняя панель мастера */}
+        <div className="flex items-center gap-2 sticky bottom-0 pt-2 flex-wrap" style={{ background: 'linear-gradient(transparent, rgba(10,10,15,0.9) 30%)' }}>
+          {step > 1 && (
+            <button onClick={() => setStep((s) => (s - 1) as 1 | 2 | 3 | 4)} className="btn-ghost nx-press px-3 sm:px-5 py-2.5 min-h-[40px] flex-shrink-0">НАЗАД</button>
+          )}
+          <div className="flex-1 min-w-0" />
+          {step < 4 ? (
+            <button onClick={() => setStep((s) => (s + 1) as 1 | 2 | 3 | 4)} className="btn-primary nx-press px-3 sm:px-5 py-2.5 min-h-[40px] flex-shrink-0">ДАЛЕЕ</button>
+          ) : (
+            <button onClick={handleSave} disabled={uploading} className="btn-primary nx-press px-3 sm:px-5 py-2.5 min-h-[40px] flex-shrink-0">
+              <Save className="w-4 h-4 inline mr-1" />{uploading ? 'СОХРАНЕНИЕ…' : 'СОХРАНИТЬ'}
+            </button>
+          )}
         </div>
 
         {/* Public link display */}
@@ -1091,7 +1186,7 @@ export default function Registrations() {
                 </div>
                 <div className="rounded-xl overflow-hidden" style={{ background: t.preview.bg, border: `1px solid ${t.preview.border}`, padding: '16px' }}>
                   <h3 className="font-mono text-sm font-bold mb-2" style={{ color: t.preview.primary }}>{form.title || 'Название мероприятия'}</h3>
-                  <p className="text-[11px] mb-3 leading-relaxed" style={{ color: t.preview.text, opacity: 0.75 }}>{stripHtml(form.description) || 'Описание мероприятия'}</p>
+                  <p className="text-[11px] mb-3 leading-relaxed break-words" style={{ color: t.preview.text, opacity: 0.75 }}>{stripHtml(form.description) || 'Описание мероприятия'}</p>
                   <div className="space-y-2">
                     <div className="rounded-lg px-3 py-2" style={{ background: 'rgba(0,0,0,0.3)', border: `1px solid ${t.preview.border}` }}>
                       <span className="text-[10px] font-mono" style={{ color: t.preview.text, opacity: 0.5 }}>// ФАМИЛИЯ *</span>
@@ -1209,54 +1304,101 @@ export default function Registrations() {
           const status = STATUS_CONFIG[reg.status] || STATUS_CONFIG.draft;
           return (
             <motion.div key={reg.id} layout
-              className="nx-tile overflow-hidden group cursor-pointer"
+              className={`nx-tile p-3 md:p-4 relative group cursor-pointer ${openStatusId === reg.id ? 'z-30' : ''}`}
               onClick={() => openEdit(reg)}>
-              {reg.imageUrl && (
-                <div className="h-24 md:h-36 overflow-hidden">
-                  <SmartImage loading="lazy" src={reg.imageUrl} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+              <div className="flex items-start gap-2 md:gap-3">
+                {reg.imageUrl ? (
+                  <SmartImage loading="lazy" src={reg.imageUrl} alt="" className="w-10 h-10 md:w-14 md:h-14 rounded-xl object-cover flex-shrink-0" />
+                ) : (
+                  <div className="w-10 h-10 md:w-14 md:h-14 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(0,255,136,0.1)', border: '1px solid var(--color-border)' }}>
+                    <ClipboardList className="w-5 h-5 text-gray-500" />
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between gap-2">
+                    <h3 className="font-bold text-gray-200 line-clamp-2 text-sm md:text-base min-w-0 break-words">
+                      {reg.color && <span className="inline-block w-2.5 h-2.5 rounded-full mr-2 align-middle" style={{ backgroundColor: reg.color }} />}
+                      {reg.title}
+                    </h3>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (openStatusId === reg.id) { setOpenStatusId(null); return; }
+                        const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                        setStatusPos({ x: Math.min(r.left, window.innerWidth - 170), y: r.bottom + 6 });
+                        setOpenStatusId(reg.id);
+                      }}
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-full nx-press flex-shrink-0"
+                      style={{ background: `${status.color}26`, color: status.color, border: `1px solid ${status.color}55`, minHeight: 28 }}
+                      title="Сменить статус"
+                      aria-label="Сменить статус"
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full" style={{ background: status.color }} />
+                      <span className="font-mono text-[9px] whitespace-nowrap">{status.label}</span>
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-2 md:gap-3 text-[10px] font-mono text-gray-500 flex-wrap mt-1.5">
+                    {reg.eventDate && <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{reg.eventDate}</span>}
+                    {reg.location && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{reg.location}</span>}
+                    <span className="flex items-center gap-1"><Users className="w-3 h-3" />{reg.confirmedCount || 0}{reg.maxParticipants > 0 ? `/${reg.maxParticipants}` : ''}</span>
+                    {(reg.waitlistCount || 0) > 0 && <span className="flex items-center gap-1" style={{ color: '#eab308' }}><Clock className="w-3 h-3" />{reg.waitlistCount}</span>}
+                  </div>
                 </div>
-              )}
-              <div className="p-3 md:p-5 space-y-2 md:space-y-3">
-                <div className="flex items-start justify-between gap-2">
-                  <h3 className="font-mono text-sm md:text-base font-bold text-gray-200 line-clamp-2 min-w-0 flex-1">
-                    {reg.color && <span className="inline-block w-2.5 h-2.5 rounded-full mr-2 align-middle" style={{ backgroundColor: reg.color }} />}
-                    {reg.title}
-                  </h3>
-                  <span className="nx-eyebrow flex-shrink-0"
-                    style={{ color: status.color, background: `${status.color}18`, borderColor: `${status.color}40`, boxShadow: `0 0 16px ${status.color}25` }}>
-                    {status.label}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 md:gap-3 text-[10px] font-mono text-gray-500 flex-wrap">
-                  {reg.eventDate && <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{reg.eventDate}</span>}
-                  {reg.location && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{reg.location}</span>}
-                  <span className="flex items-center gap-1"><Users className="w-3 h-3" />{reg.confirmedCount || 0}{reg.maxParticipants > 0 ? `/${reg.maxParticipants}` : ''}</span>
-                  {(reg.waitlistCount || 0) > 0 && <span className="flex items-center gap-1" style={{ color: '#eab308' }}><Clock className="w-3 h-3" />{reg.waitlistCount}</span>}
-                </div>
-                <div className="nx-divider" />
-                <div className="flex flex-wrap gap-1.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity pt-1">
-                  <button onClick={e => { e.stopPropagation(); openEdit(reg); }} title="Редактировать" className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0"><Edit3 className="w-3.5 h-3.5 text-gray-400" /></button>
-                  <button onClick={e => { e.stopPropagation(); openSubmissions(reg); }} title="Заявки" className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0"><Eye className="w-3.5 h-3.5 text-gray-400" /></button>
-                  <button onClick={e => { e.stopPropagation(); openSubmissions(reg); }} title="Статистика"
-                    className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0">
-                    <BarChart3 className="w-3.5 h-3.5 text-gray-400" />
-                  </button>
-                  <a href={`/registrations/${reg.id}/participants`} onClick={e => e.stopPropagation()} title="Участники" className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0"><Users className="w-3.5 h-3.5 text-gray-400" /></a>
-                  {reg.publicSlug && (
-                    <a href={`/reg/${reg.publicSlug}`} target="_blank" rel="noopener"
-                      onClick={e => e.stopPropagation()}
-                      className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0" title="Предпросмотр">
-                      <ExternalLink className="w-3.5 h-3.5 text-gray-400" />
-                    </a>
-                  )}
-                  <button onClick={e => { e.stopPropagation(); handleDuplicate(reg.id); }} className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0" title="Копировать"><Copy className="w-3.5 h-3.5 text-gray-400" /></button>
-                  <button onClick={e => { e.stopPropagation(); handleDelete(reg); }} title="Удалить" className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-red-500/20 nx-press flex-shrink-0"><Trash2 className="w-3.5 h-3.5 text-red-400" /></button>
-                </div>
+              </div>
+              <div className="nx-divider mt-2" />
+              <div className="flex flex-wrap gap-1.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity pt-1">
+                <button onClick={e => { e.stopPropagation(); openEdit(reg); }} title="Редактировать" aria-label="Редактировать" className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0"><Edit3 className="w-3.5 h-3.5 text-gray-400" /></button>
+                <button onClick={e => { e.stopPropagation(); openSubmissions(reg); }} title="Заявки" aria-label="Заявки" className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0"><Eye className="w-3.5 h-3.5 text-gray-400" /></button>
+                <button onClick={e => { e.stopPropagation(); openSubmissions(reg); }} title="Статистика" aria-label="Статистика"
+                  className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0">
+                  <BarChart3 className="w-3.5 h-3.5 text-gray-400" />
+                </button>
+                <a href={`/registrations/${reg.id}/participants`} onClick={e => e.stopPropagation()} title="Участники" aria-label="Участники" className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0"><Users className="w-3.5 h-3.5 text-gray-400" /></a>
+                {reg.publicSlug && (
+                  <a href={`/reg/${reg.publicSlug}`} target="_blank" rel="noopener"
+                    onClick={e => e.stopPropagation()}
+                    className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0" title="Предпросмотр" aria-label="Предпросмотр">
+                    <ExternalLink className="w-3.5 h-3.5 text-gray-400" />
+                  </a>
+                )}
+                <button onClick={e => { e.stopPropagation(); handleDuplicate(reg.id); }} className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-white/10 nx-press flex-shrink-0" title="Копировать" aria-label="Копировать"><Copy className="w-3.5 h-3.5 text-gray-400" /></button>
+                <button onClick={e => { e.stopPropagation(); handleDelete(reg); }} title="Удалить" aria-label="Удалить" className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-red-500/20 nx-press flex-shrink-0"><Trash2 className="w-3.5 h-3.5 text-red-400" /></button>
               </div>
             </motion.div>
           );
         })}
       </div>
+
+      {/* Статус — фиксированная выпадашка */}
+      {openStatusId && statusPos && (
+        <div
+          className="fixed rounded-xl overflow-hidden"
+          style={{ left: statusPos.x, top: statusPos.y, zIndex: 300, minWidth: 150, background: 'rgba(20,20,35,0.98)', border: '1px solid rgba(255,255,255,0.12)', boxShadow: '0 12px 32px rgba(0,0,0,0.5)' }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {(['draft', 'active', 'closed'] as const).map((st) => {
+            const cfg = STATUS_CONFIG[st];
+            return (
+              <button
+                key={st}
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const target = filtered.find((x) => x.id === openStatusId);
+                  setOpenStatusId(null);
+                  if (target && target.status !== st) changeRegStatus(target, st);
+                }}
+                className="w-full flex items-center gap-2 px-3 py-2.5 text-left nx-press hover:bg-white/5"
+                style={{ color: cfg.color }}
+              >
+                <span className="w-1.5 h-1.5 rounded-full" style={{ background: cfg.color }} />
+                <span className="font-mono text-[10px]">{cfg.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {filtered.length === 0 && (
         <div className="nx-tile p-6 md:p-12 text-center">

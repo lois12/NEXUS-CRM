@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, GripVertical, Trash2, Settings, X, Copy } from 'lucide-react';
+import { Plus, GripVertical, Trash2, Settings, X, Copy, ChevronDown } from 'lucide-react';
 import { RegistrationField, FieldType, FIELD_TYPE_CONFIG } from '../../types';
 
 interface FieldBuilderProps {
@@ -15,6 +15,7 @@ interface FieldBuilderProps {
 export default function FieldBuilder({ fields, onAdd, onUpdate, onDelete, onDuplicate, onReorder }: FieldBuilderProps) {
   const [expandedField, setExpandedField] = useState<string | null>(null);
   const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const [paletteOpen, setPaletteOpen] = useState(false);
 
   const categories = {
     input: Object.entries(FIELD_TYPE_CONFIG).filter(([, v]) => v.category === 'input'),
@@ -46,33 +47,39 @@ export default function FieldBuilder({ fields, onAdd, onUpdate, onDelete, onDupl
   const handleDragEnd = () => setDragIdx(null);
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[200px_1fr] gap-5">
-      {/* Left: field palette */}
-      <aside className="nx-tile p-4 self-start lg:sticky lg:top-6">
-        <div className="flex items-center gap-2 mb-3">
-          <Plus className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />
-          <span className="font-mono text-xs font-bold text-gray-300">ДОБАВИТЬ БЛОК</span>
-        </div>
-        <div className="nx-divider mb-3" />
-        <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
-          {Object.entries(categories).map(([cat, items]) => (
-            <div key={cat}>
-              <p className="nx-eyebrow mb-2">{categoryLabels[cat]}</p>
-              <div className="space-y-1.5">
-                {items.map(([type, config]) => (
-                  <button key={type} onClick={() => onAdd(type as FieldType)}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-left hover:bg-white/5 transition-colors nx-press">
-                    <span className="text-base w-6 text-center">{config.icon}</span>
-                    <span className="font-mono text-xs text-gray-200">{config.label}</span>
-                  </button>
-                ))}
-              </div>
+    <div className="space-y-4">
+      {/* Палитра блоков — сворачивается, удобно на мобиле */}
+      <div>
+        <button type="button" onClick={() => setPaletteOpen(v => !v)}
+          className="w-full flex items-center justify-between gap-2 px-3 py-2.5 min-h-[44px] rounded-xl glass hover:bg-white/10 nx-press">
+          <span className="flex items-center gap-2 font-mono text-xs font-bold text-gray-300">
+            <Plus className="w-4 h-4" style={{ color: 'var(--color-primary)' }} /> ДОБАВИТЬ БЛОК
+          </span>
+          <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${paletteOpen ? 'rotate-180' : ''}`} />
+        </button>
+        {paletteOpen && (
+          <div className="mt-2 nx-tile p-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {Object.entries(categories).map(([cat, items]) => (
+                <div key={cat}>
+                  <p className="nx-eyebrow mb-2">{categoryLabels[cat]}</p>
+                  <div className="space-y-1.5">
+                    {items.map(([type, config]) => (
+                      <button key={type} onClick={() => onAdd(type as FieldType)}
+                        className="w-full flex items-center gap-2.5 px-3 py-2.5 min-h-[40px] rounded-xl text-left hover:bg-white/5 transition-colors nx-press">
+                        <span className="text-base w-6 text-center">{config.icon}</span>
+                        <span className="font-mono text-xs text-gray-200">{config.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      </aside>
+          </div>
+        )}
+      </div>
 
-      {/* Center: field canvas */}
+      {/* Canvas: field list */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="nx-eyebrow">БЛОКИ ФОРМЫ</h3>
@@ -116,15 +123,15 @@ export default function FieldBuilder({ fields, onAdd, onUpdate, onDelete, onDupl
                   </div>
                 </div>
                 <button onClick={() => setExpandedField(isExpanded ? null : field.id)}
-                  className={`p-2 rounded-lg transition-colors nx-press ${isExpanded ? 'bg-white/10 text-gray-200' : 'hover:bg-white/10 text-gray-400'}`}>
+                  className={`p-2 min-h-[40px] min-w-[40px] rounded-lg transition-colors nx-press ${isExpanded ? 'bg-white/10 text-gray-200' : 'hover:bg-white/10 text-gray-400'}`}>
                   <Settings className="w-3.5 h-3.5" />
                 </button>
                 <button onClick={() => onDelete(field.id)}
-                  className="p-2 rounded-lg hover:bg-red-500/20 transition-colors text-gray-400 hover:text-red-400 nx-press">
+                  className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-red-500/20 transition-colors text-gray-400 hover:text-red-400 nx-press">
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
                 <button onClick={() => onDuplicate(field.id)}
-                  className="p-2 rounded-lg hover:bg-blue-500/20 transition-colors text-gray-400 hover:text-blue-400 nx-press"
+                  className="p-2 min-h-[40px] min-w-[40px] rounded-lg hover:bg-blue-500/20 transition-colors text-gray-400 hover:text-blue-400 nx-press"
                   title="Дублировать">
                   <Copy className="w-3.5 h-3.5" />
                 </button>
