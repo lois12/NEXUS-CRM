@@ -77,7 +77,7 @@ export default function MyDay() {
       transition={{ duration: 0.55, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
       className="relative z-20"
     >
-      <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr_1fr] gap-3 md:gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-3 md:gap-4">
         {/* date / identity — asymmetric anchor */}
         <div className="hud-panel nx-tile nx-rise nx-rise-1 relative p-5 md:p-7 min-h-[180px] flex flex-col justify-between">
           <div className="flex items-start justify-between gap-3">
@@ -130,31 +130,31 @@ export default function MyDay() {
           </ul>
         </div>
 
-        {/* posts + events */}
-        <div className="flex flex-col gap-3 md:gap-4">
-          <div className="hud-panel nx-tile nx-rise nx-rise-3 p-4 md:p-5 flex-1">
-            <PanelHead icon={<FileText className="w-3.5 h-3.5" />} title="ПОСТЫ НА СЕГОДНЯ" to="/content" />
-            <div className="mt-3 space-y-2">
-              {posts.length === 0 && <EmptyLine text="публикаций нет" />}
-              {posts.slice(0, 3).map((p) => (
-                <div key={p.id} className="text-xs">
-                  <p className="font-mono text-gray-200 truncate">{p.title}</p>
-                  <p className="font-mono text-[10px] text-gray-500 uppercase">
-                    {(p.platforms?.length ? p.platforms : [p.platform]).join(' · ')} · {p.status}
-                  </p>
-                </div>
-              ))}
-            </div>
+        {/* posts — отдельная полная строка */}
+        <div className="lg:col-span-2 hud-panel nx-tile nx-rise nx-rise-3 p-4 md:p-5">
+          <PanelHead icon={<FileText className="w-3.5 h-3.5" />} title="ПОСТЫ НА СЕГОДНЯ" to="/content" />
+          <div className="mt-3 space-y-2">
+            {posts.length === 0 && <EmptyLine text="публикаций нет" />}
+            {posts.slice(0, 3).map((p) => (
+              <div key={p.id} className="text-xs">
+                <p className="font-mono text-gray-200 truncate">{p.title}</p>
+                <p className="font-mono text-[10px] text-gray-500 uppercase">
+                  {(p.platforms?.length ? p.platforms : [p.platform]).join(' · ')} · {p.status}
+                </p>
+              </div>
+            ))}
           </div>
-          <div className="hud-panel nx-tile nx-rise nx-rise-4 p-4 md:p-5">
-            <PanelHead icon={<Calendar className="w-3.5 h-3.5" />} title="МЕРОПРИЯТИЯ" to="/events" />
-            <div className="mt-2">
-              {events.length === 0 ? (
-                <EmptyLine text="событий нет" />
-              ) : (
-                <p className="text-xs font-mono text-gray-300 truncate">{events[0]?.title || events[0]?.name}</p>
-              )}
-            </div>
+        </div>
+
+        {/* events — отдельная полная строка */}
+        <div className="lg:col-span-2 hud-panel nx-tile nx-rise nx-rise-4 p-4 md:p-5">
+          <PanelHead icon={<Calendar className="w-3.5 h-3.5" />} title="МЕРОПРИЯТИЯ" to="/events" />
+          <div className="mt-2">
+            {events.length === 0 ? (
+              <EmptyLine text="событий нет" />
+            ) : (
+              <p className="text-xs font-mono text-gray-300 truncate">{events[0]?.title || events[0]?.name}</p>
+            )}
           </div>
         </div>
       </div>

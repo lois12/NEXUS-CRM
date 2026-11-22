@@ -870,12 +870,14 @@ function ToolPanel({ tool, onBack }: { tool: ToolDef; onBack: () => void }) {
       )}
 
       {/* Последние 5 действий по этому инструменту — результаты хранятся на сервере */}
-      {toolHistory.length > 0 && (
-        <div className="glass rounded-xl p-4">
-          <div className="flex items-center justify-between mb-2">
-            <label className="font-mono text-xs text-gray-500">ПОСЛЕДНИЕ ДЕЙСТВИЯ ({toolHistory.length}/5 · хранятся на сервере)</label>
-            <button onClick={() => loadToolHistory(tool.id)} className="font-mono text-[10px] text-gray-500 hover:text-gray-300 px-2 py-1 rounded">ОБНОВИТЬ</button>
-          </div>
+      <div className="glass rounded-xl p-4">
+        <div className="flex items-center justify-between mb-2">
+          <label className="font-mono text-xs text-gray-500">ПОСЛЕДНИЕ ДЕЙСТВИЯ ({toolHistory.length}/5 · хранятся на сервере)</label>
+          <button onClick={() => loadToolHistory(tool.id)} className="font-mono text-[10px] text-gray-500 hover:text-gray-300 px-2 py-1 rounded">ОБНОВИТЬ</button>
+        </div>
+        {toolHistory.length === 0 ? (
+          <p className="font-mono text-[11px] text-gray-600">// пока пусто — после первой конвертации результат сохранится здесь на 5 файлов</p>
+        ) : (
           <div className="space-y-1">
             {toolHistory.map(h => (
               <div key={h.id} className="flex items-center gap-3 px-3 py-2 rounded-lg bg-black/20 text-xs font-mono">
@@ -886,8 +888,8 @@ function ToolPanel({ tool, onBack }: { tool: ToolDef; onBack: () => void }) {
               </div>
             ))}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Drop zone */}
       <div

@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import {
   Calendar, QrCode, Wifi, CalendarClock, Sparkles, Shuffle,
   BookOpen, CheckSquare, Users, CloudSun, Package, PartyPopper,
-  Rocket, FolderOpen, BarChart3, Cpu, Gauge, Monitor, LucideIcon,
+  Rocket, FolderOpen, BarChart3, LucideIcon,
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import MyDay from '../components/dashboard/MyDay';
@@ -352,48 +352,10 @@ function SectionHead({ title, hint }: { title: string; hint?: string }) {
   );
 }
 
-function VitalTile({
-  icon: Icon, label, value, sub, rise,
-}: {
-  icon: LucideIcon; label: string; value: string; sub: string; rise: string;
-}) {
-  return (
-    <div className={`hud-panel nx-tile nx-rise ${rise} p-4 md:p-5 flex items-center gap-4`}>
-      <div
-        className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center"
-        style={{
-          background: 'color-mix(in srgb, var(--color-primary) 10%, transparent)',
-          border: '1px solid color-mix(in srgb, var(--color-primary) 22%, transparent)',
-        }}
-      >
-        <Icon className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />
-      </div>
-      <div className="min-w-0">
-        <p
-          className="font-mono text-[9px] tracking-[0.22em] uppercase"
-          style={{ color: 'var(--color-text-tertiary)' }}
-        >
-          {label}
-        </p>
-        <p
-          className="font-mono text-xl md:text-2xl font-bold leading-tight"
-          style={{ color: 'var(--color-text-primary)' }}
-        >
-          {value}
-        </p>
-        <p className="font-mono text-[10px] truncate" style={{ color: 'var(--color-text-secondary)' }}>
-          {sub}
-        </p>
-      </div>
-    </div>
-  );
-}
-
 export default function Dashboard() {
   const { themeName } = useTheme();
   const isLight = themeName === 'office-light';
   const reducedMotion = usePrefersReducedMotion();
-  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
   const cores = typeof navigator !== 'undefined' ? navigator.hardwareConcurrency ?? 0 : 0;
   const [sessionTime] = useState(() => new Date());
 
@@ -497,34 +459,9 @@ export default function Dashboard() {
 
       {/* ============ BENTO GRID ============ */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        {/* MyDay HUD — wide block */}
-        <div className="lg:col-span-8">
+        {/* MyDay HUD — full width (виталы убраны по правке: процессор/визуал/кадры) */}
+        <div className="lg:col-span-12">
           <MyDay />
-        </div>
-
-        {/* vitals — narrow stacked tiles */}
-        <div className="lg:col-span-4 flex flex-col gap-4">
-          <VitalTile
-            icon={Cpu}
-            label="ПРОЦЕССОР"
-            value={cores ? String(cores) : '—'}
-            sub="ядер доступно"
-            rise="nx-rise-1"
-          />
-          <VitalTile
-            icon={Gauge}
-            label="ВИЗУАЛ"
-            value="CSS SCENE"
-            sub="no WebGL, weak-device friendly"
-            rise="nx-rise-2"
-          />
-          <VitalTile
-            icon={Monitor}
-            label="КАДРЫ"
-            value={isMobile ? '30 FPS' : '60 FPS'}
-            sub="лимит кадров"
-            rise="nx-rise-3"
-          />
         </div>
 
         {/* quick-launch chips */}
