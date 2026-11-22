@@ -149,7 +149,8 @@ export async function convertWithLibreOffice(
     const outDir = jobDir;
     const args = [
       '--headless', '--norestore', '--nolockcheck', '--nodefault', '--nofirststartwizard',
-      `-env:UserInstallation=file://${profileDir.replace(/\\/g, '/')}`,
+      // Windows: file:///C:/... (три слэша); Linux: file:///tmp/... — ведущие / убираем, чтобы не было четверных
+      `-env:UserInstallation=file:///${profileDir.replace(/\\/g, '/').replace(/^\/+/, '')}`,
       '--convert-to', targetFormat,
       '--outdir', outDir,
       inputPath,
