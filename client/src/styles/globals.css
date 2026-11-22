@@ -2125,8 +2125,7 @@ html.low-fx .nx-bezel {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25) !important;
 }
 /* длинные списки: не рисуем то, что вне экрана */
-.low-fx .mat-card,
-.low-fx .nx-tile {
+.low-fx .mat-card {
   content-visibility: auto;
   contain-intrinsic-size: auto 120px;
 }
