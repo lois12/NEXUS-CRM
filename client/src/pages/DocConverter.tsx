@@ -588,6 +588,11 @@ function ToolPanel({ tool, onBack }: { tool: ToolDef; onBack: () => void }) {
             resultSize: json.data.size,
           } : i));
           pushHistory(json.data.filename || item.file.name, tool.label, json.data.size || 0);
+          // серверные инструменты тоже сохраняем в историю (последние 5 на инструмент)
+          try {
+            const rr = await fetch(json.data.downloadUrl, { headers: authHeaders() });
+            if (rr.ok) await saveToHistory(await rr.blob(), json.data.filename || item.file.name);
+          } catch { /* saveToHistory покажет ошибку сама */ }
         } else {
           setItems(prev => prev.map(i => i.id === item.id ? { ...i, status: 'error', error: json.error || 'Ошибка' } : i));
         }
