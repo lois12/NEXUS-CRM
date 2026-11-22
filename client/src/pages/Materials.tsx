@@ -471,20 +471,23 @@ export default function Materials() {
                 <div className="p-2.5">
                   <h3 className={`${preset.textSize} font-medium text-gray-200 truncate`}>{material.name}</h3>
                   <p className="text-[10px] text-gray-400">{formatFileSize(material.size)}</p>
-                  <div className="flex items-center gap-1.5 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={() => openSendModal(material)}
-                      className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-[10px] transition-colors nx-press"
+                  <div className="flex flex-wrap items-center gap-1.5 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onClick={() => openSendModal(material)} title="Отправить в чат" aria-label="Отправить в чат"
+                      className="flex items-center justify-center p-2 min-h-[40px] min-w-[40px] rounded-lg nx-press"
                       style={{ background: 'rgba(0,255,136,0.1)', color: 'var(--color-primary)', border: '1px solid rgba(0,255,136,0.2)' }}>
-                      <Send className="w-3 h-3" /> Чат
+                      <Send className="w-3.5 h-3.5" />
                     </button>
-                    <a href={material.url} download className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-white/5 text-gray-400 hover:text-gray-200 text-[10px] nx-press" aria-label="Скачать">
-                      <Download className="w-3 h-3" />
+                    <a href={material.url} download title="Скачать" aria-label="Скачать"
+                      className="flex items-center justify-center p-2 min-h-[40px] min-w-[40px] rounded-lg bg-white/5 text-gray-400 hover:text-gray-200 nx-press">
+                      <Download className="w-3.5 h-3.5" />
                     </a>
-                    <button onClick={() => handleCopyLink(material)} className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-white/5 text-gray-400 hover:text-gray-200 text-[10px] nx-press" aria-label="Копировать ссылку">
-                      <Link className="w-3 h-3" />
+                    <button onClick={() => handleCopyLink(material)} title="Копировать ссылку" aria-label="Копировать ссылку"
+                      className="flex items-center justify-center p-2 min-h-[40px] min-w-[40px] rounded-lg bg-white/5 text-gray-400 hover:text-gray-200 nx-press">
+                      <Link className="w-3.5 h-3.5" />
                     </button>
-                    <button onClick={() => handleDelete(material.id)} className="p-1.5 rounded-lg bg-white/5 text-gray-400 hover:text-red-400 hover:bg-red-500/10 nx-press" aria-label="Удалить">
-                      <Trash className="w-3 h-3" />
+                    <button onClick={() => handleDelete(material.id)} title="Удалить" aria-label="Удалить"
+                      className="flex items-center justify-center p-2 min-h-[40px] min-w-[40px] rounded-lg bg-white/5 text-gray-400 hover:text-red-400 hover:bg-red-500/10 nx-press">
+                      <Trash className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
@@ -523,12 +526,12 @@ export default function Materials() {
                     <td className="p-4 text-sm text-gray-400">{formatDateKR(material.createdAt)}</td>
                     <td className="p-4 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <button onClick={() => openSendModal(material)} className="p-2 rounded-lg bg-white/5 text-gray-400 hover:text-green-400 nx-press" title="Отправить в чат" aria-label="Отправить в чат">
+                        <button onClick={() => openSendModal(material)} className="flex items-center justify-center p-2 min-h-[40px] min-w-[40px] rounded-lg bg-white/5 text-gray-400 hover:text-green-400 nx-press" title="Отправить в чат" aria-label="Отправить в чат">
                           <Send className="w-4 h-4" />
                         </button>
-                        <a href={material.url} download className="p-2 rounded-lg bg-white/5 text-gray-400 hover:text-gray-200 nx-press" aria-label="Скачать"><Download className="w-4 h-4" /></a>
-                        <button onClick={() => handleCopyLink(material)} className="p-2 rounded-lg bg-white/5 text-gray-400 hover:text-gray-200 nx-press" aria-label="Копировать ссылку"><Link className="w-4 h-4" /></button>
-                        <button onClick={() => handleDelete(material.id)} className="p-2 rounded-lg bg-white/5 text-gray-400 hover:text-red-400 nx-press" aria-label="Удалить"><Trash className="w-4 h-4" /></button>
+                        <a href={material.url} download className="flex items-center justify-center p-2 min-h-[40px] min-w-[40px] rounded-lg bg-white/5 text-gray-400 hover:text-gray-200 nx-press" title="Скачать" aria-label="Скачать"><Download className="w-4 h-4" /></a>
+                        <button onClick={() => handleCopyLink(material)} className="flex items-center justify-center p-2 min-h-[40px] min-w-[40px] rounded-lg bg-white/5 text-gray-400 hover:text-gray-200 nx-press" title="Копировать ссылку" aria-label="Копировать ссылку"><Link className="w-4 h-4" /></button>
+                        <button onClick={() => handleDelete(material.id)} className="flex items-center justify-center p-2 min-h-[40px] min-w-[40px] rounded-lg bg-white/5 text-gray-400 hover:text-red-400 nx-press" title="Удалить" aria-label="Удалить"><Trash className="w-4 h-4" /></button>
                       </div>
                     </td>
                   </tr>
