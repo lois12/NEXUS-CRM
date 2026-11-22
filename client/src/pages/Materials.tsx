@@ -290,9 +290,9 @@ export default function Materials() {
         </div>
         <motion.button
           onClick={() => fileInputRef.current?.click()} disabled={uploadQueue.some(u => u.status === 'uploading')}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl font-mono text-sm nx-press"
+          className="flex items-center gap-1.5 px-3.5 py-2 min-h-[40px] rounded-xl font-mono text-xs nx-press self-start sm:self-auto"
           style={{ backgroundColor: 'var(--color-primary)', color: '#000' }}>
-          <Upload className="w-5 h-5" /> {uploadQueue.some(u => u.status === 'uploading') ? 'Загрузка...' : 'Загрузить'}
+          <Upload className="w-4 h-4" /> {uploadQueue.some(u => u.status === 'uploading') ? 'ЗАГРУЗКА…' : 'ЗАГРУЗИТЬ'}
         </motion.button>
         <input ref={fileInputRef} type="file" multiple onChange={handleUpload} className="hidden" />
       </div>
