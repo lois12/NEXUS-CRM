@@ -102,6 +102,7 @@ export const navGroups: NavGroup[] = [
       { to: '/image-converter', label: 'Конвертер изображений', roles: ALL },
       { to: '/doc-converter', label: 'Конвертер документов', roles: ALL },
       { to: '/photo-collage', label: 'Коллаж из фото', roles: ALL },
+      { to: '/frames', label: 'Рамка (аврора)', roles: ALL },
       { to: '/short-links', label: 'Сокращатель ссылок', roles: ALL },
       { to: '/bg-remover', label: 'Удаление фона', roles: ALL },
       { to: '/random', label: 'Рандомайзер', roles: ALL },

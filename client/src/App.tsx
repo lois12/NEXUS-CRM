@@ -28,6 +28,7 @@ const Weather = lazyPage(() => import('./pages/Weather'));
 const ImageConverter = lazyPage(() => import('./pages/ImageConverter'));
 const DocConverter = lazyPage(() => import('./pages/DocConverter'));
 const PhotoCollage = lazyPage(() => import('./pages/PhotoCollage'));
+const FrameMaker = lazyPage(() => import('./pages/FrameMaker'));
 const LinkShortener = lazyPage(() => import('./pages/LinkShortener'));
 const Users = lazyPage(() => import('./pages/Users'));
 const IdeaMap = lazyPage(() => import('./pages/IdeaMap'));
@@ -155,6 +156,7 @@ function AppRoutes() {
         <Route path="doc-converter" element={<PageWrapper><DocConverter /></PageWrapper>} />
         <Route path="doc-converter/:tool" element={<PageWrapper><DocConverter /></PageWrapper>} />
         <Route path="photo-collage" element={<PageWrapper><PhotoCollage /></PageWrapper>} />
+        <Route path="frames" element={<PageWrapper><FrameMaker /></PageWrapper>} />
         <Route path="short-links" element={<PageWrapper><LinkShortener /></PageWrapper>} />
         <Route path="ai-chat" element={<PageWrapper><AIChat /></PageWrapper>} />
         <Route path="bg-remover" element={<PageWrapper><BackgroundRemover /></PageWrapper>} />
