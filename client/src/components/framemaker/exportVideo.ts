@@ -1,4 +1,4 @@
-/** Экспорт короткого видео через MediaRecorder (webm) — запись с реального холста */
+/** Экспорт короткого видео через MediaRecorder — запись с реального холста */
 import { FrameState, drawFrame } from './framePresets';
 
 export interface VideoOptions {
@@ -12,17 +12,31 @@ export function videoSupported(): boolean {
     && typeof (HTMLCanvasElement.prototype as any).captureStream === 'function';
 }
 
+/**
+ * MP4 (H.264) первым: файл открывается везде.
+ * webm из MediaRecorder часто без Duration — плееры Windows/Telegram его не запускают.
+ */
 function pickMime(): string | undefined {
   const candidates = [
+    'video/mp4;codecs=avc1.42E01E',
+    'video/mp4;codecs=avc1',
+    'video/mp4',
     'video/webm;codecs=vp9',
     'video/webm;codecs=vp8',
     'video/webm',
-    'video/mp4',
   ];
   for (const m of candidates) {
     if (MediaRecorder.isTypeSupported(m)) return m;
   }
   return undefined;
+}
+
+/** Расширение файла по MIME (без параметров codecs) */
+export function extForMime(mime: string | undefined): string {
+  const base = (mime || '').split(';')[0].trim();
+  if (base === 'video/mp4') return 'mp4';
+  if (base === 'video/webm') return 'webm';
+  return 'webm';
 }
 
 /**
@@ -41,17 +55,21 @@ export async function exportFrameVideo(state: FrameState, opts: VideoOptions = {
   if (!ctx) return null;
 
   const stream = canvas.captureStream(fps);
-  const recorder = new MediaRecorder(stream, mime ? { mimeType: mime, videoBitsPerSecond: 8_000_000 } : undefined);
+  const recorder = new MediaRecorder(
+    stream,
+    mime ? { mimeType: mime, videoBitsPerSecond: 8_000_000 } : undefined,
+  );
   const chunks: BlobPart[] = [];
   recorder.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
 
   const done = new Promise<Blob | null>((resolve) => {
     recorder.onstop = () => {
-      resolve(chunks.length ? new Blob(chunks, { type: mime || 'video/webm' }) : null);
+      const base = (mime || 'video/webm').split(';')[0];
+      resolve(chunks.length ? new Blob(chunks, { type: base }) : null);
     };
   });
 
-  recorder.start();
+  recorder.start(100); // timeslice — финальный чанк гарантированно доезжает
   const start = performance.now();
   await new Promise<void>((resolve) => {
     const step = () => {
@@ -62,6 +80,8 @@ export async function exportFrameVideo(state: FrameState, opts: VideoOptions = {
     };
     requestAnimationFrame(step);
   });
+  // небольшая пауза, чтобы последние кадры попали в поток
+  await new Promise((r) => setTimeout(r, 150));
   recorder.stop();
   stream.getTracks().forEach((tr) => tr.stop());
 

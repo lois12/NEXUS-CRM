@@ -18,7 +18,8 @@ export async function exportFrameGif(state: FrameState, opts: GifOptions = {}): 
   const canvas = document.createElement('canvas');
   canvas.width = gw;
   canvas.height = gh;
-  const ctx = canvas.getContext('2d');
+  // getImageData каждый кадр — подсказываем браузеру оптимизировать readback
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
   if (!ctx) throw new Error('Canvas 2D недоступен');
 
   const gif = GIFEncoder();

@@ -3,10 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Sparkles, Upload, Move, Download } from 'lucide-react';
 import FrameCanvas from '../components/framemaker/FrameCanvas';
 import {
-  FRAME_PRESETS, type FrameState, type FitMode,
+  FRAME_PRESETS, type FrameState, type FitMode, type TextShape,
 } from '../components/framemaker/framePresets';
 import { exportFrameGif } from '../components/framemaker/exportGif';
-import { exportFrameVideo, videoSupported } from '../components/framemaker/exportVideo';
+import { exportFrameVideo, videoSupported, extForMime } from '../components/framemaker/exportVideo';
 import { downloadBlob } from '../utils/docTools';
 import { showToast } from '../components/ui/NexusModal';
 
@@ -37,6 +37,26 @@ function chip(active: boolean): string {
   }`;
 }
 
+/** Переключатель-тумблер (сияние / ветер / снег) */
+function Switch({ on, onToggle, label }: { on: boolean; onToggle: () => void; label: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      role="switch"
+      aria-checked={on}
+      aria-label={label}
+      className="w-12 h-6 rounded-full transition-colors relative nx-press shrink-0"
+      style={{ background: on ? 'var(--color-primary)' : '#3a3a50' }}
+    >
+      <span
+        className="absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform"
+        style={{ transform: on ? 'translateX(24px)' : 'translateX(2px)' }}
+      />
+    </button>
+  );
+}
+
 /** Рамка в стиле северного сияния: превью + экспорт PNG/GIF/видео */
 export default function FrameMaker() {
   const navigate = useNavigate();
@@ -55,10 +75,19 @@ export default function FrameMaker() {
   const [fontFamily, setFontFamily] = useState(FONTS[0].value);
   const [fontSize, setFontSize] = useState(55); // ×0.001 → 0.055 высоты
   const [textColor, setTextColor] = useState(TEXT_COLORS[0]);
+  const [textX, setTextX] = useState(0.5);
+  const [textY, setTextY] = useState<number | null>(null); // null = авто-низ по центру
+  const [textAngle, setTextAngle] = useState(0);
+  const [textShape, setTextShape] = useState<TextShape>('straight');
+  const [textBend, setTextBend] = useState(55); // ×0.01 → 0.55
 
   const [auroraOn, setAuroraOn] = useState(true);
   const [brightness, setBrightness] = useState(85);
   const [speed, setSpeed] = useState(100);
+
+  const [windOn, setWindOn] = useState(true);
+  const [snowOn, setSnowOn] = useState(true);
+  const [fxIntensity, setFxIntensity] = useState(55);
 
   const [exporting, setExporting] = useState<'png' | 'gif' | 'video' | null>(null);
 
@@ -73,9 +102,17 @@ export default function FrameMaker() {
     fontFamily,
     fontSize: fontSize / 1000,
     textColor,
+    textX,
+    textY,
+    textAngle,
+    textShape,
+    textBend: textBend / 100,
     auroraOn,
     auroraBrightness: brightness / 100,
     auroraSpeed: speed / 100,
+    windOn,
+    snowOn,
+    fxIntensity: fxIntensity / 100,
   };
 
   // подгрузка выбранного шрифта в document.fonts — иначе canvas рисует запасным
@@ -134,8 +171,9 @@ export default function FrameMaker() {
     try {
       const blob = await exportFrameVideo(state, { seconds: 4, fps: 30 });
       if (!blob) { showToast('Браузер не поддерживает запись видео', 'error'); return; }
-      downloadBlob(blob, `frame-${preset.id}.webm`);
-      showToast('Видео сохранено (webm)', 'success');
+      const ext = extForMime(blob.type);
+      downloadBlob(blob, `frame-${preset.id}.${ext}`);
+      showToast(ext === 'mp4' ? 'Видео сохранено (mp4)' : 'Видео сохранено (webm)', 'success');
     } catch {
       showToast('Ошибка экспорта видео', 'error');
     } finally {
@@ -169,9 +207,12 @@ export default function FrameMaker() {
           canvasRef={canvasRef}
           onOffsetChange={(x, y) => { setOx(x); setOy(y); }}
           onScaleChange={setScale}
+          onTextMove={(x, y) => { setTextX(x); setTextY(y); }}
         />
         <p className="font-mono text-[10px] text-gray-600 text-center mt-2">
-          {image ? 'перетащите картинку внутри рамки · колесо/пинч — масштаб' : '// загрузите картинку, чтобы начать'}
+          {image
+            ? 'перетаскивайте картинку ИЛИ текст по холсту · колесо/пинч — масштаб'
+            : '// загрузите картинку, чтобы начать'}
         </p>
       </div>
 
@@ -232,7 +273,7 @@ export default function FrameMaker() {
 
       {/* Текст */}
       <div className="glass rounded-xl p-3 space-y-3">
-        <span className="nx-eyebrow">ТЕКСТ ВНИЗУ РАМКИ</span>
+        <span className="nx-eyebrow">ТЕКСТ НА КАРТИНКЕ</span>
         <input
           value={text}
           onChange={(e) => setText(e.target.value)}
@@ -277,25 +318,56 @@ export default function FrameMaker() {
             </div>
           </div>
         </div>
+
+        {/* позиция / наклон / форма */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <label className={LABEL}>НАКЛОН: {textAngle}°</label>
+            <input
+              type="range" min={-40} max={40} value={textAngle}
+              onChange={(e) => setTextAngle(Number(e.target.value))}
+              className="w-full accent-[var(--color-primary)] mt-2"
+            />
+          </div>
+          <div>
+            <label className={LABEL}>ФОРМА</label>
+            <select value={textShape} onChange={(e) => setTextShape(e.target.value as TextShape)} className={`${FIELD} mt-1`}>
+              <option value="straight">Прямая</option>
+              <option value="arc-up">Дуга вверх (∩)</option>
+              <option value="arc-down">Дуга вниз (∪)</option>
+            </select>
+          </div>
+          <div>
+            <label className={LABEL}>ИЗГИБ: {textShape === 'straight' ? '—' : `${textBend}%`}</label>
+            <input
+              type="range" min={15} max={100} value={textBend}
+              disabled={textShape === 'straight'}
+              onChange={(e) => setTextBend(Number(e.target.value))}
+              className="w-full accent-[var(--color-primary)] mt-2 disabled:opacity-30"
+            />
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="font-mono text-[10px] text-gray-600">
+            {textY == null ? 'позиция: низ по центру (авто)' : `позиция: ${Math.round(textX * 100)}% × ${Math.round(textY * 100)}%`}
+            {' · '}
+            тащите текст мышкой по картинке
+          </p>
+          <button
+            onClick={() => { setTextX(0.5); setTextY(null); setTextAngle(0); }}
+            className="btn-ghost nx-press px-3.5 py-2 min-h-[40px] rounded-xl font-mono text-[11px]"
+            title="Вернуть текст вниз по центру, снять наклон"
+          >
+            СБРОС ПОЗИЦИИ
+          </button>
+        </div>
       </div>
 
       {/* Сияние */}
       <div className="glass rounded-xl p-3 space-y-3">
         <div className="flex items-center justify-between">
           <span className="nx-eyebrow">СИЯНИЕ (СЕВЕРНОЕ СИЯНИЕ)</span>
-          <button
-            type="button"
-            onClick={() => setAuroraOn((v) => !v)}
-            role="switch"
-            aria-checked={auroraOn}
-            className="w-12 h-6 rounded-full transition-colors relative nx-press"
-            style={{ background: auroraOn ? 'var(--color-primary)' : '#3a3a50' }}
-          >
-            <span
-              className="absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform"
-              style={{ transform: auroraOn ? 'translateX(24px)' : 'translateX(2px)' }}
-            />
-          </button>
+          <Switch on={auroraOn} onToggle={() => setAuroraOn((v) => !v)} label="Сияние" />
         </div>
         {auroraOn && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -317,6 +389,34 @@ export default function FrameMaker() {
             </div>
           </div>
         )}
+      </div>
+
+      {/* Эффекты поверх кадра */}
+      <div className="glass rounded-xl p-3 space-y-3">
+        <span className="nx-eyebrow">ЭФФЕКТЫ ПОВЕРХ ФОТО И ТЕКСТА</span>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="flex items-center justify-between gap-2 px-1 py-1">
+            <span className="font-mono text-[11px] text-gray-300">КОСМИЧЕСКИЙ ВЕТЕР</span>
+            <Switch on={windOn} onToggle={() => setWindOn((v) => !v)} label="Космический ветер" />
+          </div>
+          <div className="flex items-center justify-between gap-2 px-1 py-1">
+            <span className="font-mono text-[11px] text-gray-300">ПАДАЮЩИЙ СНЕГ</span>
+            <Switch on={snowOn} onToggle={() => setSnowOn((v) => !v)} label="Падающий снег" />
+          </div>
+        </div>
+        {(windOn || snowOn) && (
+          <div>
+            <label className={LABEL}>ПЛОТНОСТЬ: {fxIntensity}%</label>
+            <input
+              type="range" min={15} max={100} value={fxIntensity}
+              onChange={(e) => setFxIntensity(Number(e.target.value))}
+              className="w-full accent-[var(--color-primary)] mt-2"
+            />
+          </div>
+        )}
+        <p className="font-mono text-[10px] text-gray-600">
+          ветер — редкие световые штрихи, снег — мягкие хлопья; оба идут поверх кадра, но не густят
+        </p>
       </div>
 
       {/* Экспорт */}
@@ -343,7 +443,7 @@ export default function FrameMaker() {
             disabled={!!exporting}
             className="nx-press px-4 py-2.5 min-h-[44px] rounded-xl font-mono text-xs font-bold flex items-center gap-2 disabled:opacity-50"
             style={{ background: 'rgba(125,95,255,0.15)', color: '#7d5fff', border: '1px solid rgba(125,95,255,0.35)' }}
-            title="Короткое видео (webm)"
+            title="Короткое видео (mp4, где поддерживается)"
           >
             ВИДЕО {exporting === 'video' ? '…' : ''}
           </button>

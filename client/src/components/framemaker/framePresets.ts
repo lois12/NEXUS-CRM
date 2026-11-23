@@ -47,15 +47,39 @@ export interface FrameState {
   image: HTMLImageElement | null;
   fitMode: FitMode;
   scale: number; // множитель поверх fit
-  ox: number; // сдвиг по X, доли ширины (от центра)
-  oy: number; // сдвиг по Y, доли высоты
+  ox: number; // сдвиг картинки по X, доли ширины (от центра)
+  oy: number; // сдвиг картинки по Y, доли высоты
   text: string;
   fontFamily: string;
   fontSize: number; // доля высоты холста (0.03–0.12)
   textColor: string;
+  /** позиция текста: X — доля ширины (центр блока), Y — доля высоты; null = авто-низ по центру */
+  textX: number;
+  textY: number | null;
+  /** наклон текста, градусы */
+  textAngle: number;
+  /** форма текста: прямая / дуга вверх (∩) / дуга вниз (∪) */
+  textShape: TextShape;
+  /** изгиб дуги 0..1 (только для дуги) */
+  textBend: number;
   auroraOn: boolean;
   auroraBrightness: number; // 0..1
   auroraSpeed: number; // 0..2
+  windOn: boolean;
+  snowOn: boolean;
+  /** плотность/интенсивность эффектов 0..1 */
+  fxIntensity: number;
+}
+
+export type TextShape = 'straight' | 'arc-up' | 'arc-down';
+
+/** Габарит текстового блока для hit-test (в координатах холста) */
+export interface TextBBox {
+  cx: number;
+  cy: number;
+  w: number;
+  h: number;
+  angle: number; // радианы
 }
 
 export function shapePath(ctx: CanvasRenderingContext2D, w: number, h: number, preset: FramePreset) {
@@ -99,9 +123,107 @@ function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number)
   return lines;
 }
 
+/** Одна строка текста дугой: span — полный угол дуги в радианах, shape — направление */
+function drawArcLine(
+  ctx: CanvasRenderingContext2D,
+  line: string,
+  cx: number,
+  cy: number,
+  shape: TextShape,
+  span: number,
+) {
+  const W = ctx.measureText(line).width;
+  if (W < 4) return;
+  const R = W / span; // длина дуги ≈ хорда текста
+  let s = -W / 2;
+  for (const ch of line) {
+    const cw = ctx.measureText(ch).width;
+    const a = (s + cw / 2) / R; // угол символа на дуге
+    ctx.save();
+    if (shape === 'arc-up') {
+      // центр окружности снизу → ∩ (концы опускаются)
+      ctx.translate(cx + R * Math.sin(a), cy + R * (1 - Math.cos(a)));
+      ctx.rotate(a);
+    } else {
+      // центр сверху → ∪ (концы поднимаются)
+      ctx.translate(cx + R * Math.sin(a), cy + R * (Math.cos(a) - 1));
+      ctx.rotate(-a);
+    }
+    ctx.fillText(ch, 0, 0);
+    ctx.restore();
+    s += cw;
+  }
+}
+
+/** Кэш мягкого снежинки-спрайта (радиальный градиент) — дёшево для рендера */
+let snowSprite: HTMLCanvasElement | null = null;
+function getSnowSprite(): HTMLCanvasElement {
+  if (snowSprite) return snowSprite;
+  const c = document.createElement('canvas');
+  c.width = 64;
+  c.height = 64;
+  const g = c.getContext('2d');
+  if (g) {
+    const grad = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    grad.addColorStop(0, 'rgba(255,255,255,1)');
+    grad.addColorStop(0.4, 'rgba(255,255,255,0.8)');
+    grad.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = grad;
+    g.fillRect(0, 0, 64, 64);
+  }
+  snowSprite = c;
+  return c;
+}
+
+/** Космический ветер — редкие световые штрихи, летящие по диагонали (поверх фото и текста) */
+function drawWind(ctx: CanvasRenderingContext2D, w: number, h: number, minDim: number, t: number, intensity: number) {
+  const N = 36;
+  const speed = 0.000045;
+  for (let i = 0; i < N; i++) {
+    const px = (((i * 0.137 + t * speed * (1 + (i % 5) * 0.18)) % 1.3) - 0.15);
+    const py = ((i * 0.311 + Math.sin(t * 0.00035 + i) * 0.035) % 1.12) - 0.06;
+    const x = px * w;
+    const y = py * h;
+    if (x < -w * 0.1 || x > w * 1.1) continue;
+    // намеренно низкая непрозрачность — фото и текст остаются видимыми
+    const alpha = intensity * (0.08 + (i % 5) * 0.035);
+    if (alpha < 0.02) continue;
+    const len = minDim * (0.035 + (i % 4) * 0.02);
+    const color = auroraColorAt(i * 0.19 + t * 0.00004);
+    ctx.strokeStyle = rgba(color, alpha);
+    ctx.lineWidth = Math.max(1, minDim * 0.0022);
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + len, y - len * 0.28);
+    ctx.stroke();
+  }
+}
+
+/** Настоящий снег: мягкие белые хлопья (спрайт с градиентом), падение с покачиванием и глубиной */
+function drawSnow(ctx: CanvasRenderingContext2D, w: number, h: number, minDim: number, t: number, intensity: number) {
+  const N = Math.round(24 + intensity * 56);
+  const sprite = getSnowSprite();
+  const prev = ctx.globalCompositeOperation;
+  ctx.globalCompositeOperation = 'screen'; // хлопья светятся, не замутняя фото
+  for (let i = 0; i < N; i++) {
+    const depth = 0.45 + (i % 5) * 0.14; // 0.45..1 — дальние мельче и медленнее
+    const fall = (0.000028 + (i % 5) * 0.000013) * depth;
+    const py = (((i * 0.173 + t * fall) % 1.14) - 0.07);
+    const sway = Math.sin(t * 0.0011 + i * 1.7) * 0.016 * depth;
+    const px = ((i * 0.419) % 1) + sway;
+    const r = minDim * (0.0032 + (i % 4) * 0.0021) * depth;
+    const alpha = intensity * (0.35 + (i % 6) * 0.1) * (0.6 + depth * 0.4);
+    ctx.globalAlpha = Math.min(0.95, alpha);
+    ctx.drawImage(sprite, px * w - r, py * h - r, r * 2, r * 2);
+  }
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = prev;
+}
+
 /**
- * Рисует кадр: клип по форме → картинка (fit + масштаб + сдвиг) → текст → рамка-сияние.
- * t — время в мс (детерминированно: и превью, и кадры GIF/видео используют одну функцию).
+ * Рисует кадр: клип по форме → картинка → виньетка → текст → ветер/снег → рамка-сияние.
+ * t — время в мс (детерминированно: превью, GIF и видео используют одну функцию).
+ * Возвращает габарит текста для перетаскивания (или null).
  */
 export function drawFrame(
   ctx: CanvasRenderingContext2D,
@@ -109,7 +231,7 @@ export function drawFrame(
   h: number,
   s: FrameState,
   t: number,
-): void {
+): TextBBox | null {
   const minDim = Math.min(w, h);
   ctx.clearRect(0, 0, w, h);
 
@@ -128,7 +250,6 @@ export function drawFrame(
     const dh = img.naturalHeight * sc;
     const dx = w / 2 + s.ox * w - dw / 2;
     const dy = h / 2 + s.oy * h - dh / 2;
-    // фон под «вписать» — тёмный, чтобы не было пустоты
     ctx.fillStyle = '#12141c';
     ctx.fillRect(0, 0, w, h);
     ctx.drawImage(img, dx, dy, dw, dh);
@@ -137,40 +258,71 @@ export function drawFrame(
     ctx.fillRect(0, 0, w, h);
   }
 
-  // лёгкая виньетка снизу — читаемость текста
-  if (s.text.trim()) {
-    const grad = ctx.createLinearGradient(0, h * 0.55, 0, h);
-    grad.addColorStop(0, 'rgba(0,0,0,0)');
-    grad.addColorStop(1, 'rgba(0,0,0,0.55)');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, h * 0.55, w, h * 0.45);
-  }
-
-  // ── 2. текст внизу ──
-  if (s.text.trim()) {
+  // ── 2. текст: метрики → виньетка под текст → отрисовка (можно тащить и наклонять) ──
+  let bbox: TextBBox | null = null;
+  const hasText = !!s.text.trim();
+  if (hasText) {
     const px = Math.round(h * s.fontSize);
     ctx.font = `700 ${px}px ${s.fontFamily}`;
     ctx.textAlign = 'center';
-    ctx.textBaseline = 'alphabetic';
+    ctx.textBaseline = 'middle';
     const maxWidth = w * 0.86;
     const lines = wrapText(ctx, s.text.trim(), maxWidth);
     const lineHeight = px * 1.2;
+    const blockH = lineHeight * lines.length;
     const pad = minDim * 0.055;
-    let y = h - pad - (lines.length - 1) * lineHeight;
+
+    const cx = s.textX * w;
+    const cy = s.textY == null
+      ? h - pad - blockH / 2          // авто: прижат к низу по центру
+      : s.textY * h;
+    const angle = (s.textAngle * Math.PI) / 180;
+
+    let maxLineW = 0;
+    for (const line of lines) maxLineW = Math.max(maxLineW, ctx.measureText(line).width);
+
+    // виньетка следует за текстом — читаемость в любой позиции
+    const vHalf = Math.max(blockH * 1.5, h * 0.28);
+    const grad = ctx.createLinearGradient(0, cy - vHalf, 0, cy + vHalf);
+    grad.addColorStop(0, 'rgba(0,0,0,0)');
+    grad.addColorStop(0.5, 'rgba(0,0,0,0.5)');
+    grad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, cy - vHalf, w, vHalf * 2);
+
+    const arcOn = s.textShape !== 'straight' && s.textBend > 0.02 && maxLineW > 8;
+    const span = arcOn ? Math.max(0.15, s.textBend) : 0; // рад дуги
+    const sagitta = arcOn ? (maxLineW / span) * (1 - Math.cos(span / 2)) : 0;
+
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(angle);
     ctx.shadowColor = 'rgba(0,0,0,0.65)';
     ctx.shadowBlur = px * 0.25;
     ctx.fillStyle = s.textColor;
+    let ly = -((lines.length - 1) / 2) * lineHeight;
     for (const line of lines) {
-      ctx.fillText(line, w / 2, y);
-      y += lineHeight;
+      if (arcOn) {
+        drawArcLine(ctx, line, 0, ly, s.textShape, span);
+      } else {
+        ctx.fillText(line, 0, ly);
+      }
+      ly += lineHeight;
     }
     ctx.shadowColor = 'transparent';
     ctx.shadowBlur = 0;
+    ctx.restore();
+
+    bbox = { cx, cy, w: maxLineW, h: blockH + sagitta * 1.6, angle };
   }
+
+  // ── 3. эффекты поверх фото и текста (внутри клипа) ──
+  if (s.windOn && s.fxIntensity > 0) drawWind(ctx, w, h, minDim, t, s.fxIntensity);
+  if (s.snowOn && s.fxIntensity > 0) drawSnow(ctx, w, h, minDim, t, s.fxIntensity);
 
   ctx.restore();
 
-  // ── 3. рамка-сияние (поверх, снаружи контура) ──
+  // ── 4. рамка-сияние (поверх, по контуру) ──
   if (s.auroraOn && s.auroraBrightness > 0) {
     const speed = s.auroraSpeed;
     const layers = 3;
@@ -205,4 +357,18 @@ export function drawFrame(
     ctx.stroke();
     ctx.restore();
   }
+
+  return bbox;
+}
+
+/** Попадает ли точка (координаты холста) в текстовый блок с учётом наклона */
+export function hitTestText(bbox: TextBBox | null, x: number, y: number, pad = 10): boolean {
+  if (!bbox) return false;
+  const dx = x - bbox.cx;
+  const dy = y - bbox.cy;
+  const cos = Math.cos(-bbox.angle);
+  const sin = Math.sin(-bbox.angle);
+  const rx = dx * cos - dy * sin;
+  const ry = dx * sin + dy * cos;
+  return Math.abs(rx) <= bbox.w / 2 + pad && Math.abs(ry) <= bbox.h / 2 + pad;
 }
