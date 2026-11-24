@@ -74,7 +74,7 @@ export async function exportFrameVideo(state: FrameState, opts: VideoOptions = {
   await new Promise<void>((resolve) => {
     const step = () => {
       const elapsed = performance.now() - start;
-      drawFrame(ctx, canvas.width, canvas.height, state, elapsed);
+      drawFrame(ctx, canvas.width, canvas.height, state, elapsed, '#0b0e17');
       if (elapsed >= seconds * 1000) { resolve(); return; }
       requestAnimationFrame(step);
     };

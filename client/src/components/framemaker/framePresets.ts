@@ -238,9 +238,104 @@ function drawSnow(ctx: CanvasRenderingContext2D, w: number, h: number, minDim: n
   ctx.globalCompositeOperation = prev;
 }
 
+/** Равномерная полилиния по контуру формы — для бегущих цветов переливания */
+function sampleShapePoints(preset: FramePreset, w: number, h: number, n: number): { x: number; y: number }[] {
+  const pts: { x: number; y: number }[] = [];
+  if (preset.radius === 'circle') {
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2;
+      pts.push({ x: w / 2 + (w / 2) * Math.cos(a), y: h / 2 + (h / 2) * Math.sin(a) });
+    }
+    return pts;
+  }
+  const r = Math.min(w, h) * preset.radius;
+  // сегменты: верх, TR, право, BR, низ, BL, лево, TL
+  const segs: Array<(u: number) => { x: number; y: number }> = [
+    (u) => ({ x: r + u * (w - 2 * r), y: 0 }),
+    (u) => { const a = -Math.PI / 2 + u * Math.PI / 2; return { x: w - r + r * Math.cos(a), y: r + r * Math.sin(a) }; },
+    (u) => ({ x: w, y: r + u * (h - 2 * r) }),
+    (u) => { const a = u * Math.PI / 2; return { x: w - r + r * Math.cos(a), y: h - r + r * Math.sin(a) }; },
+    (u) => ({ x: w - r - u * (w - 2 * r), y: h }),
+    (u) => { const a = Math.PI / 2 + u * Math.PI / 2; return { x: r + r * Math.cos(a), y: h - r + r * Math.sin(a) }; },
+    (u) => ({ x: 0, y: h - r - u * (h - 2 * r) }),
+    (u) => { const a = Math.PI + u * Math.PI / 2; return { x: r + r * Math.cos(a), y: r + r * Math.sin(a) }; },
+  ];
+  const lens = [w - 2 * r, (Math.PI / 2) * r, h - 2 * r, (Math.PI / 2) * r, w - 2 * r, (Math.PI / 2) * r, h - 2 * r, (Math.PI / 2) * r];
+  const total = lens.reduce((a, b) => a + b, 0) || 1;
+  for (let i = 0; i < n; i++) {
+    let d = (i / n) * total;
+    let si = 0;
+    while (si < lens.length - 1 && d > lens[si]) { d -= lens[si]; si++; }
+    const u = lens[si] > 0 ? d / lens[si] : 0;
+    pts.push(segs[si](u));
+  }
+  return pts;
+}
+
+/**
+ * Рамка-сияние с переливанием: цвета бегут по периметру,
+ * поверх идёт блик-волна (как отражение света на грани).
+ */
+function drawAuroraFrame(ctx: CanvasRenderingContext2D, w: number, h: number, minDim: number, s: FrameState, t: number) {
+  const speed = s.auroraSpeed;
+  const brightness = s.auroraBrightness;
+
+  // внешнее свечение — 2 пульсирующих слоя
+  for (let i = 0; i < 2; i++) {
+    const phase = t * 0.001 * speed + (i * Math.PI * 2) / 2;
+    const pulse = 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(phase));
+    const alpha = brightness * pulse * (i === 0 ? 0.95 : 0.6);
+    if (alpha <= 0.02) continue;
+    const color = auroraColorAt(t * 0.00008 * speed + i / 2);
+    ctx.save();
+    shapePath(ctx, w, h, s.preset);
+    ctx.lineWidth = Math.max(2, minDim * 0.012 * (1 + i * 0.55));
+    ctx.strokeStyle = rgba(color, alpha);
+    ctx.shadowColor = rgba(color, alpha * 0.95);
+    ctx.shadowBlur = minDim * (0.035 + i * 0.025);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // переливание: градиент бежит по контуру + блик-волна
+  const pts = sampleShapePoints(s.preset, w, h, 110);
+  const n = pts.length;
+  const head = (t * 0.00012 * speed) % 1;
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.lineCap = 'round';
+  ctx.lineWidth = Math.max(2, minDim * 0.011);
+  for (let i = 0; i < n; i++) {
+    const u = i / n;
+    const col = auroraColorAt(u * 0.85 + t * 0.00005 * speed);
+    let d = Math.abs(u - head);
+    if (d > 0.5) d = 1 - d;
+    const spec = Math.exp(-(d * d) / 0.0022);
+    const alpha = Math.min(1, 0.22 + spec * 0.78) * (0.35 + 0.65 * brightness);
+    const r = Math.round(col.r + (255 - col.r) * spec);
+    const g = Math.round(col.g + (255 - col.g) * spec);
+    const b = Math.round(col.b + (255 - col.b) * spec);
+    ctx.strokeStyle = `rgba(${r},${g},${b},${alpha.toFixed(3)})`;
+    ctx.beginPath();
+    ctx.moveTo(pts[i].x, pts[i].y);
+    ctx.lineTo(pts[(i + 1) % n].x, pts[(i + 1) % n].y);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // тонкая внутренняя линия — «объём»
+  ctx.save();
+  shapePath(ctx, w, h, s.preset);
+  ctx.lineWidth = Math.max(1, minDim * 0.004);
+  ctx.strokeStyle = `rgba(255,255,255,${(0.25 + 0.35 * brightness).toFixed(3)})`;
+  ctx.stroke();
+  ctx.restore();
+}
+
 /**
  * Рисует кадр: клип по форме → картинка → виньетка → текст → ветер/снег → рамка-сияние.
  * t — время в мс (детерминированно: превью, GIF и видео используют одну функцию).
+ * bg — непрозрачный фон (для GIF/видео: углы без «мусора» квантования).
  * Возвращает габарит текста для перетаскивания (или null).
  */
 export function drawFrame(
@@ -249,9 +344,14 @@ export function drawFrame(
   h: number,
   s: FrameState,
   t: number,
+  bg?: string,
 ): TextBBox | null {
   const minDim = Math.min(w, h);
   ctx.clearRect(0, 0, w, h);
+  if (bg) {
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, w, h);
+  }
 
   // ── 1. содержимое в форме рамки ──
   ctx.save();
@@ -342,30 +442,7 @@ export function drawFrame(
 
   // ── 4. рамка-сияние (поверх, по контуру) ──
   if (s.auroraOn && s.auroraBrightness > 0) {
-    const speed = s.auroraSpeed;
-    const layers = 3;
-    for (let i = 0; i < layers; i++) {
-      const phase = (t * 0.001 * speed) + (i * Math.PI * 2) / layers;
-      const pulse = 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(phase));
-      const alpha = s.auroraBrightness * pulse;
-      if (alpha <= 0.02) continue;
-      const color = auroraColorAt(t * 0.00008 * speed + i / layers);
-      ctx.save();
-      shapePath(ctx, w, h, s.preset);
-      ctx.lineWidth = Math.max(2, minDim * 0.012 * (1 + i * 0.55));
-      ctx.strokeStyle = rgba(color, alpha);
-      ctx.shadowColor = rgba(color, alpha * 0.95);
-      ctx.shadowBlur = minDim * (0.035 + i * 0.025);
-      ctx.stroke();
-      ctx.restore();
-    }
-    // тонкая внутренняя линия — «объём»
-    ctx.save();
-    shapePath(ctx, w, h, s.preset);
-    ctx.lineWidth = Math.max(1, minDim * 0.004);
-    ctx.strokeStyle = `rgba(255,255,255,${(0.25 + 0.35 * s.auroraBrightness).toFixed(3)})`;
-    ctx.stroke();
-    ctx.restore();
+    drawAuroraFrame(ctx, w, h, minDim, s, t);
   } else {
     // статичная аккуратная рамка, когда анимация выключена
     ctx.save();

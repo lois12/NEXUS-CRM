@@ -66,8 +66,8 @@ function Switch({ on, onToggle, label }: { on: boolean; onToggle: () => void; la
       style={{ background: on ? 'var(--color-primary)' : '#3a3a50' }}
     >
       <span
-        className="absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform"
-        style={{ transform: on ? 'translateX(24px)' : 'translateX(2px)' }}
+        className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform"
+        style={{ transform: on ? 'translateX(24px)' : 'translateX(0)' }}
       />
     </button>
   );
@@ -411,12 +411,12 @@ export default function FrameMaker() {
       {/* Эффекты поверх кадра */}
       <div className="glass rounded-xl p-3 space-y-3">
         <span className="nx-eyebrow">ЭФФЕКТЫ ПОВЕРХ ФОТО И ТЕКСТА</span>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div className="flex items-center justify-between gap-2 px-1 py-1">
+        <div className="space-y-2">
+          <div className="flex items-center justify-between gap-3">
             <span className="font-mono text-[11px] text-gray-300">КОСМИЧЕСКИЙ ВЕТЕР</span>
             <Switch on={windOn} onToggle={() => setWindOn((v) => !v)} label="Космический ветер" />
           </div>
-          <div className="flex items-center justify-between gap-2 px-1 py-1">
+          <div className="flex items-center justify-between gap-3">
             <span className="font-mono text-[11px] text-gray-300">ПАДАЮЩИЙ СНЕГ</span>
             <Switch on={snowOn} onToggle={() => setSnowOn((v) => !v)} label="Падающий снег" />
           </div>
