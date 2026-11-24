@@ -16,12 +16,28 @@ import '@fontsource/montserrat/700.css';
 import '@fontsource/playfair-display/700.css';
 import '@fontsource/russo-one/400.css';
 import '@fontsource/caveat/600.css';
+import '@fontsource/unbounded/700.css';
+import '@fontsource/exo-2/700.css';
+import '@fontsource/oswald/600.css';
+import '@fontsource/cormorant/700.css';
+import '@fontsource/yeseva-one/400.css';
+import '@fontsource/pacifico/400.css';
+import '@fontsource/forum/400.css';
+import '@fontsource/manrope/700.css';
 
 const FONTS = [
   { label: 'Montserrat', value: '"Montserrat", sans-serif' },
   { label: 'Playfair', value: '"Playfair Display", serif' },
   { label: 'Russo One', value: '"Russo One", sans-serif' },
   { label: 'Caveat', value: '"Caveat", cursive' },
+  { label: 'Unbounded', value: '"Unbounded", sans-serif' },
+  { label: 'Exo 2', value: '"Exo 2", sans-serif' },
+  { label: 'Oswald', value: '"Oswald", sans-serif' },
+  { label: 'Cormorant', value: '"Cormorant", serif' },
+  { label: 'Yeseva One', value: '"Yeseva One", serif' },
+  { label: 'Pacifico', value: '"Pacifico", cursive' },
+  { label: 'Forum', value: '"Forum", serif' },
+  { label: 'Manrope', value: '"Manrope", sans-serif' },
   { label: 'Inter', value: '"Inter", sans-serif' },
   { label: 'JetBrains Mono', value: '"JetBrains Mono", monospace' },
 ];
@@ -208,10 +224,11 @@ export default function FrameMaker() {
           onOffsetChange={(x, y) => { setOx(x); setOy(y); }}
           onScaleChange={setScale}
           onTextMove={(x, y) => { setTextX(x); setTextY(y); }}
+          onAngleChange={(d) => setTextAngle(Math.round(d))}
         />
         <p className="font-mono text-[10px] text-gray-600 text-center mt-2">
           {image
-            ? 'перетаскивайте картинку ИЛИ текст по холсту · колесо/пинч — масштаб'
+            ? 'перетаскивайте картинку ИЛИ текст · кружок над текстом — наклон · колесо/пинч — масштаб'
             : '// загрузите картинку, чтобы начать'}
         </p>
       </div>

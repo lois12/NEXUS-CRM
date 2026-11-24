@@ -105,18 +105,36 @@ function rgba(c: AuroraColor, a: number): string {
   return `rgba(${c.r},${c.g},${c.b},${Math.max(0, Math.min(1, a)).toFixed(3)})`;
 }
 
-/** Оборачивает текст по ширине — возвращает массив строк */
+/** Оборачивает текст по ширине — возвращает массив строк; слова длиннее строки режутся по буквам */
 function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
   const words = text.split(/\s+/).filter(Boolean);
   const lines: string[] = [];
   let cur = '';
-  for (const word of words) {
+  const pushWord = (word: string) => {
     const test = cur ? `${cur} ${word}` : word;
     if (ctx.measureText(test).width <= maxWidth || !cur) {
       cur = test;
     } else {
       lines.push(cur);
       cur = word;
+    }
+  };
+  for (const word of words) {
+    if (ctx.measureText(word).width > maxWidth) {
+      // одно слово не влезает — разбиваем по буквам
+      if (cur) { lines.push(cur); cur = ''; }
+      let chunk = '';
+      for (const ch of word) {
+        if (chunk && ctx.measureText(chunk + ch).width > maxWidth) {
+          lines.push(chunk);
+          chunk = ch;
+        } else {
+          chunk += ch;
+        }
+      }
+      cur = chunk;
+    } else {
+      pushWord(word);
     }
   }
   if (cur) lines.push(cur);
@@ -266,7 +284,7 @@ export function drawFrame(
     ctx.font = `700 ${px}px ${s.fontFamily}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    const maxWidth = w * 0.86;
+    const maxWidth = w * 0.75; // перенос раньше — длинная подпись охотно идёт в 2 строки
     const lines = wrapText(ctx, s.text.trim(), maxWidth);
     const lineHeight = px * 1.2;
     const blockH = lineHeight * lines.length;
@@ -371,4 +389,27 @@ export function hitTestText(bbox: TextBBox | null, x: number, y: number, pad = 1
   const rx = dx * cos - dy * sin;
   const ry = dx * sin + dy * cos;
   return Math.abs(rx) <= bbox.w / 2 + pad && Math.abs(ry) <= bbox.h / 2 + pad;
+}
+
+/** Геометрия ручки вращения над текстом (координаты холста экспорта) */
+export interface TextHandle {
+  x: number;
+  y: number;
+  r: number; // радиус «кнопки»
+  lineX: number; // точка примыкания линии к блоку текста
+  lineY: number;
+}
+
+export function textHandlePos(bbox: TextBBox, minDim: number): TextHandle {
+  const r = minDim * 0.028;
+  const dist = bbox.h / 2 + minDim * 0.05 + r;
+  const sin = Math.sin(bbox.angle);
+  const cos = Math.cos(bbox.angle);
+  return {
+    x: bbox.cx + sin * dist,
+    y: bbox.cy - cos * dist,
+    r,
+    lineX: bbox.cx + sin * (bbox.h / 2),
+    lineY: bbox.cy - cos * (bbox.h / 2),
+  };
 }
