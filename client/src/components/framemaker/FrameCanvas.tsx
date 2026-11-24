@@ -61,7 +61,7 @@ export default function FrameCanvas({ state, canvasRef, onOffsetChange, onScaleC
       if (o && octx) {
         octx.clearRect(0, 0, o.width, o.height);
         const bb = bboxRef.current;
-        if (bb && stateRef.current.text.trim()) {
+        if (bb && stateRef.current.text.trim() && !bandMode()) {
           const minDim = Math.min(o.width, o.height);
           const hp = textHandlePos(bb, minDim);
           octx.strokeStyle = 'rgba(255,255,255,0.55)';
@@ -119,13 +119,20 @@ export default function FrameCanvas({ state, canvasRef, onOffsetChange, onScaleC
     };
   };
 
-  /** геометрия ручки вращения (null, если текста нет) */
+  /** геометрия ручки вращения (null, если текста нет или текст в полосе) */
   const handleHit = (): { hx: number; hy: number; grab: number } | null => {
     const c = canvasRef.current;
     const bb = bboxRef.current;
-    if (!c || !bb || !stateRef.current.text.trim()) return null;
+    const st = stateRef.current;
+    if (!c || !bb || !st.text.trim()) return null;
+    if (st.plateOn && st.plateStyle === 'band') return null; // полоса фиксирована
     const hp = textHandlePos(bb, Math.min(c.width, c.height));
     return { hx: hp.x, hy: hp.y, grab: hp.r * 1.7 };
+  };
+
+  const bandMode = () => {
+    const st = stateRef.current;
+    return st.plateOn && st.plateStyle === 'band';
   };
 
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -156,7 +163,7 @@ export default function FrameCanvas({ state, canvasRef, onOffsetChange, onScaleC
     }
 
     // 2) текст: стартуем из фактического bbox — текстY=null (авто-низ) не прыгает в центр
-    if (st.text.trim() && hitTestText(bb, x, y) && bb) {
+    if (st.text.trim() && !bandMode() && hitTestText(bb, x, y) && bb) {
       dragRef.current = {
         mode: 'text',
         x: e.clientX, y: e.clientY,
@@ -180,7 +187,7 @@ export default function FrameCanvas({ state, canvasRef, onOffsetChange, onScaleC
         const hh = handleHit();
         if (hh && Math.hypot(x - hh.hx, y - hh.hy) <= hh.grab) {
           ch.style.cursor = 'grab';
-        } else if (stateRef.current.text.trim() && hitTestText(bboxRef.current, x, y)) {
+        } else if (stateRef.current.text.trim() && !bandMode() && hitTestText(bboxRef.current, x, y)) {
           ch.style.cursor = 'move';
         } else {
           ch.style.cursor = stateRef.current.image ? 'grab' : 'default';

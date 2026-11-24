@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Sparkles, Upload, Move, Download } from 'lucide-react';
 import FrameCanvas from '../components/framemaker/FrameCanvas';
 import {
-  FRAME_PRESETS, type FrameState, type FitMode, type TextShape,
+  FRAME_PRESETS, type FrameState, type FitMode, type TextShape, type PlateStyle, type LogoCorner,
 } from '../components/framemaker/framePresets';
 import { exportFrameGif } from '../components/framemaker/exportGif';
 import { exportFrameVideo, videoSupported, extForMime } from '../components/framemaker/exportVideo';
@@ -105,6 +105,20 @@ export default function FrameMaker() {
   const [snowOn, setSnowOn] = useState(true);
   const [fxIntensity, setFxIntensity] = useState(55);
 
+  const [plateOn, setPlateOn] = useState(false);
+  const [plateStyle, setPlateStyle] = useState<PlateStyle>('capsule');
+  const [plateColor, setPlateColor] = useState('#0b0e17');
+  const [plateAlpha, setPlateAlpha] = useState(60);
+
+  const [logo, setLogo] = useState<HTMLImageElement | null>(null);
+  const [logoCorner, setLogoCorner] = useState<LogoCorner>('tl');
+  const [logoSize, setLogoSize] = useState(14); // % от minDim
+  const [logoOpacity, setLogoOpacity] = useState(85);
+
+  const [curtainsOn, setCurtainsOn] = useState(true);
+  const [curtainIntensity, setCurtainIntensity] = useState(55);
+  const [curtainSpeed, setCurtainSpeed] = useState(100);
+
   const [exporting, setExporting] = useState<'png' | 'gif' | 'video' | null>(null);
 
   const state: FrameState = {
@@ -129,6 +143,17 @@ export default function FrameMaker() {
     windOn,
     snowOn,
     fxIntensity: fxIntensity / 100,
+    plateOn,
+    plateStyle,
+    plateColor,
+    plateAlpha: plateAlpha / 100,
+    logo,
+    logoCorner,
+    logoSize: logoSize / 100,
+    logoOpacity: logoOpacity / 100,
+    curtainsOn,
+    curtainIntensity: curtainIntensity / 100,
+    curtainSpeed: curtainSpeed / 100,
   };
 
   // подгрузка выбранного шрифта в document.fonts — иначе canvas рисует запасным
@@ -152,6 +177,18 @@ export default function FrameMaker() {
   };
 
   const resetView = () => { setScale(1); setOx(0); setOy(0); };
+
+  const onPickLogo = (file: File | undefined) => {
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      setLogo(img);
+      URL.revokeObjectURL(url);
+    };
+    img.onerror = () => { showToast('Не удалось открыть логотип', 'error'); URL.revokeObjectURL(url); };
+    img.src = url;
+  };
 
   const exportPng = async () => {
     const c = canvasRef.current;
@@ -366,9 +403,15 @@ export default function FrameMaker() {
         </div>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="font-mono text-[10px] text-gray-600">
-            {textY == null ? 'позиция: низ по центру (авто)' : `позиция: ${Math.round(textX * 100)}% × ${Math.round(textY * 100)}%`}
-            {' · '}
-            тащите текст мышкой по картинке
+            {plateOn && plateStyle === 'band'
+              ? 'текст закреплён в полосе снизу'
+              : (
+                <>
+                  {textY == null ? 'позиция: низ по центру (авто)' : `позиция: ${Math.round(textX * 100)}% × ${Math.round(textY * 100)}%`}
+                  {' · '}
+                  тащите текст мышкой по картинке
+                </>
+              )}
           </p>
           <button
             onClick={() => { setTextX(0.5); setTextY(null); setTextAngle(0); }}
@@ -378,6 +421,115 @@ export default function FrameMaker() {
             СБРОС ПОЗИЦИИ
           </button>
         </div>
+      </div>
+
+      {/* Плашка под текстом */}
+      <div className="glass rounded-xl p-3 space-y-3">
+        <div className="flex items-center justify-between">
+          <span className="nx-eyebrow">ПЛАШКА ПОД ТЕКСТОМ</span>
+          <Switch on={plateOn} onToggle={() => setPlateOn((v) => !v)} label="Плашка под текстом" />
+        </div>
+        {plateOn && (
+          <>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setPlateStyle('capsule')}
+                className={chip(plateStyle === 'capsule')}
+                style={plateStyle === 'capsule' ? { background: 'var(--color-primary)' } : undefined}
+              >КАПСУЛА</button>
+              <button
+                onClick={() => setPlateStyle('band')}
+                className={chip(plateStyle === 'band')}
+                style={plateStyle === 'band' ? { background: 'var(--color-primary)' } : undefined}
+              >ПОЛОСА СНИЗУ</button>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className={LABEL}>ЦВЕТ ПЛАШКИ</label>
+                <div className="flex items-center gap-2 mt-1">
+                  <input
+                    type="color" value={plateColor}
+                    onChange={(e) => setPlateColor(e.target.value)}
+                    className="w-10 h-10 rounded-lg cursor-pointer bg-transparent border border-gray-700"
+                  />
+                  <div className="flex gap-1.5">
+                    {['#0b0e17', '#000000', '#06281f', '#1a1030'].map((c) => (
+                      <button
+                        key={c}
+                        onClick={() => setPlateColor(c)}
+                        aria-label={`Цвет плашки ${c}`}
+                        className="w-7 h-7 rounded-lg border nx-press"
+                        style={{ background: c, borderColor: plateColor === c ? 'var(--color-primary)' : 'rgba(255,255,255,0.2)' }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div>
+                <label className={LABEL}>ПРОЗРАЧНОСТЬ ПЛАШКИ: {plateAlpha}%</label>
+                <input
+                  type="range" min={10} max={100} value={plateAlpha}
+                  onChange={(e) => setPlateAlpha(Number(e.target.value))}
+                  className="w-full accent-[var(--color-primary)] mt-2"
+                />
+              </div>
+            </div>
+            <p className="font-mono text-[10px] text-gray-600">
+              {plateStyle === 'band'
+                ? 'новостная полоса: текст закреплён снизу по центру, без наклона'
+                : 'капсула обнимает текст и ездит вместе с ним; цвет текста — в блоке «ТЕКСТ»'}
+            </p>
+          </>
+        )}
+      </div>
+
+      {/* Логотип канала */}
+      <div className="glass rounded-xl p-3 space-y-3">
+        <span className="nx-eyebrow">ЛОГОТИП КАНАЛА</span>
+        <div className="flex flex-wrap gap-2 items-center">
+          <label className="btn-ghost nx-press px-3.5 py-2 min-h-[40px] rounded-xl font-mono text-xs flex items-center gap-2 cursor-pointer">
+            <Upload className="w-4 h-4" /> {logo ? 'ЗАМЕНИТЬ' : 'ЗАГРУЗИТЬ PNG'}
+            <input type="file" accept="image/*" className="hidden" onChange={(e) => { onPickLogo(e.target.files?.[0]); e.target.value = ''; }} />
+          </label>
+          {logo && (
+            <button
+              onClick={() => setLogo(null)}
+              className="btn-ghost nx-press px-3.5 py-2 min-h-[40px] rounded-xl font-mono text-[11px]"
+            >УБРАТЬ</button>
+          )}
+        </div>
+        {logo && (
+          <>
+            <div className="flex flex-wrap gap-2">
+              {([['tl', 'СЛЕВА ВВЕРХ'], ['tr', 'СПРАВА ВВЕРХ'], ['bl', 'СЛЕВА ВНИЗ'], ['br', 'СПРАВА ВНИЗ']] as [LogoCorner, string][]).map(([id, label]) => (
+                <button
+                  key={id}
+                  onClick={() => setLogoCorner(id)}
+                  className={chip(logoCorner === id)}
+                  style={logoCorner === id ? { background: 'var(--color-primary)' } : undefined}
+                >{label}</button>
+              ))}
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className={LABEL}>РАЗМЕР: {logoSize}%</label>
+                <input
+                  type="range" min={5} max={30} value={logoSize}
+                  onChange={(e) => setLogoSize(Number(e.target.value))}
+                  className="w-full accent-[var(--color-primary)] mt-2"
+                />
+              </div>
+              <div>
+                <label className={LABEL}>ПРОЗРАЧНОСТЬ: {logoOpacity}%</label>
+                <input
+                  type="range" min={10} max={100} value={logoOpacity}
+                  onChange={(e) => setLogoOpacity(Number(e.target.value))}
+                  className="w-full accent-[var(--color-primary)] mt-2"
+                />
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Сияние */}
@@ -401,6 +553,30 @@ export default function FrameMaker() {
               <input
                 type="range" min={20} max={250} value={speed}
                 onChange={(e) => setSpeed(Number(e.target.value))}
+                className="w-full accent-[var(--color-primary)] mt-2"
+              />
+            </div>
+          </div>
+        )}
+        <div className="flex items-center justify-between gap-3">
+          <span className="font-mono text-[11px] text-gray-300">ШТОРЫ СИЯНИЯ ВНУТРИ КАДРА</span>
+          <Switch on={curtainsOn} onToggle={() => setCurtainsOn((v) => !v)} label="Шторы сияния" />
+        </div>
+        {curtainsOn && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className={LABEL}>ЯРКОСТЬ ШТОР: {curtainIntensity}%</label>
+              <input
+                type="range" min={10} max={100} value={curtainIntensity}
+                onChange={(e) => setCurtainIntensity(Number(e.target.value))}
+                className="w-full accent-[var(--color-primary)] mt-2"
+              />
+            </div>
+            <div>
+              <label className={LABEL}>СКОРОСТЬ ШТОР: {(curtainSpeed / 100).toFixed(1)}×</label>
+              <input
+                type="range" min={20} max={250} value={curtainSpeed}
+                onChange={(e) => setCurtainSpeed(Number(e.target.value))}
                 className="w-full accent-[var(--color-primary)] mt-2"
               />
             </div>

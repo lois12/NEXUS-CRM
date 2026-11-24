@@ -69,9 +69,25 @@ export interface FrameState {
   snowOn: boolean;
   /** плотность/интенсивность эффектов 0..1 */
   fxIntensity: number;
+  /** плашка под текстом: капсула вокруг текста или новостная полоса снизу */
+  plateOn: boolean;
+  plateStyle: PlateStyle;
+  plateColor: string; // hex
+  plateAlpha: number; // 0..1
+  /** логотип канала */
+  logo: HTMLImageElement | null;
+  logoCorner: LogoCorner;
+  logoSize: number; // доля minDim (0.05–0.3)
+  logoOpacity: number; // 0..1
+  /** полярные шторы внутри кадра (поверх фото, под текстом) */
+  curtainsOn: boolean;
+  curtainIntensity: number; // 0..1
+  curtainSpeed: number; // 0..2
 }
 
 export type TextShape = 'straight' | 'arc-up' | 'arc-down';
+export type PlateStyle = 'capsule' | 'band';
+export type LogoCorner = 'tl' | 'tr' | 'bl' | 'br';
 
 /** Габарит текстового блока для hit-test (в координатах холста) */
 export interface TextBBox {
@@ -103,6 +119,38 @@ export function shapePath(ctx: CanvasRenderingContext2D, w: number, h: number, p
 
 function rgba(c: AuroraColor, a: number): string {
   return `rgba(${c.r},${c.g},${c.b},${Math.max(0, Math.min(1, a)).toFixed(3)})`;
+}
+
+/** hex + альфа → rgba() для плашки */
+function hexAlpha(hex: string, a: number): string {
+  const h = hex.replace('#', '');
+  const n = h.length === 3 ? h.split('').map((c) => c + c).join('') : h.padEnd(6, '0');
+  const r = parseInt(n.slice(0, 2), 16) || 0;
+  const g = parseInt(n.slice(2, 4), 16) || 0;
+  const b = parseInt(n.slice(4, 6), 16) || 0;
+  return `rgba(${r},${g},${b},${Math.max(0, Math.min(1, a)).toFixed(3)})`;
+}
+
+/** Полярные шторы: мягкие световые столбы, дрейфуют по кадру (поверх фото, под текстом) */
+function drawCurtains(ctx: CanvasRenderingContext2D, w: number, h: number, t: number, intensity: number, speed: number) {
+  const N = 5;
+  ctx.save();
+  ctx.globalCompositeOperation = 'screen';
+  for (let i = 0; i < N; i++) {
+    const phase = t * 0.00012 * speed + i * 1.31;
+    const cx = w * (0.1 + 0.2 * i + 0.07 * Math.sin(phase));
+    const bw = w * (0.07 + 0.045 * Math.sin(phase * 0.7 + i));
+    const col = auroraColorAt(0.15 * i + t * 0.00003 * speed);
+    const alpha = intensity * (0.09 + 0.06 * (0.5 + 0.5 * Math.sin(phase * 1.3)));
+    if (alpha < 0.01) continue;
+    const grad = ctx.createLinearGradient(cx - bw, 0, cx + bw, 0);
+    grad.addColorStop(0, rgba(col, 0));
+    grad.addColorStop(0.5, rgba(col, alpha));
+    grad.addColorStop(1, rgba(col, 0));
+    ctx.fillStyle = grad;
+    ctx.fillRect(cx - bw, 0, bw * 2, h);
+  }
+  ctx.restore();
 }
 
 /** Оборачивает текст по ширине — возвращает массив строк; слова длиннее строки режутся по буквам */
@@ -376,7 +424,12 @@ export function drawFrame(
     ctx.fillRect(0, 0, w, h);
   }
 
-  // ── 2. текст: метрики → виньетка под текст → отрисовка (можно тащить и наклонять) ──
+  // полярные шторы — атмосфера поверх фото, под текстом
+  if (s.curtainsOn && s.curtainIntensity > 0) {
+    drawCurtains(ctx, w, h, t, s.curtainIntensity, s.curtainSpeed);
+  }
+
+  // ── 2. текст: метрики → виньетка/плашка → отрисовка (можно тащить и наклонять) ──
   let bbox: TextBBox | null = null;
   const hasText = !!s.text.trim();
   if (hasText) {
@@ -388,27 +441,53 @@ export function drawFrame(
     const lines = wrapText(ctx, s.text.trim(), maxWidth);
     const lineHeight = px * 1.2;
     const blockH = lineHeight * lines.length;
-    const pad = minDim * 0.055;
-
-    const cx = s.textX * w;
-    const cy = s.textY == null
-      ? h - pad - blockH / 2          // авто: прижат к низу по центру
-      : s.textY * h;
-    const angle = (s.textAngle * Math.PI) / 180;
 
     let maxLineW = 0;
     for (const line of lines) maxLineW = Math.max(maxLineW, ctx.measureText(line).width);
 
-    // виньетка следует за текстом — читаемость в любой позиции
-    const vHalf = Math.max(blockH * 1.5, h * 0.28);
-    const grad = ctx.createLinearGradient(0, cy - vHalf, 0, cy + vHalf);
-    grad.addColorStop(0, 'rgba(0,0,0,0)');
-    grad.addColorStop(0.5, 'rgba(0,0,0,0.5)');
-    grad.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, cy - vHalf, w, vHalf * 2);
+    const padY = px * 0.32;
+    const padX = px * 0.55;
+    const bandH = blockH + padY * 2.2;
+    const bandMode = s.plateOn && s.plateStyle === 'band';
 
-    const arcOn = s.textShape !== 'straight' && s.textBend > 0.02 && maxLineW > 8;
+    // позиция текста: в режиме полосы — всегда центр полосы внизу, без наклона
+    const cx = bandMode ? w / 2 : s.textX * w;
+    const cy = bandMode
+      ? h - bandH / 2
+      : (s.textY == null ? h - minDim * 0.055 - blockH / 2 : s.textY * h);
+    const angle = bandMode ? 0 : (s.textAngle * Math.PI) / 180;
+
+    // виньетка следует за текстом (в полосе не нужна — там своя подложка)
+    if (!bandMode) {
+      const vHalf = Math.max(blockH * 1.5, h * 0.28);
+      const grad = ctx.createLinearGradient(0, cy - vHalf, 0, cy + vHalf);
+      grad.addColorStop(0, 'rgba(0,0,0,0)');
+      grad.addColorStop(0.5, 'rgba(0,0,0,0.5)');
+      grad.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, cy - vHalf, w, vHalf * 2);
+    }
+
+    // плашка: капсула вокруг текста или новостная полоса снизу
+    if (s.plateOn) {
+      ctx.save();
+      if (bandMode) {
+        ctx.fillStyle = hexAlpha(s.plateColor, s.plateAlpha);
+        ctx.fillRect(0, h - bandH, w, bandH);
+      } else {
+        const pw = maxLineW + padX * 2;
+        const ph = blockH + padY * 2;
+        ctx.translate(cx, cy);
+        ctx.rotate(angle);
+        ctx.beginPath();
+        ctx.roundRect(-pw / 2, -ph / 2, pw, ph, Math.min(ph / 2, px * 0.55));
+        ctx.fillStyle = hexAlpha(s.plateColor, s.plateAlpha);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    const arcOn = s.textShape !== 'straight' && s.textBend > 0.02 && maxLineW > 8 && !bandMode;
     const span = arcOn ? Math.max(0.15, s.textBend) : 0; // рад дуги
     const sagitta = arcOn ? (maxLineW / span) * (1 - Math.cos(span / 2)) : 0;
 
@@ -431,12 +510,36 @@ export function drawFrame(
     ctx.shadowBlur = 0;
     ctx.restore();
 
-    bbox = { cx, cy, w: maxLineW, h: blockH + sagitta * 1.6, angle };
+    // габарит с учётом плашки — тащить можно за подложку
+    const plateW = s.plateOn && !bandMode ? padX * 2 : 0;
+    const plateH = s.plateOn ? (bandMode ? 0 : padY * 2) : 0;
+    bbox = { cx, cy, w: maxLineW + plateW, h: blockH + plateH + sagitta * 1.6, angle };
   }
 
   // ── 3. эффекты поверх фото и текста (внутри клипа) ──
   if (s.windOn && s.fxIntensity > 0) drawWind(ctx, w, h, minDim, t, s.fxIntensity);
   if (s.snowOn && s.fxIntensity > 0) drawSnow(ctx, w, h, minDim, t, s.fxIntensity);
+
+  // логотип канала — поверх всего содержимого, но под рамкой
+  if (s.logo) {
+    const box = s.logoSize * minDim;
+    const iw = s.logo.naturalWidth || 1;
+    const ih = s.logo.naturalHeight || 1;
+    const sc = Math.min(box / iw, box / ih);
+    const lw = iw * sc;
+    const lh = ih * sc;
+    const m = minDim * 0.05;
+    const pos = (
+      s.logoCorner === 'tr' ? [w - m - lw, m]
+        : s.logoCorner === 'bl' ? [m, h - m - lh]
+          : s.logoCorner === 'br' ? [w - m - lw, h - m - lh]
+            : [m, m]
+    ) as [number, number];
+    ctx.save();
+    ctx.globalAlpha = s.logoOpacity;
+    ctx.drawImage(s.logo, pos[0], pos[1], lw, lh);
+    ctx.restore();
+  }
 
   ctx.restore();
 
