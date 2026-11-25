@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Sparkles, Upload, Move, Download } from 'lucide-react';
+import { ArrowLeft, Sparkles, Upload, Move, Download, Pipette, Trash2, Eye } from 'lucide-react';
 import FrameCanvas from '../components/framemaker/FrameCanvas';
 import {
-  FRAME_PRESETS, type FrameState, type FitMode, type TextShape, type PlateStyle, type LogoCorner,
+  FRAME_PRESETS, type FrameState, type FitMode, type TextShape, type PlateStyle, type PlateFill, type LogoCorner,
 } from '../components/framemaker/framePresets';
 import { exportFrameGif } from '../components/framemaker/exportGif';
 import { exportFrameVideo, videoSupported, extForMime } from '../components/framemaker/exportVideo';
@@ -42,18 +42,19 @@ const FONTS = [
   { label: 'JetBrains Mono', value: '"JetBrains Mono", monospace' },
 ];
 
-const TEXT_COLORS = ['#ffffff', '#0a0a0f', '#00ff88', '#00d4ff'];
+const PALETTE = ['#ffffff', '#0a0a0f', '#00ff88', '#00d4ff', '#7d5fff', '#ffd75f', '#ff6b6b', '#ff4fd8', '#b8f1ff'];
+const PLATE_PRESETS = ['#0b0e17', '#000000', '#06281f', '#1a1030'];
 
-const FIELD = 'w-full px-3 py-2.5 rounded-xl text-sm bg-white/5 border border-white/10 text-gray-200 [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]';
-const LABEL = 'text-[10px] font-mono text-gray-500 tracking-wider';
+const FIELD = 'w-full px-2.5 py-2 rounded-xl text-xs bg-white/5 border border-white/10 text-gray-200 [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]';
+const LABEL = 'text-[9px] font-mono text-gray-500 tracking-wider';
 
 function chip(active: boolean): string {
-  return `px-3.5 py-2 min-h-[40px] rounded-xl font-mono text-xs nx-press transition-all ${
+  return `px-2.5 py-1.5 min-h-[32px] rounded-lg font-mono text-[10px] nx-press transition-all ${
     active ? 'text-black' : 'text-gray-400 bg-white/5 hover:text-gray-200'
   }`;
 }
 
-/** Переключатель-тумблер (сияние / ветер / снег) */
+/** Переключатель-тумблер */
 function Switch({ on, onToggle, label }: { on: boolean; onToggle: () => void; label: string }) {
   return (
     <button
@@ -62,16 +63,62 @@ function Switch({ on, onToggle, label }: { on: boolean; onToggle: () => void; la
       role="switch"
       aria-checked={on}
       aria-label={label}
-      className="w-12 h-6 rounded-full transition-colors relative nx-press shrink-0"
+      className="w-11 h-6 rounded-full transition-colors relative nx-press shrink-0"
       style={{ background: on ? 'var(--color-primary)' : '#3a3a50' }}
     >
       <span
         className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform"
-        style={{ transform: on ? 'translateX(24px)' : 'translateX(0)' }}
+        style={{ transform: on ? 'translateX(20px)' : 'translateX(0)' }}
       />
     </button>
   );
 }
+
+/** Выбор цвета: палитра + пикер + пипетка (где браузер поддерживает) */
+function ColorField({ label, value, onChange }: { label: string; value: string; onChange: (c: string) => void }) {
+  const [dropperOk] = useState(() => typeof window !== 'undefined' && 'EyeDropper' in window);
+  const pick = async () => {
+    try {
+      const ED = (window as unknown as { EyeDropper: new () => { open: () => Promise<{ sRGBHex: string }> } }).EyeDropper;
+      const res = await new ED().open();
+      onChange(res.sRGBHex);
+    } catch { /* отменено */ }
+  };
+  return (
+    <div>
+      <label className={LABEL}>{label}</label>
+      <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+        {PALETTE.map((c) => (
+          <button
+            key={c}
+            onClick={() => onChange(c)}
+            aria-label={`Цвет ${c}`}
+            className="w-6 h-6 rounded-md border nx-press"
+            style={{ background: c, borderColor: value.toLowerCase() === c.toLowerCase() ? 'var(--color-primary)' : 'rgba(255,255,255,0.18)' }}
+          />
+        ))}
+        <input
+          type="color" value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="w-7 h-7 rounded-md cursor-pointer bg-transparent border border-gray-700"
+          aria-label="Свой цвет"
+        />
+        {dropperOk && (
+          <button
+            onClick={pick}
+            title="Пипетка — взять цвет с экрана"
+            aria-label="Пипетка"
+            className="w-7 h-7 rounded-md border border-gray-700 nx-press flex items-center justify-center text-gray-300 hover:text-white"
+          >
+            <Pipette className="w-3.5 h-3.5" />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+interface ExportItem { id: string; name: string; type: string; size: number; ts: number; blob: Blob }
 
 /** Рамка в стиле северного сияния: превью + экспорт PNG/GIF/видео */
 export default function FrameMaker() {
@@ -90,36 +137,48 @@ export default function FrameMaker() {
   const [text, setText] = useState('');
   const [fontFamily, setFontFamily] = useState(FONTS[0].value);
   const [fontSize, setFontSize] = useState(55); // ×0.001 → 0.055 высоты
-  const [textColor, setTextColor] = useState(TEXT_COLORS[0]);
+  const [textColor, setTextColor] = useState(PALETTE[0]);
   const [textX, setTextX] = useState(0.5);
   const [textY, setTextY] = useState<number | null>(null); // null = авто-низ по центру
   const [textAngle, setTextAngle] = useState(0);
   const [textShape, setTextShape] = useState<TextShape>('straight');
-  const [textBend, setTextBend] = useState(55); // ×0.01 → 0.55
+  const [textBend, setTextBend] = useState(55);
+
+  const [neonOn, setNeonOn] = useState(false);
+  const [neonColor, setNeonColor] = useState('#00d4ff');
+  const [neonIntensity, setNeonIntensity] = useState(55);
+
+  const [plateOn, setPlateOn] = useState(false);
+  const [plateStyle, setPlateStyle] = useState<PlateStyle>('capsule');
+  const [plateFill, setPlateFill] = useState<PlateFill>('solid');
+  const [plateColor, setPlateColor] = useState('#0b0e17');
+  const [plateColor2, setPlateColor2] = useState('#1a1030');
+  const [plateAngle, setPlateAngle] = useState(135);
+  const [plateAlpha, setPlateAlpha] = useState(60);
+  const [plateBlur, setPlateBlur] = useState(0);
+
+  const [logo, setLogo] = useState<HTMLImageElement | null>(null);
+  const [logoCorner, setLogoCorner] = useState<LogoCorner>('tl');
+  const [logoSize, setLogoSize] = useState(14);
+  const [logoOpacity, setLogoOpacity] = useState(85);
+  const [logoRadius, setLogoRadius] = useState(0); // 0..50 (% — 50 = круг)
 
   const [auroraOn, setAuroraOn] = useState(true);
   const [brightness, setBrightness] = useState(85);
   const [speed, setSpeed] = useState(100);
 
-  const [windOn, setWindOn] = useState(true);
-  const [snowOn, setSnowOn] = useState(true);
-  const [fxIntensity, setFxIntensity] = useState(55);
-
-  const [plateOn, setPlateOn] = useState(false);
-  const [plateStyle, setPlateStyle] = useState<PlateStyle>('capsule');
-  const [plateColor, setPlateColor] = useState('#0b0e17');
-  const [plateAlpha, setPlateAlpha] = useState(60);
-
-  const [logo, setLogo] = useState<HTMLImageElement | null>(null);
-  const [logoCorner, setLogoCorner] = useState<LogoCorner>('tl');
-  const [logoSize, setLogoSize] = useState(14); // % от minDim
-  const [logoOpacity, setLogoOpacity] = useState(85);
-
   const [curtainsOn, setCurtainsOn] = useState(true);
   const [curtainIntensity, setCurtainIntensity] = useState(55);
   const [curtainSpeed, setCurtainSpeed] = useState(100);
 
+  const [windOn, setWindOn] = useState(true);
+  const [snowOn, setSnowOn] = useState(true);
+  const [fxIntensity, setFxIntensity] = useState(55);
+
+  const [videoSeconds, setVideoSeconds] = useState(4);
+  const [cleanPreview, setCleanPreview] = useState(false);
   const [exporting, setExporting] = useState<'png' | 'gif' | 'video' | null>(null);
+  const [history, setHistory] = useState<ExportItem[]>([]);
 
   const state: FrameState = {
     preset,
@@ -145,16 +204,29 @@ export default function FrameMaker() {
     fxIntensity: fxIntensity / 100,
     plateOn,
     plateStyle,
+    plateFill,
     plateColor,
+    plateColor2,
+    plateAngle,
     plateAlpha: plateAlpha / 100,
+    plateBlur: plateBlur / 100,
     logo,
     logoCorner,
     logoSize: logoSize / 100,
     logoOpacity: logoOpacity / 100,
+    logoRadius: logoRadius / 100,
+    neonOn,
+    neonColor,
+    neonIntensity: neonIntensity / 100,
     curtainsOn,
     curtainIntensity: curtainIntensity / 100,
     curtainSpeed: curtainSpeed / 100,
   };
+
+  // «чистый кадр» — превью без эффектов; экспорт всегда идёт по полному state
+  const previewState: FrameState = cleanPreview
+    ? { ...state, windOn: false, snowOn: false, curtainsOn: false, auroraOn: false }
+    : state;
 
   // подгрузка выбранного шрифта в document.fonts — иначе canvas рисует запасным
   useEffect(() => {
@@ -176,18 +248,22 @@ export default function FrameMaker() {
     img.src = url;
   };
 
-  const resetView = () => { setScale(1); setOx(0); setOy(0); };
-
   const onPickLogo = (file: File | undefined) => {
     if (!file) return;
     const url = URL.createObjectURL(file);
     const img = new Image();
-    img.onload = () => {
-      setLogo(img);
-      URL.revokeObjectURL(url);
-    };
+    img.onload = () => { setLogo(img); URL.revokeObjectURL(url); };
     img.onerror = () => { showToast('Не удалось открыть логотип', 'error'); URL.revokeObjectURL(url); };
     img.src = url;
+  };
+
+  const resetView = () => { setScale(1); setOx(0); setOy(0); };
+
+  const pushHistory = (name: string, type: string, blob: Blob) => {
+    setHistory((h) => [
+      { id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, name, type, size: blob.size, ts: Date.now(), blob },
+      ...h,
+    ].slice(0, 12));
   };
 
   const exportPng = async () => {
@@ -197,7 +273,9 @@ export default function FrameMaker() {
     try {
       const blob = await new Promise<Blob | null>((res) => c.toBlob(res, 'image/png'));
       if (!blob) throw new Error('png');
-      downloadBlob(blob, `frame-${preset.id}.png`);
+      const name = `frame-${preset.id}.png`;
+      downloadBlob(blob, name);
+      pushHistory(name, 'PNG', blob);
       showToast('PNG сохранён', 'success');
     } catch {
       showToast('Ошибка экспорта PNG', 'error');
@@ -210,7 +288,9 @@ export default function FrameMaker() {
     setExporting('gif');
     try {
       const blob = await exportFrameGif(state, { seconds: 3.5, fps: 15, maxDim: 800 });
-      downloadBlob(blob, `frame-${preset.id}.gif`);
+      const name = `frame-${preset.id}.gif`;
+      downloadBlob(blob, name);
+      pushHistory(name, 'GIF', blob);
       showToast('GIF сохранён', 'success');
     } catch {
       showToast('Ошибка экспорта GIF', 'error');
@@ -222,10 +302,12 @@ export default function FrameMaker() {
   const exportVideo = async () => {
     setExporting('video');
     try {
-      const blob = await exportFrameVideo(state, { seconds: 4, fps: 30 });
+      const blob = await exportFrameVideo(state, { seconds: videoSeconds, fps: 30 });
       if (!blob) { showToast('Браузер не поддерживает запись видео', 'error'); return; }
       const ext = extForMime(blob.type);
-      downloadBlob(blob, `frame-${preset.id}.${ext}`);
+      const name = `frame-${preset.id}.${ext}`;
+      downloadBlob(blob, name);
+      pushHistory(name, ext.toUpperCase(), blob);
       showToast(ext === 'mp4' ? 'Видео сохранено (mp4)' : 'Видео сохранено (webm)', 'success');
     } catch {
       showToast('Ошибка экспорта видео', 'error');
@@ -235,414 +317,480 @@ export default function FrameMaker() {
   };
 
   return (
-    <div className="space-y-4 max-w-3xl mx-auto pb-8">
+    <div className="space-y-3 max-w-[1440px] mx-auto pb-8">
       {/* Header */}
       <div className="flex items-center gap-3">
         <button
           onClick={() => navigate(-1)}
-          className="flex items-center justify-center p-2 min-h-[40px] min-w-[40px] rounded-xl glass hover:bg-white/10 nx-press"
+          className="flex items-center justify-center p-2 min-h-[36px] min-w-[36px] rounded-xl glass hover:bg-white/10 nx-press"
           aria-label="Назад"
         >
           <ArrowLeft className="w-4 h-4" />
         </button>
         <div className="min-w-0">
-          <h1 className="text-xl sm:text-2xl font-bold font-mono neon-text flex items-center gap-2" style={{ color: 'var(--color-primary)' }}>
-            <Sparkles className="w-5 h-5" /> РАМКА
+          <h1 className="text-lg sm:text-xl font-bold font-mono neon-text flex items-center gap-2" style={{ color: 'var(--color-primary)' }}>
+            <Sparkles className="w-4 h-4" /> РАМКА
           </h1>
-          <p className="nx-eyebrow mt-1">СЕВЕРНОЕ СИЯНИЕ ДЛЯ КАНАЛА</p>
+          <p className="nx-eyebrow mt-0.5">СЕВЕРНОЕ СИЯНИЕ ДЛЯ КАНАЛА</p>
         </div>
       </div>
 
-      {/* Canvas preview */}
-      <div className="nx-panel p-3">
-        <FrameCanvas
-          state={state}
-          canvasRef={canvasRef}
-          onOffsetChange={(x, y) => { setOx(x); setOy(y); }}
-          onScaleChange={setScale}
-          onTextMove={(x, y) => { setTextX(x); setTextY(y); }}
-          onAngleChange={(d) => setTextAngle(Math.round(d))}
-        />
-        <p className="font-mono text-[10px] text-gray-600 text-center mt-2">
-          {image
-            ? 'перетаскивайте картинку ИЛИ текст · кружок над текстом — наклон · колесо/пинч — масштаб'
-            : '// загрузите картинку, чтобы начать'}
-        </p>
-      </div>
-
-      {/* Пропорции */}
-      <div className="glass rounded-xl p-3 space-y-2">
-        <span className="nx-eyebrow">ПРОПОРЦИИ</span>
-        <div className="flex flex-wrap gap-2">
-          {FRAME_PRESETS.map((p) => (
-            <button
-              key={p.id}
-              onClick={() => setPresetId(p.id)}
-              className={chip(p.id === presetId)}
-              style={p.id === presetId ? { background: 'var(--color-primary)' } : undefined}
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Картинка */}
-      <div className="glass rounded-xl p-3 space-y-3">
-        <span className="nx-eyebrow">КАРТИНКА</span>
-        <div className="flex flex-wrap gap-2 items-center">
-          <label className="btn-ghost nx-press px-3.5 py-2 min-h-[40px] rounded-xl font-mono text-xs flex items-center gap-2 cursor-pointer">
-            <Upload className="w-4 h-4" /> {image ? 'ЗАМЕНИТЬ' : 'ЗАГРУЗИТЬ'}
-            <input type="file" accept="image/*" className="hidden" onChange={(e) => { onPickFile(e.target.files?.[0]); e.target.value = ''; }} />
-          </label>
-          <div className="flex rounded-xl overflow-hidden border border-white/10">
-            <button
-              onClick={() => setFitMode('cover')}
-              className={`px-3 py-2 min-h-[40px] font-mono text-[11px] nx-press ${fitMode === 'cover' ? 'text-black' : 'text-gray-400 bg-white/5'}`}
-              style={fitMode === 'cover' ? { background: 'var(--color-primary)' } : undefined}
-            >ЗАПОЛНИТЬ</button>
-            <button
-              onClick={() => setFitMode('contain')}
-              className={`px-3 py-2 min-h-[40px] font-mono text-[11px] nx-press ${fitMode === 'contain' ? 'text-black' : 'text-gray-400 bg-white/5'}`}
-              style={fitMode === 'contain' ? { background: 'var(--color-primary)' } : undefined}
-            >ВПИСАТЬ</button>
-          </div>
-          <button
-            onClick={resetView}
-            className="btn-ghost nx-press px-3.5 py-2 min-h-[40px] rounded-xl font-mono text-[11px] flex items-center gap-1.5"
-            title="Сбросить масштаб и центр"
-          >
-            <Move className="w-3.5 h-3.5" /> ПО ЦЕНТРУ
-          </button>
-        </div>
-        <div>
-          <label className={LABEL}>МАСШТАБ: {Math.round(scale * 100)}%</label>
-          <input
-            type="range" min={25} max={300} value={Math.round(scale * 100)}
-            onChange={(e) => setScale(Number(e.target.value) / 100)}
-            className="w-full accent-[var(--color-primary)]"
-          />
-        </div>
-      </div>
-
-      {/* Текст */}
-      <div className="glass rounded-xl p-3 space-y-3">
-        <span className="nx-eyebrow">ТЕКСТ НА КАРТИНКЕ</span>
-        <input
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder="Например: НОРИЛЬСК · ЛЕТО 2026"
-          className={FIELD}
-          maxLength={80}
-        />
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div>
-            <label className={LABEL}>ШРИФТ</label>
-            <select value={fontFamily} onChange={(e) => setFontFamily(e.target.value)} className={FIELD}>
-              {FONTS.map((f) => <option key={f.label} value={f.value}>{f.label}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className={LABEL}>РАЗМЕР: {fontSize}</label>
-            <input
-              type="range" min={30} max={120} value={fontSize}
-              onChange={(e) => setFontSize(Number(e.target.value))}
-              className="w-full accent-[var(--color-primary)] mt-2"
-            />
-          </div>
-          <div>
-            <label className={LABEL}>ЦВЕТ</label>
-            <div className="flex items-center gap-2 mt-1">
-              <input
-                type="color" value={textColor}
-                onChange={(e) => setTextColor(e.target.value)}
-                className="w-10 h-10 rounded-lg cursor-pointer bg-transparent border border-gray-700"
-              />
-              <div className="flex gap-1.5">
-                {TEXT_COLORS.map((c) => (
-                  <button
-                    key={c}
-                    onClick={() => setTextColor(c)}
-                    aria-label={`Цвет ${c}`}
-                    className="w-7 h-7 rounded-lg border nx-press"
-                    style={{ background: c, borderColor: textColor === c ? 'var(--color-primary)' : 'rgba(255,255,255,0.2)' }}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* позиция / наклон / форма */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div>
-            <label className={LABEL}>НАКЛОН: {textAngle}°</label>
-            <input
-              type="range" min={-40} max={40} value={textAngle}
-              onChange={(e) => setTextAngle(Number(e.target.value))}
-              className="w-full accent-[var(--color-primary)] mt-2"
-            />
-          </div>
-          <div>
-            <label className={LABEL}>ФОРМА</label>
-            <select value={textShape} onChange={(e) => setTextShape(e.target.value as TextShape)} className={`${FIELD} mt-1`}>
-              <option value="straight">Прямая</option>
-              <option value="arc-up">Дуга вверх (∩)</option>
-              <option value="arc-down">Дуга вниз (∪)</option>
-            </select>
-          </div>
-          <div>
-            <label className={LABEL}>ИЗГИБ: {textShape === 'straight' ? '—' : `${textBend}%`}</label>
-            <input
-              type="range" min={15} max={100} value={textBend}
-              disabled={textShape === 'straight'}
-              onChange={(e) => setTextBend(Number(e.target.value))}
-              className="w-full accent-[var(--color-primary)] mt-2 disabled:opacity-30"
-            />
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="font-mono text-[10px] text-gray-600">
-            {plateOn && plateStyle === 'band'
-              ? 'текст закреплён в полосе снизу'
-              : (
-                <>
-                  {textY == null ? 'позиция: низ по центру (авто)' : `позиция: ${Math.round(textX * 100)}% × ${Math.round(textY * 100)}%`}
-                  {' · '}
-                  тащите текст мышкой по картинке
-                </>
-              )}
-          </p>
-          <button
-            onClick={() => { setTextX(0.5); setTextY(null); setTextAngle(0); }}
-            className="btn-ghost nx-press px-3.5 py-2 min-h-[40px] rounded-xl font-mono text-[11px]"
-            title="Вернуть текст вниз по центру, снять наклон"
-          >
-            СБРОС ПОЗИЦИИ
-          </button>
-        </div>
-      </div>
-
-      {/* Плашка под текстом */}
-      <div className="glass rounded-xl p-3 space-y-3">
-        <div className="flex items-center justify-between">
-          <span className="nx-eyebrow">ПЛАШКА ПОД ТЕКСТОМ</span>
-          <Switch on={plateOn} onToggle={() => setPlateOn((v) => !v)} label="Плашка под текстом" />
-        </div>
-        {plateOn && (
-          <>
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => setPlateStyle('capsule')}
-                className={chip(plateStyle === 'capsule')}
-                style={plateStyle === 'capsule' ? { background: 'var(--color-primary)' } : undefined}
-              >КАПСУЛА</button>
-              <button
-                onClick={() => setPlateStyle('band')}
-                className={chip(plateStyle === 'band')}
-                style={plateStyle === 'band' ? { background: 'var(--color-primary)' } : undefined}
-              >ПОЛОСА СНИЗУ</button>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className={LABEL}>ЦВЕТ ПЛАШКИ</label>
-                <div className="flex items-center gap-2 mt-1">
-                  <input
-                    type="color" value={plateColor}
-                    onChange={(e) => setPlateColor(e.target.value)}
-                    className="w-10 h-10 rounded-lg cursor-pointer bg-transparent border border-gray-700"
-                  />
-                  <div className="flex gap-1.5">
-                    {['#0b0e17', '#000000', '#06281f', '#1a1030'].map((c) => (
-                      <button
-                        key={c}
-                        onClick={() => setPlateColor(c)}
-                        aria-label={`Цвет плашки ${c}`}
-                        className="w-7 h-7 rounded-lg border nx-press"
-                        style={{ background: c, borderColor: plateColor === c ? 'var(--color-primary)' : 'rgba(255,255,255,0.2)' }}
-                      />
-                    ))}
-                  </div>
-                </div>
-              </div>
-              <div>
-                <label className={LABEL}>ПРОЗРАЧНОСТЬ ПЛАШКИ: {plateAlpha}%</label>
-                <input
-                  type="range" min={10} max={100} value={plateAlpha}
-                  onChange={(e) => setPlateAlpha(Number(e.target.value))}
-                  className="w-full accent-[var(--color-primary)] mt-2"
-                />
-              </div>
-            </div>
-            <p className="font-mono text-[10px] text-gray-600">
-              {plateStyle === 'band'
-                ? 'новостная полоса: текст закреплён снизу по центру, без наклона'
-                : 'капсула обнимает текст и ездит вместе с ним; цвет текста — в блоке «ТЕКСТ»'}
-            </p>
-          </>
-        )}
-      </div>
-
-      {/* Логотип канала */}
-      <div className="glass rounded-xl p-3 space-y-3">
-        <span className="nx-eyebrow">ЛОГОТИП КАНАЛА</span>
-        <div className="flex flex-wrap gap-2 items-center">
-          <label className="btn-ghost nx-press px-3.5 py-2 min-h-[40px] rounded-xl font-mono text-xs flex items-center gap-2 cursor-pointer">
-            <Upload className="w-4 h-4" /> {logo ? 'ЗАМЕНИТЬ' : 'ЗАГРУЗИТЬ PNG'}
-            <input type="file" accept="image/*" className="hidden" onChange={(e) => { onPickLogo(e.target.files?.[0]); e.target.value = ''; }} />
-          </label>
-          {logo && (
-            <button
-              onClick={() => setLogo(null)}
-              className="btn-ghost nx-press px-3.5 py-2 min-h-[40px] rounded-xl font-mono text-[11px]"
-            >УБРАТЬ</button>
-          )}
-        </div>
-        {logo && (
-          <>
-            <div className="flex flex-wrap gap-2">
-              {([['tl', 'СЛЕВА ВВЕРХ'], ['tr', 'СПРАВА ВВЕРХ'], ['bl', 'СЛЕВА ВНИЗ'], ['br', 'СПРАВА ВНИЗ']] as [LogoCorner, string][]).map(([id, label]) => (
+      {/* РАБОЧАЯ ОБЛАСТЬ: слева редакторы, холст, справа редакторы */}
+      <div className="grid grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)_296px] gap-3 items-start">
+        {/* ЛЕВАЯ КОЛОНКА */}
+        <div className="space-y-3">
+          {/* Пропорции */}
+          <div className="glass rounded-xl p-2.5 space-y-2">
+            <span className="nx-eyebrow">ПРОПОРЦИИ</span>
+            <div className="flex flex-wrap gap-1.5">
+              {FRAME_PRESETS.map((p) => (
                 <button
-                  key={id}
-                  onClick={() => setLogoCorner(id)}
-                  className={chip(logoCorner === id)}
-                  style={logoCorner === id ? { background: 'var(--color-primary)' } : undefined}
-                >{label}</button>
+                  key={p.id}
+                  onClick={() => setPresetId(p.id)}
+                  className={chip(p.id === presetId)}
+                  style={p.id === presetId ? { background: 'var(--color-primary)' } : undefined}
+                >
+                  {p.label}
+                </button>
               ))}
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className={LABEL}>РАЗМЕР: {logoSize}%</label>
-                <input
-                  type="range" min={5} max={30} value={logoSize}
-                  onChange={(e) => setLogoSize(Number(e.target.value))}
-                  className="w-full accent-[var(--color-primary)] mt-2"
-                />
-              </div>
-              <div>
-                <label className={LABEL}>ПРОЗРАЧНОСТЬ: {logoOpacity}%</label>
-                <input
-                  type="range" min={10} max={100} value={logoOpacity}
-                  onChange={(e) => setLogoOpacity(Number(e.target.value))}
-                  className="w-full accent-[var(--color-primary)] mt-2"
-                />
-              </div>
-            </div>
-          </>
-        )}
-      </div>
+          </div>
 
-      {/* Сияние */}
-      <div className="glass rounded-xl p-3 space-y-3">
-        <div className="flex items-center justify-between">
-          <span className="nx-eyebrow">СИЯНИЕ (СЕВЕРНОЕ СИЯНИЕ)</span>
-          <Switch on={auroraOn} onToggle={() => setAuroraOn((v) => !v)} label="Сияние" />
-        </div>
-        {auroraOn && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className={LABEL}>ЯРКОСТЬ: {brightness}%</label>
-              <input
-                type="range" min={10} max={100} value={brightness}
-                onChange={(e) => setBrightness(Number(e.target.value))}
-                className="w-full accent-[var(--color-primary)] mt-2"
-              />
+          {/* Картинка */}
+          <div className="glass rounded-xl p-2.5 space-y-2">
+            <span className="nx-eyebrow">КАРТИНКА</span>
+            <div className="flex flex-wrap gap-1.5 items-center">
+              <label className="btn-ghost nx-press px-2.5 py-1.5 min-h-[32px] rounded-lg font-mono text-[10px] flex items-center gap-1.5 cursor-pointer">
+                <Upload className="w-3.5 h-3.5" /> {image ? 'ЗАМЕНИТЬ' : 'ЗАГРУЗИТЬ'}
+                <input type="file" accept="image/*" className="hidden" onChange={(e) => { onPickFile(e.target.files?.[0]); e.target.value = ''; }} />
+              </label>
+              <div className="flex rounded-lg overflow-hidden border border-white/10">
+                <button
+                  onClick={() => setFitMode('cover')}
+                  className={`px-2.5 py-1.5 min-h-[32px] font-mono text-[10px] nx-press ${fitMode === 'cover' ? 'text-black' : 'text-gray-400 bg-white/5'}`}
+                  style={fitMode === 'cover' ? { background: 'var(--color-primary)' } : undefined}
+                >ЗАПОЛНИТЬ</button>
+                <button
+                  onClick={() => setFitMode('contain')}
+                  className={`px-2.5 py-1.5 min-h-[32px] font-mono text-[10px] nx-press ${fitMode === 'contain' ? 'text-black' : 'text-gray-400 bg-white/5'}`}
+                  style={fitMode === 'contain' ? { background: 'var(--color-primary)' } : undefined}
+                >ВПИСАТЬ</button>
+              </div>
+              <button
+                onClick={resetView}
+                className="btn-ghost nx-press px-2.5 py-1.5 min-h-[32px] rounded-lg font-mono text-[10px] flex items-center gap-1"
+                title="Сбросить масштаб и центр"
+              >
+                <Move className="w-3 h-3" /> ЦЕНТР
+              </button>
             </div>
             <div>
-              <label className={LABEL}>СКОРОСТЬ: {(speed / 100).toFixed(1)}×</label>
+              <label className={LABEL}>МАСШТАБ: {Math.round(scale * 100)}%</label>
               <input
-                type="range" min={20} max={250} value={speed}
-                onChange={(e) => setSpeed(Number(e.target.value))}
-                className="w-full accent-[var(--color-primary)] mt-2"
-              />
-            </div>
-          </div>
-        )}
-        <div className="flex items-center justify-between gap-3">
-          <span className="font-mono text-[11px] text-gray-300">ШТОРЫ СИЯНИЯ ВНУТРИ КАДРА</span>
-          <Switch on={curtainsOn} onToggle={() => setCurtainsOn((v) => !v)} label="Шторы сияния" />
-        </div>
-        {curtainsOn && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className={LABEL}>ЯРКОСТЬ ШТОР: {curtainIntensity}%</label>
-              <input
-                type="range" min={10} max={100} value={curtainIntensity}
-                onChange={(e) => setCurtainIntensity(Number(e.target.value))}
-                className="w-full accent-[var(--color-primary)] mt-2"
-              />
-            </div>
-            <div>
-              <label className={LABEL}>СКОРОСТЬ ШТОР: {(curtainSpeed / 100).toFixed(1)}×</label>
-              <input
-                type="range" min={20} max={250} value={curtainSpeed}
-                onChange={(e) => setCurtainSpeed(Number(e.target.value))}
-                className="w-full accent-[var(--color-primary)] mt-2"
+                type="range" min={25} max={300} value={Math.round(scale * 100)}
+                onChange={(e) => setScale(Number(e.target.value) / 100)}
+                className="w-full accent-[var(--color-primary)]"
               />
             </div>
           </div>
-        )}
-      </div>
 
-      {/* Эффекты поверх кадра */}
-      <div className="glass rounded-xl p-3 space-y-3">
-        <span className="nx-eyebrow">ЭФФЕКТЫ ПОВЕРХ ФОТО И ТЕКСТА</span>
-        <div className="space-y-2">
-          <div className="flex items-center justify-between gap-3">
-            <span className="font-mono text-[11px] text-gray-300">КОСМИЧЕСКИЙ ВЕТЕР</span>
-            <Switch on={windOn} onToggle={() => setWindOn((v) => !v)} label="Космический ветер" />
-          </div>
-          <div className="flex items-center justify-between gap-3">
-            <span className="font-mono text-[11px] text-gray-300">ПАДАЮЩИЙ СНЕГ</span>
-            <Switch on={snowOn} onToggle={() => setSnowOn((v) => !v)} label="Падающий снег" />
+          {/* Логотип */}
+          <div className="glass rounded-xl p-2.5 space-y-2">
+            <span className="nx-eyebrow">ЛОГОТИП КАНАЛА</span>
+            <div className="flex flex-wrap gap-1.5 items-center">
+              <label className="btn-ghost nx-press px-2.5 py-1.5 min-h-[32px] rounded-lg font-mono text-[10px] flex items-center gap-1.5 cursor-pointer">
+                <Upload className="w-3.5 h-3.5" /> {logo ? 'ЗАМЕНИТЬ' : 'PNG'}
+                <input type="file" accept="image/*" className="hidden" onChange={(e) => { onPickLogo(e.target.files?.[0]); e.target.value = ''; }} />
+              </label>
+              {logo && (
+                <button
+                  onClick={() => setLogo(null)}
+                  className="btn-ghost nx-press px-2.5 py-1.5 min-h-[32px] rounded-lg font-mono text-[10px]"
+                >УБРАТЬ</button>
+              )}
+            </div>
+            {logo && (
+              <>
+                <div className="flex flex-wrap gap-1.5">
+                  {([['tl', 'ВЛ ВВЕРХ'], ['tr', 'ВП ВВЕРХ'], ['bl', 'ВЛ ВНИЗ'], ['br', 'ВП ВНИЗ']] as [LogoCorner, string][]).map(([id, label]) => (
+                    <button
+                      key={id}
+                      onClick={() => setLogoCorner(id)}
+                      className={chip(logoCorner === id)}
+                      style={logoCorner === id ? { background: 'var(--color-primary)' } : undefined}
+                    >{label}</button>
+                  ))}
+                </div>
+                <div>
+                  <label className={LABEL}>РАЗМЕР: {logoSize}%</label>
+                  <input type="range" min={5} max={30} value={logoSize}
+                    onChange={(e) => setLogoSize(Number(e.target.value))}
+                    className="w-full accent-[var(--color-primary)]" />
+                </div>
+                <div>
+                  <label className={LABEL}>СКРУГЛЕНИЕ: {logoRadius === 50 ? 'КРУГ' : `${logoRadius}%`}</label>
+                  <input type="range" min={0} max={50} value={logoRadius}
+                    onChange={(e) => setLogoRadius(Number(e.target.value))}
+                    className="w-full accent-[var(--color-primary)]" />
+                </div>
+                <div>
+                  <label className={LABEL}>ПРОЗРАЧНОСТЬ: {logoOpacity}%</label>
+                  <input type="range" min={10} max={100} value={logoOpacity}
+                    onChange={(e) => setLogoOpacity(Number(e.target.value))}
+                    className="w-full accent-[var(--color-primary)]" />
+                </div>
+              </>
+            )}
           </div>
         </div>
-        {(windOn || snowOn) && (
-          <div>
-            <label className={LABEL}>ПЛОТНОСТЬ: {fxIntensity}%</label>
-            <input
-              type="range" min={15} max={100} value={fxIntensity}
-              onChange={(e) => setFxIntensity(Number(e.target.value))}
-              className="w-full accent-[var(--color-primary)] mt-2"
+
+        {/* ЦЕНТР: холст + экспорт */}
+        <div className="space-y-3">
+          <div className="nx-panel p-3">
+            <FrameCanvas
+              state={previewState}
+              canvasRef={canvasRef}
+              onOffsetChange={(x, y) => { setOx(x); setOy(y); }}
+              onScaleChange={setScale}
+              onTextMove={(x, y) => { setTextX(x); setTextY(y); }}
+              onAngleChange={(d) => setTextAngle(Math.round(d))}
             />
+            <div className="flex flex-wrap items-center justify-between gap-2 mt-2">
+              <p className="font-mono text-[9px] text-gray-600">
+                {image
+                  ? 'тащите картинку ИЛИ текст · кружок над текстом — наклон · колесо/пинч — масштаб'
+                  : '// загрузите картинку, чтобы начать'}
+              </p>
+              <button
+                onClick={() => setCleanPreview((v) => !v)}
+                className={chip(cleanPreview)}
+                style={cleanPreview ? { background: 'var(--color-primary)' } : undefined}
+                title="Показать кадр без ветра, снега, штор и сияния"
+              >
+                <Eye className="w-3 h-3 inline mr-1 -mt-0.5" />ЧИСТЫЙ КАДР
+              </button>
+            </div>
           </div>
-        )}
-        <p className="font-mono text-[10px] text-gray-600">
-          ветер — редкие световые штрихи, снег — мягкие хлопья; оба идут поверх кадра, но не густят
-        </p>
+
+          {/* Экспорт */}
+          <div className="glass rounded-xl p-2.5 flex flex-wrap items-center gap-2">
+            <button
+              onClick={exportPng}
+              disabled={!!exporting}
+              className="btn-primary nx-press px-3.5 py-2 min-h-[38px] rounded-xl font-mono text-[11px] font-bold disabled:opacity-50 flex items-center gap-1.5"
+            >
+              <Download className="w-3.5 h-3.5" /> PNG
+            </button>
+            <button
+              onClick={exportGif}
+              disabled={!!exporting}
+              className="nx-press px-3.5 py-2 min-h-[38px] rounded-xl font-mono text-[11px] font-bold flex items-center gap-1.5 disabled:opacity-50"
+              style={{ background: 'rgba(0,212,255,0.15)', color: '#00d4ff', border: '1px solid rgba(0,212,255,0.3)' }}
+              title="Анимированный GIF — рамка полыхает"
+            >
+              GIF {exporting === 'gif' ? '…' : ''}
+            </button>
+            {videoSupported() && (
+              <>
+                <button
+                  onClick={exportVideo}
+                  disabled={!!exporting}
+                  className="nx-press px-3.5 py-2 min-h-[38px] rounded-xl font-mono text-[11px] font-bold flex items-center gap-1.5 disabled:opacity-50"
+                  style={{ background: 'rgba(125,95,255,0.15)', color: '#7d5fff', border: '1px solid rgba(125,95,255,0.35)' }}
+                  title="Короткое видео (mp4, где поддерживается)"
+                >
+                  ВИДЕО {exporting === 'video' ? '…' : ''}
+                </button>
+                <select
+                  value={videoSeconds}
+                  onChange={(e) => setVideoSeconds(Number(e.target.value))}
+                  className="px-2 py-2 rounded-lg text-[10px] font-mono bg-white/5 border border-white/10 text-gray-300 min-h-[36px]"
+                  title="Длина видео"
+                >
+                  {[2, 4, 6, 8, 10].map((s) => <option key={s} value={s}>{s} сек</option>)}
+                </select>
+              </>
+            )}
+            {exporting && (
+              <span className="font-mono text-[9px] text-gray-500">готовим {exporting.toUpperCase()}…</span>
+            )}
+          </div>
+        </div>
+
+        {/* ПРАВАЯ КОЛОНКА */}
+        <div className="space-y-3">
+          {/* Текст */}
+          <div className="glass rounded-xl p-2.5 space-y-2">
+            <span className="nx-eyebrow">ТЕКСТ</span>
+            <input
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder="Например: НОРИЛЬСК · ЛЕТО 2026"
+              className={FIELD}
+              maxLength={80}
+            />
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className={LABEL}>ШРИФТ</label>
+                <select value={fontFamily} onChange={(e) => setFontFamily(e.target.value)} className={FIELD}>
+                  {FONTS.map((f) => <option key={f.label} value={f.value}>{f.label}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className={LABEL}>РАЗМЕР: {fontSize}</label>
+                <input
+                  type="range" min={30} max={120} value={fontSize}
+                  onChange={(e) => setFontSize(Number(e.target.value))}
+                  className="w-full accent-[var(--color-primary)] mt-2"
+                />
+              </div>
+            </div>
+            <ColorField label="ЦВЕТ ТЕКСТА" value={textColor} onChange={setTextColor} />
+
+            {/* неон */}
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-mono text-[10px] text-gray-300">НЕОН-СВЕЧЕНИЕ</span>
+              <Switch on={neonOn} onToggle={() => setNeonOn((v) => !v)} label="Неон свечение текста" />
+            </div>
+            {neonOn && (
+              <>
+                <ColorField label="ЦВЕТ НЕОНА" value={neonColor} onChange={setNeonColor} />
+                <div>
+                  <label className={LABEL}>СИЛА СВЕЧЕНИЯ: {neonIntensity}%</label>
+                  <input
+                    type="range" min={10} max={100} value={neonIntensity}
+                    onChange={(e) => setNeonIntensity(Number(e.target.value))}
+                    className="w-full accent-[var(--color-primary)]"
+                  />
+                </div>
+              </>
+            )}
+
+            {/* положение / форма */}
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className={LABEL}>НАКЛОН: {textAngle}°</label>
+                <input
+                  type="range" min={-40} max={40} value={textAngle}
+                  onChange={(e) => setTextAngle(Number(e.target.value))}
+                  className="w-full accent-[var(--color-primary)] mt-1.5"
+                />
+              </div>
+              <div>
+                <label className={LABEL}>ФОРМА</label>
+                <select value={textShape} onChange={(e) => setTextShape(e.target.value as TextShape)} className={`${FIELD} mt-0.5`}>
+                  <option value="straight">Прямая</option>
+                  <option value="arc-up">Дуга ∩</option>
+                  <option value="arc-down">Дуга ∪</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label className={LABEL}>ИЗГИБ: {textShape === 'straight' ? '—' : `${textBend}%`}</label>
+              <input
+                type="range" min={15} max={100} value={textBend}
+                disabled={textShape === 'straight'}
+                onChange={(e) => setTextBend(Number(e.target.value))}
+                className="w-full accent-[var(--color-primary)] disabled:opacity-30"
+              />
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <p className="font-mono text-[9px] text-gray-600">
+                {plateOn && plateStyle === 'band'
+                  ? 'текст закреплён в полосе снизу'
+                  : textY == null ? 'позиция: низ по центру (авто)' : `позиция: ${Math.round(textX * 100)}% × ${Math.round(textY * 100)}%`}
+              </p>
+              <button
+                onClick={() => { setTextX(0.5); setTextY(null); setTextAngle(0); }}
+                className="btn-ghost nx-press px-2.5 py-1.5 min-h-[32px] rounded-lg font-mono text-[10px] shrink-0"
+                title="Вернуть текст вниз по центру, снять наклон"
+              >
+                СБРОС
+              </button>
+            </div>
+          </div>
+
+          {/* Плашка */}
+          <div className="glass rounded-xl p-2.5 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="nx-eyebrow">ПЛАШКА ПОД ТЕКСТОМ</span>
+              <Switch on={plateOn} onToggle={() => setPlateOn((v) => !v)} label="Плашка под текстом" />
+            </div>
+            {plateOn && (
+              <>
+                <div className="flex flex-wrap gap-1.5">
+                  <button
+                    onClick={() => setPlateStyle('capsule')}
+                    className={chip(plateStyle === 'capsule')}
+                    style={plateStyle === 'capsule' ? { background: 'var(--color-primary)' } : undefined}
+                  >КАПСУЛА</button>
+                  <button
+                    onClick={() => setPlateStyle('band')}
+                    className={chip(plateStyle === 'band')}
+                    style={plateStyle === 'band' ? { background: 'var(--color-primary)' } : undefined}
+                  >ПОЛОСА СНИЗУ</button>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  <button
+                    onClick={() => setPlateFill('solid')}
+                    className={chip(plateFill === 'solid')}
+                    style={plateFill === 'solid' ? { background: 'var(--color-primary)' } : undefined}
+                  >СПЛОШНОЙ</button>
+                  <button
+                    onClick={() => setPlateFill('gradient')}
+                    className={chip(plateFill === 'gradient')}
+                    style={plateFill === 'gradient' ? { background: 'var(--color-primary)' } : undefined}
+                  >ГРАДИЕНТ</button>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className={LABEL}>ЦВЕТ {plateFill === 'gradient' ? 'A' : 'ПЛАШКИ'}</label>
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <input type="color" value={plateColor} onChange={(e) => setPlateColor(e.target.value)}
+                        className="w-8 h-8 rounded-md cursor-pointer bg-transparent border border-gray-700" />
+                      {PLATE_PRESETS.map((c) => (
+                        <button key={c} onClick={() => setPlateColor(c)} aria-label={`Цвет ${c}`}
+                          className="w-5 h-5 rounded-md border nx-press"
+                          style={{ background: c, borderColor: plateColor === c ? 'var(--color-primary)' : 'rgba(255,255,255,0.18)' }} />
+                      ))}
+                    </div>
+                  </div>
+                  {plateFill === 'gradient' && (
+                    <div>
+                      <label className={LABEL}>ЦВЕТ B</label>
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <input type="color" value={plateColor2} onChange={(e) => setPlateColor2(e.target.value)}
+                          className="w-8 h-8 rounded-md cursor-pointer bg-transparent border border-gray-700" />
+                      </div>
+                    </div>
+                  )}
+                </div>
+                {plateFill === 'gradient' && (
+                  <div>
+                    <label className={LABEL}>НАПРАВЛЕНИЕ ГРАДИЕНТА: {plateAngle}°</label>
+                    <input type="range" min={0} max={360} value={plateAngle}
+                      onChange={(e) => setPlateAngle(Number(e.target.value))}
+                      className="w-full accent-[var(--color-primary)]" />
+                  </div>
+                )}
+                <div>
+                  <label className={LABEL}>ПРОЗРАЧНОСТЬ ПЛАШКИ: {plateAlpha}%</label>
+                  <input type="range" min={10} max={100} value={plateAlpha}
+                    onChange={(e) => setPlateAlpha(Number(e.target.value))}
+                    className="w-full accent-[var(--color-primary)]" />
+                </div>
+                <div>
+                  <label className={LABEL}>БЛЮР ФОТО ПОД ПЛАШКОЙ: {plateBlur}%</label>
+                  <input type="range" min={0} max={100} value={plateBlur}
+                    onChange={(e) => setPlateBlur(Number(e.target.value))}
+                    className="w-full accent-[var(--color-primary)]" />
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Сияние */}
+          <div className="glass rounded-xl p-2.5 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="nx-eyebrow">СИЯНИЕ</span>
+              <Switch on={auroraOn} onToggle={() => setAuroraOn((v) => !v)} label="Сияние рамки" />
+            </div>
+            {auroraOn && (
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className={LABEL}>ЯРКОСТЬ: {brightness}%</label>
+                  <input type="range" min={10} max={100} value={brightness}
+                    onChange={(e) => setBrightness(Number(e.target.value))}
+                    className="w-full accent-[var(--color-primary)]" />
+                </div>
+                <div>
+                  <label className={LABEL}>СКОРОСТЬ: {(speed / 100).toFixed(1)}×</label>
+                  <input type="range" min={20} max={250} value={speed}
+                    onChange={(e) => setSpeed(Number(e.target.value))}
+                    className="w-full accent-[var(--color-primary)]" />
+                </div>
+              </div>
+            )}
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-mono text-[10px] text-gray-300">ШТОРЫ ВНУТРИ КАДРА</span>
+              <Switch on={curtainsOn} onToggle={() => setCurtainsOn((v) => !v)} label="Шторы сияния" />
+            </div>
+            {curtainsOn && (
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className={LABEL}>ЯРКОСТЬ ШТОР: {curtainIntensity}%</label>
+                  <input type="range" min={10} max={100} value={curtainIntensity}
+                    onChange={(e) => setCurtainIntensity(Number(e.target.value))}
+                    className="w-full accent-[var(--color-primary)]" />
+                </div>
+                <div>
+                  <label className={LABEL}>СКОРОСТЬ ШТОР: {(curtainSpeed / 100).toFixed(1)}×</label>
+                  <input type="range" min={20} max={250} value={curtainSpeed}
+                    onChange={(e) => setCurtainSpeed(Number(e.target.value))}
+                    className="w-full accent-[var(--color-primary)]" />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Эффекты */}
+          <div className="glass rounded-xl p-2.5 space-y-2">
+            <span className="nx-eyebrow">ЭФФЕКТЫ ПОВЕРХ</span>
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-mono text-[10px] text-gray-300">КОСМИЧЕСКИЙ ВЕТЕР</span>
+              <Switch on={windOn} onToggle={() => setWindOn((v) => !v)} label="Космический ветер" />
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-mono text-[10px] text-gray-300">ПАДАЮЩИЙ СНЕГ</span>
+              <Switch on={snowOn} onToggle={() => setSnowOn((v) => !v)} label="Падающий снег" />
+            </div>
+            {(windOn || snowOn) && (
+              <div>
+                <label className={LABEL}>ПЛОТНОСТЬ: {fxIntensity}%</label>
+                <input type="range" min={15} max={100} value={fxIntensity}
+                  onChange={(e) => setFxIntensity(Number(e.target.value))}
+                  className="w-full accent-[var(--color-primary)]" />
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
-      {/* Экспорт */}
-      <div className="sticky bottom-0 flex items-center gap-2 pt-2 flex-wrap" style={{ background: 'linear-gradient(transparent, rgba(10,10,15,0.92) 35%)' }}>
-        <button
-          onClick={exportPng}
-          disabled={!!exporting}
-          className="btn-primary nx-press px-4 py-2.5 min-h-[44px] rounded-xl font-mono text-xs font-bold disabled:opacity-50 flex items-center gap-2"
-        >
-          <Download className="w-4 h-4" /> PNG
-        </button>
-        <button
-          onClick={exportGif}
-          disabled={!!exporting}
-          className="nx-press px-4 py-2.5 min-h-[44px] rounded-xl font-mono text-xs font-bold flex items-center gap-2 disabled:opacity-50"
-          style={{ background: 'rgba(0,212,255,0.15)', color: '#00d4ff', border: '1px solid rgba(0,212,255,0.3)' }}
-          title="Анимированный GIF — рамка полыхает"
-        >
-          GIF {exporting === 'gif' ? '…' : ''}
-        </button>
-        {videoSupported() && (
-          <button
-            onClick={exportVideo}
-            disabled={!!exporting}
-            className="nx-press px-4 py-2.5 min-h-[44px] rounded-xl font-mono text-xs font-bold flex items-center gap-2 disabled:opacity-50"
-            style={{ background: 'rgba(125,95,255,0.15)', color: '#7d5fff', border: '1px solid rgba(125,95,255,0.35)' }}
-            title="Короткое видео (mp4, где поддерживается)"
-          >
-            ВИДЕО {exporting === 'video' ? '…' : ''}
-          </button>
-        )}
-        {exporting && (
-          <span className="font-mono text-[10px] text-gray-500">готовим {exporting.toUpperCase()}…</span>
+      {/* ИСТОРИЯ ЭКСПОРТОВ — под рабочей областью */}
+      <div className="glass rounded-xl p-2.5">
+        <div className="flex items-center justify-between">
+          <span className="nx-eyebrow">ИСТОРИЯ ЭКСПОРТОВ</span>
+          {history.length > 0 && (
+            <button
+              onClick={() => setHistory([])}
+              className="btn-ghost nx-press px-2.5 py-1.5 min-h-[32px] rounded-lg font-mono text-[10px] flex items-center gap-1"
+            >
+              <Trash2 className="w-3 h-3" /> ОЧИСТИТЬ
+            </button>
+          )}
+        </div>
+        {history.length === 0 ? (
+          <p className="font-mono text-[9px] text-gray-600 mt-2">// пока пусто — сохранённые PNG / GIF / видео появятся здесь</p>
+        ) : (
+          <div className="mt-2 space-y-1">
+            {history.map((it) => (
+              <div key={it.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-white/[0.03] border border-white/5">
+                <span className="font-mono text-[9px] px-1.5 py-0.5 rounded" style={{ background: 'rgba(0,255,136,0.12)', color: 'var(--color-primary)' }}>{it.type}</span>
+                <span className="font-mono text-[10px] text-gray-300 truncate flex-1">{it.name}</span>
+                <span className="font-mono text-[9px] text-gray-500 shrink-0">{Math.round(it.size / 1024)} КБ</span>
+                <span className="font-mono text-[9px] text-gray-500 shrink-0">
+                  {new Date(it.ts).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
+                </span>
+                <button
+                  onClick={() => downloadBlob(it.blob, it.name)}
+                  className="btn-ghost nx-press px-2 py-1 rounded-md font-mono text-[9px] flex items-center gap-1 shrink-0"
+                  title="Скачать снова"
+                >
+                  <Download className="w-3 h-3" />
+                </button>
+              </div>
+            ))}
+          </div>
         )}
       </div>
     </div>
