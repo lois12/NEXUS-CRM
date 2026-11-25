@@ -60,6 +60,37 @@ const FONTS = [
 
 const PALETTE = ['#ffffff', '#0a0a0f', '#00ff88', '#00d4ff', '#7d5fff', '#ffd75f', '#ff6b6b', '#ff4fd8', '#b8f1ff'];
 
+/** HSV → hex */
+function hsvToHex(h: number, s: number, v: number): string {
+  const f = (n: number) => {
+    const k = (n + h / 60) % 6;
+    const c = v - v * s * Math.max(0, Math.min(k, 4 - k, 1));
+    return Math.round(Math.max(0, Math.min(255, c * 255))).toString(16).padStart(2, '0');
+  };
+  return `#${f(5)}${f(3)}${f(1)}`;
+}
+
+/** hex → HSV */
+function hexToHsv(hex: string): { h: number; s: number; v: number } {
+  const n = hex.replace('#', '');
+  const x = n.length === 3 ? n.split('').map((c) => c + c).join('') : n.padEnd(6, '0');
+  const r = (parseInt(x.slice(0, 2), 16) || 0) / 255;
+  const g = (parseInt(x.slice(2, 4), 16) || 0) / 255;
+  const b = (parseInt(x.slice(4, 6), 16) || 0) / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const d = max - min;
+  let h = 0;
+  if (d) {
+    if (max === r) h = ((g - b) / d) % 6;
+    else if (max === g) h = (b - r) / d + 2;
+    else h = (r - g) / d + 4;
+    h *= 60;
+    if (h < 0) h += 360;
+  }
+  return { h, s: max ? d / max : 0, v: max };
+}
+
 const FIELD = 'w-full px-2.5 py-2 rounded-xl text-xs bg-white/5 border border-white/10 text-gray-200 [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]';
 const LABEL = 'text-[9px] font-mono text-gray-500 tracking-wider';
 
@@ -89,11 +120,20 @@ function Switch({ on, onToggle, label }: { on: boolean; onToggle: () => void; la
   );
 }
 
-/** Выбор цвета: кнопка-плашка раскрывает палитру (палитра + свой цвет + пипетка) */
+/** Выбор цвета: выпадашка со спектром — поле насыщенности/яркости + радужный ползунок тона */
 function ColorField({ label, value, onChange }: { label: string; value: string; onChange: (c: string) => void }) {
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
+  const svRef = useRef<HTMLDivElement>(null);
+  const hueRef = useRef<HTMLDivElement>(null);
+  const [hsv, setHsv] = useState(() => hexToHsv(value));
   const [dropperOk] = useState(() => typeof window !== 'undefined' && 'EyeDropper' in window);
+
+  // при открытии синхронизируем с текущим значением
+  useEffect(() => {
+    if (open) setHsv(hexToHsv(value));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -104,11 +144,59 @@ function ColorField({ label, value, onChange }: { label: string; value: string; 
     return () => document.removeEventListener('mousedown', onDoc);
   }, [open]);
 
+  const emit = (h: number, s: number, v: number) => {
+    setHsv({ h, s, v });
+    onChange(hsvToHex(h, s, v));
+  };
+
+  const dragSV = (e: React.PointerEvent<HTMLDivElement>) => {
+    const el = svRef.current;
+    if (!el) return;
+    el.setPointerCapture(e.pointerId);
+    const apply = (ev: { clientX: number; clientY: number }) => {
+      const r = el.getBoundingClientRect();
+      const s = Math.max(0, Math.min(1, (ev.clientX - r.left) / r.width));
+      const v = 1 - Math.max(0, Math.min(1, (ev.clientY - r.top) / r.height));
+      emit(hsv.h, s, v);
+    };
+    apply(e);
+    const move = (ev: PointerEvent) => apply(ev);
+    const up = () => {
+      el.removeEventListener('pointermove', move);
+      el.removeEventListener('pointerup', up);
+    };
+    el.addEventListener('pointermove', move);
+    el.addEventListener('pointerup', up);
+  };
+
+  const dragHue = (e: React.PointerEvent<HTMLDivElement>) => {
+    const el = hueRef.current;
+    if (!el) return;
+    el.setPointerCapture(e.pointerId);
+    const apply = (ev: { clientX: number }) => {
+      const r = el.getBoundingClientRect();
+      const h = Math.max(0, Math.min(359, ((ev.clientX - r.left) / r.width) * 360));
+      // с белого/чёрного тон «не видно» — поднимаем насыщенность, чтобы цвет проявился
+      const s = hsv.s < 0.02 ? 1 : hsv.s;
+      const v = hsv.v < 0.02 ? 1 : hsv.v;
+      emit(h, s, v);
+    };
+    apply(e);
+    const move = (ev: PointerEvent) => apply(ev);
+    const up = () => {
+      el.removeEventListener('pointermove', move);
+      el.removeEventListener('pointerup', up);
+    };
+    el.addEventListener('pointermove', move);
+    el.addEventListener('pointerup', up);
+  };
+
   const pick = async () => {
     try {
       const ED = (window as unknown as { EyeDropper: new () => { open: () => Promise<{ sRGBHex: string }> } }).EyeDropper;
       const res = await new ED().open();
       onChange(res.sRGBHex);
+      setHsv(hexToHsv(res.sRGBHex));
     } catch { /* отменено */ }
   };
 
@@ -119,7 +207,7 @@ function ColorField({ label, value, onChange }: { label: string; value: string; 
         type="button"
         onClick={() => setOpen((v) => !v)}
         className="mt-1 w-full flex items-center gap-2 px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 nx-press"
-        aria-haspopup="listbox"
+        aria-haspopup="dialog"
         aria-expanded={open}
       >
         <span className="w-5 h-5 rounded-md border border-white/20 shrink-0" style={{ background: value }} />
@@ -127,22 +215,44 @@ function ColorField({ label, value, onChange }: { label: string; value: string; 
         <ChevronDown className={`w-3.5 h-3.5 text-gray-500 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
-        <div className="absolute z-50 left-0 right-0 mt-1 p-2 rounded-xl glass border border-white/10 shadow-2xl">
-          <div className="grid grid-cols-6 gap-1.5">
-            {PALETTE.map((c) => (
-              <button
-                key={c}
-                onClick={() => { onChange(c); setOpen(false); }}
-                aria-label={`Цвет ${c}`}
-                className="w-full aspect-square rounded-md border nx-press"
-                style={{ background: c, borderColor: value.toLowerCase() === c.toLowerCase() ? 'var(--color-primary)' : 'rgba(255,255,255,0.18)' }}
-              />
-            ))}
+        <div className="absolute z-50 left-0 right-0 mt-1 p-2.5 rounded-xl glass border border-white/10 shadow-2xl space-y-2">
+          {/* поле насыщенности / яркости */}
+          <div
+            ref={svRef}
+            onPointerDown={dragSV}
+            className="relative w-full h-28 rounded-lg cursor-crosshair touch-none"
+            style={{
+              background: `linear-gradient(to top, #000, transparent), linear-gradient(to right, #fff, rgba(255,255,255,0)), ${hsvToHex(hsv.h, 1, 1)}`,
+            }}
+          >
+            <span
+              className="absolute w-3.5 h-3.5 rounded-full border-2 border-white -translate-x-1/2 -translate-y-1/2 pointer-events-none"
+              style={{
+                left: `${hsv.s * 100}%`,
+                top: `${(1 - hsv.v) * 100}%`,
+                background: hsvToHex(hsv.h, hsv.s, hsv.v),
+                boxShadow: '0 0 0 1px rgba(0,0,0,0.45)',
+              }}
+            />
           </div>
-          <div className="flex items-center gap-2 mt-2">
+          {/* радужный ползунок тона */}
+          <div
+            ref={hueRef}
+            onPointerDown={dragHue}
+            className="relative w-full h-3.5 rounded-full cursor-pointer touch-none"
+            style={{
+              background: 'linear-gradient(to right, #f00 0%, #ff0 17%, #0f0 33%, #0ff 50%, #00f 67%, #f0f 83%, #f00 100%)',
+            }}
+          >
+            <span
+              className="absolute top-1/2 w-4 h-4 rounded-full border-2 border-white -translate-x-1/2 -translate-y-1/2 pointer-events-none"
+              style={{ left: `${(hsv.h / 360) * 100}%`, background: hsvToHex(hsv.h, 1, 1), boxShadow: '0 0 0 1px rgba(0,0,0,0.45)' }}
+            />
+          </div>
+          <div className="flex items-center gap-2">
             <input
               type="color" value={value}
-              onChange={(e) => onChange(e.target.value)}
+              onChange={(e) => { onChange(e.target.value); setHsv(hexToHsv(e.target.value)); }}
               className="w-8 h-8 rounded-md cursor-pointer bg-transparent border border-gray-700"
               aria-label="Свой цвет"
             />
@@ -156,7 +266,7 @@ function ColorField({ label, value, onChange }: { label: string; value: string; 
                 <Pipette className="w-3.5 h-3.5" />
               </button>
             )}
-            <span className="font-mono text-[9px] text-gray-500">свой цвет / пипетка</span>
+            <span className="font-mono text-[9px] text-gray-500">спектр / пипетка</span>
           </div>
         </div>
       )}
