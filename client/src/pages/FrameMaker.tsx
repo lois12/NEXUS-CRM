@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Sparkles, Upload, Move, Download, Pipette, Trash2, Eye, ChevronDown, X, Type } from 'lucide-react';
+import { ArrowLeft, Sparkles, Upload, Move, Download, Pipette, Trash2, Eye, ChevronDown, X, Type, Loader2 } from 'lucide-react';
 import FrameCanvas from '../components/framemaker/FrameCanvas';
 import {
   FRAME_PRESETS, type FrameState, type FitMode, type PlateStyle, type PlateFill,
@@ -657,7 +657,7 @@ export default function FrameMaker() {
               disabled={!!exporting}
               className="btn-primary nx-press px-3.5 py-2 min-h-[38px] rounded-xl font-mono text-[11px] font-bold disabled:opacity-50 flex items-center gap-1.5"
             >
-              <Download className="w-3.5 h-3.5" /> PNG
+              {exporting === 'png' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />} PNG
             </button>
             <button
               onClick={exportGif}
@@ -666,7 +666,7 @@ export default function FrameMaker() {
               style={{ background: 'rgba(0,212,255,0.15)', color: '#00d4ff', border: '1px solid rgba(0,212,255,0.3)' }}
               title="Анимированный GIF — рамка полыхает"
             >
-              GIF {exporting === 'gif' ? '…' : ''}
+              {exporting === 'gif' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null} GIF
             </button>
             {videoSupported() && (
               <>
@@ -677,7 +677,7 @@ export default function FrameMaker() {
                   style={{ background: 'rgba(125,95,255,0.15)', color: '#7d5fff', border: '1px solid rgba(125,95,255,0.35)' }}
                   title="Короткое видео (mp4, где поддерживается)"
                 >
-                  ВИДЕО {exporting === 'video' ? '…' : ''}
+                  {exporting === 'video' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null} ВИДЕО
                 </button>
                 <div className="relative">
                   <select
@@ -691,9 +691,6 @@ export default function FrameMaker() {
                   <ChevronDown className="w-3.5 h-3.5 text-gray-500 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
                 </div>
               </>
-            )}
-            {exporting && (
-              <span className="font-mono text-[9px] text-gray-500">готовим {exporting.toUpperCase()}…</span>
             )}
           </div>
         </div>
@@ -968,6 +965,42 @@ export default function FrameMaker() {
           </div>
         )}
       </div>
+
+      {/* Спиннер экспорта (чистый CSS — не зависит от framer-motion) */}
+      {exporting && (
+        <div
+          className="fixed inset-0 z-[200] flex items-center justify-center"
+          style={{ background: 'rgba(5,8,14,0.62)', backdropFilter: 'blur(10px) saturate(1.1)', WebkitBackdropFilter: 'blur(10px) saturate(1.1)' }}
+          role="status"
+          aria-live="polite"
+        >
+          <div className="flex flex-col items-center gap-4">
+            <div className="relative w-16 h-16">
+              <div
+                className="absolute inset-0 rounded-full border-2 border-transparent animate-spin"
+                style={{ borderTopColor: 'var(--color-primary)', borderRightColor: 'var(--color-primary)' }}
+              />
+              <div
+                className="absolute inset-2 rounded-full border-2 border-transparent animate-spin"
+                style={{ borderBottomColor: 'var(--color-accent)', borderLeftColor: 'var(--color-accent)', animationDuration: '1.5s', animationDirection: 'reverse' }}
+              />
+              <div
+                className="absolute inset-4 rounded-full border-2 border-transparent animate-spin"
+                style={{ borderTopColor: 'var(--color-secondary)', animationDuration: '0.8s' }}
+              />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div
+                  className="w-3 h-3 rounded-full animate-pulse"
+                  style={{ background: 'var(--color-primary)', boxShadow: '0 0 10px var(--color-glow)' }}
+                />
+              </div>
+            </div>
+            <p className="font-mono text-sm font-bold animate-pulse" style={{ color: 'var(--color-primary)', textShadow: '0 0 10px var(--color-glow)' }}>
+              {exporting === 'png' ? 'ГОТОВИМ PNG…' : exporting === 'gif' ? 'ГОТОВИМ GIF…' : 'ЗАПИСЫВАЕМ ВИДЕО…'}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Окно выбора шрифта */}
       {fontModal && (
