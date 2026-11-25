@@ -62,6 +62,12 @@ export interface FrameState {
   strokeOn: boolean;
   strokeColor: string;
   strokeWidth: number; // 0..1 → доля px
+  /** типографика */
+  lineHeight: number; // множитель межстрочного (0.8–2)
+  letterSpacing: number; // разрядка, доля px (-0.02–0.12)
+  textCase: TextCase;
+  /** анимация появления текста (в GIF/видео и превью) */
+  textAnim: TextAnim;
   auroraOn: boolean;
   auroraBrightness: number; // 0..1
   auroraSpeed: number; // 0..2
@@ -70,6 +76,8 @@ export interface FrameState {
   /** плотность/интенсивность эффектов 0..1 */
   fxIntensity: number;
   /** параметры рамки */
+  frameStyle: FrameStyle;
+  frameMode: FrameMode;
   frameRadius: number; // доля minDim (0–0.12), для 'circle' не используется
   frameWidth: number; // множитель толщины грани (0.5–2.5)
   /** плашка под текстом: капсула вокруг текста или новостная полоса снизу */
@@ -88,6 +96,7 @@ export interface FrameState {
   logoSize: number; // доля minDim (0.05–0.3)
   logoOpacity: number; // 0..1
   logoRadius: number; // 0..0.5 — скругление углов (0.5 = круг)
+  logoUnderText: boolean; // порядок: логотип под текстом
   /** неоновое свечение текста */
   neonOn: boolean;
   neonColor: string;
@@ -96,10 +105,23 @@ export interface FrameState {
   curtainsOn: boolean;
   curtainIntensity: number; // 0..1
   curtainSpeed: number; // 0..2
+  curtainAngle: number; // -45..45 градусов наклона столбов
+  curtainWidth: number; // 0.5..2 множитель ширины
+  curtainCount: number; // 3..8 столбцов
+  /** слои: видимость */
+  showPhoto: boolean;
+  showText: boolean;
+  showLogo: boolean;
+  showFx: boolean;
+  showFrame: boolean;
 }
 
 export type PlateStyle = 'capsule' | 'band';
 export type PlateFill = 'solid' | 'gradient';
+export type FrameStyle = 'aurora' | 'neon' | 'glass' | 'fire' | 'ice';
+export type FrameMode = 'full' | 'corners';
+export type TextCase = 'none' | 'upper' | 'lower' | 'title';
+export type TextAnim = 'none' | 'fade' | 'slide' | 'type';
 
 /** Габарит текстового блока для hit-test (в координатах холста) */
 export interface TextBBox {
@@ -132,6 +154,44 @@ export function shapePath(ctx: CanvasRenderingContext2D, w: number, h: number, p
   }
 }
 
+/** Угловые скобки («чертёжный» стиль) — только углы контура */
+function cornerBracketsPath(ctx: CanvasRenderingContext2D, w: number, h: number, preset: FramePreset, radius?: number) {
+  const L = Math.min(w, h) * 0.2;
+  ctx.beginPath();
+  if (preset.radius === 'circle') {
+    const r = Math.min(w, h) / 2;
+    for (let k = 0; k < 4; k++) {
+      const c = Math.PI / 4 + k * (Math.PI / 2);
+      ctx.moveTo(w / 2 + r * Math.cos(c - 0.35), h / 2 + r * Math.sin(c - 0.35));
+      ctx.arc(w / 2, h / 2, r, c - 0.35, c + 0.35);
+    }
+    return;
+  }
+  const r = Math.min(Math.min(w, h) * (radius != null ? radius : preset.radius), Math.min(w, h) / 2);
+  const lx = Math.min(L, w / 2);
+  const ly = Math.min(L, h / 2);
+  // TL
+  ctx.moveTo(0, ly);
+  ctx.lineTo(0, r);
+  ctx.quadraticCurveTo(0, 0, r, 0);
+  ctx.lineTo(lx, 0);
+  // TR
+  ctx.moveTo(w - lx, 0);
+  ctx.lineTo(w - r, 0);
+  ctx.quadraticCurveTo(w, 0, w, r);
+  ctx.lineTo(w, ly);
+  // BR
+  ctx.moveTo(w, h - ly);
+  ctx.lineTo(w, h - r);
+  ctx.quadraticCurveTo(w, h, w - r, h);
+  ctx.lineTo(w - lx, h);
+  // BL
+  ctx.moveTo(lx, h);
+  ctx.lineTo(r, h);
+  ctx.quadraticCurveTo(0, h, 0, h - r);
+  ctx.lineTo(0, h - ly);
+}
+
 function rgba(c: AuroraColor, a: number): string {
   return `rgba(${c.r},${c.g},${c.b},${Math.max(0, Math.min(1, a)).toFixed(3)})`;
 }
@@ -146,15 +206,52 @@ function hexAlpha(hex: string, a: number): string {
   return `rgba(${r},${g},${b},${Math.max(0, Math.min(1, a)).toFixed(3)})`;
 }
 
-/** Полярные шторы: мягкие световые столбы, дрейфуют по кадру (поверх фото, под текстом) */
-function drawCurtains(ctx: CanvasRenderingContext2D, w: number, h: number, t: number, intensity: number, speed: number) {
-  const N = 5;
+/** Регистр текста для отрисовки */
+function applyCase(text: string, mode: TextCase): string {
+  if (mode === 'upper') return text.toUpperCase();
+  if (mode === 'lower') return text.toLowerCase();
+  if (mode === 'title') return text.replace(/[^\s]+/g, (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+  return text;
+}
+
+/** Палитры рамки по стилям */
+const FRAME_STOPS: Record<FrameStyle, AuroraColor[]> = {
+  aurora: [{ r: 0, g: 255, b: 136 }, { r: 0, g: 212, b: 255 }, { r: 125, g: 95, b: 255 }],
+  neon: [{ r: 255, g: 79, b: 216 }, { r: 0, g: 212, b: 255 }, { r: 155, g: 95, b: 255 }],
+  glass: [{ r: 230, g: 245, b: 255 }, { r: 150, g: 210, b: 255 }, { r: 190, g: 180, b: 255 }],
+  fire: [{ r: 255, g: 60, b: 30 }, { r: 255, g: 150, b: 20 }, { r: 255, g: 230, b: 80 }],
+  ice: [{ r: 240, g: 252, b: 255 }, { r: 0, g: 190, b: 255 }, { r: 30, g: 80, b: 220 }],
+};
+
+function frameColorAt(u: number, style: FrameStyle): AuroraColor {
+  const stops = FRAME_STOPS[style] || FRAME_STOPS.aurora;
+  const t = ((u % 1) + 1) % 1;
+  const seg = t * stops.length;
+  const i = Math.floor(seg) % stops.length;
+  const j = (i + 1) % stops.length;
+  const f = seg - Math.floor(seg);
+  const a = stops[i];
+  const b = stops[j];
+  return {
+    r: Math.round(a.r + (b.r - a.r) * f),
+    g: Math.round(a.g + (b.g - a.g) * f),
+    b: Math.round(a.b + (b.b - a.b) * f),
+  };
+}
+
+/** Полярные шторы: световые столбы с наклоном, дрейфом и настраиваемой шириной/количеством */
+function drawCurtains(ctx: CanvasRenderingContext2D, w: number, h: number, t: number, s: FrameState) {
+  const intensity = s.curtainIntensity;
+  const speed = s.curtainSpeed;
+  const N = Math.round(s.curtainCount);
+  const widthK = s.curtainWidth;
+  const slant = Math.tan((s.curtainAngle * Math.PI) / 180) * h;
   ctx.save();
   ctx.globalCompositeOperation = 'screen';
   for (let i = 0; i < N; i++) {
     const phase = t * 0.00012 * speed + i * 1.31;
-    const cx = w * (0.1 + 0.2 * i + 0.07 * Math.sin(phase));
-    const bw = w * (0.07 + 0.045 * Math.sin(phase * 0.7 + i));
+    const cx = w * (0.08 + (0.84 * (i + 0.5)) / N + 0.05 * Math.sin(phase));
+    const bw = w * 0.075 * widthK * (1 + 0.35 * Math.sin(phase * 0.7 + i));
     const col = auroraColorAt(0.15 * i + t * 0.00003 * speed);
     const alpha = intensity * (0.09 + 0.06 * (0.5 + 0.5 * Math.sin(phase * 1.3)));
     if (alpha < 0.01) continue;
@@ -163,7 +260,14 @@ function drawCurtains(ctx: CanvasRenderingContext2D, w: number, h: number, t: nu
     grad.addColorStop(0.5, rgba(col, alpha));
     grad.addColorStop(1, rgba(col, 0));
     ctx.fillStyle = grad;
-    ctx.fillRect(cx - bw, 0, bw * 2, h);
+    // столб с наклоном: верх смещён относительно низа
+    ctx.beginPath();
+    ctx.moveTo(cx - bw + slant, 0);
+    ctx.lineTo(cx + bw + slant, 0);
+    ctx.lineTo(cx + bw, h);
+    ctx.lineTo(cx - bw, h);
+    ctx.closePath();
+    ctx.fill();
   }
   ctx.restore();
 }
@@ -282,24 +386,29 @@ function drawSnow(ctx: CanvasRenderingContext2D, w: number, h: number, minDim: n
 /**
  * Рамка-сияние: градиенты по контуру через conic-градиент —
  * без сегментов, значит без «обломанных» стыков; блик-волна бежит по углу.
+ * frameMode='corners' — только угловые скобки вместо полного контура.
  */
 function drawAuroraFrame(ctx: CanvasRenderingContext2D, w: number, h: number, minDim: number, s: FrameState, t: number) {
   const speed = s.auroraSpeed;
   const brightness = s.auroraBrightness;
   const widthK = s.frameWidth;
+  const path = () => {
+    if (s.frameMode === 'corners') cornerBracketsPath(ctx, w, h, s.preset, s.frameRadius);
+    else shapePath(ctx, w, h, s.preset, s.frameRadius);
+  };
 
   const conic = (phase: number, alphaMul: number): CanvasGradient | string => {
     const cg = (ctx as CanvasRenderingContext2D & {
       createConicGradient?: (a: number, x: number, y: number) => CanvasGradient;
     }).createConicGradient;
-    const color0 = rgba(auroraColorAt(phase * 0.16), Math.min(1, 0.85 * alphaMul * (0.35 + 0.65 * brightness)));
+    const color0 = rgba(frameColorAt(phase * 0.16, s.frameStyle), Math.min(1, 0.85 * alphaMul * (0.35 + 0.65 * brightness)));
     if (typeof cg !== 'function') return color0;
     const g = cg.call(ctx, phase, w / 2, h / 2);
     const stops = 12;
     for (let i = 0; i <= stops; i++) {
       const u = i / stops;
       const a = (0.55 + 0.45 * Math.sin(u * Math.PI * 2 + phase)) * alphaMul * (0.35 + 0.65 * brightness);
-      g.addColorStop(u, rgba(auroraColorAt(u + phase * 0.16), Math.max(0, Math.min(1, a))));
+      g.addColorStop(u, rgba(frameColorAt(u + phase * 0.16, s.frameStyle), Math.max(0, Math.min(1, a))));
     }
     return g;
   };
@@ -307,17 +416,17 @@ function drawAuroraFrame(ctx: CanvasRenderingContext2D, w: number, h: number, mi
   // мягкое свечение
   const pulse = 0.55 + 0.45 * (0.5 + 0.5 * Math.sin(t * 0.001 * speed));
   ctx.save();
-  shapePath(ctx, w, h, s.preset, s.frameRadius);
+  path();
   ctx.lineWidth = Math.max(2, minDim * 0.011 * widthK);
   ctx.strokeStyle = conic(t * 0.0012 * speed, 0.6 * pulse);
-  ctx.shadowColor = rgba(auroraColorAt(t * 0.00008 * speed), 0.5 * pulse * brightness);
+  ctx.shadowColor = rgba(frameColorAt(t * 0.00008, s.frameStyle), 0.5 * pulse * brightness);
   ctx.shadowBlur = minDim * 0.032;
   ctx.stroke();
   ctx.restore();
 
   // переливающееся ядро грани
   ctx.save();
-  shapePath(ctx, w, h, s.preset, s.frameRadius);
+  path();
   ctx.lineWidth = Math.max(2, minDim * 0.0115 * widthK);
   ctx.strokeStyle = conic(t * 0.0012 * speed + 1.3, 1);
   ctx.stroke();
@@ -340,7 +449,7 @@ function drawAuroraFrame(ctx: CanvasRenderingContext2D, w: number, h: number, mi
     }
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
-    shapePath(ctx, w, h, s.preset, s.frameRadius);
+    path();
     ctx.lineWidth = Math.max(2, minDim * 0.0115 * widthK);
     ctx.strokeStyle = g;
     ctx.stroke();
@@ -349,7 +458,7 @@ function drawAuroraFrame(ctx: CanvasRenderingContext2D, w: number, h: number, mi
 
   // чёткая светящаяся грань
   ctx.save();
-  shapePath(ctx, w, h, s.preset, s.frameRadius);
+  path();
   ctx.lineWidth = Math.max(1.5, minDim * 0.005 * widthK);
   ctx.strokeStyle = `rgba(255,255,255,${(0.4 + 0.4 * brightness).toFixed(3)})`;
   ctx.stroke();
@@ -382,7 +491,7 @@ export function drawFrame(
   shapePath(ctx, w, h, s.preset, s.frameRadius);
   ctx.clip();
 
-  if (s.image) {
+  if (s.image && s.showPhoto) {
     const img = s.image;
     const base = s.fitMode === 'cover'
       ? Math.max(w / img.naturalWidth, h / img.naturalHeight)
@@ -402,20 +511,33 @@ export function drawFrame(
 
   // полярные шторы — атмосфера поверх фото, под текстом
   if (s.curtainsOn && s.curtainIntensity > 0) {
-    drawCurtains(ctx, w, h, t, s.curtainIntensity, s.curtainSpeed);
+    drawCurtains(ctx, w, h, t, s);
   }
+
+  // логотип ПОД текстом (если выбран такой порядок)
+  if (s.logoUnderText) paintLogo(ctx, s, w, h);
 
   // ── 2. текст: метрики → виньетка/плашка → отрисовка (можно тащить и наклонять) ──
   let bbox: TextBBox | null = null;
   const hasText = !!s.text.trim();
-  if (hasText) {
+  if (hasText && s.showText) {
     const px = Math.round(h * s.fontSize);
     ctx.font = `700 ${px}px ${s.fontFamily}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
+    (ctx as CanvasRenderingContext2D & { letterSpacing?: string }).letterSpacing = `${(s.letterSpacing * px).toFixed(2)}px`;
+    const shownRaw = applyCase(s.text.trim(), s.textCase);
+
+    // анимация появления: цикл 4.2s (совпадает с лупом GIF/видео)
+    const animP = s.textAnim === 'none' ? 1 : Math.min(1, ((t % 4200) / 850));
+    const animE = 1 - Math.pow(1 - animP, 3); // easeOut
+    const shown = s.textAnim === 'type'
+      ? shownRaw.slice(0, Math.max(1, Math.ceil(animP * shownRaw.length)))
+      : shownRaw;
+
     const maxWidth = w * 0.75; // перенос раньше — длинная подпись охотно идёт в 2 строки
-    const lines = wrapText(ctx, s.text.trim(), maxWidth);
-    const lineHeight = px * 1.2;
+    const lines = wrapText(ctx, shown, maxWidth);
+    const lineHeight = px * s.lineHeight;
     const blockH = lineHeight * lines.length;
 
     let maxLineW = 0;
@@ -516,11 +638,16 @@ export function drawFrame(
       }
     };
 
+    // анимация: сдвиг снизу + проявление
+    const tcy = cy + (s.textAnim === 'slide' ? (1 - animE) * h * 0.055 : 0);
+    const alphaA = s.textAnim === 'fade' || s.textAnim === 'slide' ? animE : 1;
+
     // неоновое свечение — два прохода мягким цветом под основным текстом
     if (s.neonOn && s.neonIntensity > 0) {
       for (let pass = 0; pass < 2; pass++) {
         ctx.save();
-        ctx.translate(cx, cy);
+        ctx.globalAlpha = alphaA;
+        ctx.translate(cx, tcy);
         ctx.rotate(angle);
         ctx.shadowColor = s.neonColor;
         ctx.shadowBlur = px * (0.35 + s.neonIntensity * (pass === 0 ? 1.15 : 0.55));
@@ -531,7 +658,8 @@ export function drawFrame(
     }
 
     ctx.save();
-    ctx.translate(cx, cy);
+    ctx.globalAlpha = alphaA;
+    ctx.translate(cx, tcy);
     ctx.rotate(angle);
     // обводка букв — под заливкой
     if (s.strokeOn && s.strokeWidth > 0.01) {
@@ -549,6 +677,7 @@ export function drawFrame(
     ctx.shadowColor = 'transparent';
     ctx.shadowBlur = 0;
     ctx.restore();
+    (ctx as CanvasRenderingContext2D & { letterSpacing?: string }).letterSpacing = '0px';
 
     // габарит с учётом плашки — тащить можно за подложку
     const plateW = s.plateOn && !bandMode ? padX * 2 : 0;
@@ -557,41 +686,51 @@ export function drawFrame(
   }
 
   // ── 3. эффекты поверх фото и текста (внутри клипа) ──
-  if (s.windOn && s.fxIntensity > 0) drawWind(ctx, w, h, minDim, t, s.fxIntensity);
-  if (s.snowOn && s.fxIntensity > 0) drawSnow(ctx, w, h, minDim, t, s.fxIntensity);
-
-  // логотип канала — поверх всего содержимого, но под рамкой
-  const lbox = computeLogoBox(s, w, h);
-  if (s.logo && lbox) {
-    ctx.save();
-    ctx.globalAlpha = s.logoOpacity;
-    if (s.logoRadius > 0.001) {
-      // скругление углов: 0.5 = круг
-      const rad = s.logoRadius * Math.min(lbox.w, lbox.h);
-      ctx.beginPath();
-      ctx.roundRect(lbox.x, lbox.y, lbox.w, lbox.h, rad);
-      ctx.clip();
-    }
-    ctx.drawImage(s.logo, lbox.x, lbox.y, lbox.w, lbox.h);
-    ctx.restore();
+  if (s.showFx) {
+    if (s.windOn && s.fxIntensity > 0) drawWind(ctx, w, h, minDim, t, s.fxIntensity);
+    if (s.snowOn && s.fxIntensity > 0) drawSnow(ctx, w, h, minDim, t, s.fxIntensity);
   }
+
+  // логотип поверх текста (по умолчанию)
+  if (!s.logoUnderText) paintLogo(ctx, s, w, h);
 
   ctx.restore();
 
   // ── 4. рамка-сияние (поверх, по контуру) ──
-  if (s.auroraOn && s.auroraBrightness > 0) {
-    drawAuroraFrame(ctx, w, h, minDim, s, t);
-  } else {
-    // статичная аккуратная рамка, когда анимация выключена
-    ctx.save();
-    shapePath(ctx, w, h, s.preset, s.frameRadius);
-    ctx.lineWidth = Math.max(2, minDim * 0.008 * s.frameWidth);
-    ctx.strokeStyle = 'rgba(0,255,136,0.55)';
-    ctx.stroke();
-    ctx.restore();
+  if (s.showFrame) {
+    if (s.auroraOn && s.auroraBrightness > 0) {
+      drawAuroraFrame(ctx, w, h, minDim, s, t);
+    } else {
+      // статичная аккуратная рамка, когда анимация выключена
+      ctx.save();
+      if (s.frameMode === 'corners') cornerBracketsPath(ctx, w, h, s.preset, s.frameRadius);
+      else shapePath(ctx, w, h, s.preset, s.frameRadius);
+      ctx.lineWidth = Math.max(2, minDim * 0.008 * s.frameWidth);
+      ctx.strokeStyle = 'rgba(0,255,136,0.55)';
+      ctx.stroke();
+      ctx.restore();
+    }
   }
 
   return bbox;
+}
+
+/** Логотип канала — поверх содержимого, но под рамкой */
+function paintLogo(ctx: CanvasRenderingContext2D, s: FrameState, w: number, h: number) {
+  if (!s.showLogo) return;
+  const lbox = computeLogoBox(s, w, h);
+  if (!s.logo || !lbox) return;
+  ctx.save();
+  ctx.globalAlpha = s.logoOpacity;
+  if (s.logoRadius > 0.001) {
+    // скругление углов: 0.5 = круг
+    const rad = s.logoRadius * Math.min(lbox.w, lbox.h);
+    ctx.beginPath();
+    ctx.roundRect(lbox.x, lbox.y, lbox.w, lbox.h, rad);
+    ctx.clip();
+  }
+  ctx.drawImage(s.logo, lbox.x, lbox.y, lbox.w, lbox.h);
+  ctx.restore();
 }
 
 /** Габарит логотипа (координаты холста) — единый источник для рисования и hit-test */

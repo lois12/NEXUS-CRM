@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Sparkles, Upload, Move, Download, Pipette, Trash2, Eye, ChevronDown, X, Type, Loader2 } from 'lucide-react';
+import { ArrowLeft, Sparkles, Upload, Move, Download, Pipette, Trash2, Eye, ChevronDown, X, Type, Loader2, Undo2, Redo2, RotateCcw, EyeOff, Layers } from 'lucide-react';
 import FrameCanvas from '../components/framemaker/FrameCanvas';
 import {
   FRAME_PRESETS, type FrameState, type FitMode, type PlateStyle, type PlateFill,
+  type FrameStyle, type FrameMode, type TextCase, type TextAnim,
 } from '../components/framemaker/framePresets';
 import { exportFrameGif } from '../components/framemaker/exportGif';
 import { exportFrameVideo, videoSupported, extForMime } from '../components/framemaker/exportVideo';
+import { exportFrameWebp } from '../components/framemaker/exportWebP';
 import { downloadBlob } from '../utils/docTools';
 import { showToast } from '../components/ui/NexusModal';
 
@@ -300,6 +302,11 @@ export default function FrameMaker() {
   const [strokeOn, setStrokeOn] = useState(false);
   const [strokeColor, setStrokeColor] = useState('#0a0a0f');
   const [strokeWidth, setStrokeWidth] = useState(30); // 0..100
+  const [lineHeight, setLineHeight] = useState(120); // ×0.01 множитель
+  const [letterSpacing, setLetterSpacing] = useState(0); // ×0.001 доля px
+  const [textCase, setTextCase] = useState<TextCase>('none');
+  const [textAnimOn, setTextAnimOn] = useState(false);
+  const [textAnimKind, setTextAnimKind] = useState<Exclude<TextAnim, 'none'>>('fade');
 
   const [fontModal, setFontModal] = useState(false);
   const [fontPhrase, setFontPhrase] = useState('НОРИЛЬСК · ЛЕТО 2026');
@@ -326,6 +333,8 @@ export default function FrameMaker() {
 
   const [frameRadius, setFrameRadius] = useState(4.5); // % от minDim
   const [frameWidth, setFrameWidth] = useState(100); // % толщины грани
+  const [frameStyle, setFrameStyle] = useState<FrameStyle>('aurora');
+  const [frameMode, setFrameMode] = useState<FrameMode>('full');
 
   const [auroraOn, setAuroraOn] = useState(true);
   const [brightness, setBrightness] = useState(85);
@@ -334,14 +343,25 @@ export default function FrameMaker() {
   const [curtainsOn, setCurtainsOn] = useState(true);
   const [curtainIntensity, setCurtainIntensity] = useState(55);
   const [curtainSpeed, setCurtainSpeed] = useState(100);
+  const [curtainAngle, setCurtainAngle] = useState(0); // -45..45
+  const [curtainWidth, setCurtainWidth] = useState(100); // 50..200 %
+  const [curtainCount, setCurtainCount] = useState(5); // 3..8
 
   const [windOn, setWindOn] = useState(true);
   const [snowOn, setSnowOn] = useState(true);
   const [fxIntensity, setFxIntensity] = useState(55);
 
   const [videoSeconds, setVideoSeconds] = useState(4);
+  const [videoRes, setVideoRes] = useState<'720' | '1080'>('1080');
   const [cleanPreview, setCleanPreview] = useState(false);
-  const [exporting, setExporting] = useState<'png' | 'gif' | 'video' | null>(null);
+  const [compareOn, setCompareOn] = useState(false);
+  const [showPhoto, setShowPhoto] = useState(true);
+  const [showText, setShowText] = useState(true);
+  const [showLogo, setShowLogo] = useState(true);
+  const [showFx, setShowFx] = useState(true);
+  const [showFrame, setShowFrame] = useState(true);
+  const [logoUnderText, setLogoUnderText] = useState(false);
+  const [exporting, setExporting] = useState<'png' | 'gif' | 'video' | 'webp' | null>(null);
   const [history, setHistory] = useState<ExportItem[]>([]);
 
   const state: FrameState = {
@@ -361,6 +381,10 @@ export default function FrameMaker() {
     strokeOn,
     strokeColor,
     strokeWidth: strokeWidth / 100,
+    lineHeight: lineHeight / 100,
+    letterSpacing: letterSpacing / 1000,
+    textCase,
+    textAnim: textAnimOn ? textAnimKind : 'none',
     auroraOn,
     auroraBrightness: brightness / 100,
     auroraSpeed: speed / 100,
@@ -369,6 +393,8 @@ export default function FrameMaker() {
     fxIntensity: fxIntensity / 100,
     frameRadius: frameRadius / 100,
     frameWidth: frameWidth / 100,
+    frameStyle,
+    frameMode,
     plateOn,
     plateStyle,
     plateFill,
@@ -389,6 +415,15 @@ export default function FrameMaker() {
     curtainsOn,
     curtainIntensity: curtainIntensity / 100,
     curtainSpeed: curtainSpeed / 100,
+    curtainAngle,
+    curtainWidth: curtainWidth / 100,
+    curtainCount,
+    showPhoto,
+    showText,
+    showLogo,
+    showFx,
+    showFrame,
+    logoUnderText,
   };
 
   // «чистый кадр» — превью без эффектов; экспорт всегда идёт по полному state
@@ -434,6 +469,177 @@ export default function FrameMaker() {
     ].slice(0, 12));
   };
 
+  // ── undo / redo ──────────────────────────────────────────────
+  const undoStack = useRef<FrameState[]>([]);
+  const redoStack = useRef<FrameState[]>([]);
+  const applying = useRef(false);
+  const [, setHistTick] = useState(0);
+
+  const defaultState = (): FrameState => ({
+    preset: FRAME_PRESETS[0], image: null, fitMode: 'cover', scale: 1, ox: 0, oy: 0,
+    text: '', fontFamily: FONTS[0].value, fontSize: 0.055, textColor: PALETTE[0],
+    textX: 0.5, textY: null, textAngle: 0, strokeOn: false, strokeColor: '#0a0a0f', strokeWidth: 0.3,
+    lineHeight: 1.2, letterSpacing: 0, textCase: 'none', textAnim: 'none',
+    auroraOn: true, auroraBrightness: 0.85, auroraSpeed: 1, windOn: true, snowOn: true, fxIntensity: 0.55,
+    frameStyle: 'aurora', frameMode: 'full', frameRadius: 0.045, frameWidth: 1,
+    plateOn: false, plateStyle: 'capsule', plateFill: 'solid', plateColor: '#0b0e17', plateColor2: '#1a1030',
+    plateAngle: 135, plateAlpha: 0.6, plateBlur: 0,
+    logo: null, logoX: 0.13, logoY: 0.13, logoSize: 0.14, logoOpacity: 0.85, logoRadius: 0, logoUnderText: false,
+    neonOn: false, neonColor: '#00d4ff', neonIntensity: 0.55,
+    curtainsOn: true, curtainIntensity: 0.55, curtainSpeed: 1, curtainAngle: 0, curtainWidth: 1, curtainCount: 5,
+    showPhoto: true, showText: true, showLogo: true, showFx: true, showFrame: true,
+  });
+
+  const applySnapshot = (s: FrameState) => {
+    applying.current = true;
+    setText(s.text); setFontFamily(s.fontFamily); setFontSize(Math.round(s.fontSize * 1000)); setTextColor(s.textColor);
+    setTextX(s.textX); setTextY(s.textY); setTextAngle(s.textAngle);
+    setStrokeOn(s.strokeOn); setStrokeColor(s.strokeColor); setStrokeWidth(Math.round(s.strokeWidth * 100));
+    setLineHeight(Math.round(s.lineHeight * 100)); setLetterSpacing(Math.round(s.letterSpacing * 1000));
+    setTextCase(s.textCase);
+    setTextAnimOn(s.textAnim !== 'none'); setTextAnimKind(s.textAnim === 'none' ? 'fade' : s.textAnim);
+    setNeonOn(s.neonOn); setNeonColor(s.neonColor); setNeonIntensity(Math.round(s.neonIntensity * 100));
+    setPlateOn(s.plateOn); setPlateStyle(s.plateStyle); setPlateFill(s.plateFill);
+    setPlateColor(s.plateColor); setPlateColor2(s.plateColor2); setPlateAngle(s.plateAngle);
+    setPlateAlpha(Math.round(s.plateAlpha * 100)); setPlateBlur(Math.round(s.plateBlur * 100));
+    setAuroraOn(s.auroraOn); setBrightness(Math.round(s.auroraBrightness * 100)); setSpeed(Math.round(s.auroraSpeed * 100));
+    setFrameStyle(s.frameStyle); setFrameMode(s.frameMode);
+    setFrameRadius(Math.round(s.frameRadius * 1000) / 10); setFrameWidth(Math.round(s.frameWidth * 100));
+    setCurtainsOn(s.curtainsOn); setCurtainIntensity(Math.round(s.curtainIntensity * 100)); setCurtainSpeed(Math.round(s.curtainSpeed * 100));
+    setCurtainAngle(s.curtainAngle); setCurtainWidth(Math.round(s.curtainWidth * 100)); setCurtainCount(s.curtainCount);
+    setWindOn(s.windOn); setSnowOn(s.snowOn); setFxIntensity(Math.round(s.fxIntensity * 100));
+    setShowPhoto(s.showPhoto); setShowText(s.showText); setShowLogo(s.showLogo); setShowFx(s.showFx); setShowFrame(s.showFrame);
+    setLogoUnderText(s.logoUnderText);
+    setFitMode(s.fitMode); setScale(s.scale); setOx(s.ox); setOy(s.oy);
+    setImage(s.image); setLogo(s.logo);
+    setLogoX(s.logoX); setLogoY(s.logoY); setLogoSize(Math.round(s.logoSize * 100));
+    setLogoOpacity(Math.round(s.logoOpacity * 100)); setLogoRadius(Math.round(s.logoRadius * 100));
+    setPresetId(s.preset.id);
+    setTimeout(() => { applying.current = false; }, 80);
+  };
+
+  const undo = () => {
+    if (undoStack.current.length < 2) return;
+    const cur = undoStack.current.pop()!;
+    redoStack.current.push(cur);
+    applySnapshot(undoStack.current[undoStack.current.length - 1]);
+    setHistTick((n) => n + 1);
+  };
+  const redo = () => {
+    const s = redoStack.current.pop();
+    if (!s) return;
+    undoStack.current.push(s);
+    applySnapshot(s);
+    setHistTick((n) => n + 1);
+  };
+
+  // снапшоты при изменениях (дебаунс)
+  useEffect(() => {
+    if (applying.current) return;
+    const id = setTimeout(() => {
+      undoStack.current = [...undoStack.current, state].slice(-40);
+      redoStack.current = [];
+      setHistTick((n) => n + 1);
+    }, 400);
+    return () => clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify({ ...state, image: !!state.image, logo: !!state.logo, preset: state.preset.id })]);
+
+  // Ctrl+Z / Ctrl+Y
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      const tag = (e.target as HTMLElement | null)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      if (e.key === 'z' || e.key === 'Z') {
+        e.preventDefault();
+        if (e.shiftKey) redo();
+        else undo();
+      } else if (e.key === 'y' || e.key === 'Y') {
+        e.preventDefault();
+        redo();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
+
+  // ── автосохранение черновика (переживает F5) ─────────────────
+  const DRAFT_KEY = 'nexus-frame-draft-v1';
+  const toSmallDataUrl = (img: HTMLImageElement | null): Promise<string | null> => {
+    if (!img) return Promise.resolve(null);
+    const max = 1280;
+    const k = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+    const c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round(img.naturalWidth * k));
+    c.height = Math.max(1, Math.round(img.naturalHeight * k));
+    c.getContext('2d')?.drawImage(img, 0, 0, c.width, c.height);
+    return Promise.resolve(c.toDataURL('image/jpeg', 0.82));
+  };
+
+  const draftJson = JSON.stringify({ ...state, image: !!state.image, logo: !!state.logo, preset: state.preset.id, videoSeconds, videoRes });
+  useEffect(() => {
+    const id = setTimeout(() => {
+      void (async () => {
+        try {
+          const payload = {
+            s: JSON.parse(draftJson),
+            img: await toSmallDataUrl(state.image),
+            logoImg: await toSmallDataUrl(state.logo),
+          };
+          localStorage.setItem(DRAFT_KEY, JSON.stringify(payload));
+        } catch { /* квота — пропускаем */ }
+      })();
+    }, 900);
+    return () => clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftJson]);
+
+  // восстановление черновика при старте
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      if (!raw) return;
+      const payload = JSON.parse(raw);
+      if (payload.s) {
+        applySnapshot({
+          ...defaultState(),
+          ...payload.s,
+          image: null,
+          logo: null,
+          preset: FRAME_PRESETS.find((p) => p.id === payload.s.preset) || FRAME_PRESETS[0],
+        });
+        setVideoSeconds(payload.s.videoSeconds ?? 4);
+        setVideoRes(payload.s.videoRes ?? '1080');
+      }
+      const load = (data: string | null, setter: (img: HTMLImageElement) => void) => {
+        if (!data) return;
+        const img = new Image();
+        img.onload = () => setter(img);
+        img.src = data;
+      };
+      load(payload.img, setImage);
+      load(payload.logoImg, setLogo);
+    } catch { /* битый черновик */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const resetAll = () => {
+    applySnapshot(defaultState());
+    setVideoSeconds(4);
+    setVideoRes('1080');
+    setCleanPreview(false);
+    setCompareOn(false);
+    undoStack.current = [];
+    redoStack.current = [];
+    try { localStorage.removeItem(DRAFT_KEY); } catch { /* noop */ }
+    showToast('Все настройки сброшены', 'success');
+    setTimeout(() => {
+      undoStack.current = [defaultState()];
+      setHistTick((n) => n + 1);
+    }, 120);
+  };
+
   const exportPng = async () => {
     const c = canvasRef.current;
     if (!c) return;
@@ -470,7 +676,8 @@ export default function FrameMaker() {
   const exportVideo = async () => {
     setExporting('video');
     try {
-      const blob = await exportFrameVideo(state, { seconds: videoSeconds, fps: 30 });
+      const resScale = videoRes === '720' ? 720 / Math.min(preset.w, preset.h) : 1;
+      const blob = await exportFrameVideo(state, { seconds: videoSeconds, fps: 30, scale: resScale });
       if (!blob) { showToast('Браузер не поддерживает запись видео', 'error'); return; }
       const ext = extForMime(blob.type);
       const name = `frame-${preset.id}.${ext}`;
@@ -479,6 +686,21 @@ export default function FrameMaker() {
       showToast(ext === 'mp4' ? 'Видео сохранено (mp4)' : 'Видео сохранено (webm)', 'success');
     } catch {
       showToast('Ошибка экспорта видео', 'error');
+    } finally {
+      setExporting(null);
+    }
+  };
+
+  const exportWebp = async () => {
+    setExporting('webp');
+    try {
+      const blob = await exportFrameWebp(state, { seconds: 3.5, fps: 15, maxDim: 800, quality: 0.9 });
+      const name = `frame-${preset.id}.webp`;
+      downloadBlob(blob, name);
+      pushHistory(name, 'WEBP', blob);
+      showToast('WebP сохранён (анимированный)', 'success');
+    } catch {
+      showToast('Ошибка экспорта WebP', 'error');
     } finally {
       setExporting(null);
     }
@@ -500,6 +722,34 @@ export default function FrameMaker() {
             <Sparkles className="w-4 h-4" /> РАМКА
           </h1>
           <p className="nx-eyebrow mt-0.5">СЕВЕРНОЕ СИЯНИЕ ДЛЯ КАНАЛА</p>
+        </div>
+        <div className="ml-auto flex items-center gap-1.5">
+          <button
+            onClick={undo}
+            disabled={undoStack.current.length < 2}
+            className="flex items-center justify-center p-2 min-h-[36px] min-w-[36px] rounded-xl glass hover:bg-white/10 nx-press disabled:opacity-35"
+            title="Отменить (Ctrl+Z)"
+            aria-label="Отменить"
+          >
+            <Undo2 className="w-4 h-4" />
+          </button>
+          <button
+            onClick={redo}
+            disabled={redoStack.current.length === 0}
+            className="flex items-center justify-center p-2 min-h-[36px] min-w-[36px] rounded-xl glass hover:bg-white/10 nx-press disabled:opacity-35"
+            title="Вернуть (Ctrl+Y)"
+            aria-label="Вернуть"
+          >
+            <Redo2 className="w-4 h-4" />
+          </button>
+          <button
+            onClick={resetAll}
+            className="flex items-center gap-1.5 px-3 py-2 min-h-[36px] rounded-xl font-mono text-[10px] nx-press"
+            style={{ background: 'rgba(255,107,107,0.12)', color: '#ff6b6b', border: '1px solid rgba(255,107,107,0.3)' }}
+            title="Сбросить все настройки и черновик"
+          >
+            <RotateCcw className="w-3.5 h-3.5" /> СБРОСИТЬ ВСЁ
+          </button>
         </div>
       </div>
 
@@ -527,6 +777,34 @@ export default function FrameMaker() {
           {/* Параметры рамки */}
           <div className="glass rounded-xl p-2.5 space-y-2">
             <span className="nx-eyebrow">ПАРАМЕТРЫ РАМКИ</span>
+            <div>
+              <label className={LABEL}>СТИЛЬ</label>
+              <div className="flex flex-wrap gap-1.5 mt-1">
+                {([['aurora', 'АВРОРА'], ['neon', 'НЕОН'], ['glass', 'СТЕКЛО'], ['fire', 'ОГОНЬ'], ['ice', 'ЛЁД']] as [FrameStyle, string][]).map(([id, lb]) => (
+                  <button
+                    key={id}
+                    onClick={() => setFrameStyle(id)}
+                    className={chip(frameStyle === id)}
+                    style={frameStyle === id ? { background: 'var(--color-primary)' } : undefined}
+                  >{lb}</button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className={LABEL}>ВИД</label>
+              <div className="flex flex-wrap gap-1.5 mt-1">
+                <button
+                  onClick={() => setFrameMode('full')}
+                  className={chip(frameMode === 'full')}
+                  style={frameMode === 'full' ? { background: 'var(--color-primary)' } : undefined}
+                >ПОЛНАЯ</button>
+                <button
+                  onClick={() => setFrameMode('corners')}
+                  className={chip(frameMode === 'corners')}
+                  style={frameMode === 'corners' ? { background: 'var(--color-primary)' } : undefined}
+                >УГЛОВЫЕ СКОБКИ</button>
+              </div>
+            </div>
             <div>
               <label className={LABEL}>СКРУГЛЕНИЕ УГЛОВ: {preset.radius === 'circle' ? 'КРУГ' : `${frameRadius}%`}</label>
               <input type="range" min={0} max={12} step={0.5} value={frameRadius}
@@ -619,6 +897,48 @@ export default function FrameMaker() {
               </>
             )}
           </div>
+
+          {/* Слои */}
+          <div className="glass rounded-xl p-2.5 space-y-2">
+            <div className="flex items-center gap-1.5">
+              <Layers className="w-3.5 h-3.5" style={{ color: 'var(--color-primary)' }} />
+              <span className="nx-eyebrow">СЛОИ</span>
+            </div>
+            {([
+              ['ФОТО', showPhoto, setShowPhoto],
+              ['ТЕКСТ', showText, setShowText],
+              ['ЭФФЕКТЫ', showFx, setShowFx],
+              ['ЛОГОТИП', showLogo, setShowLogo],
+              ['РАМКА', showFrame, setShowFrame],
+            ] as [string, boolean, (v: boolean) => void][]).map(([lb, on, set]) => (
+              <div key={lb} className="flex items-center justify-between gap-2">
+                <span className="font-mono text-[10px] text-gray-300">{lb}</span>
+                <button
+                  onClick={() => set(!on)}
+                  aria-label={`${on ? 'Скрыть' : 'Показать'} слой ${lb}`}
+                  className="w-7 h-7 rounded-md nx-press flex items-center justify-center hover:bg-white/10"
+                  style={{ color: on ? 'var(--color-primary)' : '#666' }}
+                >
+                  {on ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                </button>
+              </div>
+            ))}
+            <div>
+              <label className={LABEL}>ЛОГОТИП ОТНОСИТЕЛЬНО ТЕКСТА</label>
+              <div className="flex flex-wrap gap-1.5 mt-1">
+                <button
+                  onClick={() => setLogoUnderText(false)}
+                  className={chip(!logoUnderText)}
+                  style={!logoUnderText ? { background: 'var(--color-primary)' } : undefined}
+                >ПОВЕРХ</button>
+                <button
+                  onClick={() => setLogoUnderText(true)}
+                  className={chip(logoUnderText)}
+                  style={logoUnderText ? { background: 'var(--color-primary)' } : undefined}
+                >ПОД ТЕКСТОМ</button>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* ЦЕНТР: холст + экспорт */}
@@ -632,21 +952,32 @@ export default function FrameMaker() {
               onTextMove={(x, y) => { setTextX(x); setTextY(y); }}
               onAngleChange={(d) => setTextAngle(Math.round(d))}
               onLogoMove={(x, y) => { setLogoX(x); setLogoY(y); }}
+              compareOn={compareOn}
             />
             <div className="flex flex-wrap items-center justify-between gap-2 mt-2">
               <p className="font-mono text-[9px] text-gray-600">
                 {image
-                  ? 'тащите картинку ИЛИ текст · кружок над текстом — наклон · колесо/пинч — масштаб'
+                  ? 'тащите картинку ИЛИ текст · кружок над текстом — наклон · Ctrl+колесо — зум вида'
                   : '// загрузите картинку, чтобы начать'}
               </p>
-              <button
-                onClick={() => setCleanPreview((v) => !v)}
-                className={chip(cleanPreview)}
-                style={cleanPreview ? { background: 'var(--color-primary)' } : undefined}
-                title="Показать кадр без ветра, снега, штор и сияния"
-              >
-                <Eye className="w-3 h-3 inline mr-1 -mt-0.5" />ЧИСТЫЙ КАДР
-              </button>
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => { setCompareOn((v) => !v); setCleanPreview(false); }}
+                  className={chip(compareOn)}
+                  style={compareOn ? { background: 'var(--color-primary)' } : undefined}
+                  title="Ползунок сравнения: слева кадр без эффектов, справа текущий"
+                >
+                  ДО / ПОСЛЕ
+                </button>
+                <button
+                  onClick={() => { setCleanPreview((v) => !v); setCompareOn(false); }}
+                  className={chip(cleanPreview)}
+                  style={cleanPreview ? { background: 'var(--color-primary)' } : undefined}
+                  title="Показать кадр без ветра, снега, штор и сияния"
+                >
+                  <Eye className="w-3 h-3 inline mr-1 -mt-0.5" />ЧИСТЫЙ КАДР
+                </button>
+              </div>
             </div>
           </div>
 
@@ -668,6 +999,15 @@ export default function FrameMaker() {
             >
               {exporting === 'gif' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null} GIF
             </button>
+            <button
+              onClick={exportWebp}
+              disabled={!!exporting}
+              className="nx-press px-3.5 py-2 min-h-[38px] rounded-xl font-mono text-[11px] font-bold flex items-center gap-1.5 disabled:opacity-50"
+              style={{ background: 'rgba(0,255,136,0.12)', color: '#00ff88', border: '1px solid rgba(0,255,136,0.28)' }}
+              title="Анимированный WebP — легче GIF"
+            >
+              {exporting === 'webp' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null} WEBP
+            </button>
             {videoSupported() && (
               <>
                 <button
@@ -687,6 +1027,18 @@ export default function FrameMaker() {
                     title="Длина видео"
                   >
                     {[2, 4, 6, 8, 10].map((s) => <option key={s} value={s}>{s} сек</option>)}
+                  </select>
+                  <ChevronDown className="w-3.5 h-3.5 text-gray-500 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
+                <div className="relative">
+                  <select
+                    value={videoRes}
+                    onChange={(e) => setVideoRes(e.target.value as '720' | '1080')}
+                    className="appearance-none pl-2.5 pr-7 py-2 rounded-lg text-[10px] font-mono bg-white/5 border border-white/10 text-gray-300 min-h-[36px]"
+                    title="Разрешение видео"
+                  >
+                    <option value="1080">1080p</option>
+                    <option value="720">720p</option>
                   </select>
                   <ChevronDown className="w-3.5 h-3.5 text-gray-500 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
                 </div>
@@ -783,6 +1135,59 @@ export default function FrameMaker() {
                 </div>
               </>
             )}
+            {/* типографика */}
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className={LABEL}>ИНТЕРВАЛ СТРОК: {(lineHeight / 100).toFixed(2)}</label>
+                <input
+                  type="range" min={80} max={200} value={lineHeight}
+                  onChange={(e) => setLineHeight(Number(e.target.value))}
+                  className="w-full accent-[var(--color-primary)]"
+                />
+              </div>
+              <div>
+                <label className={LABEL}>РАЗРЯДКА: {(letterSpacing / 10).toFixed(1)}</label>
+                <input
+                  type="range" min={-20} max={120} value={letterSpacing}
+                  onChange={(e) => setLetterSpacing(Number(e.target.value))}
+                  className="w-full accent-[var(--color-primary)]"
+                />
+              </div>
+            </div>
+
+            {/* регистр */}
+            <div>
+              <label className={LABEL}>РЕГИСТР</label>
+              <div className="flex flex-wrap gap-1.5 mt-1">
+                {([['none', 'Как есть'], ['upper', 'ПРОПИСНЫЕ'], ['lower', 'строчные'], ['title', 'Заглавные']] as [TextCase, string][]).map(([id, lb]) => (
+                  <button
+                    key={id}
+                    onClick={() => setTextCase(id)}
+                    className={chip(textCase === id)}
+                    style={textCase === id ? { background: 'var(--color-primary)' } : undefined}
+                  >{lb}</button>
+                ))}
+              </div>
+            </div>
+
+            {/* анимация появления */}
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-mono text-[10px] text-gray-300">АНИМАЦИЯ ТЕКСТА</span>
+              <Switch on={textAnimOn} onToggle={() => setTextAnimOn((v) => !v)} label="Анимация текста" />
+            </div>
+            {textAnimOn && (
+              <div className="flex flex-wrap gap-1.5">
+                {([['fade', 'ПОЯВЛЕНИЕ'], ['slide', 'СДВИГ'], ['type', 'ПЕЧАТЬ']] as [Exclude<TextAnim, 'none'>, string][]).map(([id, lb]) => (
+                  <button
+                    key={id}
+                    onClick={() => setTextAnimKind(id)}
+                    className={chip(textAnimKind === id)}
+                    style={textAnimKind === id ? { background: 'var(--color-primary)' } : undefined}
+                  >{lb}</button>
+                ))}
+              </div>
+            )}
+
             <div className="flex items-center justify-between gap-2">
               <p className="font-mono text-[9px] text-gray-600">
                 {plateOn && plateStyle === 'band'
@@ -888,20 +1293,42 @@ export default function FrameMaker() {
               <Switch on={curtainsOn} onToggle={() => setCurtainsOn((v) => !v)} label="Шторы сияния" />
             </div>
             {curtainsOn && (
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className={LABEL}>ЯРКОСТЬ ШТОР: {curtainIntensity}%</label>
-                  <input type="range" min={10} max={100} value={curtainIntensity}
-                    onChange={(e) => setCurtainIntensity(Number(e.target.value))}
-                    className="w-full accent-[var(--color-primary)]" />
+              <>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className={LABEL}>ЯРКОСТЬ ШТОР: {curtainIntensity}%</label>
+                    <input type="range" min={10} max={100} value={curtainIntensity}
+                      onChange={(e) => setCurtainIntensity(Number(e.target.value))}
+                      className="w-full accent-[var(--color-primary)]" />
+                  </div>
+                  <div>
+                    <label className={LABEL}>СКОРОСТЬ ШТОР: {(curtainSpeed / 100).toFixed(1)}×</label>
+                    <input type="range" min={20} max={250} value={curtainSpeed}
+                      onChange={(e) => setCurtainSpeed(Number(e.target.value))}
+                      className="w-full accent-[var(--color-primary)]" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className={LABEL}>НАКЛОН ШТОР: {curtainAngle}°</label>
+                    <input type="range" min={-45} max={45} value={curtainAngle}
+                      onChange={(e) => setCurtainAngle(Number(e.target.value))}
+                      className="w-full accent-[var(--color-primary)]" />
+                  </div>
+                  <div>
+                    <label className={LABEL}>ШИРИНА: {curtainWidth}%</label>
+                    <input type="range" min={50} max={200} value={curtainWidth}
+                      onChange={(e) => setCurtainWidth(Number(e.target.value))}
+                      className="w-full accent-[var(--color-primary)]" />
+                  </div>
                 </div>
                 <div>
-                  <label className={LABEL}>СКОРОСТЬ ШТОР: {(curtainSpeed / 100).toFixed(1)}×</label>
-                  <input type="range" min={20} max={250} value={curtainSpeed}
-                    onChange={(e) => setCurtainSpeed(Number(e.target.value))}
+                  <label className={LABEL}>СТОЛБЦЫ: {curtainCount}</label>
+                  <input type="range" min={3} max={8} value={curtainCount}
+                    onChange={(e) => setCurtainCount(Number(e.target.value))}
                     className="w-full accent-[var(--color-primary)]" />
                 </div>
-              </div>
+              </>
             )}
           </div>
 
@@ -996,7 +1423,7 @@ export default function FrameMaker() {
               </div>
             </div>
             <p className="font-mono text-sm font-bold animate-pulse" style={{ color: 'var(--color-primary)', textShadow: '0 0 10px var(--color-glow)' }}>
-              {exporting === 'png' ? 'ГОТОВИМ PNG…' : exporting === 'gif' ? 'ГОТОВИМ GIF…' : 'ЗАПИСЫВАЕМ ВИДЕО…'}
+              {exporting === 'png' ? 'ГОТОВИМ PNG…' : exporting === 'gif' ? 'ГОТОВИМ GIF…' : exporting === 'webp' ? 'ГОТОВИМ WEBP…' : 'ЗАПИСЫВАЕМ ВИДЕО…'}
             </p>
           </div>
         </div>

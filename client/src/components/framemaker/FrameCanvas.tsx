@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { drawFrame, hitTestText, textHandlePos, computeLogoBox, FrameState, TextBBox } from './framePresets';
 
 interface Props {
@@ -12,14 +12,16 @@ interface Props {
   onAngleChange: (deg: number) => void;
   /** перетаскивание логотипа (доли холста, центр) */
   onLogoMove: (x: number, y: number) => void;
+  /** режим сравнения «до/после» с ползунком */
+  compareOn: boolean;
 }
 
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 
-type DragMode = 'image' | 'text' | 'rotate' | 'logo';
+type DragMode = 'image' | 'text' | 'rotate' | 'logo' | 'compare' | 'pan';
 
-/** Превью-холст: rAF-анимация + drag картинки/текста + ручка вращения + колесо-зум + пинч */
-export default function FrameCanvas({ state, canvasRef, onOffsetChange, onScaleChange, onTextMove, onAngleChange, onLogoMove }: Props) {
+/** Превью-холст: rAF-анимация + drag картинки/текста/лого + ручка + зум + сравнение */
+export default function FrameCanvas({ state, canvasRef, onOffsetChange, onScaleChange, onTextMove, onAngleChange, onLogoMove, compareOn }: Props) {
   const stateRef = useRef(state);
   stateRef.current = state;
   const cbRef = useRef({ onOffsetChange, onScaleChange, onTextMove, onAngleChange, onLogoMove });
@@ -29,8 +31,15 @@ export default function FrameCanvas({ state, canvasRef, onOffsetChange, onScaleC
   const timeRef = useRef(0);
   const bboxRef = useRef<TextBBox | null>(null);
   const pointersRef = useRef(new Map<number, { x: number; y: number }>());
-  const dragRef = useRef<{ mode: DragMode; x: number; y: number; ox: number; oy: number; tx: number; ty: number } | null>(null);
+  const dragRef = useRef<{ mode: DragMode; x: number; y: number; ox: number; oy: number; tx: number; ty: number; vx: number; vy: number; cpos: number } | null>(null);
   const pinchRef = useRef<{ dist: number; scale: number } | null>(null);
+  const guidesRef = useRef({ gx: false, gy: false });
+  const compareRef = useRef(0.5);
+  const offA = useRef<HTMLCanvasElement | null>(null);
+  const offB = useRef<HTMLCanvasElement | null>(null);
+
+  // зум вида (Ctrl+колесо) + панорама (Shift/средняя кнопка)
+  const [view, setView] = useState({ z: 1, x: 0, y: 0 });
 
   // оба холста всегда в размере экспорта — превью = будущий файл пиксель в пиксель
   useEffect(() => {
@@ -44,9 +53,20 @@ export default function FrameCanvas({ state, canvasRef, onOffsetChange, onScaleC
       o.width = state.preset.w;
       o.height = state.preset.h;
     }
+    offA.current = null;
+    offB.current = null;
   }, [state.preset, canvasRef]);
 
-  // цикл отрисовки: кадр + оверлей ручки (оверлей не попадает в экспорт)
+  const cleanState = (): FrameState => ({
+    ...stateRef.current,
+    windOn: false,
+    snowOn: false,
+    curtainsOn: false,
+    auroraOn: false,
+    textAnim: 'none',
+  });
+
+  // цикл отрисовки: кадр (+сравнение) + оверлей ручек/направляющих
   useEffect(() => {
     let raf = 0;
     let last = performance.now();
@@ -56,14 +76,87 @@ export default function FrameCanvas({ state, canvasRef, onOffsetChange, onScaleC
       timeRef.current += dt;
       const c = canvasRef.current;
       const ctx = c ? c.getContext('2d') : null;
-      if (c && ctx) bboxRef.current = drawFrame(ctx, c.width, c.height, stateRef.current, timeRef.current);
+      const t = timeRef.current;
+
+      if (c && ctx) {
+        if (compareOn) {
+          const w = c.width;
+          const h = c.height;
+          if (!offA.current || offA.current.width !== w) {
+            const mk = () => {
+              const el = document.createElement('canvas');
+              el.width = w;
+              el.height = h;
+              return el;
+            };
+            offA.current = mk();
+            offB.current = mk();
+          }
+          const a = offA.current!;
+          const b = offB.current!;
+          drawFrame(a.getContext('2d')!, w, h, cleanState(), t);
+          const bb = drawFrame(b.getContext('2d')!, w, h, stateRef.current, t);
+          bboxRef.current = bb;
+          const px = compareRef.current * w;
+          ctx.clearRect(0, 0, w, h);
+          ctx.drawImage(a, 0, 0);
+          ctx.save();
+          ctx.beginPath();
+          ctx.rect(px, 0, w - px, h);
+          ctx.clip();
+          ctx.drawImage(b, 0, 0);
+          ctx.restore();
+          // линия-разделитель
+          const minDim = Math.min(w, h);
+          ctx.save();
+          ctx.fillStyle = 'rgba(10,14,24,0.65)';
+          ctx.fillRect(px - minDim * 0.003, 0, minDim * 0.006, h);
+          ctx.fillStyle = 'rgba(255,255,255,0.9)';
+          ctx.beginPath();
+          ctx.arc(px, h / 2, minDim * 0.028, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#0a0e18';
+          ctx.font = `700 ${Math.round(minDim * 0.03)}px sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('↔', px, h / 2);
+          ctx.restore();
+        } else {
+          bboxRef.current = drawFrame(ctx, c.width, c.height, stateRef.current, t);
+        }
+      }
 
       const o = overlayRef.current;
       const octx = o ? o.getContext('2d') : null;
       if (o && octx) {
         octx.clearRect(0, 0, o.width, o.height);
         const bb = bboxRef.current;
-        if (bb && stateRef.current.text.trim() && !bandMode()) {
+        const st = stateRef.current;
+        const bandMode = st.plateOn && st.plateStyle === 'band';
+
+        // направляющие по центру при перетаскивании
+        const drag = dragRef.current;
+        if (drag && (drag.mode === 'text' || drag.mode === 'logo')) {
+          octx.strokeStyle = 'rgba(0,255,136,0.55)';
+          octx.lineWidth = Math.max(1, Math.min(o.width, o.height) * 0.0022);
+          octx.setLineDash([o.width * 0.012, o.width * 0.009]);
+          if (guidesRef.current.gx) {
+            octx.beginPath();
+            octx.moveTo(o.width / 2, 0);
+            octx.lineTo(o.width / 2, o.height);
+            octx.stroke();
+          }
+          if (guidesRef.current.gy) {
+            octx.beginPath();
+            octx.moveTo(0, o.height / 2);
+            octx.lineTo(o.width, o.height / 2);
+            octx.stroke();
+          }
+          octx.setLineDash([]);
+        }
+
+        // ручка вращения текста
+        if (bb && st.text.trim() && !bandMode && !compareOn) {
           const minDim = Math.min(o.width, o.height);
           const hp = textHandlePos(bb, minDim);
           octx.strokeStyle = 'rgba(255,255,255,0.55)';
@@ -79,7 +172,6 @@ export default function FrameCanvas({ state, canvasRef, onOffsetChange, onScaleC
           octx.strokeStyle = 'rgba(255,255,255,0.85)';
           octx.lineWidth = Math.max(1.5, minDim * 0.0032);
           octx.stroke();
-          // дуга-указатель внутри ручки
           octx.beginPath();
           octx.arc(hp.x, hp.y, hp.r * 0.42, Math.PI * 0.35, Math.PI * 1.9);
           octx.stroke();
@@ -89,9 +181,9 @@ export default function FrameCanvas({ state, canvasRef, onOffsetChange, onScaleC
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
-  }, [canvasRef]);
+  }, [canvasRef, compareOn]);
 
-  // зум колесом вокруг курсора
+  // зум картинки колесом; Ctrl+колесо — зум вида
   useEffect(() => {
     const c = canvasRef.current;
     if (!c) return;
@@ -99,11 +191,19 @@ export default function FrameCanvas({ state, canvasRef, onOffsetChange, onScaleC
       e.preventDefault();
       const st = stateRef.current;
       const k = e.deltaY < 0 ? 1.12 : 1 / 1.12;
-      const next = clamp(st.scale * k, 0.25, 4);
-      const ratio = next / st.scale;
       const rect = c.getBoundingClientRect();
       const cx = (e.clientX - rect.left) / rect.width - 0.5;
       const cy = (e.clientY - rect.top) / rect.height - 0.5;
+      if (e.ctrlKey || e.metaKey) {
+        // зум вида вокруг курсора
+        setView((v) => {
+          const z = clamp(v.z * k, 0.5, 4);
+          return { z, x: v.x * (z / v.z), y: v.y * (z / v.z) };
+        });
+        return;
+      }
+      const next = clamp(st.scale * k, 0.25, 4);
+      const ratio = next / st.scale;
       cbRef.current.onScaleChange(next);
       cbRef.current.onOffsetChange(cx - (cx - st.ox) * ratio, cy - (cy - st.oy) * ratio);
     };
@@ -157,21 +257,31 @@ export default function FrameCanvas({ state, canvasRef, onOffsetChange, onScaleC
     const st = stateRef.current;
     const bb = bboxRef.current;
 
+    // 0) ползунок сравнения / панорама вида
+    if (compareOn && Math.abs(x - compareRef.current * c.width) <= Math.min(c.width, c.height) * 0.035) {
+      dragRef.current = { mode: 'compare', x: e.clientX, y: e.clientY, ox: 0, oy: 0, tx: 0, ty: 0, vx: 0, vy: 0, cpos: compareRef.current };
+      return;
+    }
+    if (e.button === 1 || e.shiftKey) {
+      dragRef.current = { mode: 'pan', x: e.clientX, y: e.clientY, ox: 0, oy: 0, tx: 0, ty: 0, vx: view.x, vy: view.y, cpos: 0 };
+      return;
+    }
+
     // 1) логотип — тянется прямо в кадре
     const lb = computeLogoBox(st, c.width, c.height);
     if (lb && x >= lb.x && x <= lb.x + lb.w && y >= lb.y && y <= lb.y + lb.h) {
-      dragRef.current = { mode: 'logo', x: e.clientX, y: e.clientY, ox: st.ox, oy: st.oy, tx: st.logoX, ty: st.logoY };
+      dragRef.current = { mode: 'logo', x: e.clientX, y: e.clientY, ox: st.ox, oy: st.oy, tx: st.logoX, ty: st.logoY, vx: 0, vy: 0, cpos: 0 };
       return;
     }
 
     // 2) ручка вращения — приоритет над текстом
     const hh = handleHit();
     if (hh && Math.hypot(x - hh.hx, y - hh.hy) <= hh.grab) {
-      dragRef.current = { mode: 'rotate', x: e.clientX, y: e.clientY, ox: st.ox, oy: st.oy, tx: st.textX, ty: st.textY ?? 0.5 };
+      dragRef.current = { mode: 'rotate', x: e.clientX, y: e.clientY, ox: st.ox, oy: st.oy, tx: st.textX, ty: st.textY ?? 0.5, vx: 0, vy: 0, cpos: 0 };
       return;
     }
 
-    // 2) текст: стартуем из фактического bbox — текстY=null (авто-низ) не прыгает в центр
+    // 3) текст: стартуем из фактического bbox — текстY=null (авто-низ) не прыгает в центр
     if (st.text.trim() && !bandMode() && hitTestText(bb, x, y) && bb) {
       dragRef.current = {
         mode: 'text',
@@ -179,15 +289,16 @@ export default function FrameCanvas({ state, canvasRef, onOffsetChange, onScaleC
         ox: st.ox, oy: st.oy,
         tx: bb.cx / c.width,
         ty: bb.cy / c.height,
+        vx: 0, vy: 0, cpos: 0,
       };
     } else {
-      dragRef.current = { mode: 'image', x: e.clientX, y: e.clientY, ox: st.ox, oy: st.oy, tx: st.textX, ty: st.textY ?? 0.5 };
+      dragRef.current = { mode: 'image', x: e.clientX, y: e.clientY, ox: st.ox, oy: st.oy, tx: st.textX, ty: st.textY ?? 0.5, vx: 0, vy: 0, cpos: 0 };
     }
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (!pointersRef.current.has(e.pointerId)) {
-      // hover без нажатия: ручка / текст / картинка
+      // hover без нажатия: ручка / лого / текст / картинка
       const ch = canvasRef.current;
       if (ch && e.pointerType === 'mouse') {
         const rect = ch.getBoundingClientRect();
@@ -195,7 +306,9 @@ export default function FrameCanvas({ state, canvasRef, onOffsetChange, onScaleC
         const y = ((e.clientY - rect.top) / rect.height) * ch.height;
         const hh = handleHit();
         const lb = computeLogoBox(stateRef.current, ch.width, ch.height);
-        if (hh && Math.hypot(x - hh.hx, y - hh.hy) <= hh.grab) {
+        if (compareOn && Math.abs(x - compareRef.current * ch.width) <= Math.min(ch.width, ch.height) * 0.035) {
+          ch.style.cursor = 'ew-resize';
+        } else if (hh && Math.hypot(x - hh.hx, y - hh.hy) <= hh.grab) {
           ch.style.cursor = 'grab';
         } else if (lb && x >= lb.x && x <= lb.x + lb.w && y >= lb.y && y <= lb.y + lb.h) {
           ch.style.cursor = 'move';
@@ -222,6 +335,32 @@ export default function FrameCanvas({ state, canvasRef, onOffsetChange, onScaleC
     const drag = dragRef.current;
     if (!drag) return;
 
+    if (drag.mode === 'compare') {
+      const { x } = toCanvasXY(e);
+      compareRef.current = clamp(x / c.width, 0.03, 0.97);
+      return;
+    }
+
+    if (drag.mode === 'pan') {
+      setView((v) => ({ ...v, x: drag.vx + (e.clientX - drag.x), y: drag.vy + (e.clientY - drag.y) }));
+      return;
+    }
+
+    if (drag.mode === 'logo') {
+      const rect = c.getBoundingClientRect();
+      const dx = e.clientX - drag.x;
+      const dy = e.clientY - drag.y;
+      let nx = clamp(drag.tx + dx / rect.width, -0.05, 1.05);
+      let ny = clamp(drag.ty + dy / rect.height, -0.05, 1.05);
+      // магнит к центру
+      guidesRef.current.gx = Math.abs(nx - 0.5) < 0.015;
+      guidesRef.current.gy = Math.abs(ny - 0.5) < 0.015;
+      if (guidesRef.current.gx) nx = 0.5;
+      if (guidesRef.current.gy) ny = 0.5;
+      cbRef.current.onLogoMove(nx, ny);
+      return;
+    }
+
     if (drag.mode === 'rotate') {
       const bb = bboxRef.current;
       if (bb) {
@@ -237,16 +376,14 @@ export default function FrameCanvas({ state, canvasRef, onOffsetChange, onScaleC
     const rect = c.getBoundingClientRect();
     const dx = e.clientX - drag.x;
     const dy = e.clientY - drag.y;
-    if (drag.mode === 'logo') {
-      cbRef.current.onLogoMove(
-        clamp(drag.tx + dx / rect.width, -0.05, 1.05),
-        clamp(drag.ty + dy / rect.height, -0.05, 1.05),
-      );
-    } else if (drag.mode === 'text') {
-      cbRef.current.onTextMove(
-        clamp(drag.tx + dx / rect.width, -0.1, 1.1),
-        clamp(drag.ty + dy / rect.height, -0.1, 1.1),
-      );
+    if (drag.mode === 'text') {
+      let nx = clamp(drag.tx + dx / rect.width, -0.1, 1.1);
+      let ny = clamp(drag.ty + dy / rect.height, -0.1, 1.1);
+      guidesRef.current.gx = Math.abs(nx - 0.5) < 0.015;
+      guidesRef.current.gy = Math.abs(ny - 0.5) < 0.015;
+      if (guidesRef.current.gx) nx = 0.5;
+      if (guidesRef.current.gy) ny = 0.5;
+      cbRef.current.onTextMove(nx, ny);
     } else {
       cbRef.current.onOffsetChange(drag.ox + dx / rect.width, drag.oy + dy / rect.height);
     }
@@ -255,25 +392,61 @@ export default function FrameCanvas({ state, canvasRef, onOffsetChange, onScaleC
   const handlePointerUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
     pointersRef.current.delete(e.pointerId);
     if (pointersRef.current.size < 2) pinchRef.current = null;
-    if (pointersRef.current.size === 0) dragRef.current = null;
+    if (pointersRef.current.size === 0) {
+      dragRef.current = null;
+      guidesRef.current = { gx: false, gy: false };
+    }
   };
 
   return (
-    <div className="relative">
-      <canvas
-        ref={canvasRef}
-        className="block w-full h-auto rounded-xl select-none"
-        style={{ touchAction: 'none', cursor: state.image ? 'grab' : 'default', boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.08)' }}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={handlePointerUp}
-      />
-      <canvas
-        ref={overlayRef}
-        aria-hidden
-        className="absolute inset-0 w-full h-full rounded-xl pointer-events-none"
-      />
+    <div className="relative overflow-hidden rounded-xl">
+      <div
+        style={{
+          transform: `translate(${view.x}px, ${view.y}px) scale(${view.z})`,
+          transformOrigin: 'center center',
+          transition: dragRef.current?.mode === 'pan' ? 'none' : 'transform 0.12s ease-out',
+        }}
+      >
+        <canvas
+          ref={canvasRef}
+          className="block w-full h-auto rounded-xl select-none"
+          style={{ touchAction: 'none', cursor: state.image ? 'grab' : 'default', boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.08)' }}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerUp}
+        />
+        <canvas
+          ref={overlayRef}
+          aria-hidden
+          className="absolute inset-0 w-full h-full rounded-xl pointer-events-none"
+        />
+      </div>
+
+      {/* зум-контролы */}
+      <div className="absolute right-2 bottom-2 flex items-center gap-1 pointer-events-auto">
+        <button
+          type="button"
+          onClick={() => setView((v) => ({ ...v, z: clamp(v.z * 1 / 1.25, 0.5, 4) }))}
+          className="w-7 h-7 rounded-lg font-mono text-xs nx-press flex items-center justify-center"
+          style={{ background: 'rgba(10,14,24,0.72)', color: '#cfd8e3' }}
+          aria-label="Уменьшить"
+        >−</button>
+        <button
+          type="button"
+          onClick={() => setView({ z: 1, x: 0, y: 0 })}
+          className="px-2 h-7 rounded-lg font-mono text-[10px] nx-press"
+          style={{ background: 'rgba(10,14,24,0.72)', color: '#cfd8e3' }}
+          title="Сбросить зум вида"
+        >{Math.round(view.z * 100)}%</button>
+        <button
+          type="button"
+          onClick={() => setView((v) => ({ ...v, z: clamp(v.z * 1.25, 0.5, 4) }))}
+          className="w-7 h-7 rounded-lg font-mono text-xs nx-press flex items-center justify-center"
+          style={{ background: 'rgba(10,14,24,0.72)', color: '#cfd8e3' }}
+          aria-label="Увеличить"
+        >+</button>
+      </div>
     </div>
   );
 }

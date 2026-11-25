@@ -4,6 +4,8 @@ import { FrameState, drawFrame } from './framePresets';
 export interface VideoOptions {
   seconds?: number;
   fps?: number;
+  /** масштаб кадра (1 = родное разрешение пресета, 0.667 ≈ 720p) */
+  scale?: number;
 }
 
 export function videoSupported(): boolean {
@@ -44,13 +46,14 @@ export function extForMime(mime: string | undefined): string {
  * Рисует на отдельном холсте — превью не мерцает.
  */
 export async function exportFrameVideo(state: FrameState, opts: VideoOptions = {}): Promise<Blob | null> {
-  const { seconds = 4, fps = 30 } = opts;
+  const { seconds = 4, fps = 30, scale = 1 } = opts;
   if (!videoSupported()) return null;
   const mime = pickMime();
 
+  const k = Math.max(0.2, Math.min(1, scale));
   const canvas = document.createElement('canvas');
-  canvas.width = state.preset.w;
-  canvas.height = state.preset.h;
+  canvas.width = Math.max(2, Math.round(state.preset.w * k));
+  canvas.height = Math.max(2, Math.round(state.preset.h * k));
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
 
