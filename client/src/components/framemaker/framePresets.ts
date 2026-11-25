@@ -58,10 +58,10 @@ export interface FrameState {
   textY: number | null;
   /** наклон текста, градусы */
   textAngle: number;
-  /** форма текста: прямая / дуга вверх (∩) / дуга вниз (∪) */
-  textShape: TextShape;
-  /** изгиб дуги 0..1 (только для дуги) */
-  textBend: number;
+  /** обводка букв */
+  strokeOn: boolean;
+  strokeColor: string;
+  strokeWidth: number; // 0..1 → доля px
   auroraOn: boolean;
   auroraBrightness: number; // 0..1
   auroraSpeed: number; // 0..2
@@ -69,6 +69,9 @@ export interface FrameState {
   snowOn: boolean;
   /** плотность/интенсивность эффектов 0..1 */
   fxIntensity: number;
+  /** параметры рамки */
+  frameRadius: number; // доля minDim (0–0.12), для 'circle' не используется
+  frameWidth: number; // множитель толщины грани (0.5–2.5)
   /** плашка под текстом: капсула вокруг текста или новостная полоса снизу */
   plateOn: boolean;
   plateStyle: PlateStyle;
@@ -78,9 +81,10 @@ export interface FrameState {
   plateAngle: number; // градусы направления градиента
   plateAlpha: number; // 0..1
   plateBlur: number; // 0..1 — блюр фото под плашкой
-  /** логотип канала */
+  /** логотип канала — позиция центра в долях холста, тянется мышкой */
   logo: HTMLImageElement | null;
-  logoCorner: LogoCorner;
+  logoX: number;
+  logoY: number;
   logoSize: number; // доля minDim (0.05–0.3)
   logoOpacity: number; // 0..1
   logoRadius: number; // 0..0.5 — скругление углов (0.5 = круг)
@@ -94,10 +98,8 @@ export interface FrameState {
   curtainSpeed: number; // 0..2
 }
 
-export type TextShape = 'straight' | 'arc-up' | 'arc-down';
 export type PlateStyle = 'capsule' | 'band';
 export type PlateFill = 'solid' | 'gradient';
-export type LogoCorner = 'tl' | 'tr' | 'bl' | 'br';
 
 /** Габарит текстового блока для hit-test (в координатах холста) */
 export interface TextBBox {
@@ -108,12 +110,15 @@ export interface TextBBox {
   angle: number; // радианы
 }
 
-export function shapePath(ctx: CanvasRenderingContext2D, w: number, h: number, preset: FramePreset) {
+export function shapePath(ctx: CanvasRenderingContext2D, w: number, h: number, preset: FramePreset, radius?: number) {
   ctx.beginPath();
   if (preset.radius === 'circle') {
     ctx.ellipse(w / 2, h / 2, w / 2, h / 2, 0, 0, Math.PI * 2);
   } else {
-    const r = Math.min(w, h) * preset.radius;
+    const r = Math.min(
+      Math.min(w, h) * (radius != null ? radius : preset.radius),
+      Math.min(w, h) / 2,
+    );
     ctx.moveTo(r, 0);
     ctx.lineTo(w - r, 0);
     ctx.quadraticCurveTo(w, 0, w, r);
@@ -199,38 +204,6 @@ function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number)
   return lines;
 }
 
-/** Одна строка текста дугой: span — полный угол дуги в радианах, shape — направление */
-function drawArcLine(
-  ctx: CanvasRenderingContext2D,
-  line: string,
-  cx: number,
-  cy: number,
-  shape: TextShape,
-  span: number,
-) {
-  const W = ctx.measureText(line).width;
-  if (W < 4) return;
-  const R = W / span; // длина дуги ≈ хорда текста
-  let s = -W / 2;
-  for (const ch of line) {
-    const cw = ctx.measureText(ch).width;
-    const a = (s + cw / 2) / R; // угол символа на дуге
-    ctx.save();
-    if (shape === 'arc-up') {
-      // центр окружности снизу → ∩ (концы опускаются)
-      ctx.translate(cx + R * Math.sin(a), cy + R * (1 - Math.cos(a)));
-      ctx.rotate(a);
-    } else {
-      // центр сверху → ∪ (концы поднимаются)
-      ctx.translate(cx + R * Math.sin(a), cy + R * (Math.cos(a) - 1));
-      ctx.rotate(-a);
-    }
-    ctx.fillText(ch, 0, 0);
-    ctx.restore();
-    s += cw;
-  }
-}
-
 /** Кэш мягкого снежинки-спрайта (радиальный градиент) — дёшево для рендера */
 let snowSprite: HTMLCanvasElement | null = null;
 function getSnowSprite(): HTMLCanvasElement {
@@ -306,106 +279,79 @@ function drawSnow(ctx: CanvasRenderingContext2D, w: number, h: number, minDim: n
   ctx.globalCompositeOperation = prev;
 }
 
-/** Равномерная полилиния по контуру формы — для бегущих цветов переливания.
- *  Углы собираются с фиксированным числом точек — дуга не «ломается» в многоугольник. */
-function sampleShapePoints(preset: FramePreset, w: number, h: number): { x: number; y: number }[] {
-  const pts: { x: number; y: number }[] = [];
-  if (preset.radius === 'circle') {
-    const n = 180;
-    for (let i = 0; i < n; i++) {
-      const a = (i / n) * Math.PI * 2;
-      pts.push({ x: w / 2 + (w / 2) * Math.cos(a), y: h / 2 + (h / 2) * Math.sin(a) });
-    }
-    return pts;
-  }
-  const r = Math.min(w, h) * preset.radius;
-  const edgeN = 30; // точек на прямой стороне
-  const cornerN = 18; // точек на дуге угла
-  const edge = (x0: number, y0: number, x1: number, y1: number) => {
-    for (let i = 0; i < edgeN; i++) {
-      const u = i / edgeN;
-      pts.push({ x: x0 + (x1 - x0) * u, y: y0 + (y1 - y0) * u });
-    }
-  };
-  const corner = (cx: number, cy: number, a0: number) => {
-    for (let i = 0; i < cornerN; i++) {
-      const a = a0 + (i / cornerN) * (Math.PI / 2);
-      pts.push({ x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) });
-    }
-  };
-  edge(r, 0, w - r, 0);            // верх
-  corner(w - r, r, -Math.PI / 2);  // TR
-  edge(w, r, w, h - r);            // право
-  corner(w - r, h - r, 0);         // BR
-  edge(w - r, h, r, h);            // низ
-  corner(r, h - r, Math.PI / 2);   // BL
-  edge(0, h - r, 0, r);            // лево
-  corner(r, r, Math.PI);           // TL
-  return pts;
-}
-
 /**
- * Рамка-сияние с переливанием: цвета бегут по периметру,
- * поверх идёт блик-волна (как отражение света на грани), ядро — чёткая линия.
+ * Рамка-сияние: градиенты по контуру через conic-градиент —
+ * без сегментов, значит без «обломанных» стыков; блик-волна бежит по углу.
  */
 function drawAuroraFrame(ctx: CanvasRenderingContext2D, w: number, h: number, minDim: number, s: FrameState, t: number) {
   const speed = s.auroraSpeed;
   const brightness = s.auroraBrightness;
+  const widthK = s.frameWidth;
 
-  // внешнее свечение — один слой, умеренный (без «каши»)
-  {
-    const pulse = 0.55 + 0.45 * (0.5 + 0.5 * Math.sin(t * 0.001 * speed));
-    const alpha = brightness * pulse * 0.55;
-    const color = auroraColorAt(t * 0.00008 * speed);
+  const conic = (phase: number, alphaMul: number): CanvasGradient | string => {
+    const cg = (ctx as CanvasRenderingContext2D & {
+      createConicGradient?: (a: number, x: number, y: number) => CanvasGradient;
+    }).createConicGradient;
+    const color0 = rgba(auroraColorAt(phase * 0.16), Math.min(1, 0.85 * alphaMul * (0.35 + 0.65 * brightness)));
+    if (typeof cg !== 'function') return color0;
+    const g = cg.call(ctx, phase, w / 2, h / 2);
+    const stops = 12;
+    for (let i = 0; i <= stops; i++) {
+      const u = i / stops;
+      const a = (0.55 + 0.45 * Math.sin(u * Math.PI * 2 + phase)) * alphaMul * (0.35 + 0.65 * brightness);
+      g.addColorStop(u, rgba(auroraColorAt(u + phase * 0.16), Math.max(0, Math.min(1, a))));
+    }
+    return g;
+  };
+
+  // мягкое свечение
+  const pulse = 0.55 + 0.45 * (0.5 + 0.5 * Math.sin(t * 0.001 * speed));
+  ctx.save();
+  shapePath(ctx, w, h, s.preset, s.frameRadius);
+  ctx.lineWidth = Math.max(2, minDim * 0.011 * widthK);
+  ctx.strokeStyle = conic(t * 0.0012 * speed, 0.6 * pulse);
+  ctx.shadowColor = rgba(auroraColorAt(t * 0.00008 * speed), 0.5 * pulse * brightness);
+  ctx.shadowBlur = minDim * 0.032;
+  ctx.stroke();
+  ctx.restore();
+
+  // переливающееся ядро грани
+  ctx.save();
+  shapePath(ctx, w, h, s.preset, s.frameRadius);
+  ctx.lineWidth = Math.max(2, minDim * 0.0115 * widthK);
+  ctx.strokeStyle = conic(t * 0.0012 * speed + 1.3, 1);
+  ctx.stroke();
+  ctx.restore();
+
+  // блик-волна: белый свет бежит по контуру
+  const head = (t * 0.00012 * speed) % 1;
+  const cg = (ctx as CanvasRenderingContext2D & {
+    createConicGradient?: (a: number, x: number, y: number) => CanvasGradient;
+  }).createConicGradient;
+  if (typeof cg === 'function') {
+    const g = cg.call(ctx, 0, w / 2, h / 2);
+    const stops = 28;
+    for (let i = 0; i <= stops; i++) {
+      const u = i / stops;
+      let d = Math.abs(u - head);
+      if (d > 0.5) d = 1 - d;
+      const a = Math.exp(-(d * d) / 0.0016);
+      g.addColorStop(u, `rgba(255,255,255,${(a * 0.8).toFixed(3)})`);
+    }
     ctx.save();
-    shapePath(ctx, w, h, s.preset);
-    ctx.lineWidth = Math.max(2, minDim * 0.011);
-    ctx.strokeStyle = rgba(color, alpha);
-    ctx.shadowColor = rgba(color, alpha * 0.9);
-    ctx.shadowBlur = minDim * 0.032;
+    ctx.globalCompositeOperation = 'lighter';
+    shapePath(ctx, w, h, s.preset, s.frameRadius);
+    ctx.lineWidth = Math.max(2, minDim * 0.0115 * widthK);
+    ctx.strokeStyle = g;
     ctx.stroke();
     ctx.restore();
   }
 
-  // переливание: градиент бежит по контуру + блик-волна
-  const pts = sampleShapePoints(s.preset, w, h);
-  const n = pts.length;
-  const head = (t * 0.00012 * speed) % 1;
+  // чёткая светящаяся грань
   ctx.save();
-  ctx.globalCompositeOperation = 'lighter';
-  ctx.lineCap = 'round';
-  ctx.lineWidth = Math.max(2, minDim * 0.0115);
-  for (let i = 0; i < n; i++) {
-    const u = i / n;
-    const col = auroraColorAt(u * 0.85 + t * 0.00005 * speed);
-    let d = Math.abs(u - head);
-    if (d > 0.5) d = 1 - d;
-    const spec = Math.exp(-(d * d) / 0.0022);
-    const alpha = Math.min(1, 0.3 + spec * 0.7) * (0.35 + 0.65 * brightness);
-    const r = Math.round(col.r + (255 - col.r) * spec);
-    const g = Math.round(col.g + (255 - col.g) * spec);
-    const b = Math.round(col.b + (255 - col.b) * spec);
-    ctx.strokeStyle = `rgba(${r},${g},${b},${alpha.toFixed(3)})`;
-    ctx.beginPath();
-    ctx.moveTo(pts[i].x, pts[i].y);
-    ctx.lineTo(pts[(i + 1) % n].x, pts[(i + 1) % n].y);
-    ctx.stroke();
-  }
-  ctx.restore();
-
-  // чёткое ядро грани — тонкая яркая линия по контуру
-  ctx.save();
-  shapePath(ctx, w, h, s.preset);
-  ctx.lineWidth = Math.max(1.5, minDim * 0.0055);
-  ctx.strokeStyle = `rgba(255,255,255,${(0.45 + 0.4 * brightness).toFixed(3)})`;
-  ctx.stroke();
-  ctx.restore();
-
-  // тонкая внутренняя линия — «объём»
-  ctx.save();
-  shapePath(ctx, w, h, s.preset);
-  ctx.lineWidth = Math.max(1, minDim * 0.0035);
-  ctx.strokeStyle = `rgba(255,255,255,${(0.2 + 0.3 * brightness).toFixed(3)})`;
+  shapePath(ctx, w, h, s.preset, s.frameRadius);
+  ctx.lineWidth = Math.max(1.5, minDim * 0.005 * widthK);
+  ctx.strokeStyle = `rgba(255,255,255,${(0.4 + 0.4 * brightness).toFixed(3)})`;
   ctx.stroke();
   ctx.restore();
 }
@@ -433,7 +379,7 @@ export function drawFrame(
 
   // ── 1. содержимое в форме рамки ──
   ctx.save();
-  shapePath(ctx, w, h, s.preset);
+  shapePath(ctx, w, h, s.preset, s.frameRadius);
   ctx.clip();
 
   if (s.image) {
@@ -555,18 +501,17 @@ export function drawFrame(
       }
     }
 
-    const arcOn = s.textShape !== 'straight' && s.textBend > 0.02 && maxLineW > 8 && !bandMode;
-    const span = arcOn ? Math.max(0.15, s.textBend) : 0; // рад дуги
-    const sagitta = arcOn ? (maxLineW / span) * (1 - Math.cos(span / 2)) : 0;
-
     const paintLines = () => {
       let ly = -((lines.length - 1) / 2) * lineHeight;
       for (const line of lines) {
-        if (arcOn) {
-          drawArcLine(ctx, line, 0, ly, s.textShape, span);
-        } else {
-          ctx.fillText(line, 0, ly);
-        }
+        ctx.fillText(line, 0, ly);
+        ly += lineHeight;
+      }
+    };
+    const strokeLines = () => {
+      let ly = -((lines.length - 1) / 2) * lineHeight;
+      for (const line of lines) {
+        ctx.strokeText(line, 0, ly);
         ly += lineHeight;
       }
     };
@@ -588,6 +533,15 @@ export function drawFrame(
     ctx.save();
     ctx.translate(cx, cy);
     ctx.rotate(angle);
+    // обводка букв — под заливкой
+    if (s.strokeOn && s.strokeWidth > 0.01) {
+      ctx.lineJoin = 'round';
+      ctx.lineWidth = px * 0.04 + s.strokeWidth * px * 0.16;
+      ctx.strokeStyle = s.strokeColor;
+      ctx.shadowColor = 'rgba(0,0,0,0.65)';
+      ctx.shadowBlur = px * 0.25;
+      strokeLines();
+    }
     ctx.shadowColor = 'rgba(0,0,0,0.65)';
     ctx.shadowBlur = px * 0.25;
     ctx.fillStyle = s.textColor;
@@ -599,7 +553,7 @@ export function drawFrame(
     // габарит с учётом плашки — тащить можно за подложку
     const plateW = s.plateOn && !bandMode ? padX * 2 : 0;
     const plateH = s.plateOn ? (bandMode ? 0 : padY * 2) : 0;
-    bbox = { cx, cy, w: maxLineW + plateW, h: blockH + plateH + sagitta * 1.6, angle };
+    bbox = { cx, cy, w: maxLineW + plateW, h: blockH + plateH, angle };
   }
 
   // ── 3. эффекты поверх фото и текста (внутри клипа) ──
@@ -607,30 +561,18 @@ export function drawFrame(
   if (s.snowOn && s.fxIntensity > 0) drawSnow(ctx, w, h, minDim, t, s.fxIntensity);
 
   // логотип канала — поверх всего содержимого, но под рамкой
-  if (s.logo) {
-    const box = s.logoSize * minDim;
-    const iw = s.logo.naturalWidth || 1;
-    const ih = s.logo.naturalHeight || 1;
-    const sc = Math.min(box / iw, box / ih);
-    const lw = iw * sc;
-    const lh = ih * sc;
-    const m = minDim * 0.05;
-    const pos = (
-      s.logoCorner === 'tr' ? [w - m - lw, m]
-        : s.logoCorner === 'bl' ? [m, h - m - lh]
-          : s.logoCorner === 'br' ? [w - m - lw, h - m - lh]
-            : [m, m]
-    ) as [number, number];
+  const lbox = computeLogoBox(s, w, h);
+  if (s.logo && lbox) {
     ctx.save();
     ctx.globalAlpha = s.logoOpacity;
     if (s.logoRadius > 0.001) {
       // скругление углов: 0.5 = круг
-      const rad = s.logoRadius * Math.min(lw, lh);
+      const rad = s.logoRadius * Math.min(lbox.w, lbox.h);
       ctx.beginPath();
-      ctx.roundRect(pos[0], pos[1], lw, lh, rad);
+      ctx.roundRect(lbox.x, lbox.y, lbox.w, lbox.h, rad);
       ctx.clip();
     }
-    ctx.drawImage(s.logo, pos[0], pos[1], lw, lh);
+    ctx.drawImage(s.logo, lbox.x, lbox.y, lbox.w, lbox.h);
     ctx.restore();
   }
 
@@ -642,14 +584,29 @@ export function drawFrame(
   } else {
     // статичная аккуратная рамка, когда анимация выключена
     ctx.save();
-    shapePath(ctx, w, h, s.preset);
-    ctx.lineWidth = Math.max(2, minDim * 0.008);
+    shapePath(ctx, w, h, s.preset, s.frameRadius);
+    ctx.lineWidth = Math.max(2, minDim * 0.008 * s.frameWidth);
     ctx.strokeStyle = 'rgba(0,255,136,0.55)';
     ctx.stroke();
     ctx.restore();
   }
 
   return bbox;
+}
+
+/** Габарит логотипа (координаты холста) — единый источник для рисования и hit-test */
+export interface LogoBox { x: number; y: number; w: number; h: number }
+
+export function computeLogoBox(s: FrameState, w: number, h: number): LogoBox | null {
+  if (!s.logo) return null;
+  const minDim = Math.min(w, h);
+  const box = s.logoSize * minDim;
+  const iw = s.logo.naturalWidth || 1;
+  const ih = s.logo.naturalHeight || 1;
+  const sc = Math.min(box / iw, box / ih);
+  const lw = iw * sc;
+  const lh = ih * sc;
+  return { x: s.logoX * w - lw / 2, y: s.logoY * h - lh / 2, w: lw, h: lh };
 }
 
 /** Попадает ли точка (координаты холста) в текстовый блок с учётом наклона */

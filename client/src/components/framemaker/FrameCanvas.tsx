@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { drawFrame, hitTestText, textHandlePos, FrameState, TextBBox } from './framePresets';
+import { drawFrame, hitTestText, textHandlePos, computeLogoBox, FrameState, TextBBox } from './framePresets';
 
 interface Props {
   state: FrameState;
@@ -10,18 +10,20 @@ interface Props {
   onTextMove: (tx: number, ty: number) => void;
   /** наклон текста, градусы (ручка над текстом) */
   onAngleChange: (deg: number) => void;
+  /** перетаскивание логотипа (доли холста, центр) */
+  onLogoMove: (x: number, y: number) => void;
 }
 
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 
-type DragMode = 'image' | 'text' | 'rotate';
+type DragMode = 'image' | 'text' | 'rotate' | 'logo';
 
 /** Превью-холст: rAF-анимация + drag картинки/текста + ручка вращения + колесо-зум + пинч */
-export default function FrameCanvas({ state, canvasRef, onOffsetChange, onScaleChange, onTextMove, onAngleChange }: Props) {
+export default function FrameCanvas({ state, canvasRef, onOffsetChange, onScaleChange, onTextMove, onAngleChange, onLogoMove }: Props) {
   const stateRef = useRef(state);
   stateRef.current = state;
-  const cbRef = useRef({ onOffsetChange, onScaleChange, onTextMove, onAngleChange });
-  cbRef.current = { onOffsetChange, onScaleChange, onTextMove, onAngleChange };
+  const cbRef = useRef({ onOffsetChange, onScaleChange, onTextMove, onAngleChange, onLogoMove });
+  cbRef.current = { onOffsetChange, onScaleChange, onTextMove, onAngleChange, onLogoMove };
 
   const overlayRef = useRef<HTMLCanvasElement>(null);
   const timeRef = useRef(0);
@@ -155,7 +157,14 @@ export default function FrameCanvas({ state, canvasRef, onOffsetChange, onScaleC
     const st = stateRef.current;
     const bb = bboxRef.current;
 
-    // 1) ручка вращения — приоритет над текстом
+    // 1) логотип — тянется прямо в кадре
+    const lb = computeLogoBox(st, c.width, c.height);
+    if (lb && x >= lb.x && x <= lb.x + lb.w && y >= lb.y && y <= lb.y + lb.h) {
+      dragRef.current = { mode: 'logo', x: e.clientX, y: e.clientY, ox: st.ox, oy: st.oy, tx: st.logoX, ty: st.logoY };
+      return;
+    }
+
+    // 2) ручка вращения — приоритет над текстом
     const hh = handleHit();
     if (hh && Math.hypot(x - hh.hx, y - hh.hy) <= hh.grab) {
       dragRef.current = { mode: 'rotate', x: e.clientX, y: e.clientY, ox: st.ox, oy: st.oy, tx: st.textX, ty: st.textY ?? 0.5 };
@@ -185,8 +194,11 @@ export default function FrameCanvas({ state, canvasRef, onOffsetChange, onScaleC
         const x = ((e.clientX - rect.left) / rect.width) * ch.width;
         const y = ((e.clientY - rect.top) / rect.height) * ch.height;
         const hh = handleHit();
+        const lb = computeLogoBox(stateRef.current, ch.width, ch.height);
         if (hh && Math.hypot(x - hh.hx, y - hh.hy) <= hh.grab) {
           ch.style.cursor = 'grab';
+        } else if (lb && x >= lb.x && x <= lb.x + lb.w && y >= lb.y && y <= lb.y + lb.h) {
+          ch.style.cursor = 'move';
         } else if (stateRef.current.text.trim() && !bandMode() && hitTestText(bboxRef.current, x, y)) {
           ch.style.cursor = 'move';
         } else {
@@ -225,7 +237,12 @@ export default function FrameCanvas({ state, canvasRef, onOffsetChange, onScaleC
     const rect = c.getBoundingClientRect();
     const dx = e.clientX - drag.x;
     const dy = e.clientY - drag.y;
-    if (drag.mode === 'text') {
+    if (drag.mode === 'logo') {
+      cbRef.current.onLogoMove(
+        clamp(drag.tx + dx / rect.width, -0.05, 1.05),
+        clamp(drag.ty + dy / rect.height, -0.05, 1.05),
+      );
+    } else if (drag.mode === 'text') {
       cbRef.current.onTextMove(
         clamp(drag.tx + dx / rect.width, -0.1, 1.1),
         clamp(drag.ty + dy / rect.height, -0.1, 1.1),

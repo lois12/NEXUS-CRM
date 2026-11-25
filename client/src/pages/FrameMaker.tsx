@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Sparkles, Upload, Move, Download, Pipette, Trash2, Eye } from 'lucide-react';
+import { ArrowLeft, Sparkles, Upload, Move, Download, Pipette, Trash2, Eye, ChevronDown, X, Type } from 'lucide-react';
 import FrameCanvas from '../components/framemaker/FrameCanvas';
 import {
-  FRAME_PRESETS, type FrameState, type FitMode, type TextShape, type PlateStyle, type PlateFill, type LogoCorner,
+  FRAME_PRESETS, type FrameState, type FitMode, type PlateStyle, type PlateFill,
 } from '../components/framemaker/framePresets';
 import { exportFrameGif } from '../components/framemaker/exportGif';
 import { exportFrameVideo, videoSupported, extForMime } from '../components/framemaker/exportVideo';
@@ -24,26 +24,41 @@ import '@fontsource/yeseva-one/400.css';
 import '@fontsource/pacifico/400.css';
 import '@fontsource/forum/400.css';
 import '@fontsource/manrope/700.css';
+import '@fontsource/rubik/700.css';
+import '@fontsource/nunito/700.css';
+import '@fontsource/comfortaa/700.css';
+import '@fontsource/marck-script/400.css';
+import '@fontsource/philosopher/700.css';
+import '@fontsource/alice/400.css';
+import '@fontsource/bad-script/400.css';
+import '@fontsource/onest/700.css';
 
 const FONTS = [
   { label: 'Montserrat', value: '"Montserrat", sans-serif' },
-  { label: 'Playfair', value: '"Playfair Display", serif' },
-  { label: 'Russo One', value: '"Russo One", sans-serif' },
-  { label: 'Caveat', value: '"Caveat", cursive' },
   { label: 'Unbounded', value: '"Unbounded", sans-serif' },
+  { label: 'Russo One', value: '"Russo One", sans-serif' },
   { label: 'Exo 2', value: '"Exo 2", sans-serif' },
   { label: 'Oswald', value: '"Oswald", sans-serif' },
+  { label: 'Manrope', value: '"Manrope", sans-serif' },
+  { label: 'Rubik', value: '"Rubik", sans-serif' },
+  { label: 'Nunito', value: '"Nunito", sans-serif' },
+  { label: 'Comfortaa', value: '"Comfortaa", sans-serif' },
+  { label: 'Onest', value: '"Onest", sans-serif' },
+  { label: 'Playfair', value: '"Playfair Display", serif' },
   { label: 'Cormorant', value: '"Cormorant", serif' },
   { label: 'Yeseva One', value: '"Yeseva One", serif' },
-  { label: 'Pacifico', value: '"Pacifico", cursive' },
   { label: 'Forum', value: '"Forum", serif' },
-  { label: 'Manrope', value: '"Manrope", sans-serif' },
+  { label: 'Alice', value: '"Alice", serif' },
+  { label: 'Philosopher', value: '"Philosopher", serif' },
+  { label: 'Caveat', value: '"Caveat", cursive' },
+  { label: 'Pacifico', value: '"Pacifico", cursive' },
+  { label: 'Marck Script', value: '"Marck Script", cursive' },
+  { label: 'Bad Script', value: '"Bad Script", cursive' },
   { label: 'Inter', value: '"Inter", sans-serif' },
   { label: 'JetBrains Mono', value: '"JetBrains Mono", monospace' },
 ];
 
 const PALETTE = ['#ffffff', '#0a0a0f', '#00ff88', '#00d4ff', '#7d5fff', '#ffd75f', '#ff6b6b', '#ff4fd8', '#b8f1ff'];
-const PLATE_PRESETS = ['#0b0e17', '#000000', '#06281f', '#1a1030'];
 
 const FIELD = 'w-full px-2.5 py-2 rounded-xl text-xs bg-white/5 border border-white/10 text-gray-200 [box-shadow:var(--depth-rim-top),var(--depth-rim-bottom)]';
 const LABEL = 'text-[9px] font-mono text-gray-500 tracking-wider';
@@ -74,9 +89,21 @@ function Switch({ on, onToggle, label }: { on: boolean; onToggle: () => void; la
   );
 }
 
-/** Выбор цвета: палитра + пикер + пипетка (где браузер поддерживает) */
+/** Выбор цвета: кнопка-плашка раскрывает палитру (палитра + свой цвет + пипетка) */
 function ColorField({ label, value, onChange }: { label: string; value: string; onChange: (c: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
   const [dropperOk] = useState(() => typeof window !== 'undefined' && 'EyeDropper' in window);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [open]);
+
   const pick = async () => {
     try {
       const ED = (window as unknown as { EyeDropper: new () => { open: () => Promise<{ sRGBHex: string }> } }).EyeDropper;
@@ -84,36 +111,55 @@ function ColorField({ label, value, onChange }: { label: string; value: string; 
       onChange(res.sRGBHex);
     } catch { /* отменено */ }
   };
+
   return (
-    <div>
+    <div className="relative" ref={wrapRef}>
       <label className={LABEL}>{label}</label>
-      <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-        {PALETTE.map((c) => (
-          <button
-            key={c}
-            onClick={() => onChange(c)}
-            aria-label={`Цвет ${c}`}
-            className="w-6 h-6 rounded-md border nx-press"
-            style={{ background: c, borderColor: value.toLowerCase() === c.toLowerCase() ? 'var(--color-primary)' : 'rgba(255,255,255,0.18)' }}
-          />
-        ))}
-        <input
-          type="color" value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="w-7 h-7 rounded-md cursor-pointer bg-transparent border border-gray-700"
-          aria-label="Свой цвет"
-        />
-        {dropperOk && (
-          <button
-            onClick={pick}
-            title="Пипетка — взять цвет с экрана"
-            aria-label="Пипетка"
-            className="w-7 h-7 rounded-md border border-gray-700 nx-press flex items-center justify-center text-gray-300 hover:text-white"
-          >
-            <Pipette className="w-3.5 h-3.5" />
-          </button>
-        )}
-      </div>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="mt-1 w-full flex items-center gap-2 px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 nx-press"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+      >
+        <span className="w-5 h-5 rounded-md border border-white/20 shrink-0" style={{ background: value }} />
+        <span className="font-mono text-[10px] text-gray-300 flex-1 text-left">{value}</span>
+        <ChevronDown className={`w-3.5 h-3.5 text-gray-500 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="absolute z-50 left-0 right-0 mt-1 p-2 rounded-xl glass border border-white/10 shadow-2xl">
+          <div className="grid grid-cols-6 gap-1.5">
+            {PALETTE.map((c) => (
+              <button
+                key={c}
+                onClick={() => { onChange(c); setOpen(false); }}
+                aria-label={`Цвет ${c}`}
+                className="w-full aspect-square rounded-md border nx-press"
+                style={{ background: c, borderColor: value.toLowerCase() === c.toLowerCase() ? 'var(--color-primary)' : 'rgba(255,255,255,0.18)' }}
+              />
+            ))}
+          </div>
+          <div className="flex items-center gap-2 mt-2">
+            <input
+              type="color" value={value}
+              onChange={(e) => onChange(e.target.value)}
+              className="w-8 h-8 rounded-md cursor-pointer bg-transparent border border-gray-700"
+              aria-label="Свой цвет"
+            />
+            {dropperOk && (
+              <button
+                onClick={pick}
+                title="Пипетка — взять цвет с экрана"
+                aria-label="Пипетка"
+                className="w-8 h-8 rounded-md border border-gray-700 nx-press flex items-center justify-center text-gray-300 hover:text-white"
+              >
+                <Pipette className="w-3.5 h-3.5" />
+              </button>
+            )}
+            <span className="font-mono text-[9px] text-gray-500">свой цвет / пипетка</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -141,8 +187,12 @@ export default function FrameMaker() {
   const [textX, setTextX] = useState(0.5);
   const [textY, setTextY] = useState<number | null>(null); // null = авто-низ по центру
   const [textAngle, setTextAngle] = useState(0);
-  const [textShape, setTextShape] = useState<TextShape>('straight');
-  const [textBend, setTextBend] = useState(55);
+  const [strokeOn, setStrokeOn] = useState(false);
+  const [strokeColor, setStrokeColor] = useState('#0a0a0f');
+  const [strokeWidth, setStrokeWidth] = useState(30); // 0..100
+
+  const [fontModal, setFontModal] = useState(false);
+  const [fontPhrase, setFontPhrase] = useState('НОРИЛЬСК · ЛЕТО 2026');
 
   const [neonOn, setNeonOn] = useState(false);
   const [neonColor, setNeonColor] = useState('#00d4ff');
@@ -158,10 +208,14 @@ export default function FrameMaker() {
   const [plateBlur, setPlateBlur] = useState(0);
 
   const [logo, setLogo] = useState<HTMLImageElement | null>(null);
-  const [logoCorner, setLogoCorner] = useState<LogoCorner>('tl');
+  const [logoX, setLogoX] = useState(0.13);
+  const [logoY, setLogoY] = useState(0.13);
   const [logoSize, setLogoSize] = useState(14);
   const [logoOpacity, setLogoOpacity] = useState(85);
   const [logoRadius, setLogoRadius] = useState(0); // 0..50 (% — 50 = круг)
+
+  const [frameRadius, setFrameRadius] = useState(4.5); // % от minDim
+  const [frameWidth, setFrameWidth] = useState(100); // % толщины грани
 
   const [auroraOn, setAuroraOn] = useState(true);
   const [brightness, setBrightness] = useState(85);
@@ -194,14 +248,17 @@ export default function FrameMaker() {
     textX,
     textY,
     textAngle,
-    textShape,
-    textBend: textBend / 100,
+    strokeOn,
+    strokeColor,
+    strokeWidth: strokeWidth / 100,
     auroraOn,
     auroraBrightness: brightness / 100,
     auroraSpeed: speed / 100,
     windOn,
     snowOn,
     fxIntensity: fxIntensity / 100,
+    frameRadius: frameRadius / 100,
+    frameWidth: frameWidth / 100,
     plateOn,
     plateStyle,
     plateFill,
@@ -211,7 +268,8 @@ export default function FrameMaker() {
     plateAlpha: plateAlpha / 100,
     plateBlur: plateBlur / 100,
     logo,
-    logoCorner,
+    logoX,
+    logoY,
     logoSize: logoSize / 100,
     logoOpacity: logoOpacity / 100,
     logoRadius: logoRadius / 100,
@@ -356,6 +414,24 @@ export default function FrameMaker() {
             </div>
           </div>
 
+          {/* Параметры рамки */}
+          <div className="glass rounded-xl p-2.5 space-y-2">
+            <span className="nx-eyebrow">ПАРАМЕТРЫ РАМКИ</span>
+            <div>
+              <label className={LABEL}>СКРУГЛЕНИЕ УГЛОВ: {preset.radius === 'circle' ? 'КРУГ' : `${frameRadius}%`}</label>
+              <input type="range" min={0} max={12} step={0.5} value={frameRadius}
+                disabled={preset.radius === 'circle'}
+                onChange={(e) => setFrameRadius(Number(e.target.value))}
+                className="w-full accent-[var(--color-primary)] disabled:opacity-30" />
+            </div>
+            <div>
+              <label className={LABEL}>ТОЛЩИНА ГРАНИ: {frameWidth}%</label>
+              <input type="range" min={50} max={250} value={frameWidth}
+                onChange={(e) => setFrameWidth(Number(e.target.value))}
+                className="w-full accent-[var(--color-primary)]" />
+            </div>
+          </div>
+
           {/* Картинка */}
           <div className="glass rounded-xl p-2.5 space-y-2">
             <span className="nx-eyebrow">КАРТИНКА</span>
@@ -411,16 +487,7 @@ export default function FrameMaker() {
             </div>
             {logo && (
               <>
-                <div className="flex flex-wrap gap-1.5">
-                  {([['tl', 'ВЛ ВВЕРХ'], ['tr', 'ВП ВВЕРХ'], ['bl', 'ВЛ ВНИЗ'], ['br', 'ВП ВНИЗ']] as [LogoCorner, string][]).map(([id, label]) => (
-                    <button
-                      key={id}
-                      onClick={() => setLogoCorner(id)}
-                      className={chip(logoCorner === id)}
-                      style={logoCorner === id ? { background: 'var(--color-primary)' } : undefined}
-                    >{label}</button>
-                  ))}
-                </div>
+                <p className="font-mono text-[9px] text-gray-600">перетащите логотип прямо в кадре</p>
                 <div>
                   <label className={LABEL}>РАЗМЕР: {logoSize}%</label>
                   <input type="range" min={5} max={30} value={logoSize}
@@ -454,6 +521,7 @@ export default function FrameMaker() {
               onScaleChange={setScale}
               onTextMove={(x, y) => { setTextX(x); setTextY(y); }}
               onAngleChange={(d) => setTextAngle(Math.round(d))}
+              onLogoMove={(x, y) => { setLogoX(x); setLogoY(y); }}
             />
             <div className="flex flex-wrap items-center justify-between gap-2 mt-2">
               <p className="font-mono text-[9px] text-gray-600">
@@ -501,14 +569,17 @@ export default function FrameMaker() {
                 >
                   ВИДЕО {exporting === 'video' ? '…' : ''}
                 </button>
-                <select
-                  value={videoSeconds}
-                  onChange={(e) => setVideoSeconds(Number(e.target.value))}
-                  className="px-2 py-2 rounded-lg text-[10px] font-mono bg-white/5 border border-white/10 text-gray-300 min-h-[36px]"
-                  title="Длина видео"
-                >
-                  {[2, 4, 6, 8, 10].map((s) => <option key={s} value={s}>{s} сек</option>)}
-                </select>
+                <div className="relative">
+                  <select
+                    value={videoSeconds}
+                    onChange={(e) => setVideoSeconds(Number(e.target.value))}
+                    className="appearance-none pl-2.5 pr-7 py-2 rounded-lg text-[10px] font-mono bg-white/5 border border-white/10 text-gray-300 min-h-[36px]"
+                    title="Длина видео"
+                  >
+                    {[2, 4, 6, 8, 10].map((s) => <option key={s} value={s}>{s} сек</option>)}
+                  </select>
+                  <ChevronDown className="w-3.5 h-3.5 text-gray-500 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
               </>
             )}
             {exporting && (
@@ -522,19 +593,30 @@ export default function FrameMaker() {
           {/* Текст */}
           <div className="glass rounded-xl p-2.5 space-y-2">
             <span className="nx-eyebrow">ТЕКСТ</span>
-            <input
+            <textarea
               value={text}
-              onChange={(e) => setText(e.target.value)}
+              onChange={(e) => {
+                setText(e.target.value);
+                e.target.style.height = 'auto';
+                e.target.style.height = `${e.target.scrollHeight}px`;
+              }}
               placeholder="Например: НОРИЛЬСК · ЛЕТО 2026"
-              className={FIELD}
+              rows={1}
               maxLength={80}
+              className={`${FIELD} resize-none overflow-hidden`}
             />
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className={LABEL}>ШРИФТ</label>
-                <select value={fontFamily} onChange={(e) => setFontFamily(e.target.value)} className={FIELD}>
-                  {FONTS.map((f) => <option key={f.label} value={f.value}>{f.label}</option>)}
-                </select>
+                <button
+                  type="button"
+                  onClick={() => setFontModal(true)}
+                  className={`${FIELD} mt-1 flex items-center justify-between gap-1 text-left nx-press`}
+                >
+                  <Type className="w-3.5 h-3.5 text-gray-500 shrink-0" />
+                  <span className="truncate flex-1" style={{ fontFamily }}>{FONTS.find((f) => f.value === fontFamily)?.label || 'Шрифт'}</span>
+                  <ChevronDown className="w-3.5 h-3.5 text-gray-500 shrink-0" />
+                </button>
               </div>
               <div>
                 <label className={LABEL}>РАЗМЕР: {fontSize}</label>
@@ -566,34 +648,34 @@ export default function FrameMaker() {
               </>
             )}
 
-            {/* положение / форма */}
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className={LABEL}>НАКЛОН: {textAngle}°</label>
-                <input
-                  type="range" min={-40} max={40} value={textAngle}
-                  onChange={(e) => setTextAngle(Number(e.target.value))}
-                  className="w-full accent-[var(--color-primary)] mt-1.5"
-                />
-              </div>
-              <div>
-                <label className={LABEL}>ФОРМА</label>
-                <select value={textShape} onChange={(e) => setTextShape(e.target.value as TextShape)} className={`${FIELD} mt-0.5`}>
-                  <option value="straight">Прямая</option>
-                  <option value="arc-up">Дуга ∩</option>
-                  <option value="arc-down">Дуга ∪</option>
-                </select>
-              </div>
-            </div>
+            {/* наклон */}
             <div>
-              <label className={LABEL}>ИЗГИБ: {textShape === 'straight' ? '—' : `${textBend}%`}</label>
+              <label className={LABEL}>НАКЛОН: {textAngle}°</label>
               <input
-                type="range" min={15} max={100} value={textBend}
-                disabled={textShape === 'straight'}
-                onChange={(e) => setTextBend(Number(e.target.value))}
-                className="w-full accent-[var(--color-primary)] disabled:opacity-30"
+                type="range" min={-40} max={40} value={textAngle}
+                onChange={(e) => setTextAngle(Number(e.target.value))}
+                className="w-full accent-[var(--color-primary)]"
               />
             </div>
+
+            {/* обводка букв */}
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-mono text-[10px] text-gray-300">ОБВОДКА БУКВ</span>
+              <Switch on={strokeOn} onToggle={() => setStrokeOn((v) => !v)} label="Обводка букв" />
+            </div>
+            {strokeOn && (
+              <>
+                <ColorField label="ЦВЕТ ОБВОДКИ" value={strokeColor} onChange={setStrokeColor} />
+                <div>
+                  <label className={LABEL}>ТОЛЩИНА ОБВОДКИ: {strokeWidth}%</label>
+                  <input
+                    type="range" min={5} max={100} value={strokeWidth}
+                    onChange={(e) => setStrokeWidth(Number(e.target.value))}
+                    className="w-full accent-[var(--color-primary)]"
+                  />
+                </div>
+              </>
+            )}
             <div className="flex items-center justify-between gap-2">
               <p className="font-mono text-[9px] text-gray-600">
                 {plateOn && plateStyle === 'band'
@@ -643,26 +725,9 @@ export default function FrameMaker() {
                   >ГРАДИЕНТ</button>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className={LABEL}>ЦВЕТ {plateFill === 'gradient' ? 'A' : 'ПЛАШКИ'}</label>
-                    <div className="flex items-center gap-1.5 mt-1">
-                      <input type="color" value={plateColor} onChange={(e) => setPlateColor(e.target.value)}
-                        className="w-8 h-8 rounded-md cursor-pointer bg-transparent border border-gray-700" />
-                      {PLATE_PRESETS.map((c) => (
-                        <button key={c} onClick={() => setPlateColor(c)} aria-label={`Цвет ${c}`}
-                          className="w-5 h-5 rounded-md border nx-press"
-                          style={{ background: c, borderColor: plateColor === c ? 'var(--color-primary)' : 'rgba(255,255,255,0.18)' }} />
-                      ))}
-                    </div>
-                  </div>
+                  <ColorField label={plateFill === 'gradient' ? 'ЦВЕТ A' : 'ЦВЕТ ПЛАШКИ'} value={plateColor} onChange={setPlateColor} />
                   {plateFill === 'gradient' && (
-                    <div>
-                      <label className={LABEL}>ЦВЕТ B</label>
-                      <div className="flex items-center gap-1.5 mt-1">
-                        <input type="color" value={plateColor2} onChange={(e) => setPlateColor2(e.target.value)}
-                          className="w-8 h-8 rounded-md cursor-pointer bg-transparent border border-gray-700" />
-                      </div>
-                    </div>
+                    <ColorField label="ЦВЕТ B" value={plateColor2} onChange={setPlateColor2} />
                   )}
                 </div>
                 {plateFill === 'gradient' && (
@@ -793,6 +858,64 @@ export default function FrameMaker() {
           </div>
         )}
       </div>
+
+      {/* Окно выбора шрифта */}
+      {fontModal && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+          style={{ background: 'rgba(5,8,14,0.72)' }}
+          onClick={() => setFontModal(false)}
+        >
+          <div className="glass rounded-2xl p-4 w-full max-w-md space-y-3" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <span className="nx-eyebrow">ВЫБОР ШРИФТА</span>
+              <button
+                onClick={() => setFontModal(false)}
+                aria-label="Закрыть"
+                className="p-1.5 rounded-lg hover:bg-white/10 nx-press"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div>
+              <label className={LABEL}>ФРАЗА ДЛЯ ПРЕВЬЮ</label>
+              <input
+                value={fontPhrase}
+                onChange={(e) => setFontPhrase(e.target.value)}
+                className={FIELD}
+                maxLength={60}
+                placeholder="НОРИЛЬСК · ЛЕТО 2026"
+              />
+            </div>
+            <div>
+              <label className={LABEL}>ШРИФТ</label>
+              <select
+                value={fontFamily}
+                onChange={(e) => setFontFamily(e.target.value)}
+                size={7}
+                className={`${FIELD} mt-1 h-auto`}
+              >
+                {FONTS.map((f) => (
+                  <option key={f.label} value={f.value} style={{ fontFamily: f.value }}>{f.label}</option>
+                ))}
+              </select>
+            </div>
+            <div className="rounded-xl bg-white/[0.04] border border-white/10 p-4 min-h-[92px] flex items-center justify-center">
+              <p className="text-center text-2xl leading-snug px-2" style={{ fontFamily, color: 'var(--color-primary)' }}>
+                {fontPhrase || 'НОРИЛЬСК · ЛЕТО 2026'}
+              </p>
+            </div>
+            <div className="flex justify-end">
+              <button
+                onClick={() => setFontModal(false)}
+                className="btn-primary nx-press px-4 py-2 rounded-xl font-mono text-[11px] font-bold"
+              >
+                ГОТОВО
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
