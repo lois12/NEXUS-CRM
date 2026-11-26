@@ -154,24 +154,28 @@ export interface FrameState {
   /** бейдж-табличка */
   badgeOn: boolean;
   badgeText: string;
-  badgeCorner: Corner;
+  badgeX: number;
+  badgeY: number;
   badgeBg: string;
   badgeColor: string;
   /** крупное число */
   numOn: boolean;
   numText: string;
   numStyle: NumStyle;
-  numCorner: Corner;
+  numX: number;
+  numY: number;
   numColor: string;
   numSize: number; // % minDim
   /** водяной знак */
   wmOn: boolean;
   wmText: string;
-  wmCorner: Corner;
+  wmX: number;
+  wmY: number;
   wmOpacity: number;
   /** QR-код (готовый холст) */
   qrImage: HTMLCanvasElement | null;
-  qrCorner: Corner;
+  qrX: number;
+  qrY: number;
   qrSize: number;
   qrRadius: number;
   /** стикер-фигура */
@@ -234,6 +238,10 @@ export interface FrameHit {
   text: TextBBox | null;
   text2: TextBBox | null;
   shape: TextBBox | null;
+  badge: TextBBox | null;
+  num: TextBBox | null;
+  wm: TextBBox | null;
+  qr: TextBBox | null;
 }
 
 export function shapePath(ctx: CanvasRenderingContext2D, w: number, h: number, preset: FramePreset, radius?: number) {
@@ -1083,11 +1091,11 @@ export function drawFrame(
   // логотип поверх текста (по умолчанию)
   if (!s.logoUnderText) paintLogo(ctx, s, w, h);
 
-  // угловые объекты и стикеры
-  if (s.badgeOn && s.badgeText.trim()) drawBadge(ctx, w, h, minDim, s);
-  if (s.numOn && s.numText.trim()) drawNum(ctx, w, h, minDim, s);
-  if (s.wmOn && s.wmText.trim()) drawWatermark(ctx, w, h, minDim, s);
-  if (s.qrImage) drawQr(ctx, w, h, minDim, s);
+  // декор и стикеры — все свободно перетаскиваются
+  const badgeBox = s.badgeOn && s.badgeText.trim() ? drawBadge(ctx, w, h, minDim, s) : null;
+  const numBox = s.numOn && s.numText.trim() ? drawNum(ctx, w, h, minDim, s) : null;
+  const wmBox = s.wmOn && s.wmText.trim() ? drawWatermark(ctx, w, h, minDim, s) : null;
+  const qrBox = s.qrImage ? drawQr(ctx, w, h, minDim, s) : null;
   let shapeBox: TextBBox | null = null;
   if (s.shapeOn) {
     drawShape(ctx, w, h, minDim, s);
@@ -1122,7 +1130,7 @@ export function drawFrame(
     }
   }
 
-  return { text: bbox, text2: text2BBox, shape: shapeBox };
+  return { text: bbox, text2: text2BBox, shape: shapeBox, badge: badgeBox, num: numBox, wm: wmBox, qr: qrBox };
 }
 
 /** Логотип канала — поверх содержимого, но под рамкой */
@@ -1234,16 +1242,8 @@ function drawCircleText(ctx: CanvasRenderingContext2D, text: string, cx: number,
   }
 }
 
-/** Угловая точка для объектов в углах кадра */
-function cornerPos(corner: Corner, w: number, h: number, margin: number): [number, number] {
-  return [
-    corner === 'tr' || corner === 'br' ? w - margin : margin,
-    corner === 'bl' || corner === 'br' ? h - margin : margin,
-  ];
-}
-
-/** Бейдж-табличка в углу */
-function drawBadge(ctx: CanvasRenderingContext2D, w: number, h: number, minDim: number, s: FrameState) {
+/** Бейдж-табличка — свободно позиционируется, возвращает габарит */
+function drawBadge(ctx: CanvasRenderingContext2D, w: number, h: number, minDim: number, s: FrameState): TextBBox {
   const px = Math.round(minDim * 0.038);
   ctx.save();
   ctx.font = `700 ${px}px ${s.fontFamily}`;
@@ -1252,34 +1252,35 @@ function drawBadge(ctx: CanvasRenderingContext2D, w: number, h: number, minDim: 
   const tw = ctx.measureText(s.badgeText).width;
   const pw = tw + px * 1.4;
   const ph = px * 1.9;
-  const [x, y] = cornerPos(s.badgeCorner, w, h, minDim * 0.055);
-  const left = s.badgeCorner === 'tr' || s.badgeCorner === 'br' ? x - pw : x;
-  const top = s.badgeCorner === 'bl' || s.badgeCorner === 'br' ? y - ph : y;
+  const cx = s.badgeX * w;
+  const cy = s.badgeY * h;
   ctx.fillStyle = s.badgeBg;
   ctx.beginPath();
-  ctx.roundRect(left, top, pw, ph, ph / 2);
+  ctx.roundRect(cx - pw / 2, cy - ph / 2, pw, ph, ph / 2);
   ctx.fill();
   ctx.strokeStyle = 'rgba(255,255,255,0.35)';
   ctx.lineWidth = Math.max(1, minDim * 0.0025);
   ctx.stroke();
   ctx.fillStyle = s.badgeColor;
-  ctx.fillText(s.badgeText, left + pw / 2, top + ph / 2);
+  ctx.fillText(s.badgeText, cx, cy);
   ctx.restore();
+  return { cx, cy, w: pw, h: ph, angle: 0 };
 }
 
 /** Крупное число тремя стилями */
-function drawNum(ctx: CanvasRenderingContext2D, w: number, h: number, minDim: number, s: FrameState) {
+function drawNum(ctx: CanvasRenderingContext2D, w: number, h: number, minDim: number, s: FrameState): TextBBox {
   const px = Math.round(minDim * s.numSize);
   ctx.save();
   ctx.font = `700 ${px}px ${s.fontFamily}`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  const [x, y] = cornerPos(s.numCorner, w, h, minDim * 0.14);
+  const cx = s.numX * w;
+  const cy = s.numY * h;
+  const tw = ctx.measureText(s.numText).width;
   if (s.numStyle === 'plate') {
-    const tw = ctx.measureText(s.numText).width;
     ctx.fillStyle = 'rgba(10,14,24,0.78)';
     ctx.beginPath();
-    ctx.roundRect(x - tw / 2 - px * 0.35, y - px * 0.75, tw + px * 0.7, px * 1.5, px * 0.3);
+    ctx.roundRect(cx - tw / 2 - px * 0.35, cy - px * 0.75, tw + px * 0.7, px * 1.5, px * 0.3);
     ctx.fill();
   }
   if (s.numStyle === 'neon') {
@@ -1289,39 +1290,44 @@ function drawNum(ctx: CanvasRenderingContext2D, w: number, h: number, minDim: nu
   if (s.numStyle === 'outline') {
     ctx.lineWidth = Math.max(2, px * 0.06);
     ctx.strokeStyle = s.numColor;
-    ctx.strokeText(s.numText, x, y);
+    ctx.strokeText(s.numText, cx, cy);
     ctx.fillStyle = 'rgba(10,14,24,0.25)';
   } else {
     ctx.fillStyle = s.numColor;
   }
-  ctx.fillText(s.numText, x, y);
+  ctx.fillText(s.numText, cx, cy);
   ctx.restore();
+  return { cx, cy, w: tw + px * 0.7, h: px * 1.5, angle: 0 };
 }
 
-/** Водяной знак мелким текстом в углу */
-function drawWatermark(ctx: CanvasRenderingContext2D, w: number, h: number, minDim: number, s: FrameState) {
+/** Водяной знак мелким текстом */
+function drawWatermark(ctx: CanvasRenderingContext2D, w: number, h: number, minDim: number, s: FrameState): TextBBox {
   const px = Math.round(minDim * 0.028);
   ctx.save();
   ctx.globalAlpha = Math.min(0.9, s.wmOpacity);
   ctx.font = `500 ${px}px ${s.fontFamily}`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  const [x, y] = cornerPos(s.wmCorner, w, h, minDim * 0.045);
+  const cx = s.wmX * w;
+  const cy = s.wmY * h;
+  const tw = ctx.measureText(s.wmText).width;
   ctx.fillStyle = 'rgba(255,255,255,0.92)';
   ctx.shadowColor = 'rgba(0,0,0,0.55)';
   ctx.shadowBlur = px * 0.35;
-  ctx.fillText(s.wmText, x, y);
+  ctx.fillText(s.wmText, cx, cy);
   ctx.restore();
+  return { cx, cy, w: tw + px, h: px * 1.6, angle: 0 };
 }
 
-/** QR-код в углу */
-function drawQr(ctx: CanvasRenderingContext2D, w: number, h: number, minDim: number, s: FrameState) {
+/** QR-код */
+function drawQr(ctx: CanvasRenderingContext2D, w: number, h: number, minDim: number, s: FrameState): TextBBox | null {
   const img = s.qrImage;
-  if (!img) return;
+  if (!img) return null;
   const size = s.qrSize * minDim;
-  const [x, y] = cornerPos(s.qrCorner, w, h, minDim * 0.05);
-  const left = s.qrCorner === 'tr' || s.qrCorner === 'br' ? x - size : x;
-  const top = s.qrCorner === 'bl' || s.qrCorner === 'br' ? y - size : y;
+  const cx = s.qrX * w;
+  const cy = s.qrY * h;
+  const left = cx - size / 2;
+  const top = cy - size / 2;
   ctx.save();
   ctx.fillStyle = '#ffffff'; // белая подложка — QR должен читаться
   ctx.beginPath();
@@ -1334,6 +1340,7 @@ function drawQr(ctx: CanvasRenderingContext2D, w: number, h: number, minDim: num
   }
   ctx.drawImage(img, left, top, size, size);
   ctx.restore();
+  return { cx, cy, w: size * 1.16, h: size * 1.16, angle: 0 };
 }
 
 /** Стикер-фигура: звезда / круг-штамп / плашка */

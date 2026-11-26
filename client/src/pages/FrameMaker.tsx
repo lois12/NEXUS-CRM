@@ -4,7 +4,7 @@ import { ArrowLeft, Sparkles, Upload, Move, Download, Pipette, Trash2, Eye, Chev
 import FrameCanvas from '../components/framemaker/FrameCanvas';
 import {
   FRAME_PRESETS, drawFrame, type FrameState, type FitMode, type PlateStyle, type PlateFill,
-  type FrameStyle, type FrameMode, type TextCase, type TextAnim, type FrameLine, type Corner,
+  type FrameStyle, type FrameMode, type TextCase, type TextAnim, type FrameLine,
   type NumStyle, type ShapeKind,
 } from '../components/framemaker/framePresets';
 import { exportFrameGif } from '../components/framemaker/exportGif';
@@ -104,13 +104,15 @@ function chip(active: boolean): string {
 }
 
 /** Сворачиваемая панель — компактный UI без визуального шума */
-function Panel({ title, children, defaultOpen = false, right }: {
+function Panel({ title, children, defaultOpen = false, right, visible = true }: {
   title: string;
   children: React.ReactNode;
   defaultOpen?: boolean;
   right?: React.ReactNode;
+  visible?: boolean;
 }) {
   const [open, setOpen] = useState(defaultOpen);
+  if (!visible) return null;
   return (
     <div className="glass rounded-xl">
       <div className="flex items-center justify-between gap-2 p-2.5">
@@ -418,22 +420,26 @@ export default function FrameMaker() {
 
   const [badgeOn, setBadgeOn] = useState(false);
   const [badgeText, setBadgeText] = useState('НОВИНКА');
-  const [badgeCorner, setBadgeCorner] = useState<Corner>('tr');
+  const [badgeX, setBadgeX] = useState(0.85);
+  const [badgeY, setBadgeY] = useState(0.08);
   const [badgeBg, setBadgeBg] = useState('#ff4f78');
   const [badgeColor, setBadgeColor] = useState('#ffffff');
   const [numOn, setNumOn] = useState(false);
   const [numText, setNumText] = useState('ТОП-5');
   const [numStyle, setNumStyle] = useState<NumStyle>('outline');
-  const [numCorner, setNumCorner] = useState<Corner>('bl');
+  const [numX, setNumX] = useState(0.12);
+  const [numY, setNumY] = useState(0.86);
   const [numColor, setNumColor] = useState('#ffd75f');
   const [numSize, setNumSize] = useState(14);
   const [wmOn, setWmOn] = useState(false);
   const [wmText, setWmText] = useState('@nexus');
-  const [wmCorner, setWmCorner] = useState<Corner>('br');
+  const [wmX, setWmX] = useState(0.88);
+  const [wmY, setWmY] = useState(0.93);
   const [wmOpacity, setWmOpacity] = useState(70);
   const [qrOn, setQrOn] = useState(false);
   const [qrData, setQrData] = useState('https://');
-  const [qrCorner, setQrCorner] = useState<Corner>('br');
+  const [qrX, setQrX] = useState(0.85);
+  const [qrY, setQrY] = useState(0.85);
   const [qrSize, setQrSize] = useState(16);
   const [qrRadius, setQrRadius] = useState(10);
   const [qrImage, setQrImage] = useState<HTMLCanvasElement | null>(null);
@@ -474,6 +480,8 @@ export default function FrameMaker() {
   const [logoUnderText, setLogoUnderText] = useState(false);
   const [exporting, setExporting] = useState<'png' | 'gif' | 'video' | 'webp' | null>(null);
   const [history, setHistory] = useState<ExportItem[]>([]);
+  /** выбранный элемент — контекстное меню справа */
+  const [selected, setSelected] = useState<string>('text');
 
   const state: FrameState = {
     preset,
@@ -569,21 +577,25 @@ export default function FrameMaker() {
     shadowBlur,
     badgeOn,
     badgeText,
-    badgeCorner,
+    badgeX,
+    badgeY,
     badgeBg,
     badgeColor,
     numOn,
     numText,
     numStyle,
-    numCorner,
+    numX,
+    numY,
     numColor,
     numSize: numSize / 100,
     wmOn,
     wmText,
-    wmCorner,
+    wmX,
+    wmY,
     wmOpacity: wmOpacity / 100,
     qrImage,
-    qrCorner,
+    qrX,
+    qrY,
     qrSize: qrSize / 100,
     qrRadius: qrRadius / 100,
     shapeOn,
@@ -645,10 +657,21 @@ export default function FrameMaker() {
     if (!file) return;
     const url = URL.createObjectURL(file);
     const img = new Image();
-    img.onload = () => { setLogo(img); URL.revokeObjectURL(url); };
+    img.onload = () => { setLogo(img); setSelected('logo'); URL.revokeObjectURL(url); };
     img.onerror = () => { showToast('Не удалось открыть логотип', 'error'); URL.revokeObjectURL(url); };
     img.src = url;
   };
+
+  /** движение декора-объектов по холсту */
+  const onObjectMove = (kind: 'badge' | 'num' | 'wm' | 'qr', x: number, y: number) => {
+    if (kind === 'badge') { setBadgeX(x); setBadgeY(y); }
+    else if (kind === 'num') { setNumX(x); setNumY(y); }
+    else if (kind === 'wm') { setWmX(x); setWmY(y); }
+    else { setQrX(x); setQrY(y); }
+  };
+
+  /** клик по элементу — показываем его настройки справа */
+  const onSelect = (kind: string) => setSelected(kind);
 
   const resetView = () => { setScale(1); setOx(0); setOy(0); };
 
@@ -686,10 +709,10 @@ export default function FrameMaker() {
     textShape: 'straight',
     textGradOn: false, textGrad1: '#00ff88', textGrad2: '#00d4ff', textGrad3: '#7d5fff', textGradAngle: 90,
     shadowOn: false, shadowColor: '#000000', shadowDx: 6, shadowDy: 6, shadowBlur: 12,
-    badgeOn: false, badgeText: 'НОВИНКА', badgeCorner: 'tr', badgeBg: '#ff4f78', badgeColor: '#ffffff',
-    numOn: false, numText: 'ТОП-5', numStyle: 'outline', numCorner: 'bl', numColor: '#ffd75f', numSize: 0.14,
-    wmOn: false, wmText: '@nexus', wmCorner: 'br', wmOpacity: 0.7,
-    qrImage: null, qrCorner: 'br', qrSize: 0.16, qrRadius: 0.1,
+    badgeOn: false, badgeText: 'НОВИНКА', badgeX: 0.85, badgeY: 0.08, badgeBg: '#ff4f78', badgeColor: '#ffffff',
+    numOn: false, numText: 'ТОП-5', numStyle: 'outline', numX: 0.12, numY: 0.86, numColor: '#ffd75f', numSize: 0.14,
+    wmOn: false, wmText: '@nexus', wmX: 0.88, wmY: 0.93, wmOpacity: 0.7,
+    qrImage: null, qrX: 0.85, qrY: 0.85, qrSize: 0.16, qrRadius: 0.1,
     shapeOn: false, shapeKind: 'star', shapeX: 0.5, shapeY: 0.5, shapeSize: 0.12, shapeColor: '#ffd75f', shapeRot: 0,
     fBright: 0, fContrast: 0, fSat: 0, fTemp: 0,
     bgBlurOn: false,
@@ -734,10 +757,10 @@ export default function FrameMaker() {
     setTextShape2(s.textShape);
     setTextGradOn(s.textGradOn); setTextGrad1(s.textGrad1); setTextGrad2(s.textGrad2); setTextGrad3(s.textGrad3); setTextGradAngle(s.textGradAngle);
     setShadowOn(s.shadowOn); setShadowColor(s.shadowColor); setShadowDx(s.shadowDx); setShadowDy(s.shadowDy); setShadowBlur(s.shadowBlur);
-    setBadgeOn(s.badgeOn); setBadgeText(s.badgeText); setBadgeCorner(s.badgeCorner); setBadgeBg(s.badgeBg); setBadgeColor(s.badgeColor);
-    setNumOn(s.numOn); setNumText(s.numText); setNumStyle(s.numStyle); setNumCorner(s.numCorner); setNumColor(s.numColor); setNumSize(Math.round(s.numSize * 100));
-    setWmOn(s.wmOn); setWmText(s.wmText); setWmCorner(s.wmCorner); setWmOpacity(Math.round(s.wmOpacity * 100));
-    setQrImage(s.qrImage); setQrCorner(s.qrCorner); setQrSize(Math.round(s.qrSize * 100)); setQrRadius(Math.round(s.qrRadius * 100));
+    setBadgeOn(s.badgeOn); setBadgeText(s.badgeText); setBadgeX(s.badgeX); setBadgeY(s.badgeY); setBadgeBg(s.badgeBg); setBadgeColor(s.badgeColor);
+    setNumOn(s.numOn); setNumText(s.numText); setNumStyle(s.numStyle); setNumX(s.numX); setNumY(s.numY); setNumColor(s.numColor); setNumSize(Math.round(s.numSize * 100));
+    setWmOn(s.wmOn); setWmText(s.wmText); setWmX(s.wmX); setWmY(s.wmY); setWmOpacity(Math.round(s.wmOpacity * 100));
+    setQrImage(s.qrImage); setQrX(s.qrX); setQrY(s.qrY); setQrSize(Math.round(s.qrSize * 100)); setQrRadius(Math.round(s.qrRadius * 100));
     setShapeOn(s.shapeOn); setShapeKind(s.shapeKind); setShapeX(s.shapeX); setShapeY(s.shapeY);
     setShapeSize(Math.round(s.shapeSize * 100)); setShapeColor(s.shapeColor); setShapeRot(s.shapeRot);
     setFBright(Math.round(s.fBright * 100)); setFContrast(Math.round(s.fContrast * 100)); setFSat(Math.round(s.fSat * 100)); setFTemp(Math.round(s.fTemp * 100));
@@ -939,7 +962,7 @@ export default function FrameMaker() {
     const over: Partial<FrameState> = kind === 'afisha' ? {
       textCase: 'upper', fontSize: 0.08, textGradOn: true, textGrad1: '#ffd75f', textGrad2: '#ff8a3d', textGrad3: '#ff4f78',
       neonOn: false, plateOn: false, frameStyle: 'fire', frameMode: 'corners', barsOn: true, barsSize: 0.12,
-      badgeOn: true, badgeText: 'НОВИНКА', badgeCorner: 'tr', badgeBg: '#ff4f78', badgeColor: '#ffffff',
+      badgeOn: true, badgeText: 'НОВИНКА', badgeX: 0.85, badgeY: 0.08, badgeBg: '#ff4f78', badgeColor: '#ffffff',
       snowOn: false, windOn: true, bokehOn: true, bokehIntensity: 0.4, grainOn: true, grainIntensity: 0.3,
     } : kind === 'quote' ? {
       fontFamily: '"Caveat", cursive', fontSize: 0.075, textCase: 'none', textShape: 'straight',
@@ -949,8 +972,8 @@ export default function FrameMaker() {
     } : kind === 'announce' ? {
       textCase: 'upper', fontSize: 0.07, frameStyle: 'ice', frameLine: 'double', frameMode: 'full',
       barsOn: true, barsSize: 0.08, rainOn: true, rainIntensity: 0.5,
-      badgeOn: true, badgeText: 'СКОРО', badgeCorner: 'tl', badgeBg: '#00d4ff', badgeColor: '#0a0a0f',
-      numOn: true, numText: 'ТОП-5', numStyle: 'neon', numCorner: 'bl', numColor: '#ffd75f',
+      badgeOn: true, badgeText: 'СКОРО', badgeX: 0.15, badgeY: 0.08, badgeBg: '#00d4ff', badgeColor: '#0a0a0f',
+      numOn: true, numText: 'ТОП-5', numStyle: 'neon', numX: 0.12, numY: 0.86, numColor: '#ffd75f',
     } : {
       textCase: 'title', frameStyle: 'aurora', frameMode: 'full',
       bokehOn: true, bokehIntensity: 0.5, wmOn: true, grainOn: true, grainIntensity: 0.25,
@@ -1133,7 +1156,7 @@ export default function FrameMaker() {
           </Panel>
 
           {/* Параметры рамки */}
-          <Panel title="ПАРАМЕТРЫ РАМКИ">
+          <Panel title="ПАРАМЕТРЫ РАМКИ" visible={selected === 'frame'}>
             <div>
               <label className={LABEL}>СТИЛЬ</label>
               <div className="flex flex-wrap gap-1.5 mt-1">
@@ -1245,7 +1268,7 @@ export default function FrameMaker() {
           </Panel>
 
           {/* Логотип */}
-          <Panel title="ЛОГОТИП КАНАЛА">
+          <Panel title="ЛОГОТИП КАНАЛА" visible={selected === 'logo'}>
             <div className="flex flex-wrap gap-1.5 items-center">
               <label className="btn-ghost nx-press px-2.5 py-1.5 min-h-[32px] rounded-lg font-mono text-[10px] flex items-center gap-1.5 cursor-pointer">
                 <Upload className="w-3.5 h-3.5" /> {logo ? 'ЗАМЕНИТЬ' : 'PNG'}
@@ -1398,6 +1421,9 @@ export default function FrameMaker() {
               onLogoMove={(x, y) => { setLogoX(x); setLogoY(y); }}
               onText2Move={(x, y) => { setText2X(x); setText2Y(y); }}
               onShapeMove={(x, y) => { setShapeX(x); setShapeY(y); }}
+              onObjectMove={onObjectMove}
+              onSelect={onSelect}
+              selected={selected}
               compareOn={compareOn}
               locks={{ photo: lockPhoto, text: lockText, logo: lockLogo }}
             />
@@ -1494,10 +1520,37 @@ export default function FrameMaker() {
           </div>
         </div>
 
-        {/* ПРАВАЯ КОЛОНКА */}
+        {/* ПРАВАЯ КОЛОНКА: контекстное меню выбранного элемента */}
         <div className="space-y-3">
+          {/* выбор элемента: клик по чипу или прямо по кадру */}
+          <div className="glass rounded-xl p-2">
+            <div className="flex flex-wrap gap-1">
+              {([
+                ['photo', 'ФОТО'], ['frame', 'КАДР'], ['text', 'ТЕКСТ'], ['text2', 'T2'], ['logo', 'ЛОГО'],
+                ['shape', '★'], ['badge', 'БЕЙДЖ'], ['num', '№'], ['wm', '@'], ['qr', 'QR'], ['effects', 'FX'],
+              ] as [string, string][]).map(([id, lb]) => (
+                <button
+                  key={id}
+                  onClick={() => {
+                    setSelected(id);
+                    // включение элемента «на лету»
+                    if (id === 'text2') setText2On(true);
+                    if (id === 'shape') setShapeOn(true);
+                    if (id === 'badge') setBadgeOn(true);
+                    if (id === 'num') setNumOn(true);
+                    if (id === 'wm') setWmOn(true);
+                    if (id === 'qr') setQrOn(true);
+                  }}
+                  className={chip(selected === id)}
+                  style={selected === id ? { background: 'var(--color-primary)' } : undefined}
+                >{lb}</button>
+              ))}
+            </div>
+            <p className="font-mono text-[9px] text-gray-600 mt-1.5">кликните элемент прямо на кадре — тут появятся его настройки</p>
+          </div>
+
           {/* Текст */}
-          <Panel title="ТЕКСТ" defaultOpen>
+          <Panel title="ТЕКСТ" defaultOpen visible={selected === 'text'}>
             <textarea
               value={text}
               onChange={(e) => {
@@ -1682,6 +1735,7 @@ export default function FrameMaker() {
           {/* Градиент и тень */}
           <Panel
             title="ГРАДИЕНТ И ТЕНЬ"
+            visible={selected === 'text'}
             right={(
               <div className="flex items-center gap-2">
                 <Switch on={textGradOn} onToggle={() => setTextGradOn((v) => !v)} label="Градиент текста" />
@@ -1738,6 +1792,7 @@ export default function FrameMaker() {
           {/* Второй текст */}
           <Panel
             title="ВТОРОЙ ТЕКСТ"
+            visible={selected === 'text2'}
             right={<Switch on={text2On} onToggle={() => setText2On((v) => !v)} label="Второй текст" />}
           >
             {text2On && (
@@ -1776,7 +1831,7 @@ export default function FrameMaker() {
           </Panel>
 
           {/* Фотофильтры */}
-          <Panel title="ФОТОФИЛЬТРЫ И ФОНЫ">
+          <Panel title="ФОТОФИЛЬТРЫ И ФОНЫ" visible={selected === 'photo'}>
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className={LABEL}>ЯРКОСТЬ: {fBright}</label>
@@ -1854,7 +1909,7 @@ export default function FrameMaker() {
           </Panel>
 
           {/* Декор */}
-          <Panel title="ДЕКОР: БЕЙДЖ / ЧИСЛО / QR">
+          <Panel title="ДЕКОР: БЕЙДЖ / ЧИСЛО / QR" visible={selected === 'badge' || selected === 'num' || selected === 'wm' || selected === 'qr' || selected === 'shape'}>
             <div className="flex items-center justify-between gap-2">
               <span className="font-mono text-[10px] text-gray-300">БЕЙДЖ-ТАБЛИЧКА</span>
               <Switch on={badgeOn} onToggle={() => setBadgeOn((v) => !v)} label="Бейдж" />
@@ -1879,12 +1934,7 @@ export default function FrameMaker() {
                       className="w-full h-8 mt-1 rounded-md cursor-pointer bg-transparent border border-gray-700" />
                   </div>
                 </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {([['tl', 'ВЛ ВВЕРХ'], ['tr', 'ВП ВВЕРХ'], ['bl', 'ВЛ ВНИЗ'], ['br', 'ВП ВНИЗ']] as [Corner, string][]).map(([id, lb]) => (
-                    <button key={id} onClick={() => setBadgeCorner(id)} className={chip(badgeCorner === id)}
-                      style={badgeCorner === id ? { background: 'var(--color-primary)' } : undefined}>{lb}</button>
-                  ))}
-                </div>
+                <p className="font-mono text-[9px] text-gray-600">бейдж можно перетащить прямо по кадру</p>
               </>
             )}
 
@@ -1899,10 +1949,6 @@ export default function FrameMaker() {
                   {([['outline', 'КОНТУР'], ['neon', 'НЕОН'], ['plate', 'ПЛАШКА']] as [NumStyle, string][]).map(([id, lb]) => (
                     <button key={id} onClick={() => setNumStyle(id)} className={chip(numStyle === id)}
                       style={numStyle === id ? { background: 'var(--color-primary)' } : undefined}>{lb}</button>
-                  ))}
-                  {([['tl', 'ВЛ ВВЕРХ'], ['tr', 'ВП ВВЕРХ'], ['bl', 'ВЛ ВНИЗ'], ['br', 'ВП ВНИЗ']] as [Corner, string][]).map(([id, lb]) => (
-                    <button key={id} onClick={() => setNumCorner(id)} className={chip(numCorner === id)}
-                      style={numCorner === id ? { background: 'var(--color-primary)' } : undefined}>{lb}</button>
                   ))}
                 </div>
                 <div className="grid grid-cols-2 gap-2">
@@ -1928,12 +1974,7 @@ export default function FrameMaker() {
             {wmOn && (
               <>
                 <input value={wmText} onChange={(e) => setWmText(e.target.value)} className={FIELD} maxLength={30} />
-                <div className="flex flex-wrap gap-1.5">
-                  {([['tl', 'ВЛ ВВЕРХ'], ['tr', 'ВП ВВЕРХ'], ['bl', 'ВЛ ВНИЗ'], ['br', 'ВП ВНИЗ']] as [Corner, string][]).map(([id, lb]) => (
-                    <button key={id} onClick={() => setWmCorner(id)} className={chip(wmCorner === id)}
-                      style={wmCorner === id ? { background: 'var(--color-primary)' } : undefined}>{lb}</button>
-                  ))}
-                </div>
+                <p className="font-mono text-[9px] text-gray-600">водяной знак можно перетащить по кадру</p>
                 <div>
                   <label className={LABEL}>ПРОЗРАЧНОСТЬ: {wmOpacity}%</label>
                   <input type="range" min={10} max={100} value={wmOpacity}
@@ -1950,12 +1991,7 @@ export default function FrameMaker() {
             {qrOn && (
               <>
                 <input value={qrData} onChange={(e) => setQrData(e.target.value)} className={FIELD} maxLength={200} placeholder="https://... или текст" />
-                <div className="flex flex-wrap gap-1.5">
-                  {([['tl', 'ВЛ ВВЕРХ'], ['tr', 'ВП ВВЕРХ'], ['bl', 'ВЛ ВНИЗ'], ['br', 'ВП ВНИЗ']] as [Corner, string][]).map(([id, lb]) => (
-                    <button key={id} onClick={() => setQrCorner(id)} className={chip(qrCorner === id)}
-                      style={qrCorner === id ? { background: 'var(--color-primary)' } : undefined}>{lb}</button>
-                  ))}
-                </div>
+                <p className="font-mono text-[9px] text-gray-600">QR можно перетащить по кадру</p>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <label className={LABEL}>РАЗМЕР: {qrSize}%</label>
@@ -2012,6 +2048,7 @@ export default function FrameMaker() {
           {/* Плашка */}
           <Panel
             title="ПЛАШКА ПОД ТЕКСТОМ"
+            visible={selected === 'text'}
             right={<Switch on={plateOn} onToggle={() => setPlateOn((v) => !v)} label="Плашка под текстом" />}
           >
             {plateOn && (
@@ -2073,6 +2110,7 @@ export default function FrameMaker() {
           {/* Сияние */}
           <Panel
             title="СИЯНИЕ И ШТОРЫ"
+            visible={selected === 'frame' || selected === 'effects'}
             right={<Switch on={auroraOn} onToggle={() => setAuroraOn((v) => !v)} label="Сияние рамки" />}
           >
             {auroraOn && (
@@ -2136,7 +2174,7 @@ export default function FrameMaker() {
           </Panel>
 
           {/* Эффекты */}
-          <Panel title="ЭФФЕКТЫ ПОВЕРХ">
+          <Panel title="ЭФФЕКТЫ ПОВЕРХ" visible={selected === 'effects'}>
             {/* ветер и снег — общая пара слайдеров */}
             <div className="flex items-center justify-between gap-2">
               <span className="font-mono text-[10px] text-gray-300">КОСМИЧЕСКИЙ ВЕТЕР</span>

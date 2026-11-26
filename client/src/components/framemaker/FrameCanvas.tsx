@@ -15,6 +15,11 @@ interface Props {
   /** второй текст и стикер-фигура */
   onText2Move: (tx: number, ty: number) => void;
   onShapeMove: (x: number, y: number) => void;
+  /** декор-объекты (бейдж/число/знак/QR) */
+  onObjectMove: (kind: 'badge' | 'num' | 'wm' | 'qr', x: number, y: number) => void;
+  /** выбор элемента кликом — открывает контекстное меню */
+  onSelect: (kind: string) => void;
+  selected: string | null;
   /** режим сравнения «до/после» с ползунком */
   compareOn: boolean;
   /** замки: элемент нельзя сдвинуть / картинку — зумить */
@@ -23,19 +28,22 @@ interface Props {
 
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 
-type DragMode = 'image' | 'text' | 'text2' | 'shape' | 'rotate' | 'logo' | 'compare' | 'pan';
+type DragMode = 'image' | 'text' | 'text2' | 'shape' | 'badge' | 'num' | 'wm' | 'qr' | 'rotate' | 'logo' | 'compare' | 'pan';
+type ObjKind = 'badge' | 'num' | 'wm' | 'qr';
 
 /** Превью-холст: rAF-анимация + drag картинки/текста/лого + ручка + зум + сравнение */
 export default function FrameCanvas({
   state, canvasRef, onOffsetChange, onScaleChange, onTextMove, onAngleChange,
-  onLogoMove, onText2Move, onShapeMove, compareOn, locks,
+  onLogoMove, onText2Move, onShapeMove, onObjectMove, onSelect, selected, compareOn, locks,
 }: Props) {
   const stateRef = useRef(state);
   stateRef.current = state;
   const locksRef = useRef(locks);
   locksRef.current = locks;
-  const cbRef = useRef({ onOffsetChange, onScaleChange, onTextMove, onAngleChange, onLogoMove, onText2Move, onShapeMove });
-  cbRef.current = { onOffsetChange, onScaleChange, onTextMove, onAngleChange, onLogoMove, onText2Move, onShapeMove };
+  const selRef = useRef(selected);
+  selRef.current = selected;
+  const cbRef = useRef({ onOffsetChange, onScaleChange, onTextMove, onAngleChange, onLogoMove, onText2Move, onShapeMove, onObjectMove, onSelect });
+  cbRef.current = { onOffsetChange, onScaleChange, onTextMove, onAngleChange, onLogoMove, onText2Move, onShapeMove, onObjectMove, onSelect };
 
   const overlayRef = useRef<HTMLCanvasElement>(null);
   const timeRef = useRef(0);
@@ -169,6 +177,32 @@ export default function FrameCanvas({
           octx.setLineDash([]);
         }
 
+        // рамка выделения выбранного объекта
+        const selBox = selRef.current === 'text' ? bb?.text ?? null
+          : selRef.current === 'text2' ? bb?.text2 ?? null
+            : selRef.current === 'shape' ? bb?.shape ?? null
+              : selRef.current === 'badge' ? bb?.badge ?? null
+                : selRef.current === 'num' ? bb?.num ?? null
+                  : selRef.current === 'wm' ? bb?.wm ?? null
+                    : selRef.current === 'qr' ? bb?.qr ?? null
+                      : null;
+        const lbRaw = selRef.current === 'logo' ? computeLogoBox(stateRef.current, o.width, o.height) : null;
+        const lbSel = lbRaw ? { cx: lbRaw.x + lbRaw.w / 2, cy: lbRaw.y + lbRaw.h / 2, w: lbRaw.w, h: lbRaw.h, angle: 0 } : null;
+        const drawSel = (box: { cx: number; cy: number; w: number; h: number; angle: number }) => {
+          const minD = Math.min(o.width, o.height);
+          const pad = minD * 0.012;
+          octx.save();
+          octx.translate(box.cx, box.cy);
+          octx.rotate(box.angle);
+          octx.strokeStyle = 'rgba(0,255,136,0.8)';
+          octx.lineWidth = Math.max(1.2, minD * 0.0026);
+          octx.setLineDash([minD * 0.014, minD * 0.009]);
+          octx.strokeRect(-box.w / 2 - pad, -box.h / 2 - pad, box.w + pad * 2, box.h + pad * 2);
+          octx.restore();
+        };
+        if (selBox) drawSel(selBox);
+        if (lbSel) drawSel(lbSel);
+
         // ручка вращения текста
         const tb = bb?.text ?? null;
         if (tb && st.text.trim() && !bandMode && !compareOn) {
@@ -288,47 +322,81 @@ export default function FrameCanvas({
       return;
     }
 
-    // 1) логотип — тянется прямо в кадре (если не под замком)
-    const lb = computeLogoBox(st, c.width, c.height);
-    if (!locksRef.current.logo && lb && x >= lb.x && x <= lb.x + lb.w && y >= lb.y && y <= lb.y + lb.h) {
-      dragRef.current = { mode: 'logo', x: e.clientX, y: e.clientY, ox: st.ox, oy: st.oy, tx: st.logoX, ty: st.logoY, vx: 0, vy: 0, cpos: 0 };
-      return;
+    // 1) декор-объекты (сверху вниз по z): фигура, QR, знак, число, бейдж
+    const hit = bboxRef.current;
+    const objHits: Array<[ObjKind, ReturnType<typeof hitTestText>, number, number]> = [
+      ['qr', hit?.qr ? hitTestText(hit.qr, x, y) : false, st.qrX, st.qrY],
+      ['wm', hit?.wm ? hitTestText(hit.wm, x, y) : false, st.wmX, st.wmY],
+      ['num', hit?.num ? hitTestText(hit.num, x, y) : false, st.numX, st.numY],
+      ['badge', hit?.badge ? hitTestText(hit.badge, x, y) : false, st.badgeX, st.badgeY],
+    ];
+    for (const [kind, ok, px0, py0] of objHits) {
+      if (ok) {
+        cbRef.current.onSelect(kind);
+        if (!locksRef.current.text) {
+          dragRef.current = { mode: kind, x: e.clientX, y: e.clientY, ox: st.ox, oy: st.oy, tx: px0, ty: py0, vx: 0, vy: 0, cpos: 0 };
+        }
+        return;
+      }
     }
 
     // 2) стикер-фигура
-    const sh = bboxRef.current?.shape ?? null;
-    if (!locksRef.current.text && st.shapeOn && sh && hitTestText(sh, x, y)) {
-      dragRef.current = { mode: 'shape', x: e.clientX, y: e.clientY, ox: st.ox, oy: st.oy, tx: st.shapeX, ty: st.shapeY, vx: 0, vy: 0, cpos: 0 };
+    const sh = hit?.shape ?? null;
+    if (st.shapeOn && sh && hitTestText(sh, x, y)) {
+      cbRef.current.onSelect('shape');
+      if (!locksRef.current.text) {
+        dragRef.current = { mode: 'shape', x: e.clientX, y: e.clientY, ox: st.ox, oy: st.oy, tx: st.shapeX, ty: st.shapeY, vx: 0, vy: 0, cpos: 0 };
+      }
       return;
     }
 
-    // 3) второй текст
-    const t2 = bboxRef.current?.text2 ?? null;
-    if (!locksRef.current.text && st.text2On && t2 && hitTestText(t2, x, y)) {
-      dragRef.current = { mode: 'text2', x: e.clientX, y: e.clientY, ox: st.ox, oy: st.oy, tx: st.text2X, ty: st.text2Y, vx: 0, vy: 0, cpos: 0 };
+    // 3) логотип — тянется прямо в кадре (если не под замком)
+    const lb = computeLogoBox(st, c.width, c.height);
+    if (lb && x >= lb.x && x <= lb.x + lb.w && y >= lb.y && y <= lb.y + lb.h) {
+      cbRef.current.onSelect('logo');
+      if (!locksRef.current.logo) {
+        dragRef.current = { mode: 'logo', x: e.clientX, y: e.clientY, ox: st.ox, oy: st.oy, tx: st.logoX, ty: st.logoY, vx: 0, vy: 0, cpos: 0 };
+      }
       return;
     }
 
-    // 4) ручка вращения — приоритет над текстом (текст под замком — не трогаем)
+    // 4) второй текст
+    const t2 = hit?.text2 ?? null;
+    if (st.text2On && t2 && hitTestText(t2, x, y)) {
+      cbRef.current.onSelect('text2');
+      if (!locksRef.current.text) {
+        dragRef.current = { mode: 'text2', x: e.clientX, y: e.clientY, ox: st.ox, oy: st.oy, tx: st.text2X, ty: st.text2Y, vx: 0, vy: 0, cpos: 0 };
+      }
+      return;
+    }
+
+    // 5) ручка вращения — приоритет над текстом (текст под замком — не трогаем)
     const hh = handleHit();
     if (!locksRef.current.text && hh && Math.hypot(x - hh.hx, y - hh.hy) <= hh.grab) {
+      cbRef.current.onSelect('text');
       dragRef.current = { mode: 'rotate', x: e.clientX, y: e.clientY, ox: st.ox, oy: st.oy, tx: st.textX, ty: st.textY ?? 0.5, vx: 0, vy: 0, cpos: 0 };
       return;
     }
 
-    // 5) текст: стартуем из фактического bbox — текстY=null (авто-низ) не прыгает в центр
-    const tb = bboxRef.current?.text ?? null;
-    if (!locksRef.current.text && st.text.trim() && !bandMode() && tb && hitTestText(tb, x, y)) {
-      dragRef.current = {
-        mode: 'text',
-        x: e.clientX, y: e.clientY,
-        ox: st.ox, oy: st.oy,
-        tx: tb.cx / c.width,
-        ty: tb.cy / c.height,
-        vx: 0, vy: 0, cpos: 0,
-      };
-    } else if (!locksRef.current.photo) {
-      dragRef.current = { mode: 'image', x: e.clientX, y: e.clientY, ox: st.ox, oy: st.oy, tx: st.textX, ty: st.textY ?? 0.5, vx: 0, vy: 0, cpos: 0 };
+    // 6) текст: стартуем из фактического bbox — текстY=null (авто-низ) не прыгает в центр
+    const tb = hit?.text ?? null;
+    if (st.text.trim() && !bandMode() && tb && hitTestText(tb, x, y)) {
+      cbRef.current.onSelect('text');
+      if (!locksRef.current.text) {
+        dragRef.current = {
+          mode: 'text',
+          x: e.clientX, y: e.clientY,
+          ox: st.ox, oy: st.oy,
+          tx: tb.cx / c.width,
+          ty: tb.cy / c.height,
+          vx: 0, vy: 0, cpos: 0,
+        };
+      }
+    } else {
+      cbRef.current.onSelect('photo');
+      if (!locksRef.current.photo) {
+        dragRef.current = { mode: 'image', x: e.clientX, y: e.clientY, ox: st.ox, oy: st.oy, tx: st.textX, ty: st.textY ?? 0.5, vx: 0, vy: 0, cpos: 0 };
+      }
     }
   };
 
@@ -351,7 +419,11 @@ export default function FrameCanvas({
           ch.style.cursor = 'move';
         } else if (!lk.text && (hitTestText(bboxRef.current?.text ?? null, x, y)
           || (stateRef.current.shapeOn && hitTestText(bboxRef.current?.shape ?? null, x, y))
-          || (stateRef.current.text2On && hitTestText(bboxRef.current?.text2 ?? null, x, y)))) {
+          || (stateRef.current.text2On && hitTestText(bboxRef.current?.text2 ?? null, x, y))
+          || hitTestText(bboxRef.current?.badge ?? null, x, y)
+          || hitTestText(bboxRef.current?.num ?? null, x, y)
+          || hitTestText(bboxRef.current?.wm ?? null, x, y)
+          || hitTestText(bboxRef.current?.qr ?? null, x, y))) {
           ch.style.cursor = 'move';
         } else {
           ch.style.cursor = stateRef.current.image && !lk.photo ? 'grab' : 'default';
@@ -411,6 +483,20 @@ export default function FrameCanvas({
       if (guidesRef.current.gx) nx = 0.5;
       if (guidesRef.current.gy) ny = 0.5;
       cbRef.current.onShapeMove(nx, ny);
+      return;
+    }
+
+    if (drag.mode === 'badge' || drag.mode === 'num' || drag.mode === 'wm' || drag.mode === 'qr') {
+      const rect = c.getBoundingClientRect();
+      const dx = e.clientX - drag.x;
+      const dy = e.clientY - drag.y;
+      let nx = clamp(drag.tx + dx / rect.width, -0.05, 1.05);
+      let ny = clamp(drag.ty + dy / rect.height, -0.05, 1.05);
+      guidesRef.current.gx = Math.abs(nx - 0.5) < 0.015;
+      guidesRef.current.gy = Math.abs(ny - 0.5) < 0.015;
+      if (guidesRef.current.gx) nx = 0.5;
+      if (guidesRef.current.gy) ny = 0.5;
+      cbRef.current.onObjectMove(drag.mode, nx, ny);
       return;
     }
 
