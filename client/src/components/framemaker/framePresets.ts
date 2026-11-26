@@ -73,8 +73,22 @@ export interface FrameState {
   auroraSpeed: number; // 0..2
   windOn: boolean;
   snowOn: boolean;
-  /** плотность/интенсивность эффектов 0..1 */
+  /** плотность/скорость ветра и снега 0..2 */
   fxIntensity: number;
+  fxSpeed: number;
+  /** листья / дождь / искры / боке — у каждого своя плотность и скорость */
+  leavesOn: boolean;
+  leavesIntensity: number;
+  leavesSpeed: number;
+  rainOn: boolean;
+  rainIntensity: number;
+  rainSpeed: number;
+  sparksOn: boolean;
+  sparksIntensity: number;
+  sparksSpeed: number;
+  bokehOn: boolean;
+  bokehIntensity: number;
+  bokehSpeed: number;
   /** параметры рамки */
   frameStyle: FrameStyle;
   frameMode: FrameMode;
@@ -330,11 +344,11 @@ function getSnowSprite(): HTMLCanvasElement {
 
 /** Космический ветер — редкие световые штрихи поверх фото и текста.
  *  Штрихи двухслойные (мягкая подложка + ядро) — в GIF не дают соль-перец-шум. */
-function drawWind(ctx: CanvasRenderingContext2D, w: number, h: number, minDim: number, t: number, intensity: number) {
+function drawWind(ctx: CanvasRenderingContext2D, w: number, h: number, minDim: number, t: number, intensity: number, speed: number) {
   const N = 22;
-  const speed = 0.000045;
+  const vel = 0.000045 * (0.4 + speed * 0.6);
   for (let i = 0; i < N; i++) {
-    const px = (((i * 0.137 + t * speed * (1 + (i % 5) * 0.18)) % 1.3) - 0.15);
+    const px = (((i * 0.137 + t * vel * (1 + (i % 5) * 0.18)) % 1.3) - 0.15);
     const py = ((i * 0.311 + Math.sin(t * 0.00035 + i) * 0.035) % 1.12) - 0.06;
     const x = px * w;
     const y = py * h;
@@ -363,14 +377,14 @@ function drawWind(ctx: CanvasRenderingContext2D, w: number, h: number, minDim: n
 }
 
 /** Настоящий снег: мягкие белые хлопья (спрайт с градиентом), падение с покачиванием и глубиной */
-function drawSnow(ctx: CanvasRenderingContext2D, w: number, h: number, minDim: number, t: number, intensity: number) {
+function drawSnow(ctx: CanvasRenderingContext2D, w: number, h: number, minDim: number, t: number, intensity: number, speed: number) {
   const N = Math.round(24 + intensity * 56);
   const sprite = getSnowSprite();
   const prev = ctx.globalCompositeOperation;
   ctx.globalCompositeOperation = 'screen'; // хлопья светятся, не замутняя фото
   for (let i = 0; i < N; i++) {
     const depth = 0.45 + (i % 5) * 0.14; // 0.45..1 — дальние мельче и медленнее
-    const fall = (0.000028 + (i % 5) * 0.000013) * depth;
+    const fall = (0.000028 + (i % 5) * 0.000013) * depth * (0.4 + speed * 0.6);
     const py = (((i * 0.173 + t * fall) % 1.14) - 0.07);
     const sway = Math.sin(t * 0.0011 + i * 1.7) * 0.016 * depth;
     const px = ((i * 0.419) % 1) + sway;
@@ -380,6 +394,157 @@ function drawSnow(ctx: CanvasRenderingContext2D, w: number, h: number, minDim: n
     ctx.drawImage(sprite, px * w - r, py * h - r, r * 2, r * 2);
   }
   ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = prev;
+}
+
+/** Спрайты листьев — рисуем один раз, дальше тянем с поворотом */
+let leafSprites: HTMLCanvasElement[] | null = null;
+function getLeafSprites(): HTMLCanvasElement[] {
+  if (leafSprites) return leafSprites;
+  const pairs: Array<[string, string]> = [
+    ['#e8892b', '#c25a1e'],
+    ['#d94f3a', '#a32e22'],
+    ['#c9a227', '#8f7318'],
+    ['#8fae3f', '#5d7a24'],
+  ];
+  leafSprites = pairs.map(([c1, c2]) => {
+    const c = document.createElement('canvas');
+    c.width = 64;
+    c.height = 64;
+    const g = c.getContext('2d');
+    if (g) {
+      g.translate(32, 32);
+      const grad = g.createLinearGradient(-18, -14, 18, 14);
+      grad.addColorStop(0, c1);
+      grad.addColorStop(1, c2);
+      g.fillStyle = grad;
+      g.beginPath();
+      g.moveTo(0, -26);
+      g.quadraticCurveTo(17, -11, 19, 5);
+      g.quadraticCurveTo(11, 21, 0, 27);
+      g.quadraticCurveTo(-11, 21, -19, 5);
+      g.quadraticCurveTo(-17, -11, 0, -26);
+      g.fill();
+      g.strokeStyle = 'rgba(60,30,10,0.28)';
+      g.lineWidth = 2;
+      g.beginPath();
+      g.moveTo(0, -21);
+      g.lineTo(0, 23);
+      g.stroke();
+    }
+    return c;
+  });
+  return leafSprites;
+}
+
+/** Падающие листья — мягкие объёмные листья с покачиванием и вращением */
+function drawLeaves(ctx: CanvasRenderingContext2D, w: number, h: number, t: number, intensity: number, speed: number) {
+  const sprites = getLeafSprites();
+  const N = Math.round(6 + intensity * 16);
+  const vel = 0.4 + speed * 0.75;
+  for (let i = 0; i < N; i++) {
+    const sp = sprites[i % sprites.length];
+    const fall = (0.000055 + (i % 4) * 0.000022) * vel;
+    const py = ((i * 0.193 + t * fall) % 1.22) - 0.11;
+    const sway = Math.sin(t * 0.0009 * vel + i * 2.1) * 0.05;
+    const px = ((i * 0.37) % 1.1) - 0.05 + sway + (t * 0.000012 * speed) % 1;
+    const size = Math.min(w, h) * (0.038 + (i % 4) * 0.013);
+    const rot = t * 0.00055 * (i % 2 ? 1 : -1) * vel + i * 1.3;
+    ctx.save();
+    ctx.translate(px * w, py * h);
+    ctx.rotate(rot);
+    ctx.globalAlpha = Math.min(0.95, 0.5 + intensity * 0.45);
+    ctx.drawImage(sp, -size / 2, -size / 2, size, size);
+    ctx.restore();
+  }
+}
+
+/** Дождь — тонкие косые штрихи разной глубины */
+function drawRain(ctx: CanvasRenderingContext2D, w: number, h: number, t: number, intensity: number, speed: number) {
+  const N = Math.round(50 + intensity * 170);
+  const vel = 0.5 + speed * 0.9;
+  const slant = 0.16;
+  for (let i = 0; i < N; i++) {
+    const depth = 0.4 + (i % 5) * 0.15;
+    const fall = (0.00075 + (i % 7) * 0.00016) * vel * depth;
+    const py = ((i * 0.167 + t * fall) % 1.18) - 0.09;
+    const px = ((i * 0.291) % 1.12) - 0.06 + py * slant * 0.25;
+    const len = h * (0.013 + (i % 3) * 0.008) * depth;
+    const alpha = intensity * (0.09 + (i % 5) * 0.045) * depth;
+    if (alpha < 0.012) continue;
+    ctx.strokeStyle = `rgba(195,222,255,${Math.min(0.55, alpha).toFixed(3)})`;
+    ctx.lineWidth = Math.max(1, Math.min(w, h) * 0.0011 * (0.6 + depth));
+    ctx.beginPath();
+    ctx.moveTo(px * w, py * h);
+    ctx.lineTo(px * w + len * slant * 2.4, py * h + len);
+    ctx.stroke();
+  }
+}
+
+/** Мягкие светлячки-искры — тёплые угольки, всплывают и мерцают */
+let sparkSprites: HTMLCanvasElement[] | null = null;
+function getSparkSprites(): HTMLCanvasElement[] {
+  if (sparkSprites) return sparkSprites;
+  const cols = ['255,180,80', '255,120,50', '255,222,150'];
+  sparkSprites = cols.map((col) => {
+    const c = document.createElement('canvas');
+    c.width = 48;
+    c.height = 48;
+    const g = c.getContext('2d');
+    if (g) {
+      const grad = g.createRadialGradient(24, 24, 0, 24, 24, 24);
+      grad.addColorStop(0, `rgba(${col},0.95)`);
+      grad.addColorStop(0.35, `rgba(${col},0.35)`);
+      grad.addColorStop(1, `rgba(${col},0)`);
+      g.fillStyle = grad;
+      g.fillRect(0, 0, 48, 48);
+    }
+    return c;
+  });
+  return sparkSprites;
+}
+
+function drawSparks(ctx: CanvasRenderingContext2D, w: number, h: number, t: number, intensity: number, speed: number) {
+  const sprites = getSparkSprites();
+  const N = Math.round(8 + intensity * 26);
+  const vel = 0.5 + speed;
+  const prev = ctx.globalCompositeOperation;
+  ctx.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < N; i++) {
+    const rise = (0.00006 + (i % 5) * 0.00002) * vel;
+    const py = 1.12 - (((i * 0.213 + t * rise) % 1.24));
+    const sway = Math.sin(t * 0.0013 * vel + i * 1.7) * 0.028;
+    const px = ((i * 0.429) % 1) + sway;
+    const size = Math.min(w, h) * (0.02 + (i % 3) * 0.012);
+    const flicker = 0.4 + 0.6 * (0.5 + 0.5 * Math.sin(t * 0.008 * vel + i * 2.6));
+    ctx.globalAlpha = Math.min(1, intensity * flicker * 0.9);
+    ctx.drawImage(sprites[i % sprites.length], px * w - size / 2, py * h - size / 2, size, size);
+  }
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = prev;
+}
+
+/** Боке — крупные мягкие круги, медленно дрейфуют */
+function drawBokeh(ctx: CanvasRenderingContext2D, w: number, h: number, t: number, intensity: number, speed: number) {
+  const N = Math.round(5 + intensity * 15);
+  const vel = 0.4 + speed * 0.7;
+  const prev = ctx.globalCompositeOperation;
+  ctx.globalCompositeOperation = 'screen';
+  for (let i = 0; i < N; i++) {
+    const r = Math.min(w, h) * (0.032 + (i % 5) * 0.018);
+    const px = (((i * 0.271 + t * 0.000007 * vel * (1 + (i % 3))) % 1.12) - 0.06);
+    const py = (((i * 0.191 + Math.sin(t * 0.0002 * vel + i) * 0.045) % 1.12) - 0.06);
+    const a = intensity * (0.05 + (i % 4) * 0.028);
+    if (a < 0.008) continue;
+    const g = ctx.createRadialGradient(px * w, py * h, 0, px * w, py * h, r);
+    g.addColorStop(0, `rgba(195,222,255,${a.toFixed(3)})`);
+    g.addColorStop(0.72, `rgba(165,205,255,${(a * 0.5).toFixed(3)})`);
+    g.addColorStop(1, 'rgba(165,205,255,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(px * w, py * h, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
   ctx.globalCompositeOperation = prev;
 }
 
@@ -687,8 +852,12 @@ export function drawFrame(
 
   // ── 3. эффекты поверх фото и текста (внутри клипа) ──
   if (s.showFx) {
-    if (s.windOn && s.fxIntensity > 0) drawWind(ctx, w, h, minDim, t, s.fxIntensity);
-    if (s.snowOn && s.fxIntensity > 0) drawSnow(ctx, w, h, minDim, t, s.fxIntensity);
+    if (s.windOn && s.fxIntensity > 0) drawWind(ctx, w, h, minDim, t, s.fxIntensity, s.fxSpeed);
+    if (s.rainOn && s.rainIntensity > 0) drawRain(ctx, w, h, t, s.rainIntensity, s.rainSpeed);
+    if (s.leavesOn && s.leavesIntensity > 0) drawLeaves(ctx, w, h, t, s.leavesIntensity, s.leavesSpeed);
+    if (s.snowOn && s.fxIntensity > 0) drawSnow(ctx, w, h, minDim, t, s.fxIntensity, s.fxSpeed);
+    if (s.bokehOn && s.bokehIntensity > 0) drawBokeh(ctx, w, h, t, s.bokehIntensity, s.bokehSpeed);
+    if (s.sparksOn && s.sparksIntensity > 0) drawSparks(ctx, w, h, t, s.sparksIntensity, s.sparksSpeed);
   }
 
   // логотип поверх текста (по умолчанию)

@@ -10,43 +10,51 @@ export interface WebpOptions {
   quality?: number; // 0.5..1
 }
 
-const WEBP_BG = '#0b0e17';
+const WEBP_BG = undefined; // прозрачный фон — углы без «чёрного квадрата»
 
-/** Достаёт сырые байты VP8 из статичного WebP (RIFF/WEBP → чанк 'VP8 ') */
-function extractVp8(buf: ArrayBuffer): Uint8Array | null {
+interface WebpFrame { vp8: Uint8Array | null; vp8l: Uint8Array | null; alph: Uint8Array | null }
+
+/** Достаёт VP8/VP8L (+ALPH, если есть) из статичного WebP (RIFF/WEBP) */
+function extractFrame(buf: ArrayBuffer): WebpFrame | null {
   const dv = new DataView(buf);
   if (dv.byteLength < 20) return null;
   const tag = (o: number) => String.fromCharCode(dv.getUint8(o), dv.getUint8(o + 1), dv.getUint8(o + 2), dv.getUint8(o + 3));
   if (tag(0) !== 'RIFF' || tag(8) !== 'WEBP') return null;
+  let vp8: Uint8Array | null = null;
+  let vp8l: Uint8Array | null = null;
+  let alph: Uint8Array | null = null;
   let off = 12;
   while (off + 8 <= dv.byteLength) {
     const fourcc = tag(off);
     const size = dv.getUint32(off + 4, true);
     const payload = off + 8;
-    if (fourcc === 'VP8 ' && payload + size <= dv.byteLength) {
-      return new Uint8Array(buf, payload, size);
+    if (payload + size <= dv.byteLength) {
+      if (fourcc === 'VP8 ') vp8 = new Uint8Array(buf, payload, size);
+      if (fourcc === 'VP8L') vp8l = new Uint8Array(buf, payload, size);
+      if (fourcc === 'ALPH') alph = new Uint8Array(buf, payload, size);
     }
     off = payload + size + (size % 2);
   }
-  return null;
+  return vp8 || vp8l ? { vp8, vp8l, alph } : null;
 }
 
-/** Собирает анимированный WebP из VP8-кадров */
-function muxAnimWebp(frames: Uint8Array[], w: number, h: number, frameMs: number): Blob {
-  const chunks: Uint8Array[] = [];
-  const push = (fourcc: string, payload: Uint8Array) => {
-    const head = new Uint8Array(8 + payload.length + (payload.length % 2));
-    for (let i = 0; i < 4; i++) head[i] = fourcc.charCodeAt(i);
-    new DataView(head.buffer).setUint32(4, payload.length, true);
-    head.set(payload, 8);
-    chunks.push(head);
-  };
+/** Собирает чанк 4cc + payload (+ паддинг) */
+function riffChunk(fourcc: string, payload: Uint8Array): Uint8Array {
+  const head = new Uint8Array(8 + payload.length + (payload.length % 2));
+  for (let i = 0; i < 4; i++) head[i] = fourcc.charCodeAt(i);
+  new DataView(head.buffer).setUint32(4, payload.length, true);
+  head.set(payload, 8);
+  return head;
+}
 
-  // VP8X: флаг анимации (0x02) + размеры минус один
+/** Собирает анимированный WebP из кадров (с альфой, если она была) */
+function muxAnimWebp(frames: WebpFrame[], w: number, h: number, frameMs: number): Blob {
+  const chunks: Uint8Array[] = [];
+  const hasAlpha = frames.some((f) => f.alph || f.vp8l);
+
+  // VP8X: анимация (0x02) + альфа (0x10) + размеры минус один
   const vp8x = new Uint8Array(10);
-  vp8x[0] = 0x02;
-  const dvx = new DataView(vp8x.buffer);
-  // width-1 / height-1 как 24-бит little-endian
+  vp8x[0] = hasAlpha ? 0x12 : 0x02;
   const w1 = w - 1;
   const h1 = h - 1;
   vp8x[4] = w1 & 0xff;
@@ -55,36 +63,39 @@ function muxAnimWebp(frames: Uint8Array[], w: number, h: number, frameMs: number
   vp8x[7] = h1 & 0xff;
   vp8x[8] = (h1 >> 8) & 0xff;
   vp8x[9] = (h1 >> 16) & 0xff;
-  void dvx;
-  push('VP8X', vp8x);
+  chunks.push(riffChunk('VP8X', vp8x));
 
   // ANIM: фон (BGRA) + зацикливание (0 = бесконечно)
   const anim = new Uint8Array(6);
   anim.set([0x0b, 0x0e, 0x17, 0xff], 0);
-  push('ANIM', anim);
+  chunks.push(riffChunk('ANIM', anim));
 
   // ANMF на каждый кадр
-  for (const vp8 of frames) {
+  for (const f of frames) {
     const header = new Uint8Array(16);
-    const hd = new DataView(header.buffer);
-    // x=0, y=0 (в полупикселях — 0)
-    // w-1, h-1 (24-бит)
     header[6] = w1 & 0xff;
     header[7] = (w1 >> 8) & 0xff;
     header[8] = (w1 >> 16) & 0xff;
     header[9] = h1 & 0xff;
     header[10] = (h1 >> 8) & 0xff;
     header[11] = (h1 >> 16) & 0xff;
-    // длительность кадра, мс (24-бит)
     header[12] = frameMs & 0xff;
     header[13] = (frameMs >> 8) & 0xff;
     header[14] = (frameMs >> 16) & 0xff;
-    header[15] = 0x02; // без блендинга — кадры непрозрачные
-    void hd;
-    const sub = new Uint8Array(header.length + vp8.length);
-    sub.set(header, 0);
-    sub.set(vp8, header.length);
-    push('ANMF', sub);
+    header[15] = 0x02; // без блендинга — кадры непрозрачные поверх
+    const parts: Uint8Array[] = [header];
+    if (f.alph && f.vp8) parts.push(riffChunk('ALPH', f.alph));
+    if (f.vp8l) parts.push(riffChunk('VP8L', f.vp8l));
+    else if (f.vp8) parts.push(riffChunk('VP8 ', f.vp8));
+    let len = 0;
+    for (const p of parts) len += p.length;
+    const sub = new Uint8Array(len);
+    let pos = 0;
+    for (const p of parts) {
+      sub.set(p, pos);
+      pos += p.length;
+    }
+    chunks.push(riffChunk('ANMF', sub));
   }
 
   // склейка с заголовком RIFF
@@ -118,15 +129,21 @@ export async function exportFrameWebp(state: FrameState, opts: WebpOptions = {})
 
   const frameCount = Math.max(2, Math.round(seconds * fps));
   const frameMs = Math.round(1000 / fps);
-  const frames: Uint8Array[] = [];
+  const frames: WebpFrame[] = [];
 
   for (let i = 0; i < frameCount; i++) {
     const t = (i * 1000) / fps;
     drawFrame(ctx, gw, gh, state, t, WEBP_BG);
     const blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, 'image/webp', quality));
     if (blob) {
-      const raw = extractVp8(await blob.arrayBuffer());
-      if (raw) frames.push(new Uint8Array(raw)); // копия — оригинальный буфер может отсоединиться
+      const raw = extractFrame(await blob.arrayBuffer());
+      if (raw) {
+        frames.push({
+          vp8: raw.vp8 ? new Uint8Array(raw.vp8) : null,
+          vp8l: raw.vp8l ? new Uint8Array(raw.vp8l) : null,
+          alph: raw.alph ? new Uint8Array(raw.alph) : null,
+        });
+      }
     }
     if (i % 5 === 4) await new Promise((r) => setTimeout(r, 0));
   }

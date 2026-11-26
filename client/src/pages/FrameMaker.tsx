@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Sparkles, Upload, Move, Download, Pipette, Trash2, Eye, ChevronDown, X, Type, Loader2, Undo2, Redo2, RotateCcw, EyeOff, Layers } from 'lucide-react';
+import { ArrowLeft, Sparkles, Upload, Move, Download, Pipette, Trash2, Eye, ChevronDown, X, Type, Loader2, Undo2, Redo2, RotateCcw, EyeOff, Layers, Lock, Unlock } from 'lucide-react';
 import FrameCanvas from '../components/framemaker/FrameCanvas';
 import {
-  FRAME_PRESETS, type FrameState, type FitMode, type PlateStyle, type PlateFill,
+  FRAME_PRESETS, drawFrame, type FrameState, type FitMode, type PlateStyle, type PlateFill,
   type FrameStyle, type FrameMode, type TextCase, type TextAnim,
 } from '../components/framemaker/framePresets';
 import { exportFrameGif } from '../components/framemaker/exportGif';
@@ -100,6 +100,33 @@ function chip(active: boolean): string {
   return `px-2.5 py-1.5 min-h-[32px] rounded-lg font-mono text-[10px] nx-press transition-all ${
     active ? 'text-black' : 'text-gray-400 bg-white/5 hover:text-gray-200'
   }`;
+}
+
+/** Сворачиваемая панель — компактный UI без визуального шума */
+function Panel({ title, children, defaultOpen = false, right }: {
+  title: string;
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+  right?: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="glass rounded-xl">
+      <div className="flex items-center justify-between gap-2 p-2.5">
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className="flex items-center gap-2 flex-1 min-w-0 nx-press"
+          aria-expanded={open}
+        >
+          <span className="nx-eyebrow truncate">{title}</span>
+          <ChevronDown className={`w-3.5 h-3.5 text-gray-500 transition-transform shrink-0 ${open ? 'rotate-180' : ''}`} />
+        </button>
+        {right}
+      </div>
+      {open && <div className="px-2.5 pb-2.5 space-y-2">{children}</div>}
+    </div>
+  );
 }
 
 /** Переключатель-тумблер */
@@ -350,6 +377,23 @@ export default function FrameMaker() {
   const [windOn, setWindOn] = useState(true);
   const [snowOn, setSnowOn] = useState(true);
   const [fxIntensity, setFxIntensity] = useState(55);
+  const [fxSpeed, setFxSpeed] = useState(100);
+  const [leavesOn, setLeavesOn] = useState(false);
+  const [leavesIntensity, setLeavesIntensity] = useState(55);
+  const [leavesSpeed, setLeavesSpeed] = useState(100);
+  const [rainOn, setRainOn] = useState(false);
+  const [rainIntensity, setRainIntensity] = useState(55);
+  const [rainSpeed, setRainSpeed] = useState(100);
+  const [sparksOn, setSparksOn] = useState(false);
+  const [sparksIntensity, setSparksIntensity] = useState(55);
+  const [sparksSpeed, setSparksSpeed] = useState(100);
+  const [bokehOn, setBokehOn] = useState(false);
+  const [bokehIntensity, setBokehIntensity] = useState(45);
+  const [bokehSpeed, setBokehSpeed] = useState(100);
+
+  const [lockPhoto, setLockPhoto] = useState(false);
+  const [lockText, setLockText] = useState(false);
+  const [lockLogo, setLockLogo] = useState(false);
 
   const [videoSeconds, setVideoSeconds] = useState(4);
   const [videoRes, setVideoRes] = useState<'720' | '1080'>('1080');
@@ -391,6 +435,19 @@ export default function FrameMaker() {
     windOn,
     snowOn,
     fxIntensity: fxIntensity / 100,
+    fxSpeed: fxSpeed / 100,
+    leavesOn,
+    leavesIntensity: leavesIntensity / 100,
+    leavesSpeed: leavesSpeed / 100,
+    rainOn,
+    rainIntensity: rainIntensity / 100,
+    rainSpeed: rainSpeed / 100,
+    sparksOn,
+    sparksIntensity: sparksIntensity / 100,
+    sparksSpeed: sparksSpeed / 100,
+    bokehOn,
+    bokehIntensity: bokehIntensity / 100,
+    bokehSpeed: bokehSpeed / 100,
     frameRadius: frameRadius / 100,
     frameWidth: frameWidth / 100,
     frameStyle,
@@ -428,7 +485,12 @@ export default function FrameMaker() {
 
   // «чистый кадр» — превью без эффектов; экспорт всегда идёт по полному state
   const previewState: FrameState = cleanPreview
-    ? { ...state, windOn: false, snowOn: false, curtainsOn: false, auroraOn: false }
+    ? {
+      ...state,
+      windOn: false, snowOn: false, curtainsOn: false, auroraOn: false,
+      leavesOn: false, rainOn: false, sparksOn: false, bokehOn: false,
+      textAnim: 'none',
+    }
     : state;
 
   // подгрузка выбранного шрифта в document.fonts — иначе canvas рисует запасным
@@ -480,7 +542,11 @@ export default function FrameMaker() {
     text: '', fontFamily: FONTS[0].value, fontSize: 0.055, textColor: PALETTE[0],
     textX: 0.5, textY: null, textAngle: 0, strokeOn: false, strokeColor: '#0a0a0f', strokeWidth: 0.3,
     lineHeight: 1.2, letterSpacing: 0, textCase: 'none', textAnim: 'none',
-    auroraOn: true, auroraBrightness: 0.85, auroraSpeed: 1, windOn: true, snowOn: true, fxIntensity: 0.55,
+    auroraOn: true, auroraBrightness: 0.85, auroraSpeed: 1, windOn: true, snowOn: true, fxIntensity: 0.55, fxSpeed: 1,
+    leavesOn: false, leavesIntensity: 0.55, leavesSpeed: 1,
+    rainOn: false, rainIntensity: 0.55, rainSpeed: 1,
+    sparksOn: false, sparksIntensity: 0.55, sparksSpeed: 1,
+    bokehOn: false, bokehIntensity: 0.45, bokehSpeed: 1,
     frameStyle: 'aurora', frameMode: 'full', frameRadius: 0.045, frameWidth: 1,
     plateOn: false, plateStyle: 'capsule', plateFill: 'solid', plateColor: '#0b0e17', plateColor2: '#1a1030',
     plateAngle: 135, plateAlpha: 0.6, plateBlur: 0,
@@ -507,7 +573,11 @@ export default function FrameMaker() {
     setFrameRadius(Math.round(s.frameRadius * 1000) / 10); setFrameWidth(Math.round(s.frameWidth * 100));
     setCurtainsOn(s.curtainsOn); setCurtainIntensity(Math.round(s.curtainIntensity * 100)); setCurtainSpeed(Math.round(s.curtainSpeed * 100));
     setCurtainAngle(s.curtainAngle); setCurtainWidth(Math.round(s.curtainWidth * 100)); setCurtainCount(s.curtainCount);
-    setWindOn(s.windOn); setSnowOn(s.snowOn); setFxIntensity(Math.round(s.fxIntensity * 100));
+    setWindOn(s.windOn); setSnowOn(s.snowOn); setFxIntensity(Math.round(s.fxIntensity * 100)); setFxSpeed(Math.round(s.fxSpeed * 100));
+    setLeavesOn(s.leavesOn); setLeavesIntensity(Math.round(s.leavesIntensity * 100)); setLeavesSpeed(Math.round(s.leavesSpeed * 100));
+    setRainOn(s.rainOn); setRainIntensity(Math.round(s.rainIntensity * 100)); setRainSpeed(Math.round(s.rainSpeed * 100));
+    setSparksOn(s.sparksOn); setSparksIntensity(Math.round(s.sparksIntensity * 100)); setSparksSpeed(Math.round(s.sparksSpeed * 100));
+    setBokehOn(s.bokehOn); setBokehIntensity(Math.round(s.bokehIntensity * 100)); setBokehSpeed(Math.round(s.bokehSpeed * 100));
     setShowPhoto(s.showPhoto); setShowText(s.showText); setShowLogo(s.showLogo); setShowFx(s.showFx); setShowFrame(s.showFrame);
     setLogoUnderText(s.logoUnderText);
     setFitMode(s.fitMode); setScale(s.scale); setOx(s.ox); setOy(s.oy);
@@ -641,11 +711,16 @@ export default function FrameMaker() {
   };
 
   const exportPng = async () => {
-    const c = canvasRef.current;
-    if (!c) return;
     setExporting('png');
     try {
-      const blob = await new Promise<Blob | null>((res) => c.toBlob(res, 'image/png'));
+      // свежий рендер, а не снимок превью — на холсте может быть ползунок «до/после»
+      const off = document.createElement('canvas');
+      off.width = preset.w;
+      off.height = preset.h;
+      const offCtx = off.getContext('2d');
+      if (!offCtx) throw new Error('png');
+      drawFrame(offCtx, off.width, off.height, state, 2000);
+      const blob = await new Promise<Blob | null>((res) => off.toBlob(res, 'image/png'));
       if (!blob) throw new Error('png');
       const name = `frame-${preset.id}.png`;
       downloadBlob(blob, name);
@@ -758,8 +833,7 @@ export default function FrameMaker() {
         {/* ЛЕВАЯ КОЛОНКА */}
         <div className="space-y-3">
           {/* Пропорции */}
-          <div className="glass rounded-xl p-2.5 space-y-2">
-            <span className="nx-eyebrow">ПРОПОРЦИИ</span>
+          <Panel title="ПРОПОРЦИИ" defaultOpen>
             <div className="flex flex-wrap gap-1.5">
               {FRAME_PRESETS.map((p) => (
                 <button
@@ -772,11 +846,10 @@ export default function FrameMaker() {
                 </button>
               ))}
             </div>
-          </div>
+          </Panel>
 
           {/* Параметры рамки */}
-          <div className="glass rounded-xl p-2.5 space-y-2">
-            <span className="nx-eyebrow">ПАРАМЕТРЫ РАМКИ</span>
+          <Panel title="ПАРАМЕТРЫ РАМКИ">
             <div>
               <label className={LABEL}>СТИЛЬ</label>
               <div className="flex flex-wrap gap-1.5 mt-1">
@@ -818,11 +891,10 @@ export default function FrameMaker() {
                 onChange={(e) => setFrameWidth(Number(e.target.value))}
                 className="w-full accent-[var(--color-primary)]" />
             </div>
-          </div>
+          </Panel>
 
           {/* Картинка */}
-          <div className="glass rounded-xl p-2.5 space-y-2">
-            <span className="nx-eyebrow">КАРТИНКА</span>
+          <Panel title="КАРТИНКА" defaultOpen>
             <div className="flex flex-wrap gap-1.5 items-center">
               <label className="btn-ghost nx-press px-2.5 py-1.5 min-h-[32px] rounded-lg font-mono text-[10px] flex items-center gap-1.5 cursor-pointer">
                 <Upload className="w-3.5 h-3.5" /> {image ? 'ЗАМЕНИТЬ' : 'ЗАГРУЗИТЬ'}
@@ -854,13 +926,13 @@ export default function FrameMaker() {
                 type="range" min={25} max={300} value={Math.round(scale * 100)}
                 onChange={(e) => setScale(Number(e.target.value) / 100)}
                 className="w-full accent-[var(--color-primary)]"
+                disabled={lockPhoto}
               />
             </div>
-          </div>
+          </Panel>
 
           {/* Логотип */}
-          <div className="glass rounded-xl p-2.5 space-y-2">
-            <span className="nx-eyebrow">ЛОГОТИП КАНАЛА</span>
+          <Panel title="ЛОГОТИП КАНАЛА">
             <div className="flex flex-wrap gap-1.5 items-center">
               <label className="btn-ghost nx-press px-2.5 py-1.5 min-h-[32px] rounded-lg font-mono text-[10px] flex items-center gap-1.5 cursor-pointer">
                 <Upload className="w-3.5 h-3.5" /> {logo ? 'ЗАМЕНИТЬ' : 'PNG'}
@@ -896,31 +968,42 @@ export default function FrameMaker() {
                 </div>
               </>
             )}
-          </div>
+          </Panel>
 
           {/* Слои */}
-          <div className="glass rounded-xl p-2.5 space-y-2">
-            <div className="flex items-center gap-1.5">
-              <Layers className="w-3.5 h-3.5" style={{ color: 'var(--color-primary)' }} />
-              <span className="nx-eyebrow">СЛОИ</span>
-            </div>
+          <Panel
+            title="СЛОИ"
+            right={<Layers className="w-3.5 h-3.5 shrink-0" style={{ color: 'var(--color-primary)' }} />}
+          >
             {([
-              ['ФОТО', showPhoto, setShowPhoto],
-              ['ТЕКСТ', showText, setShowText],
-              ['ЭФФЕКТЫ', showFx, setShowFx],
-              ['ЛОГОТИП', showLogo, setShowLogo],
-              ['РАМКА', showFrame, setShowFrame],
-            ] as [string, boolean, (v: boolean) => void][]).map(([lb, on, set]) => (
+              ['ФОТО', showPhoto, setShowPhoto, lockPhoto, setLockPhoto],
+              ['ТЕКСТ', showText, setShowText, lockText, setLockText],
+              ['ЛОГОТИП', showLogo, setShowLogo, lockLogo, setLockLogo],
+              ['ЭФФЕКТЫ', showFx, setShowFx, false, () => {}],
+              ['РАМКА', showFrame, setShowFrame, false, () => {}],
+            ] as [string, boolean, (v: boolean) => void, boolean, (v: boolean) => void][]).map(([lb, on, set, locked, setLock]) => (
               <div key={lb} className="flex items-center justify-between gap-2">
                 <span className="font-mono text-[10px] text-gray-300">{lb}</span>
-                <button
-                  onClick={() => set(!on)}
-                  aria-label={`${on ? 'Скрыть' : 'Показать'} слой ${lb}`}
-                  className="w-7 h-7 rounded-md nx-press flex items-center justify-center hover:bg-white/10"
-                  style={{ color: on ? 'var(--color-primary)' : '#666' }}
-                >
-                  {on ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
-                </button>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => set(!on)}
+                    aria-label={`${on ? 'Скрыть' : 'Показать'} слой ${lb}`}
+                    className="w-7 h-7 rounded-md nx-press flex items-center justify-center hover:bg-white/10"
+                    style={{ color: on ? 'var(--color-primary)' : '#666' }}
+                    title={on ? 'Скрыть' : 'Показать'}
+                  >
+                    {on ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                  </button>
+                  <button
+                    onClick={() => setLock(!locked)}
+                    aria-label={`${locked ? 'Снять замок' : 'Замок'} со слоя ${lb}`}
+                    className="w-7 h-7 rounded-md nx-press flex items-center justify-center hover:bg-white/10"
+                    style={{ color: locked ? '#ffd75f' : '#555' }}
+                    title={locked ? 'Замок — элемент не сдвинуть' : 'Поставить замок'}
+                  >
+                    {locked ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
               </div>
             ))}
             <div>
@@ -938,7 +1021,7 @@ export default function FrameMaker() {
                 >ПОД ТЕКСТОМ</button>
               </div>
             </div>
-          </div>
+          </Panel>
         </div>
 
         {/* ЦЕНТР: холст + экспорт */}
@@ -953,11 +1036,12 @@ export default function FrameMaker() {
               onAngleChange={(d) => setTextAngle(Math.round(d))}
               onLogoMove={(x, y) => { setLogoX(x); setLogoY(y); }}
               compareOn={compareOn}
+              locks={{ photo: lockPhoto, text: lockText, logo: lockLogo }}
             />
             <div className="flex flex-wrap items-center justify-between gap-2 mt-2">
               <p className="font-mono text-[9px] text-gray-600">
                 {image
-                  ? 'тащите картинку ИЛИ текст · кружок над текстом — наклон · Ctrl+колесо — зум вида'
+                  ? 'тащите картинку/текст/логотип · кружок — наклон · Ctrl+колесо — зум вида · Alt+колесо — масштаб'
                   : '// загрузите картинку, чтобы начать'}
               </p>
               <div className="flex items-center gap-1.5">
@@ -1050,8 +1134,7 @@ export default function FrameMaker() {
         {/* ПРАВАЯ КОЛОНКА */}
         <div className="space-y-3">
           {/* Текст */}
-          <div className="glass rounded-xl p-2.5 space-y-2">
-            <span className="nx-eyebrow">ТЕКСТ</span>
+          <Panel title="ТЕКСТ" defaultOpen>
             <textarea
               value={text}
               onChange={(e) => {
@@ -1202,14 +1285,13 @@ export default function FrameMaker() {
                 СБРОС
               </button>
             </div>
-          </div>
+          </Panel>
 
           {/* Плашка */}
-          <div className="glass rounded-xl p-2.5 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="nx-eyebrow">ПЛАШКА ПОД ТЕКСТОМ</span>
-              <Switch on={plateOn} onToggle={() => setPlateOn((v) => !v)} label="Плашка под текстом" />
-            </div>
+          <Panel
+            title="ПЛАШКА ПОД ТЕКСТОМ"
+            right={<Switch on={plateOn} onToggle={() => setPlateOn((v) => !v)} label="Плашка под текстом" />}
+          >
             {plateOn && (
               <>
                 <div className="flex flex-wrap gap-1.5">
@@ -1264,14 +1346,13 @@ export default function FrameMaker() {
                 </div>
               </>
             )}
-          </div>
+          </Panel>
 
           {/* Сияние */}
-          <div className="glass rounded-xl p-2.5 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="nx-eyebrow">СИЯНИЕ</span>
-              <Switch on={auroraOn} onToggle={() => setAuroraOn((v) => !v)} label="Сияние рамки" />
-            </div>
+          <Panel
+            title="СИЯНИЕ И ШТОРЫ"
+            right={<Switch on={auroraOn} onToggle={() => setAuroraOn((v) => !v)} label="Сияние рамки" />}
+          >
             {auroraOn && (
               <div className="grid grid-cols-2 gap-2">
                 <div>
@@ -1330,11 +1411,11 @@ export default function FrameMaker() {
                 </div>
               </>
             )}
-          </div>
+          </Panel>
 
           {/* Эффекты */}
-          <div className="glass rounded-xl p-2.5 space-y-2">
-            <span className="nx-eyebrow">ЭФФЕКТЫ ПОВЕРХ</span>
+          <Panel title="ЭФФЕКТЫ ПОВЕРХ">
+            {/* ветер и снег — общая пара слайдеров */}
             <div className="flex items-center justify-between gap-2">
               <span className="font-mono text-[10px] text-gray-300">КОСМИЧЕСКИЙ ВЕТЕР</span>
               <Switch on={windOn} onToggle={() => setWindOn((v) => !v)} label="Космический ветер" />
@@ -1344,14 +1425,55 @@ export default function FrameMaker() {
               <Switch on={snowOn} onToggle={() => setSnowOn((v) => !v)} label="Падающий снег" />
             </div>
             {(windOn || snowOn) && (
-              <div>
-                <label className={LABEL}>ПЛОТНОСТЬ: {fxIntensity}%</label>
-                <input type="range" min={15} max={100} value={fxIntensity}
-                  onChange={(e) => setFxIntensity(Number(e.target.value))}
-                  className="w-full accent-[var(--color-primary)]" />
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className={LABEL}>ПЛОТНОСТЬ: {fxIntensity}%</label>
+                  <input type="range" min={15} max={100} value={fxIntensity}
+                    onChange={(e) => setFxIntensity(Number(e.target.value))}
+                    className="w-full accent-[var(--color-primary)]" />
+                </div>
+                <div>
+                  <label className={LABEL}>СКОРОСТЬ: {(fxSpeed / 100).toFixed(1)}×</label>
+                  <input type="range" min={20} max={250} value={fxSpeed}
+                    onChange={(e) => setFxSpeed(Number(e.target.value))}
+                    className="w-full accent-[var(--color-primary)]" />
+                </div>
               </div>
             )}
-          </div>
+
+            {/* новые эффекты — у каждого свои плотность/скорость */}
+            {([
+              ['ЛИСТЬЯ', leavesOn, setLeavesOn, leavesIntensity, setLeavesIntensity, leavesSpeed, setLeavesSpeed],
+              ['ДОЖДЬ', rainOn, setRainOn, rainIntensity, setRainIntensity, rainSpeed, setRainSpeed],
+              ['ИСКРЫ', sparksOn, setSparksOn, sparksIntensity, setSparksIntensity, sparksSpeed, setSparksSpeed],
+              ['БОКЕ-ПЫЛЬ', bokehOn, setBokehOn, bokehIntensity, setBokehIntensity, bokehSpeed, setBokehSpeed],
+            ] as [string, boolean, (v: boolean) => void, number, (v: number) => void, number, (v: number) => void][]).map(
+              ([lb, on, set, int, setInt, spd, setSpd]) => (
+                <div key={lb} className="space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-mono text-[10px] text-gray-300">{lb}</span>
+                    <Switch on={on} onToggle={() => set(!on)} label={lb} />
+                  </div>
+                  {on && (
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className={LABEL}>ПЛОТНОСТЬ: {int}%</label>
+                        <input type="range" min={10} max={100} value={int}
+                          onChange={(e) => setInt(Number(e.target.value))}
+                          className="w-full accent-[var(--color-primary)]" />
+                      </div>
+                      <div>
+                        <label className={LABEL}>СКОРОСТЬ: {(spd / 100).toFixed(1)}×</label>
+                        <input type="range" min={20} max={250} value={spd}
+                          onChange={(e) => setSpd(Number(e.target.value))}
+                          className="w-full accent-[var(--color-primary)]" />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ),
+            )}
+          </Panel>
         </div>
       </div>
 

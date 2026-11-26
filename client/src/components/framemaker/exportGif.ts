@@ -1,4 +1,5 @@
-/** Экспорт кадров в GIF через gifenc: одна палитра на весь файл + непрозрачный фон */
+/** Экспорт кадров в GIF через gifenc: одна палитра на весь файл,
+ *  прозрачные углы через ключевой цвет (magenta) + transparentIndex. */
 import { GIFEncoder, quantize, applyPalette } from 'gifenc';
 import { drawFrame, FrameState } from './framePresets';
 
@@ -8,8 +9,19 @@ export interface GifOptions {
   maxDim?: number; // максимальная сторона (GIF на мобиле — 720–800px достаточно)
 }
 
-/** Непрозрачный фон: прозрачные углы квантуются в «мусор» и дают искажения */
-const GIF_BG = '#0b0e17';
+/** Ключ: прозрачные пиксели сплющиваем в magenta, потом помечаем этот индекс прозрачным */
+const KEY: [number, number, number] = [255, 0, 255];
+
+function flattenAlpha(data: Uint8ClampedArray) {
+  for (let p = 0; p < data.length; p += 4) {
+    if (data[p + 3] < 128) {
+      data[p] = KEY[0];
+      data[p + 1] = KEY[1];
+      data[p + 2] = KEY[2];
+      data[p + 3] = 255;
+    }
+  }
+}
 
 export async function exportFrameGif(state: FrameState, opts: GifOptions = {}): Promise<Blob> {
   const { seconds = 3.5, fps = 15, maxDim = 800 } = opts;
@@ -34,8 +46,9 @@ export async function exportFrameGif(state: FrameState, opts: GifOptions = {}): 
   for (let i = 0; i < frameCount; i++) {
     if (i % 2 === 0) {
       const t = (i * 1000) / fps;
-      drawFrame(ctx, gw, gh, state, t, GIF_BG);
+      drawFrame(ctx, gw, gh, state, t);
       const d = ctx.getImageData(0, 0, gw, gh).data;
+      flattenAlpha(d);
       for (let p = 0; p < d.length; p += pxStride) {
         samples.push(d[p], d[p + 1], d[p + 2], 255);
       }
@@ -44,15 +57,21 @@ export async function exportFrameGif(state: FrameState, opts: GifOptions = {}): 
   }
   // одна палитра на весь GIF — цвета не «мигают» между кадрами
   const palette = quantize(new Uint8Array(samples), 256);
+  const keyIdx = palette.findIndex((c: number[]) => c[0] === KEY[0] && c[1] === KEY[1] && c[2] === KEY[2]);
 
   // ── проход 2: кодируем кадры общей палитрой ──
   const gif = GIFEncoder();
   for (let i = 0; i < frameCount; i++) {
     const t = (i * 1000) / fps;
-    drawFrame(ctx, gw, gh, state, t, GIF_BG);
+    drawFrame(ctx, gw, gh, state, t);
     const { data } = ctx.getImageData(0, 0, gw, gh);
+    flattenAlpha(data);
     const index = applyPalette(data, palette);
-    gif.writeFrame(index, gw, gh, { palette, delay });
+    gif.writeFrame(index, gw, gh, {
+      palette,
+      delay,
+      ...(keyIdx >= 0 ? { transparent: true, transparentIndex: keyIdx } : {}),
+    });
     if (i % 5 === 4) await new Promise((r) => setTimeout(r, 0));
   }
   gif.finish();

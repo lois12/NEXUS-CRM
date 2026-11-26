@@ -14,6 +14,8 @@ interface Props {
   onLogoMove: (x: number, y: number) => void;
   /** режим сравнения «до/после» с ползунком */
   compareOn: boolean;
+  /** замки: элемент нельзя сдвинуть / картинку — зумить */
+  locks: { photo: boolean; text: boolean; logo: boolean };
 }
 
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
@@ -21,9 +23,11 @@ const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 type DragMode = 'image' | 'text' | 'rotate' | 'logo' | 'compare' | 'pan';
 
 /** Превью-холст: rAF-анимация + drag картинки/текста/лого + ручка + зум + сравнение */
-export default function FrameCanvas({ state, canvasRef, onOffsetChange, onScaleChange, onTextMove, onAngleChange, onLogoMove, compareOn }: Props) {
+export default function FrameCanvas({ state, canvasRef, onOffsetChange, onScaleChange, onTextMove, onAngleChange, onLogoMove, compareOn, locks }: Props) {
   const stateRef = useRef(state);
   stateRef.current = state;
+  const locksRef = useRef(locks);
+  locksRef.current = locks;
   const cbRef = useRef({ onOffsetChange, onScaleChange, onTextMove, onAngleChange, onLogoMove });
   cbRef.current = { onOffsetChange, onScaleChange, onTextMove, onAngleChange, onLogoMove };
 
@@ -63,6 +67,10 @@ export default function FrameCanvas({ state, canvasRef, onOffsetChange, onScaleC
     snowOn: false,
     curtainsOn: false,
     auroraOn: false,
+    leavesOn: false,
+    rainOn: false,
+    sparksOn: false,
+    bokehOn: false,
     textAnim: 'none',
   });
 
@@ -183,29 +191,34 @@ export default function FrameCanvas({ state, canvasRef, onOffsetChange, onScaleC
     return () => cancelAnimationFrame(raf);
   }, [canvasRef, compareOn]);
 
-  // зум картинки колесом; Ctrl+колесо — зум вида
+  // Ctrl+колесо — зум вида; Alt+колесо — масштаб картинки; просто колесо — страница скроллится
   useEffect(() => {
     const c = canvasRef.current;
     if (!c) return;
     const onWheel = (e: WheelEvent) => {
-      e.preventDefault();
-      const st = stateRef.current;
-      const k = e.deltaY < 0 ? 1.12 : 1 / 1.12;
-      const rect = c.getBoundingClientRect();
-      const cx = (e.clientX - rect.left) / rect.width - 0.5;
-      const cy = (e.clientY - rect.top) / rect.height - 0.5;
       if (e.ctrlKey || e.metaKey) {
-        // зум вида вокруг курсора
+        e.preventDefault();
+        const k = e.deltaY < 0 ? 1.12 : 1 / 1.12;
         setView((v) => {
           const z = clamp(v.z * k, 0.5, 4);
           return { z, x: v.x * (z / v.z), y: v.y * (z / v.z) };
         });
         return;
       }
-      const next = clamp(st.scale * k, 0.25, 4);
-      const ratio = next / st.scale;
-      cbRef.current.onScaleChange(next);
-      cbRef.current.onOffsetChange(cx - (cx - st.ox) * ratio, cy - (cy - st.oy) * ratio);
+      if (e.altKey) {
+        e.preventDefault();
+        if (locksRef.current.photo) return; // замок — не зумим картинку
+        const st = stateRef.current;
+        const k = e.deltaY < 0 ? 1.12 : 1 / 1.12;
+        const rect = c.getBoundingClientRect();
+        const cx = (e.clientX - rect.left) / rect.width - 0.5;
+        const cy = (e.clientY - rect.top) / rect.height - 0.5;
+        const next = clamp(st.scale * k, 0.25, 4);
+        const ratio = next / st.scale;
+        cbRef.current.onScaleChange(next);
+        cbRef.current.onOffsetChange(cx - (cx - st.ox) * ratio, cy - (cy - st.oy) * ratio);
+      }
+      // без модификаторов — не перехватываем колесо: страница скроллится как обычно
     };
     c.addEventListener('wheel', onWheel, { passive: false });
     return () => c.removeEventListener('wheel', onWheel);
@@ -245,11 +258,13 @@ export default function FrameCanvas({ state, canvasRef, onOffsetChange, onScaleC
 
     if (pointersRef.current.size >= 2) {
       dragRef.current = null;
-      const [a, b] = [...pointersRef.current.values()];
-      pinchRef.current = {
-        dist: Math.max(1, Math.hypot(a.x - b.x, a.y - b.y)),
-        scale: stateRef.current.scale,
-      };
+      if (!locksRef.current.photo) {
+        const [a, b] = [...pointersRef.current.values()];
+        pinchRef.current = {
+          dist: Math.max(1, Math.hypot(a.x - b.x, a.y - b.y)),
+          scale: stateRef.current.scale,
+        };
+      }
       return;
     }
 
@@ -267,22 +282,22 @@ export default function FrameCanvas({ state, canvasRef, onOffsetChange, onScaleC
       return;
     }
 
-    // 1) логотип — тянется прямо в кадре
+    // 1) логотип — тянется прямо в кадре (если не под замком)
     const lb = computeLogoBox(st, c.width, c.height);
-    if (lb && x >= lb.x && x <= lb.x + lb.w && y >= lb.y && y <= lb.y + lb.h) {
+    if (!locksRef.current.logo && lb && x >= lb.x && x <= lb.x + lb.w && y >= lb.y && y <= lb.y + lb.h) {
       dragRef.current = { mode: 'logo', x: e.clientX, y: e.clientY, ox: st.ox, oy: st.oy, tx: st.logoX, ty: st.logoY, vx: 0, vy: 0, cpos: 0 };
       return;
     }
 
-    // 2) ручка вращения — приоритет над текстом
+    // 2) ручка вращения — приоритет над текстом (текст под замком — не трогаем)
     const hh = handleHit();
-    if (hh && Math.hypot(x - hh.hx, y - hh.hy) <= hh.grab) {
+    if (!locksRef.current.text && hh && Math.hypot(x - hh.hx, y - hh.hy) <= hh.grab) {
       dragRef.current = { mode: 'rotate', x: e.clientX, y: e.clientY, ox: st.ox, oy: st.oy, tx: st.textX, ty: st.textY ?? 0.5, vx: 0, vy: 0, cpos: 0 };
       return;
     }
 
     // 3) текст: стартуем из фактического bbox — текстY=null (авто-низ) не прыгает в центр
-    if (st.text.trim() && !bandMode() && hitTestText(bb, x, y) && bb) {
+    if (!locksRef.current.text && st.text.trim() && !bandMode() && hitTestText(bb, x, y) && bb) {
       dragRef.current = {
         mode: 'text',
         x: e.clientX, y: e.clientY,
@@ -291,7 +306,7 @@ export default function FrameCanvas({ state, canvasRef, onOffsetChange, onScaleC
         ty: bb.cy / c.height,
         vx: 0, vy: 0, cpos: 0,
       };
-    } else {
+    } else if (!locksRef.current.photo) {
       dragRef.current = { mode: 'image', x: e.clientX, y: e.clientY, ox: st.ox, oy: st.oy, tx: st.textX, ty: st.textY ?? 0.5, vx: 0, vy: 0, cpos: 0 };
     }
   };
@@ -306,16 +321,17 @@ export default function FrameCanvas({ state, canvasRef, onOffsetChange, onScaleC
         const y = ((e.clientY - rect.top) / rect.height) * ch.height;
         const hh = handleHit();
         const lb = computeLogoBox(stateRef.current, ch.width, ch.height);
+        const lk = locksRef.current;
         if (compareOn && Math.abs(x - compareRef.current * ch.width) <= Math.min(ch.width, ch.height) * 0.035) {
           ch.style.cursor = 'ew-resize';
-        } else if (hh && Math.hypot(x - hh.hx, y - hh.hy) <= hh.grab) {
+        } else if (!lk.text && hh && Math.hypot(x - hh.hx, y - hh.hy) <= hh.grab) {
           ch.style.cursor = 'grab';
-        } else if (lb && x >= lb.x && x <= lb.x + lb.w && y >= lb.y && y <= lb.y + lb.h) {
+        } else if (!lk.logo && lb && x >= lb.x && x <= lb.x + lb.w && y >= lb.y && y <= lb.y + lb.h) {
           ch.style.cursor = 'move';
-        } else if (stateRef.current.text.trim() && !bandMode() && hitTestText(bboxRef.current, x, y)) {
+        } else if (!lk.text && stateRef.current.text.trim() && !bandMode() && hitTestText(bboxRef.current, x, y)) {
           ch.style.cursor = 'move';
         } else {
-          ch.style.cursor = stateRef.current.image ? 'grab' : 'default';
+          ch.style.cursor = stateRef.current.image && !lk.photo ? 'grab' : 'default';
         }
       }
       return;
