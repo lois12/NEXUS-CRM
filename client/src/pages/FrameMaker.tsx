@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Sparkles, Upload, Move, Download, Pipette, Trash2, Eye, ChevronDown, X, Type, Loader2, Undo2, Redo2, RotateCcw, EyeOff, Layers, Lock, Unlock } from 'lucide-react';
+import { ArrowLeft, Sparkles, Upload, Move, Download, Pipette, Trash2, Eye, ChevronDown, X, Type, Loader2, Undo2, Redo2, RotateCcw, EyeOff, Layers, Lock, Unlock, Crop, Image as ImageIcon, MessageSquare, Shapes, Square, LayoutTemplate } from 'lucide-react';
 import FrameCanvas from '../components/framemaker/FrameCanvas';
+import BuilderMenu, { type BuilderMenuItem } from '../components/framemaker/BuilderMenu';
 import {
   FRAME_PRESETS, drawFrame, type FrameState, type FitMode, type PlateStyle, type PlateFill,
   type FrameStyle, type FrameMode, type TextCase, type TextAnim, type FrameLine,
@@ -62,6 +63,22 @@ const FONTS = [
 ];
 
 const PALETTE = ['#ffffff', '#0a0a0f', '#00ff88', '#00d4ff', '#7d5fff', '#ffd75f', '#ff6b6b', '#ff4fd8', '#b8f1ff'];
+
+type Section = 'ratio' | 'photo' | 'text' | 'text2' | 'logo' | 'decor' | 'frame' | 'effects' | 'scenes' | 'layers' | 'export';
+
+const MENU_ITEMS: BuilderMenuItem[] = [
+  { id: 'ratio', label: 'ПРОПОРЦИИ', icon: Crop },
+  { id: 'photo', label: 'ФОТО', icon: ImageIcon },
+  { id: 'text', label: 'ТЕКСТ', icon: Type },
+  { id: 'text2', label: 'ПОДПИСЬ', icon: MessageSquare },
+  { id: 'logo', label: 'ЛОГОТИП', icon: Upload },
+  { id: 'decor', label: 'УКРАШЕНИЯ', icon: Shapes },
+  { id: 'frame', label: 'РАМКА', icon: Square },
+  { id: 'effects', label: 'ЭФФЕКТЫ', icon: Sparkles },
+  { id: 'scenes', label: 'СЦЕНЫ', icon: LayoutTemplate },
+  { id: 'layers', label: 'СЛОИ', icon: Layers },
+  { id: 'export', label: 'ЭКСПОРТ', icon: Download },
+];
 
 /** HSV → hex */
 function hsvToHex(h: number, s: number, v: number): string {
@@ -480,8 +497,12 @@ export default function FrameMaker() {
   const [logoUnderText, setLogoUnderText] = useState(false);
   const [exporting, setExporting] = useState<'png' | 'gif' | 'video' | 'webp' | null>(null);
   const [history, setHistory] = useState<ExportItem[]>([]);
-  /** выбранный элемент — контекстное меню справа */
-  const [selected, setSelected] = useState<string>('text');
+  /** активная секция сборщика */
+  const [section, setSection] = useState<Section>('text');
+  /** последний конкретный объект, выбранный на холсте (для подсветки) */
+  const lastObjKind = useRef<string | null>(null);
+  /** что холст считает «выбранным» */
+  const canvasSelected: string | null = section === 'decor' ? lastObjKind.current : section;
 
   const state: FrameState = {
     preset,
@@ -657,7 +678,7 @@ export default function FrameMaker() {
     if (!file) return;
     const url = URL.createObjectURL(file);
     const img = new Image();
-    img.onload = () => { setLogo(img); setSelected('logo'); URL.revokeObjectURL(url); };
+    img.onload = () => { setLogo(img); setSection('logo'); URL.revokeObjectURL(url); };
     img.onerror = () => { showToast('Не удалось открыть логотип', 'error'); URL.revokeObjectURL(url); };
     img.src = url;
   };
@@ -670,8 +691,21 @@ export default function FrameMaker() {
     else { setQrX(x); setQrY(y); }
   };
 
-  /** клик по элементу — показываем его настройки справа */
-  const onSelect = (kind: string) => setSelected(kind);
+  /** клик по элементу на холсте → активная секция */
+  const onSelect = (kind: string) => {
+    lastObjKind.current = kind;
+    if (kind === 'badge' || kind === 'num' || kind === 'wm' || kind === 'qr' || kind === 'shape') {
+      setSection('decor');
+    } else if (kind === 'photo' || kind === 'text' || kind === 'text2' || kind === 'logo') {
+      setSection(kind);
+    }
+  };
+
+  /** клик по меню слева → активная секция */
+  const onMenuSelect = (id: string) => {
+    setSection(id as Section);
+    lastObjKind.current = id === 'decor' ? null : id;
+  };
 
   const resetView = () => { setScale(1); setOx(0); setOy(0); };
 
@@ -1135,281 +1169,15 @@ export default function FrameMaker() {
         </div>
       </div>
 
-      {/* РАБОЧАЯ ОБЛАСТЬ: слева редакторы, холст, справа редакторы */}
-      <div className="grid grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)_296px] gap-3 items-start">
-        {/* ЛЕВАЯ КОЛОНКА */}
-        <div className="space-y-3">
-          {/* Пропорции */}
-          <Panel title="ПРОПОРЦИИ" defaultOpen>
-            <div className="flex flex-wrap gap-1.5">
-              {FRAME_PRESETS.map((p) => (
-                <button
-                  key={p.id}
-                  onClick={() => setPresetId(p.id)}
-                  className={chip(p.id === presetId)}
-                  style={p.id === presetId ? { background: 'var(--color-primary)' } : undefined}
-                >
-                  {p.label}
-                </button>
-              ))}
-            </div>
-          </Panel>
-
-          {/* Параметры рамки */}
-          <Panel title="ПАРАМЕТРЫ РАМКИ" visible={selected === 'frame'}>
-            <div>
-              <label className={LABEL}>СТИЛЬ</label>
-              <div className="flex flex-wrap gap-1.5 mt-1">
-                {([['aurora', 'АВРОРА'], ['neon', 'НЕОН'], ['glass', 'СТЕКЛО'], ['fire', 'ОГОНЬ'], ['ice', 'ЛЁД']] as [FrameStyle, string][]).map(([id, lb]) => (
-                  <button
-                    key={id}
-                    onClick={() => setFrameStyle(id)}
-                    className={chip(frameStyle === id)}
-                    style={frameStyle === id ? { background: 'var(--color-primary)' } : undefined}
-                  >{lb}</button>
-                ))}
-              </div>
-            </div>
-            <div>
-              <label className={LABEL}>ВИД</label>
-              <div className="flex flex-wrap gap-1.5 mt-1">
-                <button
-                  onClick={() => setFrameMode('full')}
-                  className={chip(frameMode === 'full')}
-                  style={frameMode === 'full' ? { background: 'var(--color-primary)' } : undefined}
-                >ПОЛНАЯ</button>
-                <button
-                  onClick={() => setFrameMode('corners')}
-                  className={chip(frameMode === 'corners')}
-                  style={frameMode === 'corners' ? { background: 'var(--color-primary)' } : undefined}
-                >УГЛОВЫЕ СКОБКИ</button>
-              </div>
-            </div>
-            <div>
-              <label className={LABEL}>ЛИНИЯ</label>
-              <div className="flex flex-wrap gap-1.5 mt-1">
-                {([['solid', 'ПЛОТНАЯ'], ['dashed', 'ПУНКТИР'], ['double', 'ДВОЙНАЯ']] as [FrameLine, string][]).map(([id, lb]) => (
-                  <button
-                    key={id}
-                    onClick={() => setFrameLine(id)}
-                    className={chip(frameLine === id)}
-                    style={frameLine === id ? { background: 'var(--color-primary)' } : undefined}
-                  >{lb}</button>
-                ))}
-              </div>
-            </div>
-            <div className="flex items-center justify-between gap-2">
-              <span className="font-mono text-[10px] text-gray-300">КИНО-ПОЛОСЫ</span>
-              <Switch on={barsOn} onToggle={() => setBarsOn((v) => !v)} label="Кино-полосы" />
-            </div>
-            {barsOn && (
-              <div>
-                <label className={LABEL}>ВЫСОТА ПОЛОС: {barsSize}%</label>
-                <input type="range" min={3} max={25} value={barsSize}
-                  onChange={(e) => setBarsSize(Number(e.target.value))}
-                  className="w-full accent-[var(--color-primary)]" />
-              </div>
-            )}
-            <div className="flex items-center justify-between gap-2">
-              <span className="font-mono text-[10px] text-gray-300">РЕТРО-КАМЕРА С ДАТОЙ</span>
-              <Switch on={camOn} onToggle={() => setCamOn((v) => !v)} label="Ретро-камера" />
-            </div>
-            <div>
-              <label className={LABEL}>СКРУГЛЕНИЕ УГЛОВ: {preset.radius === 'circle' ? 'КРУГ' : `${frameRadius}%`}</label>
-              <input type="range" min={0} max={12} step={0.5} value={frameRadius}
-                disabled={preset.radius === 'circle'}
-                onChange={(e) => setFrameRadius(Number(e.target.value))}
-                className="w-full accent-[var(--color-primary)] disabled:opacity-30" />
-            </div>
-            <div>
-              <label className={LABEL}>ТОЛЩИНА ГРАНИ: {frameWidth}%</label>
-              <input type="range" min={50} max={250} value={frameWidth}
-                onChange={(e) => setFrameWidth(Number(e.target.value))}
-                className="w-full accent-[var(--color-primary)]" />
-            </div>
-          </Panel>
-
-          {/* Картинка */}
-          <Panel title="КАРТИНКА" defaultOpen>
-            <div className="flex flex-wrap gap-1.5 items-center">
-              <label className="btn-ghost nx-press px-2.5 py-1.5 min-h-[32px] rounded-lg font-mono text-[10px] flex items-center gap-1.5 cursor-pointer">
-                <Upload className="w-3.5 h-3.5" /> {image ? 'ЗАМЕНИТЬ' : 'ЗАГРУЗИТЬ'}
-                <input type="file" accept="image/*" className="hidden" onChange={(e) => { onPickFile(e.target.files?.[0]); e.target.value = ''; }} />
-              </label>
-              <div className="flex rounded-lg overflow-hidden border border-white/10">
-                <button
-                  onClick={() => setFitMode('cover')}
-                  className={`px-2.5 py-1.5 min-h-[32px] font-mono text-[10px] nx-press ${fitMode === 'cover' ? 'text-black' : 'text-gray-400 bg-white/5'}`}
-                  style={fitMode === 'cover' ? { background: 'var(--color-primary)' } : undefined}
-                >ЗАПОЛНИТЬ</button>
-                <button
-                  onClick={() => setFitMode('contain')}
-                  className={`px-2.5 py-1.5 min-h-[32px] font-mono text-[10px] nx-press ${fitMode === 'contain' ? 'text-black' : 'text-gray-400 bg-white/5'}`}
-                  style={fitMode === 'contain' ? { background: 'var(--color-primary)' } : undefined}
-                >ВПИСАТЬ</button>
-              </div>
-              <button
-                onClick={resetView}
-                className="btn-ghost nx-press px-2.5 py-1.5 min-h-[32px] rounded-lg font-mono text-[10px] flex items-center gap-1"
-                title="Сбросить масштаб и центр"
-              >
-                <Move className="w-3 h-3" /> ЦЕНТР
-              </button>
-            </div>
-            <div>
-              <label className={LABEL}>МАСШТАБ: {Math.round(scale * 100)}%</label>
-              <input
-                type="range" min={25} max={300} value={Math.round(scale * 100)}
-                onChange={(e) => setScale(Number(e.target.value) / 100)}
-                className="w-full accent-[var(--color-primary)]"
-                disabled={lockPhoto}
-              />
-            </div>
-          </Panel>
-
-          {/* Логотип */}
-          <Panel title="ЛОГОТИП КАНАЛА" visible={selected === 'logo'}>
-            <div className="flex flex-wrap gap-1.5 items-center">
-              <label className="btn-ghost nx-press px-2.5 py-1.5 min-h-[32px] rounded-lg font-mono text-[10px] flex items-center gap-1.5 cursor-pointer">
-                <Upload className="w-3.5 h-3.5" /> {logo ? 'ЗАМЕНИТЬ' : 'PNG'}
-                <input type="file" accept="image/*" className="hidden" onChange={(e) => { onPickLogo(e.target.files?.[0]); e.target.value = ''; }} />
-              </label>
-              {logo && (
-                <button
-                  onClick={() => setLogo(null)}
-                  className="btn-ghost nx-press px-2.5 py-1.5 min-h-[32px] rounded-lg font-mono text-[10px]"
-                >УБРАТЬ</button>
-              )}
-            </div>
-            {logo && (
-              <>
-                <p className="font-mono text-[9px] text-gray-600">перетащите логотип прямо в кадре</p>
-                <div>
-                  <label className={LABEL}>РАЗМЕР: {logoSize}%</label>
-                  <input type="range" min={5} max={30} value={logoSize}
-                    onChange={(e) => setLogoSize(Number(e.target.value))}
-                    className="w-full accent-[var(--color-primary)]" />
-                </div>
-                <div>
-                  <label className={LABEL}>СКРУГЛЕНИЕ: {logoRadius === 50 ? 'КРУГ' : `${logoRadius}%`}</label>
-                  <input type="range" min={0} max={50} value={logoRadius}
-                    onChange={(e) => setLogoRadius(Number(e.target.value))}
-                    className="w-full accent-[var(--color-primary)]" />
-                </div>
-                <div>
-                  <label className={LABEL}>ПРОЗРАЧНОСТЬ: {logoOpacity}%</label>
-                  <input type="range" min={10} max={100} value={logoOpacity}
-                    onChange={(e) => setLogoOpacity(Number(e.target.value))}
-                    className="w-full accent-[var(--color-primary)]" />
-                </div>
-              </>
-            )}
-          </Panel>
-
-          {/* Слои */}
-          <Panel
-            title="СЛОИ"
-            right={<Layers className="w-3.5 h-3.5 shrink-0" style={{ color: 'var(--color-primary)' }} />}
-          >
-            {([
-              ['ФОТО', showPhoto, setShowPhoto, lockPhoto, setLockPhoto],
-              ['ТЕКСТ', showText, setShowText, lockText, setLockText],
-              ['ЛОГОТИП', showLogo, setShowLogo, lockLogo, setLockLogo],
-              ['ЭФФЕКТЫ', showFx, setShowFx, false, () => {}],
-              ['РАМКА', showFrame, setShowFrame, false, () => {}],
-            ] as [string, boolean, (v: boolean) => void, boolean, (v: boolean) => void][]).map(([lb, on, set, locked, setLock]) => (
-              <div key={lb} className="flex items-center justify-between gap-2">
-                <span className="font-mono text-[10px] text-gray-300">{lb}</span>
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => set(!on)}
-                    aria-label={`${on ? 'Скрыть' : 'Показать'} слой ${lb}`}
-                    className="w-7 h-7 rounded-md nx-press flex items-center justify-center hover:bg-white/10"
-                    style={{ color: on ? 'var(--color-primary)' : '#666' }}
-                    title={on ? 'Скрыть' : 'Показать'}
-                  >
-                    {on ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
-                  </button>
-                  <button
-                    onClick={() => setLock(!locked)}
-                    aria-label={`${locked ? 'Снять замок' : 'Замок'} со слоя ${lb}`}
-                    className="w-7 h-7 rounded-md nx-press flex items-center justify-center hover:bg-white/10"
-                    style={{ color: locked ? '#ffd75f' : '#555' }}
-                    title={locked ? 'Замок — элемент не сдвинуть' : 'Поставить замок'}
-                  >
-                    {locked ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
-                  </button>
-                </div>
-              </div>
-            ))}
-            <div>
-              <label className={LABEL}>ЛОГОТИП ОТНОСИТЕЛЬНО ТЕКСТА</label>
-              <div className="flex flex-wrap gap-1.5 mt-1">
-                <button
-                  onClick={() => setLogoUnderText(false)}
-                  className={chip(!logoUnderText)}
-                  style={!logoUnderText ? { background: 'var(--color-primary)' } : undefined}
-                >ПОВЕРХ</button>
-                <button
-                  onClick={() => setLogoUnderText(true)}
-                  className={chip(logoUnderText)}
-                  style={logoUnderText ? { background: 'var(--color-primary)' } : undefined}
-                >ПОД ТЕКСТОМ</button>
-              </div>
-            </div>
-          </Panel>
-
-          {/* Сцены-шаблоны */}
-          <Panel title="СЦЕНЫ" defaultOpen>
-            <div className="flex flex-wrap gap-1.5">
-              {([['afisha', 'АФИША'], ['quote', 'ЦИТАТА'], ['announce', 'АНОНС'], ['post', 'ПОСТ ДНЯ']] as ['afisha' | 'quote' | 'announce' | 'post', string][]).map(([id, lb]) => (
-                <button key={id} onClick={() => applyScene(id)} className={chip(false)}>{lb}</button>
-              ))}
-            </div>
-            <p className="font-mono text-[9px] text-gray-600">кнопка собирает целый образ: шрифт, цвета, рамку и эффекты</p>
-          </Panel>
-
-          {/* Мои пресеты */}
-          <Panel title="МОИ ПРЕСЕТЫ">
-            <div className="flex gap-1.5">
-              <input
-                value={presetName}
-                onChange={(e) => setPresetName(e.target.value)}
-                placeholder="Имя пресета"
-                className={FIELD}
-                maxLength={24}
-              />
-              <button
-                onClick={saveMyPreset}
-                className="btn-primary nx-press px-3 rounded-xl font-mono text-[10px] font-bold shrink-0"
-              >СОХРАНИТЬ</button>
-            </div>
-            {myPresets.length === 0 ? (
-              <p className="font-mono text-[9px] text-gray-600">// сохраните текущий набор настроек</p>
-            ) : (
-              <div className="space-y-1">
-                {myPresets.map((p, i) => (
-                  <div key={`${p.name}-${i}`} className="flex items-center gap-1.5">
-                    <button
-                      onClick={() => applyMyPreset(p)}
-                      className="flex-1 text-left px-2 py-1.5 rounded-lg bg-white/[0.04] border border-white/5 font-mono text-[10px] text-gray-300 nx-press truncate"
-                    >{p.name}</button>
-                    <button
-                      onClick={() => deleteMyPreset(i)}
-                      aria-label={`Удалить пресет ${p.name}`}
-                      className="w-7 h-7 rounded-md nx-press flex items-center justify-center text-gray-500 hover:text-red-400"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </Panel>
+      {/* Builder grid: menu | params | canvas */}
+      <div className="grid grid-cols-1 lg:grid-cols-[220px_300px_minmax(0,1fr)] gap-3 items-start">
+        {/* Col 1: menu rail */}
+        <div className="lg:col-start-1 lg:row-start-1">
+          <BuilderMenu items={MENU_ITEMS} active={section} onSelect={onMenuSelect} />
         </div>
 
-        {/* ЦЕНТР: холст + экспорт */}
-        <div className="space-y-3">
+        {/* Col 3 (DOM 2): canvas */}
+        <div className="lg:col-start-3 lg:row-start-1 space-y-3">
           <div className="nx-panel p-3">
             <FrameCanvas
               state={previewState}
@@ -1423,7 +1191,7 @@ export default function FrameMaker() {
               onShapeMove={(x, y) => { setShapeX(x); setShapeY(y); }}
               onObjectMove={onObjectMove}
               onSelect={onSelect}
-              selected={selected}
+              selected={canvasSelected}
               compareOn={compareOn}
               locks={{ photo: lockPhoto, text: lockText, logo: lockLogo }}
             />
@@ -1453,791 +1221,865 @@ export default function FrameMaker() {
               </div>
             </div>
           </div>
-
-          {/* Экспорт */}
-          <div className="glass rounded-xl p-2.5 flex flex-wrap items-center gap-2">
-            <button
-              onClick={exportPng}
-              disabled={!!exporting}
-              className="btn-primary nx-press px-3.5 py-2 min-h-[38px] rounded-xl font-mono text-[11px] font-bold disabled:opacity-50 flex items-center gap-1.5"
-            >
-              {exporting === 'png' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />} PNG
-            </button>
-            <button
-              onClick={exportGif}
-              disabled={!!exporting}
-              className="nx-press px-3.5 py-2 min-h-[38px] rounded-xl font-mono text-[11px] font-bold flex items-center gap-1.5 disabled:opacity-50"
-              style={{ background: 'rgba(0,212,255,0.15)', color: '#00d4ff', border: '1px solid rgba(0,212,255,0.3)' }}
-              title="Анимированный GIF — рамка полыхает"
-            >
-              {exporting === 'gif' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null} GIF
-            </button>
-            <button
-              onClick={exportWebp}
-              disabled={!!exporting}
-              className="nx-press px-3.5 py-2 min-h-[38px] rounded-xl font-mono text-[11px] font-bold flex items-center gap-1.5 disabled:opacity-50"
-              style={{ background: 'rgba(0,255,136,0.12)', color: '#00ff88', border: '1px solid rgba(0,255,136,0.28)' }}
-              title="Анимированный WebP — легче GIF"
-            >
-              {exporting === 'webp' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null} WEBP
-            </button>
-            {videoSupported() && (
-              <>
-                <button
-                  onClick={exportVideo}
-                  disabled={!!exporting}
-                  className="nx-press px-3.5 py-2 min-h-[38px] rounded-xl font-mono text-[11px] font-bold flex items-center gap-1.5 disabled:opacity-50"
-                  style={{ background: 'rgba(125,95,255,0.15)', color: '#7d5fff', border: '1px solid rgba(125,95,255,0.35)' }}
-                  title="Короткое видео (mp4, где поддерживается)"
-                >
-                  {exporting === 'video' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null} ВИДЕО
-                </button>
-                <div className="relative">
-                  <select
-                    value={videoSeconds}
-                    onChange={(e) => setVideoSeconds(Number(e.target.value))}
-                    className="appearance-none pl-2.5 pr-7 py-2 rounded-lg text-[10px] font-mono bg-white/5 border border-white/10 text-gray-300 min-h-[36px]"
-                    title="Длина видео"
-                  >
-                    {[2, 4, 6, 8, 10].map((s) => <option key={s} value={s}>{s} сек</option>)}
-                  </select>
-                  <ChevronDown className="w-3.5 h-3.5 text-gray-500 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
-                </div>
-                <div className="relative">
-                  <select
-                    value={videoRes}
-                    onChange={(e) => setVideoRes(e.target.value as '720' | '1080')}
-                    className="appearance-none pl-2.5 pr-7 py-2 rounded-lg text-[10px] font-mono bg-white/5 border border-white/10 text-gray-300 min-h-[36px]"
-                    title="Разрешение видео"
-                  >
-                    <option value="1080">1080p</option>
-                    <option value="720">720p</option>
-                  </select>
-                  <ChevronDown className="w-3.5 h-3.5 text-gray-500 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
-                </div>
-              </>
-            )}
-          </div>
         </div>
 
-        {/* ПРАВАЯ КОЛОНКА: контекстное меню выбранного элемента */}
-        <div className="space-y-3">
-          {/* выбор элемента: клик по чипу или прямо по кадру */}
-          <div className="glass rounded-xl p-2">
-            <div className="flex flex-wrap gap-1">
-              {([
-                ['photo', 'ФОТО'], ['frame', 'КАДР'], ['text', 'ТЕКСТ'], ['text2', 'T2'], ['logo', 'ЛОГО'],
-                ['shape', '★'], ['badge', 'БЕЙДЖ'], ['num', '№'], ['wm', '@'], ['qr', 'QR'], ['effects', 'FX'],
-              ] as [string, string][]).map(([id, lb]) => (
-                <button
-                  key={id}
-                  onClick={() => {
-                    setSelected(id);
-                    // включение элемента «на лету»
-                    if (id === 'text2') setText2On(true);
-                    if (id === 'shape') setShapeOn(true);
-                    if (id === 'badge') setBadgeOn(true);
-                    if (id === 'num') setNumOn(true);
-                    if (id === 'wm') setWmOn(true);
-                    if (id === 'qr') setQrOn(true);
-                  }}
-                  className={chip(selected === id)}
-                  style={selected === id ? { background: 'var(--color-primary)' } : undefined}
-                >{lb}</button>
-              ))}
-            </div>
-            <p className="font-mono text-[9px] text-gray-600 mt-1.5">кликните элемент прямо на кадре — тут появятся его настройки</p>
-          </div>
-
-          {/* Текст */}
-          <Panel title="ТЕКСТ" defaultOpen visible={selected === 'text'}>
-            <textarea
-              value={text}
-              onChange={(e) => {
-                setText(e.target.value);
-                e.target.style.height = 'auto';
-                e.target.style.height = `${e.target.scrollHeight}px`;
-              }}
-              placeholder="Например: НОРИЛЬСК · ЛЕТО 2026"
-              rows={1}
-              maxLength={80}
-              className={`${FIELD} resize-none overflow-hidden`}
-            />
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className={LABEL}>ШРИФТ</label>
-                <button
-                  type="button"
-                  onClick={() => setFontModal(true)}
-                  className={`${FIELD} mt-1 flex items-center justify-between gap-1 text-left nx-press`}
-                >
-                  <Type className="w-3.5 h-3.5 text-gray-500 shrink-0" />
-                  <span className="truncate flex-1" style={{ fontFamily }}>{FONTS.find((f) => f.value === fontFamily)?.label || 'Шрифт'}</span>
-                  <ChevronDown className="w-3.5 h-3.5 text-gray-500 shrink-0" />
-                </button>
-              </div>
-              <div>
-                <label className={LABEL}>РАЗМЕР: {fontSize}</label>
-                <input
-                  type="range" min={30} max={120} value={fontSize}
-                  onChange={(e) => setFontSize(Number(e.target.value))}
-                  className="w-full accent-[var(--color-primary)] mt-2"
-                />
-              </div>
-            </div>
-            <ColorField label="ЦВЕТ ТЕКСТА" value={textColor} onChange={setTextColor} />
-
-            {/* неон */}
-            <div className="flex items-center justify-between gap-2">
-              <span className="font-mono text-[10px] text-gray-300">НЕОН-СВЕЧЕНИЕ</span>
-              <Switch on={neonOn} onToggle={() => setNeonOn((v) => !v)} label="Неон свечение текста" />
-            </div>
-            {neonOn && (
-              <>
-                <ColorField label="ЦВЕТ НЕОНА" value={neonColor} onChange={setNeonColor} />
-                <div>
-                  <label className={LABEL}>СИЛА СВЕЧЕНИЯ: {neonIntensity}%</label>
-                  <input
-                    type="range" min={10} max={100} value={neonIntensity}
-                    onChange={(e) => setNeonIntensity(Number(e.target.value))}
-                    className="w-full accent-[var(--color-primary)]"
-                  />
-                </div>
-              </>
-            )}
-
-            {/* наклон */}
-            <div>
-              <label className={LABEL}>НАКЛОН: {textAngle}°</label>
-              <input
-                type="range" min={-40} max={40} value={textAngle}
-                onChange={(e) => setTextAngle(Number(e.target.value))}
-                className="w-full accent-[var(--color-primary)]"
-              />
-            </div>
-
-            {/* обводка букв */}
-            <div className="flex items-center justify-between gap-2">
-              <span className="font-mono text-[10px] text-gray-300">ОБВОДКА БУКВ</span>
-              <Switch on={strokeOn} onToggle={() => setStrokeOn((v) => !v)} label="Обводка букв" />
-            </div>
-            {strokeOn && (
-              <>
-                <ColorField label="ЦВЕТ ОБВОДКИ" value={strokeColor} onChange={setStrokeColor} />
-                <div>
-                  <label className={LABEL}>ТОЛЩИНА ОБВОДКИ: {strokeWidth}%</label>
-                  <input
-                    type="range" min={5} max={100} value={strokeWidth}
-                    onChange={(e) => setStrokeWidth(Number(e.target.value))}
-                    className="w-full accent-[var(--color-primary)]"
-                  />
-                </div>
-              </>
-            )}
-            {/* типографика */}
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className={LABEL}>ИНТЕРВАЛ СТРОК: {(lineHeight / 100).toFixed(2)}</label>
-                <input
-                  type="range" min={80} max={200} value={lineHeight}
-                  onChange={(e) => setLineHeight(Number(e.target.value))}
-                  className="w-full accent-[var(--color-primary)]"
-                />
-              </div>
-              <div>
-                <label className={LABEL}>РАЗРЯДКА: {(letterSpacing / 10).toFixed(1)}</label>
-                <input
-                  type="range" min={-20} max={120} value={letterSpacing}
-                  onChange={(e) => setLetterSpacing(Number(e.target.value))}
-                  className="w-full accent-[var(--color-primary)]"
-                />
-              </div>
-            </div>
-
-            {/* регистр */}
-            <div>
-              <label className={LABEL}>РЕГИСТР</label>
-              <div className="flex flex-wrap gap-1.5 mt-1">
-                {([['none', 'Как есть'], ['upper', 'ПРОПИСНЫЕ'], ['lower', 'строчные'], ['title', 'Заглавные']] as [TextCase, string][]).map(([id, lb]) => (
-                  <button
-                    key={id}
-                    onClick={() => setTextCase(id)}
-                    className={chip(textCase === id)}
-                    style={textCase === id ? { background: 'var(--color-primary)' } : undefined}
-                  >{lb}</button>
-                ))}
-              </div>
-            </div>
-
-            {/* форма строки */}
-            <div>
-              <label className={LABEL}>ФОРМА СТРОКИ</label>
-              <div className="flex flex-wrap gap-1.5 mt-1">
-                <button
-                  onClick={() => setTextShape2('straight')}
-                  className={chip(textShape2 === 'straight')}
-                  style={textShape2 === 'straight' ? { background: 'var(--color-primary)' } : undefined}
-                >ПРЯМАЯ</button>
-                <button
-                  onClick={() => setTextShape2('circle')}
-                  className={chip(textShape2 === 'circle')}
-                  style={textShape2 === 'circle' ? { background: 'var(--color-primary)' } : undefined}
-                >ПО КРУГУ 360°</button>
-              </div>
-            </div>
-
-            {/* быстрые фразы */}
-            <div>
-              <label className={LABEL}>БЫСТРЫЕ ФРАЗЫ</label>
-              <div className="flex flex-wrap gap-1.5 mt-1">
-                {SLOGANS.map((s) => (
-                  <button key={s} onClick={() => setText(s)} className={chip(false)}>{s}</button>
-                ))}
-                <button onClick={insertDate} className={chip(false)} title="Вставить сегодняшнюю дату">+ ДАТА</button>
-                <button onClick={fitTwoLines} className={chip(false)} title="Подобрать размер шрифта под 2 строки">В 2 СТРОКИ</button>
-              </div>
-            </div>
-
-            {/* анимация появления */}
-            <div className="flex items-center justify-between gap-2">
-              <span className="font-mono text-[10px] text-gray-300">АНИМАЦИЯ ТЕКСТА</span>
-              <Switch on={textAnimOn} onToggle={() => setTextAnimOn((v) => !v)} label="Анимация текста" />
-            </div>
-            {textAnimOn && (
-              <div className="flex flex-wrap gap-1.5">
-                {([['fade', 'ПОЯВЛЕНИЕ'], ['slide', 'СДВИГ'], ['type', 'ПЕЧАТЬ'], ['pulse', 'ПУЛЬС НЕОНА']] as [Exclude<TextAnim, 'none'>, string][]).map(([id, lb]) => (
-                  <button
-                    key={id}
-                    onClick={() => setTextAnimKind(id)}
-                    className={chip(textAnimKind === id)}
-                    style={textAnimKind === id ? { background: 'var(--color-primary)' } : undefined}
-                  >{lb}</button>
-                ))}
-              </div>
-            )}
-
-            <div className="flex items-center justify-between gap-2">
-              <p className="font-mono text-[9px] text-gray-600">
-                {plateOn && plateStyle === 'band'
-                  ? 'текст закреплён в полосе снизу'
-                  : textY == null ? 'позиция: низ по центру (авто)' : `позиция: ${Math.round(textX * 100)}% × ${Math.round(textY * 100)}%`}
-              </p>
-              <button
-                onClick={() => { setTextX(0.5); setTextY(null); setTextAngle(0); }}
-                className="btn-ghost nx-press px-2.5 py-1.5 min-h-[32px] rounded-lg font-mono text-[10px] shrink-0"
-                title="Вернуть текст вниз по центру, снять наклон"
-              >
-                СБРОС
-              </button>
-            </div>
-          </Panel>
-
-          {/* Градиент и тень */}
-          <Panel
-            title="ГРАДИЕНТ И ТЕНЬ"
-            visible={selected === 'text'}
-            right={(
-              <div className="flex items-center gap-2">
-                <Switch on={textGradOn} onToggle={() => setTextGradOn((v) => !v)} label="Градиент текста" />
-                <Switch on={shadowOn} onToggle={() => setShadowOn((v) => !v)} label="Тень текста" />
-              </div>
-            )}
-          >
-            {textGradOn && (
-              <>
-                <div className="grid grid-cols-3 gap-2">
-                  {([['ЦВЕТ 1', textGrad1, setTextGrad1], ['ЦВЕТ 2', textGrad2, setTextGrad2], ['ЦВЕТ 3', textGrad3, setTextGrad3]] as [string, string, (c: string) => void][]).map(([lb, val, set]) => (
-                    <div key={lb}>
-                      <label className={LABEL}>{lb}</label>
-                      <input type="color" value={val} onChange={(e) => set(e.target.value)}
-                        className="w-full h-8 mt-1 rounded-md cursor-pointer bg-transparent border border-gray-700" />
-                    </div>
+        {/* Col 2 (DOM 3): params of active section */}
+        <div className="lg:col-start-2 lg:row-start-1 lg:sticky lg:top-3 lg:max-h-[calc(100vh-160px)] lg:overflow-y-auto space-y-3">
+          {/* ─── ПРОПОРЦИИ ─── */}
+          {section === 'ratio' && (
+            <div className="space-y-3">
+              <span className="nx-eyebrow">ПРОПОРЦИИ</span>
+              <div className="glass rounded-xl p-2.5">
+                <div className="flex flex-wrap gap-1.5">
+                  {FRAME_PRESETS.map((p) => (
+                    <button
+                      key={p.id}
+                      onClick={() => setPresetId(p.id)}
+                      className={chip(p.id === presetId)}
+                      style={p.id === presetId ? { background: 'var(--color-primary)' } : undefined}
+                    >{p.label}</button>
                   ))}
                 </div>
-                <div>
-                  <label className={LABEL}>УГОЛ ГРАДИЕНТА: {textGradAngle}°</label>
-                  <input type="range" min={0} max={360} value={textGradAngle}
-                    onChange={(e) => setTextGradAngle(Number(e.target.value))}
-                    className="w-full accent-[var(--color-primary)]" />
-                </div>
-              </>
-            )}
-            {shadowOn && (
-              <>
-                <ColorField label="ЦВЕТ ТЕНИ" value={shadowColor} onChange={setShadowColor} />
-                <div className="grid grid-cols-3 gap-2">
-                  <div>
-                    <label className={LABEL}>СДВИГ X: {shadowDx}</label>
-                    <input type="range" min={-20} max={20} value={shadowDx}
-                      onChange={(e) => setShadowDx(Number(e.target.value))}
-                      className="w-full accent-[var(--color-primary)]" />
-                  </div>
-                  <div>
-                    <label className={LABEL}>СДВИГ Y: {shadowDy}</label>
-                    <input type="range" min={-20} max={20} value={shadowDy}
-                      onChange={(e) => setShadowDy(Number(e.target.value))}
-                      className="w-full accent-[var(--color-primary)]" />
-                  </div>
-                  <div>
-                    <label className={LABEL}>РАЗМЫТИЕ: {shadowBlur}</label>
-                    <input type="range" min={0} max={40} value={shadowBlur}
-                      onChange={(e) => setShadowBlur(Number(e.target.value))}
-                      className="w-full accent-[var(--color-primary)]" />
-                  </div>
-                </div>
-              </>
-            )}
-          </Panel>
+                <p className="font-mono text-[9px] text-gray-600 mt-2">выберите формат кадра — холст и экспорт подстроятся</p>
+              </div>
+            </div>
+          )}
 
-          {/* Второй текст */}
-          <Panel
-            title="ВТОРОЙ ТЕКСТ"
-            visible={selected === 'text2'}
-            right={<Switch on={text2On} onToggle={() => setText2On((v) => !v)} label="Второй текст" />}
-          >
-            {text2On && (
-              <>
-                <input
-                  value={text2}
-                  onChange={(e) => setText2(e.target.value)}
-                  placeholder="Заголовок или подпись"
-                  className={FIELD}
-                  maxLength={60}
+          {/* ─── ФОТО ─── */}
+          {section === 'photo' && (
+            <div className="space-y-3">
+              <span className="nx-eyebrow">ФОТО</span>
+              <div className="glass rounded-xl p-2.5 space-y-2">
+                <div className="flex flex-wrap gap-1.5 items-center">
+                  <label className="btn-ghost nx-press px-2.5 py-1.5 min-h-[32px] rounded-lg font-mono text-[10px] flex items-center gap-1.5 cursor-pointer">
+                    <Upload className="w-3.5 h-3.5" /> {image ? 'ЗАМЕНИТЬ' : 'ЗАГРУЗИТЬ'}
+                    <input type="file" accept="image/*" className="hidden" onChange={(e) => { onPickFile(e.target.files?.[0]); e.target.value = ''; }} />
+                  </label>
+                  <div className="flex rounded-lg overflow-hidden border border-white/10">
+                    <button
+                      onClick={() => setFitMode('cover')}
+                      className={`px-2.5 py-1.5 min-h-[32px] font-mono text-[10px] nx-press ${fitMode === 'cover' ? 'text-black' : 'text-gray-400 bg-white/5'}`}
+                      style={fitMode === 'cover' ? { background: 'var(--color-primary)' } : undefined}
+                    >ЗАПОЛНИТЬ</button>
+                    <button
+                      onClick={() => setFitMode('contain')}
+                      className={`px-2.5 py-1.5 min-h-[32px] font-mono text-[10px] nx-press ${fitMode === 'contain' ? 'text-black' : 'text-gray-400 bg-white/5'}`}
+                      style={fitMode === 'contain' ? { background: 'var(--color-primary)' } : undefined}
+                    >ВПИСАТЬ</button>
+                  </div>
+                  <button
+                    onClick={resetView}
+                    className="btn-ghost nx-press px-2.5 py-1.5 min-h-[32px] rounded-lg font-mono text-[10px] flex items-center gap-1"
+                    title="Сбросить масштаб и центр"
+                  >
+                    <Move className="w-3 h-3" /> ЦЕНТР
+                  </button>
+                </div>
+                <div>
+                  <label className={LABEL}>МАСШТАБ: {Math.round(scale * 100)}%</label>
+                  <input
+                    type="range" min={25} max={300} value={Math.round(scale * 100)}
+                    onChange={(e) => setScale(Number(e.target.value) / 100)}
+                    className="w-full accent-[var(--color-primary)]"
+                    disabled={lockPhoto}
+                  />
+                </div>
+              </div>
+              <Panel title="ФОТОФИЛЬТРЫ" defaultOpen>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className={LABEL}>ЯРКОСТЬ: {fBright}</label>
+                    <input type="range" min={-100} max={100} value={fBright} onChange={(e) => setFBright(Number(e.target.value))} className="w-full accent-[var(--color-primary)]" />
+                  </div>
+                  <div>
+                    <label className={LABEL}>КОНТРАСТ: {fContrast}</label>
+                    <input type="range" min={-100} max={100} value={fContrast} onChange={(e) => setFContrast(Number(e.target.value))} className="w-full accent-[var(--color-primary)]" />
+                  </div>
+                  <div>
+                    <label className={LABEL}>НАСЫЩЕННОСТЬ: {fSat}</label>
+                    <input type="range" min={-100} max={100} value={fSat} onChange={(e) => setFSat(Number(e.target.value))} className="w-full accent-[var(--color-primary)]" />
+                  </div>
+                  <div>
+                    <label className={LABEL}>ТЕМПЕРАТУРА: {fTemp}</label>
+                    <input type="range" min={-100} max={100} value={fTemp} onChange={(e) => setFTemp(Number(e.target.value))} className="w-full accent-[var(--color-primary)]" />
+                  </div>
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-mono text-[10px] text-gray-300">РАЗМЫТЫЙ ФОН ИЗ ФОТО</span>
+                  <Switch on={bgBlurOn} onToggle={() => setBgBlurOn((v) => !v)} label="Размытый фон" />
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-mono text-[10px] text-gray-300">ВИНЬЕТКА</span>
+                  <Switch on={vigOn} onToggle={() => setVigOn((v) => !v)} label="Виньетка" />
+                </div>
+                {vigOn && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className={LABEL}>СИЛА: {vigStrength}%</label>
+                      <input type="range" min={10} max={100} value={vigStrength} onChange={(e) => setVigStrength(Number(e.target.value))} className="w-full accent-[var(--color-primary)]" />
+                    </div>
+                    <div>
+                      <label className={LABEL}>РАДИУС: {vigRadius}%</label>
+                      <input type="range" min={10} max={100} value={vigRadius} onChange={(e) => setVigRadius(Number(e.target.value))} className="w-full accent-[var(--color-primary)]" />
+                    </div>
+                  </div>
+                )}
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-mono text-[10px] text-gray-300">ЗЕРНО ПЛЁНКИ</span>
+                  <Switch on={grainOn} onToggle={() => setGrainOn((v) => !v)} label="Зерно плёнки" />
+                </div>
+                {grainOn && (
+                  <div>
+                    <label className={LABEL}>СИЛА ЗЕРНА: {grainIntensity}%</label>
+                    <input type="range" min={5} max={100} value={grainIntensity} onChange={(e) => setGrainIntensity(Number(e.target.value))} className="w-full accent-[var(--color-primary)]" />
+                  </div>
+                )}
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-mono text-[10px] text-gray-300">ГЛИТЧ-ХРОМАТИКА</span>
+                  <Switch on={glitchOn} onToggle={() => setGlitchOn((v) => !v)} label="Глитч-хроматика" />
+                </div>
+                {glitchOn && (
+                  <div>
+                    <label className={LABEL}>СИЛА ГЛИТЧА: {glitchStrength}%</label>
+                    <input type="range" min={5} max={100} value={glitchStrength} onChange={(e) => setGlitchStrength(Number(e.target.value))} className="w-full accent-[var(--color-primary)]" />
+                  </div>
+                )}
+              </Panel>
+            </div>
+          )}
+
+          {/* ─── ТЕКСТ ─── */}
+          {section === 'text' && (
+            <div className="space-y-3">
+              <span className="nx-eyebrow">ТЕКСТ</span>
+              <div className="glass rounded-xl p-2.5 space-y-2">
+                <textarea
+                  value={text}
+                  onChange={(e) => {
+                    setText(e.target.value);
+                    e.target.style.height = 'auto';
+                    e.target.style.height = `${e.target.scrollHeight}px`;
+                  }}
+                  placeholder="Например: НОРИЛЬСК · ЛЕТО 2026"
+                  rows={1}
+                  maxLength={80}
+                  className={`${FIELD} resize-none overflow-hidden`}
                 />
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <label className={LABEL}>ШРИФТ</label>
-                    <select value={text2Font} onChange={(e) => setText2Font(e.target.value)} className={FIELD}>
-                      {FONTS.map((f) => <option key={f.label} value={f.value}>{f.label}</option>)}
-                    </select>
+                    <button
+                      type="button"
+                      onClick={() => setFontModal(true)}
+                      className={`${FIELD} mt-1 flex items-center justify-between gap-1 text-left nx-press`}
+                    >
+                      <Type className="w-3.5 h-3.5 text-gray-500 shrink-0" />
+                      <span className="truncate flex-1" style={{ fontFamily }}>{FONTS.find((f) => f.value === fontFamily)?.label || 'Шрифт'}</span>
+                      <ChevronDown className="w-3.5 h-3.5 text-gray-500 shrink-0" />
+                    </button>
                   </div>
                   <div>
-                    <label className={LABEL}>РАЗМЕР: {text2Size}</label>
-                    <input type="range" min={16} max={90} value={text2Size}
-                      onChange={(e) => setText2Size(Number(e.target.value))}
-                      className="w-full accent-[var(--color-primary)] mt-2" />
+                    <label className={LABEL}>РАЗМЕР: {fontSize}</label>
+                    <input type="range" min={30} max={120} value={fontSize} onChange={(e) => setFontSize(Number(e.target.value))} className="w-full accent-[var(--color-primary)] mt-2" />
                   </div>
                 </div>
-                <ColorField label="ЦВЕТ" value={text2Color} onChange={setText2Color} />
+                <ColorField label="ЦВЕТ ТЕКСТА" value={textColor} onChange={setTextColor} />
+                {/* неон */}
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-mono text-[10px] text-gray-300">НЕОН-СВЕЧЕНИЕ</span>
+                  <Switch on={neonOn} onToggle={() => setNeonOn((v) => !v)} label="Неон свечение текста" />
+                </div>
+                {neonOn && (
+                  <>
+                    <ColorField label="ЦВЕТ НЕОНА" value={neonColor} onChange={setNeonColor} />
+                    <div>
+                      <label className={LABEL}>СИЛА СВЕЧЕНИЯ: {neonIntensity}%</label>
+                      <input type="range" min={10} max={100} value={neonIntensity} onChange={(e) => setNeonIntensity(Number(e.target.value))} className="w-full accent-[var(--color-primary)]" />
+                    </div>
+                  </>
+                )}
+                {/* наклон */}
                 <div>
-                  <label className={LABEL}>НАКЛОН: {text2Angle}°</label>
-                  <input type="range" min={-40} max={40} value={text2Angle}
-                    onChange={(e) => setText2Angle(Number(e.target.value))}
-                    className="w-full accent-[var(--color-primary)]" />
+                  <label className={LABEL}>НАКЛОН: {textAngle}°</label>
+                  <input type="range" min={-40} max={40} value={textAngle} onChange={(e) => setTextAngle(Number(e.target.value))} className="w-full accent-[var(--color-primary)]" />
                 </div>
-                <p className="font-mono text-[9px] text-gray-600">второй текст можно перетаскивать по кадру</p>
-              </>
-            )}
-          </Panel>
-
-          {/* Фотофильтры */}
-          <Panel title="ФОТОФИЛЬТРЫ И ФОНЫ" visible={selected === 'photo'}>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className={LABEL}>ЯРКОСТЬ: {fBright}</label>
-                <input type="range" min={-100} max={100} value={fBright}
-                  onChange={(e) => setFBright(Number(e.target.value))}
-                  className="w-full accent-[var(--color-primary)]" />
-              </div>
-              <div>
-                <label className={LABEL}>КОНТРАСТ: {fContrast}</label>
-                <input type="range" min={-100} max={100} value={fContrast}
-                  onChange={(e) => setFContrast(Number(e.target.value))}
-                  className="w-full accent-[var(--color-primary)]" />
-              </div>
-              <div>
-                <label className={LABEL}>НАСЫЩЕННОСТЬ: {fSat}</label>
-                <input type="range" min={-100} max={100} value={fSat}
-                  onChange={(e) => setFSat(Number(e.target.value))}
-                  className="w-full accent-[var(--color-primary)]" />
-              </div>
-              <div>
-                <label className={LABEL}>ТЕМПЕРАТУРА: {fTemp}</label>
-                <input type="range" min={-100} max={100} value={fTemp}
-                  onChange={(e) => setFTemp(Number(e.target.value))}
-                  className="w-full accent-[var(--color-primary)]" />
-              </div>
-            </div>
-            <div className="flex items-center justify-between gap-2">
-              <span className="font-mono text-[10px] text-gray-300">РАЗМЫТЫЙ ФОН ИЗ ФОТО</span>
-              <Switch on={bgBlurOn} onToggle={() => setBgBlurOn((v) => !v)} label="Размытый фон" />
-            </div>
-            <div className="flex items-center justify-between gap-2">
-              <span className="font-mono text-[10px] text-gray-300">ВИНЬЕТКА</span>
-              <Switch on={vigOn} onToggle={() => setVigOn((v) => !v)} label="Виньетка" />
-            </div>
-            {vigOn && (
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className={LABEL}>СИЛА: {vigStrength}%</label>
-                  <input type="range" min={10} max={100} value={vigStrength}
-                    onChange={(e) => setVigStrength(Number(e.target.value))}
-                    className="w-full accent-[var(--color-primary)]" />
+                {/* обводка букв */}
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-mono text-[10px] text-gray-300">ОБВОДКА БУКВ</span>
+                  <Switch on={strokeOn} onToggle={() => setStrokeOn((v) => !v)} label="Обводка букв" />
                 </div>
-                <div>
-                  <label className={LABEL}>РАДИУС: {vigRadius}%</label>
-                  <input type="range" min={10} max={100} value={vigRadius}
-                    onChange={(e) => setVigRadius(Number(e.target.value))}
-                    className="w-full accent-[var(--color-primary)]" />
-                </div>
-              </div>
-            )}
-            <div className="flex items-center justify-between gap-2">
-              <span className="font-mono text-[10px] text-gray-300">ЗЕРНО ПЛЁНКИ</span>
-              <Switch on={grainOn} onToggle={() => setGrainOn((v) => !v)} label="Зерно плёнки" />
-            </div>
-            {grainOn && (
-              <div>
-                <label className={LABEL}>СИЛА ЗЕРНА: {grainIntensity}%</label>
-                <input type="range" min={5} max={100} value={grainIntensity}
-                  onChange={(e) => setGrainIntensity(Number(e.target.value))}
-                  className="w-full accent-[var(--color-primary)]" />
-              </div>
-            )}
-            <div className="flex items-center justify-between gap-2">
-              <span className="font-mono text-[10px] text-gray-300">ГЛИТЧ-ХРОМАТИКА</span>
-              <Switch on={glitchOn} onToggle={() => setGlitchOn((v) => !v)} label="Глитч-хроматика" />
-            </div>
-            {glitchOn && (
-              <div>
-                <label className={LABEL}>СИЛА ГЛИТЧА: {glitchStrength}%</label>
-                <input type="range" min={5} max={100} value={glitchStrength}
-                  onChange={(e) => setGlitchStrength(Number(e.target.value))}
-                  className="w-full accent-[var(--color-primary)]" />
-              </div>
-            )}
-          </Panel>
-
-          {/* Декор */}
-          <Panel title="ДЕКОР: БЕЙДЖ / ЧИСЛО / QR" visible={selected === 'badge' || selected === 'num' || selected === 'wm' || selected === 'qr' || selected === 'shape'}>
-            <div className="flex items-center justify-between gap-2">
-              <span className="font-mono text-[10px] text-gray-300">БЕЙДЖ-ТАБЛИЧКА</span>
-              <Switch on={badgeOn} onToggle={() => setBadgeOn((v) => !v)} label="Бейдж" />
-            </div>
-            {badgeOn && (
-              <>
-                <div className="flex flex-wrap gap-1.5">
-                  {['НОВИНКА', 'СКИДКА', 'ТОП', 'СОБЫТИЕ'].map((b) => (
-                    <button key={b} onClick={() => setBadgeText(b)} className={chip(badgeText === b)}>{b}</button>
-                  ))}
-                </div>
-                <input value={badgeText} onChange={(e) => setBadgeText(e.target.value)} className={FIELD} maxLength={20} />
+                {strokeOn && (
+                  <>
+                    <ColorField label="ЦВЕТ ОБВОДКИ" value={strokeColor} onChange={setStrokeColor} />
+                    <div>
+                      <label className={LABEL}>ТОЛЩИНА ОБВОДКИ: {strokeWidth}%</label>
+                      <input type="range" min={5} max={100} value={strokeWidth} onChange={(e) => setStrokeWidth(Number(e.target.value))} className="w-full accent-[var(--color-primary)]" />
+                    </div>
+                  </>
+                )}
+                {/* типографика */}
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className={LABEL}>ФОН БЕЙДЖА</label>
-                    <input type="color" value={badgeBg} onChange={(e) => setBadgeBg(e.target.value)}
-                      className="w-full h-8 mt-1 rounded-md cursor-pointer bg-transparent border border-gray-700" />
+                    <label className={LABEL}>ИНТЕРВАЛ СТРОК: {(lineHeight / 100).toFixed(2)}</label>
+                    <input type="range" min={80} max={200} value={lineHeight} onChange={(e) => setLineHeight(Number(e.target.value))} className="w-full accent-[var(--color-primary)]" />
                   </div>
                   <div>
-                    <label className={LABEL}>ТЕКСТ БЕЙДЖА</label>
-                    <input type="color" value={badgeColor} onChange={(e) => setBadgeColor(e.target.value)}
-                      className="w-full h-8 mt-1 rounded-md cursor-pointer bg-transparent border border-gray-700" />
+                    <label className={LABEL}>РАЗРЯДКА: {(letterSpacing / 10).toFixed(1)}</label>
+                    <input type="range" min={-20} max={120} value={letterSpacing} onChange={(e) => setLetterSpacing(Number(e.target.value))} className="w-full accent-[var(--color-primary)]" />
                   </div>
                 </div>
-                <p className="font-mono text-[9px] text-gray-600">бейдж можно перетащить прямо по кадру</p>
-              </>
-            )}
-
-            <div className="flex items-center justify-between gap-2">
-              <span className="font-mono text-[10px] text-gray-300">КРУПНОЕ ЧИСЛО</span>
-              <Switch on={numOn} onToggle={() => setNumOn((v) => !v)} label="Крупное число" />
-            </div>
-            {numOn && (
-              <>
-                <input value={numText} onChange={(e) => setNumText(e.target.value)} className={FIELD} maxLength={12} />
-                <div className="flex flex-wrap gap-1.5">
-                  {([['outline', 'КОНТУР'], ['neon', 'НЕОН'], ['plate', 'ПЛАШКА']] as [NumStyle, string][]).map(([id, lb]) => (
-                    <button key={id} onClick={() => setNumStyle(id)} className={chip(numStyle === id)}
-                      style={numStyle === id ? { background: 'var(--color-primary)' } : undefined}>{lb}</button>
-                  ))}
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className={LABEL}>ЦВЕТ</label>
-                    <input type="color" value={numColor} onChange={(e) => setNumColor(e.target.value)}
-                      className="w-full h-8 mt-1 rounded-md cursor-pointer bg-transparent border border-gray-700" />
-                  </div>
-                  <div>
-                    <label className={LABEL}>РАЗМЕР: {numSize}%</label>
-                    <input type="range" min={6} max={30} value={numSize}
-                      onChange={(e) => setNumSize(Number(e.target.value))}
-                      className="w-full accent-[var(--color-primary)] mt-2" />
-                  </div>
-                </div>
-              </>
-            )}
-
-            <div className="flex items-center justify-between gap-2">
-              <span className="font-mono text-[10px] text-gray-300">ВОДЯНОЙ ЗНАК</span>
-              <Switch on={wmOn} onToggle={() => setWmOn((v) => !v)} label="Водяной знак" />
-            </div>
-            {wmOn && (
-              <>
-                <input value={wmText} onChange={(e) => setWmText(e.target.value)} className={FIELD} maxLength={30} />
-                <p className="font-mono text-[9px] text-gray-600">водяной знак можно перетащить по кадру</p>
+                {/* регистр */}
                 <div>
-                  <label className={LABEL}>ПРОЗРАЧНОСТЬ: {wmOpacity}%</label>
-                  <input type="range" min={10} max={100} value={wmOpacity}
-                    onChange={(e) => setWmOpacity(Number(e.target.value))}
-                    className="w-full accent-[var(--color-primary)]" />
-                </div>
-              </>
-            )}
-
-            <div className="flex items-center justify-between gap-2">
-              <span className="font-mono text-[10px] text-gray-300">QR-КОД</span>
-              <Switch on={qrOn} onToggle={() => setQrOn((v) => !v)} label="QR-код" />
-            </div>
-            {qrOn && (
-              <>
-                <input value={qrData} onChange={(e) => setQrData(e.target.value)} className={FIELD} maxLength={200} placeholder="https://... или текст" />
-                <p className="font-mono text-[9px] text-gray-600">QR можно перетащить по кадру</p>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className={LABEL}>РАЗМЕР: {qrSize}%</label>
-                    <input type="range" min={8} max={30} value={qrSize}
-                      onChange={(e) => setQrSize(Number(e.target.value))}
-                      className="w-full accent-[var(--color-primary)]" />
-                  </div>
-                  <div>
-                    <label className={LABEL}>СКРУГЛЕНИЕ: {qrRadius}%</label>
-                    <input type="range" min={0} max={50} value={qrRadius}
-                      onChange={(e) => setQrRadius(Number(e.target.value))}
-                      className="w-full accent-[var(--color-primary)]" />
+                  <label className={LABEL}>РЕГИСТР</label>
+                  <div className="flex flex-wrap gap-1.5 mt-1">
+                    {([['none', 'Как есть'], ['upper', 'ПРОПИСНЫЕ'], ['lower', 'строчные'], ['title', 'Заглавные']] as [TextCase, string][]).map(([id, lb]) => (
+                      <button key={id} onClick={() => setTextCase(id)} className={chip(textCase === id)} style={textCase === id ? { background: 'var(--color-primary)' } : undefined}>{lb}</button>
+                    ))}
                   </div>
                 </div>
-              </>
-            )}
-
-            <div className="flex items-center justify-between gap-2">
-              <span className="font-mono text-[10px] text-gray-300">СТИКЕР-ФИГУРА</span>
-              <Switch on={shapeOn} onToggle={() => setShapeOn((v) => !v)} label="Стикер-фигура" />
-            </div>
-            {shapeOn && (
-              <>
-                <div className="flex flex-wrap gap-1.5">
-                  {([['star', 'ЗВЕЗДА'], ['circle', 'КРУГ'], ['stamp', 'ПЛАШКА']] as [ShapeKind, string][]).map(([id, lb]) => (
-                    <button key={id} onClick={() => setShapeKind(id)} className={chip(shapeKind === id)}
-                      style={shapeKind === id ? { background: 'var(--color-primary)' } : undefined}>{lb}</button>
-                  ))}
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className={LABEL}>ЦВЕТ</label>
-                    <input type="color" value={shapeColor} onChange={(e) => setShapeColor(e.target.value)}
-                      className="w-full h-8 mt-1 rounded-md cursor-pointer bg-transparent border border-gray-700" />
-                  </div>
-                  <div>
-                    <label className={LABEL}>РАЗМЕР: {shapeSize}%</label>
-                    <input type="range" min={5} max={35} value={shapeSize}
-                      onChange={(e) => setShapeSize(Number(e.target.value))}
-                      className="w-full accent-[var(--color-primary)] mt-2" />
-                  </div>
-                </div>
+                {/* форма строки */}
                 <div>
-                  <label className={LABEL}>ПОВОРОТ: {shapeRot}°</label>
-                  <input type="range" min={-180} max={180} value={shapeRot}
-                    onChange={(e) => setShapeRot(Number(e.target.value))}
-                    className="w-full accent-[var(--color-primary)]" />
+                  <label className={LABEL}>ФОРМА СТРОКИ</label>
+                  <div className="flex flex-wrap gap-1.5 mt-1">
+                    <button onClick={() => setTextShape2('straight')} className={chip(textShape2 === 'straight')} style={textShape2 === 'straight' ? { background: 'var(--color-primary)' } : undefined}>ПРЯМАЯ</button>
+                    <button onClick={() => setTextShape2('circle')} className={chip(textShape2 === 'circle')} style={textShape2 === 'circle' ? { background: 'var(--color-primary)' } : undefined}>ПО КРУГУ 360°</button>
+                  </div>
                 </div>
-                <p className="font-mono text-[9px] text-gray-600">фигуру можно перетаскивать по кадру</p>
-              </>
-            )}
-          </Panel>
-
-          {/* Плашка */}
-          <Panel
-            title="ПЛАШКА ПОД ТЕКСТОМ"
-            visible={selected === 'text'}
-            right={<Switch on={plateOn} onToggle={() => setPlateOn((v) => !v)} label="Плашка под текстом" />}
-          >
-            {plateOn && (
-              <>
-                <div className="flex flex-wrap gap-1.5">
+                {/* быстрые фразы */}
+                <div>
+                  <label className={LABEL}>БЫСТРЫЕ ФРАЗЫ</label>
+                  <div className="flex flex-wrap gap-1.5 mt-1">
+                    {SLOGANS.map((s) => (
+                      <button key={s} onClick={() => setText(s)} className={chip(false)}>{s}</button>
+                    ))}
+                    <button onClick={insertDate} className={chip(false)} title="Вставить сегодняшнюю дату">+ ДАТА</button>
+                    <button onClick={fitTwoLines} className={chip(false)} title="Подобрать размер шрифта под 2 строки">В 2 СТРОКИ</button>
+                  </div>
+                </div>
+                {/* позиция + сброс */}
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-mono text-[9px] text-gray-600">
+                    {plateOn && plateStyle === 'band'
+                      ? 'текст закреплён в полосе снизу'
+                      : textY == null ? 'позиция: низ по центру (авто)' : `позиция: ${Math.round(textX * 100)}% × ${Math.round(textY * 100)}%`}
+                  </p>
                   <button
-                    onClick={() => setPlateStyle('capsule')}
-                    className={chip(plateStyle === 'capsule')}
-                    style={plateStyle === 'capsule' ? { background: 'var(--color-primary)' } : undefined}
-                  >КАПСУЛА</button>
-                  <button
-                    onClick={() => setPlateStyle('band')}
-                    className={chip(plateStyle === 'band')}
-                    style={plateStyle === 'band' ? { background: 'var(--color-primary)' } : undefined}
-                  >ПОЛОСА СНИЗУ</button>
+                    onClick={() => { setTextX(0.5); setTextY(null); setTextAngle(0); }}
+                    className="btn-ghost nx-press px-2.5 py-1.5 min-h-[32px] rounded-lg font-mono text-[10px] shrink-0"
+                    title="Вернуть текст вниз по центру, снять наклон"
+                  >СБРОС</button>
                 </div>
-                <div className="flex flex-wrap gap-1.5">
-                  <button
-                    onClick={() => setPlateFill('solid')}
-                    className={chip(plateFill === 'solid')}
-                    style={plateFill === 'solid' ? { background: 'var(--color-primary)' } : undefined}
-                  >СПЛОШНОЙ</button>
-                  <button
-                    onClick={() => setPlateFill('gradient')}
-                    className={chip(plateFill === 'gradient')}
-                    style={plateFill === 'gradient' ? { background: 'var(--color-primary)' } : undefined}
-                  >ГРАДИЕНТ</button>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <ColorField label={plateFill === 'gradient' ? 'ЦВЕТ A' : 'ЦВЕТ ПЛАШКИ'} value={plateColor} onChange={setPlateColor} />
-                  {plateFill === 'gradient' && (
-                    <ColorField label="ЦВЕТ B" value={plateColor2} onChange={setPlateColor2} />
-                  )}
-                </div>
-                {plateFill === 'gradient' && (
-                  <div>
-                    <label className={LABEL}>НАПРАВЛЕНИЕ ГРАДИЕНТА: {plateAngle}°</label>
-                    <input type="range" min={0} max={360} value={plateAngle}
-                      onChange={(e) => setPlateAngle(Number(e.target.value))}
-                      className="w-full accent-[var(--color-primary)]" />
+              </div>
+              {/* Градиент и тень */}
+              <Panel
+                title="ГРАДИЕНТ И ТЕНЬ"
+                defaultOpen
+                right={(
+                  <div className="flex items-center gap-2">
+                    <Switch on={textGradOn} onToggle={() => setTextGradOn((v) => !v)} label="Градиент текста" />
+                    <Switch on={shadowOn} onToggle={() => setShadowOn((v) => !v)} label="Тень текста" />
                   </div>
                 )}
-                <div>
-                  <label className={LABEL}>ПРОЗРАЧНОСТЬ ПЛАШКИ: {plateAlpha}%</label>
-                  <input type="range" min={10} max={100} value={plateAlpha}
-                    onChange={(e) => setPlateAlpha(Number(e.target.value))}
-                    className="w-full accent-[var(--color-primary)]" />
-                </div>
-                <div>
-                  <label className={LABEL}>БЛЮР ФОТО ПОД ПЛАШКОЙ: {plateBlur}%</label>
-                  <input type="range" min={0} max={100} value={plateBlur}
-                    onChange={(e) => setPlateBlur(Number(e.target.value))}
-                    className="w-full accent-[var(--color-primary)]" />
-                </div>
-              </>
-            )}
-          </Panel>
-
-          {/* Сияние */}
-          <Panel
-            title="СИЯНИЕ И ШТОРЫ"
-            visible={selected === 'frame' || selected === 'effects'}
-            right={<Switch on={auroraOn} onToggle={() => setAuroraOn((v) => !v)} label="Сияние рамки" />}
-          >
-            {auroraOn && (
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className={LABEL}>ЯРКОСТЬ: {brightness}%</label>
-                  <input type="range" min={10} max={100} value={brightness}
-                    onChange={(e) => setBrightness(Number(e.target.value))}
-                    className="w-full accent-[var(--color-primary)]" />
-                </div>
-                <div>
-                  <label className={LABEL}>СКОРОСТЬ: {(speed / 100).toFixed(1)}×</label>
-                  <input type="range" min={20} max={250} value={speed}
-                    onChange={(e) => setSpeed(Number(e.target.value))}
-                    className="w-full accent-[var(--color-primary)]" />
-                </div>
-              </div>
-            )}
-            <div className="flex items-center justify-between gap-2">
-              <span className="font-mono text-[10px] text-gray-300">ШТОРЫ ВНУТРИ КАДРА</span>
-              <Switch on={curtainsOn} onToggle={() => setCurtainsOn((v) => !v)} label="Шторы сияния" />
-            </div>
-            {curtainsOn && (
-              <>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className={LABEL}>ЯРКОСТЬ ШТОР: {curtainIntensity}%</label>
-                    <input type="range" min={10} max={100} value={curtainIntensity}
-                      onChange={(e) => setCurtainIntensity(Number(e.target.value))}
-                      className="w-full accent-[var(--color-primary)]" />
-                  </div>
-                  <div>
-                    <label className={LABEL}>СКОРОСТЬ ШТОР: {(curtainSpeed / 100).toFixed(1)}×</label>
-                    <input type="range" min={20} max={250} value={curtainSpeed}
-                      onChange={(e) => setCurtainSpeed(Number(e.target.value))}
-                      className="w-full accent-[var(--color-primary)]" />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className={LABEL}>НАКЛОН ШТОР: {curtainAngle}°</label>
-                    <input type="range" min={-45} max={45} value={curtainAngle}
-                      onChange={(e) => setCurtainAngle(Number(e.target.value))}
-                      className="w-full accent-[var(--color-primary)]" />
-                  </div>
-                  <div>
-                    <label className={LABEL}>ШИРИНА: {curtainWidth}%</label>
-                    <input type="range" min={50} max={200} value={curtainWidth}
-                      onChange={(e) => setCurtainWidth(Number(e.target.value))}
-                      className="w-full accent-[var(--color-primary)]" />
-                  </div>
-                </div>
-                <div>
-                  <label className={LABEL}>СТОЛБЦЫ: {curtainCount}</label>
-                  <input type="range" min={3} max={8} value={curtainCount}
-                    onChange={(e) => setCurtainCount(Number(e.target.value))}
-                    className="w-full accent-[var(--color-primary)]" />
-                </div>
-              </>
-            )}
-          </Panel>
-
-          {/* Эффекты */}
-          <Panel title="ЭФФЕКТЫ ПОВЕРХ" visible={selected === 'effects'}>
-            {/* ветер и снег — общая пара слайдеров */}
-            <div className="flex items-center justify-between gap-2">
-              <span className="font-mono text-[10px] text-gray-300">КОСМИЧЕСКИЙ ВЕТЕР</span>
-              <Switch on={windOn} onToggle={() => setWindOn((v) => !v)} label="Космический ветер" />
-            </div>
-            <div className="flex items-center justify-between gap-2">
-              <span className="font-mono text-[10px] text-gray-300">ПАДАЮЩИЙ СНЕГ</span>
-              <Switch on={snowOn} onToggle={() => setSnowOn((v) => !v)} label="Падающий снег" />
-            </div>
-            {(windOn || snowOn) && (
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className={LABEL}>ПЛОТНОСТЬ: {fxIntensity}%</label>
-                  <input type="range" min={15} max={100} value={fxIntensity}
-                    onChange={(e) => setFxIntensity(Number(e.target.value))}
-                    className="w-full accent-[var(--color-primary)]" />
-                </div>
-                <div>
-                  <label className={LABEL}>СКОРОСТЬ: {(fxSpeed / 100).toFixed(1)}×</label>
-                  <input type="range" min={20} max={250} value={fxSpeed}
-                    onChange={(e) => setFxSpeed(Number(e.target.value))}
-                    className="w-full accent-[var(--color-primary)]" />
-                </div>
-              </div>
-            )}
-
-            {/* новые эффекты — у каждого свои плотность/скорость */}
-            {([
-              ['ЛИСТЬЯ', leavesOn, setLeavesOn, leavesIntensity, setLeavesIntensity, leavesSpeed, setLeavesSpeed],
-              ['ДОЖДЬ', rainOn, setRainOn, rainIntensity, setRainIntensity, rainSpeed, setRainSpeed],
-              ['ИСКРЫ', sparksOn, setSparksOn, sparksIntensity, setSparksIntensity, sparksSpeed, setSparksSpeed],
-              ['БОКЕ-ПЫЛЬ', bokehOn, setBokehOn, bokehIntensity, setBokehIntensity, bokehSpeed, setBokehSpeed],
-            ] as [string, boolean, (v: boolean) => void, number, (v: number) => void, number, (v: number) => void][]).map(
-              ([lb, on, set, int, setInt, spd, setSpd]) => (
-                <div key={lb} className="space-y-1.5">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-mono text-[10px] text-gray-300">{lb}</span>
-                    <Switch on={on} onToggle={() => set(!on)} label={lb} />
-                  </div>
-                  {on && (
-                    <div className="grid grid-cols-2 gap-2">
+              >
+                {textGradOn && (
+                  <>
+                    <div className="grid grid-cols-3 gap-2">
+                      {([['ЦВЕТ 1', textGrad1, setTextGrad1], ['ЦВЕТ 2', textGrad2, setTextGrad2], ['ЦВЕТ 3', textGrad3, setTextGrad3]] as [string, string, (c: string) => void][]).map(([lb, val, set]) => (
+                        <div key={lb}>
+                          <label className={LABEL}>{lb}</label>
+                          <input type="color" value={val} onChange={(e) => set(e.target.value)} className="w-full h-8 mt-1 rounded-md cursor-pointer bg-transparent border border-gray-700" />
+                        </div>
+                      ))}
+                    </div>
+                    <div>
+                      <label className={LABEL}>УГОЛ ГРАДИЕНТА: {textGradAngle}°</label>
+                      <input type="range" min={0} max={360} value={textGradAngle} onChange={(e) => setTextGradAngle(Number(e.target.value))} className="w-full accent-[var(--color-primary)]" />
+                    </div>
+                  </>
+                )}
+                {shadowOn && (
+                  <>
+                    <ColorField label="ЦВЕТ ТЕНИ" value={shadowColor} onChange={setShadowColor} />
+                    <div className="grid grid-cols-3 gap-2">
                       <div>
-                        <label className={LABEL}>ПЛОТНОСТЬ: {int}%</label>
-                        <input type="range" min={10} max={100} value={int}
-                          onChange={(e) => setInt(Number(e.target.value))}
-                          className="w-full accent-[var(--color-primary)]" />
+                        <label className={LABEL}>СДВИГ X: {shadowDx}</label>
+                        <input type="range" min={-20} max={20} value={shadowDx} onChange={(e) => setShadowDx(Number(e.target.value))} className="w-full accent-[var(--color-primary)]" />
                       </div>
                       <div>
-                        <label className={LABEL}>СКОРОСТЬ: {(spd / 100).toFixed(1)}×</label>
-                        <input type="range" min={20} max={250} value={spd}
-                          onChange={(e) => setSpd(Number(e.target.value))}
-                          className="w-full accent-[var(--color-primary)]" />
+                        <label className={LABEL}>СДВИГ Y: {shadowDy}</label>
+                        <input type="range" min={-20} max={20} value={shadowDy} onChange={(e) => setShadowDy(Number(e.target.value))} className="w-full accent-[var(--color-primary)]" />
+                      </div>
+                      <div>
+                        <label className={LABEL}>РАЗМЫТИЕ: {shadowBlur}</label>
+                        <input type="range" min={0} max={40} value={shadowBlur} onChange={(e) => setShadowBlur(Number(e.target.value))} className="w-full accent-[var(--color-primary)]" />
                       </div>
                     </div>
+                  </>
+                )}
+              </Panel>
+              {/* Анимация текста */}
+              <Panel title="АНИМАЦИЯ ТЕКСТА" defaultOpen right={<Switch on={textAnimOn} onToggle={() => setTextAnimOn((v) => !v)} label="Анимация текста" />}>
+                {textAnimOn && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {([['fade', 'ПОЯВЛЕНИЕ'], ['slide', 'СДВИГ'], ['type', 'ПЕЧАТЬ'], ['pulse', 'ПУЛЬС НЕОНА']] as [Exclude<TextAnim, 'none'>, string][]).map(([id, lb]) => (
+                      <button key={id} onClick={() => setTextAnimKind(id)} className={chip(textAnimKind === id)} style={textAnimKind === id ? { background: 'var(--color-primary)' } : undefined}>{lb}</button>
+                    ))}
+                  </div>
+                )}
+              </Panel>
+              {/* Плашка под текстом */}
+              <Panel title="ПЛАШКА ПОД ТЕКСТОМ" defaultOpen right={<Switch on={plateOn} onToggle={() => setPlateOn((v) => !v)} label="Плашка под текстом" />}>
+                {plateOn && (
+                  <>
+                    <div className="flex flex-wrap gap-1.5">
+                      <button onClick={() => setPlateStyle('capsule')} className={chip(plateStyle === 'capsule')} style={plateStyle === 'capsule' ? { background: 'var(--color-primary)' } : undefined}>КАПСУЛА</button>
+                      <button onClick={() => setPlateStyle('band')} className={chip(plateStyle === 'band')} style={plateStyle === 'band' ? { background: 'var(--color-primary)' } : undefined}>ПОЛОСА СНИЗУ</button>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      <button onClick={() => setPlateFill('solid')} className={chip(plateFill === 'solid')} style={plateFill === 'solid' ? { background: 'var(--color-primary)' } : undefined}>СПЛОШНОЙ</button>
+                      <button onClick={() => setPlateFill('gradient')} className={chip(plateFill === 'gradient')} style={plateFill === 'gradient' ? { background: 'var(--color-primary)' } : undefined}>ГРАДИЕНТ</button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <ColorField label={plateFill === 'gradient' ? 'ЦВЕТ A' : 'ЦВЕТ ПЛАШКИ'} value={plateColor} onChange={setPlateColor} />
+                      {plateFill === 'gradient' && (
+                        <ColorField label="ЦВЕТ B" value={plateColor2} onChange={setPlateColor2} />
+                      )}
+                    </div>
+                    {plateFill === 'gradient' && (
+                      <div>
+                        <label className={LABEL}>НАПРАВЛЕНИЕ ГРАДИЕНТА: {plateAngle}°</label>
+                        <input type="range" min={0} max={360} value={plateAngle} onChange={(e) => setPlateAngle(Number(e.target.value))} className="w-full accent-[var(--color-primary)]" />
+                      </div>
+                    )}
+                    <div>
+                      <label className={LABEL}>ПРОЗРАЧНОСТЬ ПЛАШКИ: {plateAlpha}%</label>
+                      <input type="range" min={10} max={100} value={plateAlpha} onChange={(e) => setPlateAlpha(Number(e.target.value))} className="w-full accent-[var(--color-primary)]" />
+                    </div>
+                    <div>
+                      <label className={LABEL}>БЛЮР ФОТО ПОД ПЛАШКОЙ: {plateBlur}%</label>
+                      <input type="range" min={0} max={100} value={plateBlur} onChange={(e) => setPlateBlur(Number(e.target.value))} className="w-full accent-[var(--color-primary)]" />
+                    </div>
+                  </>
+                )}
+              </Panel>
+            </div>
+          )}
+
+          {/* ─── ПОДПИСЬ (второй текст) ─── */}
+          {section === 'text2' && (
+            <div className="space-y-3">
+              <span className="nx-eyebrow">ПОДПИСЬ</span>
+              <div className="glass rounded-xl p-2.5 space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-mono text-[10px] text-gray-300">ВТОРОЙ ТЕКСТ</span>
+                  <Switch on={text2On} onToggle={() => setText2On((v) => !v)} label="Второй текст" />
+                </div>
+                {text2On && (
+                  <>
+                    <input
+                      value={text2}
+                      onChange={(e) => setText2(e.target.value)}
+                      placeholder="Заголовок или подпись"
+                      className={FIELD}
+                      maxLength={60}
+                    />
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className={LABEL}>ШРИФТ</label>
+                        <select value={text2Font} onChange={(e) => setText2Font(e.target.value)} className={FIELD}>
+                          {FONTS.map((f) => <option key={f.label} value={f.value}>{f.label}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className={LABEL}>РАЗМЕР: {text2Size}</label>
+                        <input type="range" min={16} max={90} value={text2Size} onChange={(e) => setText2Size(Number(e.target.value))} className="w-full accent-[var(--color-primary)] mt-2" />
+                      </div>
+                    </div>
+                    <ColorField label="ЦВЕТ" value={text2Color} onChange={setText2Color} />
+                    <div>
+                      <label className={LABEL}>НАКЛОН: {text2Angle}°</label>
+                      <input type="range" min={-40} max={40} value={text2Angle} onChange={(e) => setText2Angle(Number(e.target.value))} className="w-full accent-[var(--color-primary)]" />
+                    </div>
+                    <p className="font-mono text-[9px] text-gray-600">второй текст можно перетаскивать по кадру</p>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ─── ЛОГОТИП ─── */}
+          {section === 'logo' && (
+            <div className="space-y-3">
+              <span className="nx-eyebrow">ЛОГОТИП</span>
+              <div className="glass rounded-xl p-2.5 space-y-2">
+                <div className="flex flex-wrap gap-1.5 items-center">
+                  <label className="btn-ghost nx-press px-2.5 py-1.5 min-h-[32px] rounded-lg font-mono text-[10px] flex items-center gap-1.5 cursor-pointer">
+                    <Upload className="w-3.5 h-3.5" /> {logo ? 'ЗАМЕНИТЬ' : 'PNG'}
+                    <input type="file" accept="image/*" className="hidden" onChange={(e) => { onPickLogo(e.target.files?.[0]); e.target.value = ''; }} />
+                  </label>
+                  {logo && (
+                    <button onClick={() => setLogo(null)} className="btn-ghost nx-press px-2.5 py-1.5 min-h-[32px] rounded-lg font-mono text-[10px]">УБРАТЬ</button>
                   )}
                 </div>
-              ),
-            )}
-          </Panel>
+                {logo && (
+                  <>
+                    <p className="font-mono text-[9px] text-gray-600">перетащите логотип прямо в кадре</p>
+                    <div>
+                      <label className={LABEL}>РАЗМЕР: {logoSize}%</label>
+                      <input type="range" min={5} max={30} value={logoSize} onChange={(e) => setLogoSize(Number(e.target.value))} className="w-full accent-[var(--color-primary)]" />
+                    </div>
+                    <div>
+                      <label className={LABEL}>СКРУГЛЕНИЕ: {logoRadius === 50 ? 'КРУГ' : `${logoRadius}%`}</label>
+                      <input type="range" min={0} max={50} value={logoRadius} onChange={(e) => setLogoRadius(Number(e.target.value))} className="w-full accent-[var(--color-primary)]" />
+                    </div>
+                    <div>
+                      <label className={LABEL}>ПРОЗРАЧНОСТЬ: {logoOpacity}%</label>
+                      <input type="range" min={10} max={100} value={logoOpacity} onChange={(e) => setLogoOpacity(Number(e.target.value))} className="w-full accent-[var(--color-primary)]" />
+                    </div>
+                  </>
+                )}
+                <div>
+                  <label className={LABEL}>ЛОГОТИП ОТНОСИТЕЛЬНО ТЕКСТА</label>
+                  <div className="flex flex-wrap gap-1.5 mt-1">
+                    <button onClick={() => setLogoUnderText(false)} className={chip(!logoUnderText)} style={!logoUnderText ? { background: 'var(--color-primary)' } : undefined}>ПОВЕРХ</button>
+                    <button onClick={() => setLogoUnderText(true)} className={chip(logoUnderText)} style={logoUnderText ? { background: 'var(--color-primary)' } : undefined}>ПОД ТЕКСТОМ</button>
+                  </div>
+                </div>
+                <p className="font-mono text-[9px] text-gray-600">перетащите логотип прямо в кадре</p>
+              </div>
+            </div>
+          )}
+
+          {/* ─── УКРАШЕНИЯ ─── */}
+          {section === 'decor' && (
+            <div className="space-y-3">
+              <span className="nx-eyebrow">УКРАШЕНИЯ</span>
+              <p className="font-mono text-[9px] text-gray-600">кликните объект на кадре или тяните его мышкой</p>
+              {/* Бейдж */}
+              <Panel title="БЕЙДЖ" defaultOpen right={<Switch on={badgeOn} onToggle={() => setBadgeOn((v) => !v)} label="Бейдж" />}>
+                {badgeOn && (
+                  <>
+                    <div className="flex flex-wrap gap-1.5">
+                      {['НОВИНКА', 'СКИДКА', 'ТОП', 'СОБЫТИЕ'].map((b) => (
+                        <button key={b} onClick={() => setBadgeText(b)} className={chip(badgeText === b)}>{b}</button>
+                      ))}
+                    </div>
+                    <input value={badgeText} onChange={(e) => setBadgeText(e.target.value)} className={FIELD} maxLength={20} />
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className={LABEL}>ФОН БЕЙДЖА</label>
+                        <input type="color" value={badgeBg} onChange={(e) => setBadgeBg(e.target.value)} className="w-full h-8 mt-1 rounded-md cursor-pointer bg-transparent border border-gray-700" />
+                      </div>
+                      <div>
+                        <label className={LABEL}>ТЕКСТ БЕЙДЖА</label>
+                        <input type="color" value={badgeColor} onChange={(e) => setBadgeColor(e.target.value)} className="w-full h-8 mt-1 rounded-md cursor-pointer bg-transparent border border-gray-700" />
+                      </div>
+                    </div>
+                    <p className="font-mono text-[9px] text-gray-600">бейдж можно перетащить прямо по кадру</p>
+                  </>
+                )}
+              </Panel>
+              {/* Крупное число */}
+              <Panel title="КРУПНОЕ ЧИСЛО" defaultOpen right={<Switch on={numOn} onToggle={() => setNumOn((v) => !v)} label="Крупное число" />}>
+                {numOn && (
+                  <>
+                    <input value={numText} onChange={(e) => setNumText(e.target.value)} className={FIELD} maxLength={12} />
+                    <div className="flex flex-wrap gap-1.5">
+                      {([['outline', 'КОНТУР'], ['neon', 'НЕОН'], ['plate', 'ПЛАШКА']] as [NumStyle, string][]).map(([id, lb]) => (
+                        <button key={id} onClick={() => setNumStyle(id)} className={chip(numStyle === id)} style={numStyle === id ? { background: 'var(--color-primary)' } : undefined}>{lb}</button>
+                      ))}
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className={LABEL}>ЦВЕТ</label>
+                        <input type="color" value={numColor} onChange={(e) => setNumColor(e.target.value)} className="w-full h-8 mt-1 rounded-md cursor-pointer bg-transparent border border-gray-700" />
+                      </div>
+                      <div>
+                        <label className={LABEL}>РАЗМЕР: {numSize}%</label>
+                        <input type="range" min={6} max={30} value={numSize} onChange={(e) => setNumSize(Number(e.target.value))} className="w-full accent-[var(--color-primary)] mt-2" />
+                      </div>
+                    </div>
+                  </>
+                )}
+              </Panel>
+              {/* Водяной знак */}
+              <Panel title="ВОДЯНОЙ ЗНАК" defaultOpen right={<Switch on={wmOn} onToggle={() => setWmOn((v) => !v)} label="Водяной знак" />}>
+                {wmOn && (
+                  <>
+                    <input value={wmText} onChange={(e) => setWmText(e.target.value)} className={FIELD} maxLength={30} />
+                    <p className="font-mono text-[9px] text-gray-600">водяной знак можно перетащить по кадру</p>
+                    <div>
+                      <label className={LABEL}>ПРОЗРАЧНОСТЬ: {wmOpacity}%</label>
+                      <input type="range" min={10} max={100} value={wmOpacity} onChange={(e) => setWmOpacity(Number(e.target.value))} className="w-full accent-[var(--color-primary)]" />
+                    </div>
+                  </>
+                )}
+              </Panel>
+              {/* QR-код */}
+              <Panel title="QR-КОД" defaultOpen right={<Switch on={qrOn} onToggle={() => setQrOn((v) => !v)} label="QR-код" />}>
+                {qrOn && (
+                  <>
+                    <input value={qrData} onChange={(e) => setQrData(e.target.value)} className={FIELD} maxLength={200} placeholder="https://... или текст" />
+                    <p className="font-mono text-[9px] text-gray-600">QR можно перетащить по кадру</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className={LABEL}>РАЗМЕР: {qrSize}%</label>
+                        <input type="range" min={8} max={30} value={qrSize} onChange={(e) => setQrSize(Number(e.target.value))} className="w-full accent-[var(--color-primary)]" />
+                      </div>
+                      <div>
+                        <label className={LABEL}>СКРУГЛЕНИЕ: {qrRadius}%</label>
+                        <input type="range" min={0} max={50} value={qrRadius} onChange={(e) => setQrRadius(Number(e.target.value))} className="w-full accent-[var(--color-primary)]" />
+                      </div>
+                    </div>
+                  </>
+                )}
+              </Panel>
+              {/* Стикер-фигура */}
+              <Panel title="СТИКЕР-ФИГУРА" defaultOpen right={<Switch on={shapeOn} onToggle={() => setShapeOn((v) => !v)} label="Стикер-фигура" />}>
+                {shapeOn && (
+                  <>
+                    <div className="flex flex-wrap gap-1.5">
+                      {([['star', 'ЗВЕЗДА'], ['circle', 'КРУГ'], ['stamp', 'ПЛАШКА']] as [ShapeKind, string][]).map(([id, lb]) => (
+                        <button key={id} onClick={() => setShapeKind(id)} className={chip(shapeKind === id)} style={shapeKind === id ? { background: 'var(--color-primary)' } : undefined}>{lb}</button>
+                      ))}
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className={LABEL}>ЦВЕТ</label>
+                        <input type="color" value={shapeColor} onChange={(e) => setShapeColor(e.target.value)} className="w-full h-8 mt-1 rounded-md cursor-pointer bg-transparent border border-gray-700" />
+                      </div>
+                      <div>
+                        <label className={LABEL}>РАЗМЕР: {shapeSize}%</label>
+                        <input type="range" min={5} max={35} value={shapeSize} onChange={(e) => setShapeSize(Number(e.target.value))} className="w-full accent-[var(--color-primary)] mt-2" />
+                      </div>
+                    </div>
+                    <div>
+                      <label className={LABEL}>ПОВОРОТ: {shapeRot}°</label>
+                      <input type="range" min={-180} max={180} value={shapeRot} onChange={(e) => setShapeRot(Number(e.target.value))} className="w-full accent-[var(--color-primary)]" />
+                    </div>
+                    <p className="font-mono text-[9px] text-gray-600">фигуру можно перетаскивать по кадру</p>
+                  </>
+                )}
+              </Panel>
+            </div>
+          )}
+
+          {/* ─── РАМКА ─── */}
+          {section === 'frame' && (
+            <div className="space-y-3">
+              <span className="nx-eyebrow">РАМКА</span>
+              <Panel title="ПАРАМЕТРЫ РАМКИ" defaultOpen>
+                <div>
+                  <label className={LABEL}>СТИЛЬ</label>
+                  <div className="flex flex-wrap gap-1.5 mt-1">
+                    {([['aurora', 'АВРОРА'], ['neon', 'НЕОН'], ['glass', 'СТЕКЛО'], ['fire', 'ОГОНЬ'], ['ice', 'ЛЁД']] as [FrameStyle, string][]).map(([id, lb]) => (
+                      <button key={id} onClick={() => setFrameStyle(id)} className={chip(frameStyle === id)} style={frameStyle === id ? { background: 'var(--color-primary)' } : undefined}>{lb}</button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className={LABEL}>ВИД</label>
+                  <div className="flex flex-wrap gap-1.5 mt-1">
+                    <button onClick={() => setFrameMode('full')} className={chip(frameMode === 'full')} style={frameMode === 'full' ? { background: 'var(--color-primary)' } : undefined}>ПОЛНАЯ</button>
+                    <button onClick={() => setFrameMode('corners')} className={chip(frameMode === 'corners')} style={frameMode === 'corners' ? { background: 'var(--color-primary)' } : undefined}>УГЛОВЫЕ СКОБКИ</button>
+                  </div>
+                </div>
+                <div>
+                  <label className={LABEL}>ЛИНИЯ</label>
+                  <div className="flex flex-wrap gap-1.5 mt-1">
+                    {([['solid', 'ПЛОТНАЯ'], ['dashed', 'ПУНКТИР'], ['double', 'ДВОЙНАЯ']] as [FrameLine, string][]).map(([id, lb]) => (
+                      <button key={id} onClick={() => setFrameLine(id)} className={chip(frameLine === id)} style={frameLine === id ? { background: 'var(--color-primary)' } : undefined}>{lb}</button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className={LABEL}>СКРУГЛЕНИЕ УГЛОВ: {preset.radius === 'circle' ? 'КРУГ' : `${frameRadius}%`}</label>
+                  <input type="range" min={0} max={12} step={0.5} value={frameRadius} disabled={preset.radius === 'circle'} onChange={(e) => setFrameRadius(Number(e.target.value))} className="w-full accent-[var(--color-primary)] disabled:opacity-30" />
+                </div>
+                <div>
+                  <label className={LABEL}>ТОЛЩИНА ГРАНИ: {frameWidth}%</label>
+                  <input type="range" min={50} max={250} value={frameWidth} onChange={(e) => setFrameWidth(Number(e.target.value))} className="w-full accent-[var(--color-primary)]" />
+                </div>
+              </Panel>
+              <Panel title="СИЯНИЕ" defaultOpen right={<Switch on={auroraOn} onToggle={() => setAuroraOn((v) => !v)} label="Сияние рамки" />}>
+                {auroraOn && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className={LABEL}>ЯРКОСТЬ: {brightness}%</label>
+                      <input type="range" min={10} max={100} value={brightness} onChange={(e) => setBrightness(Number(e.target.value))} className="w-full accent-[var(--color-primary)]" />
+                    </div>
+                    <div>
+                      <label className={LABEL}>СКОРОСТЬ: {(speed / 100).toFixed(1)}×</label>
+                      <input type="range" min={20} max={250} value={speed} onChange={(e) => setSpeed(Number(e.target.value))} className="w-full accent-[var(--color-primary)]" />
+                    </div>
+                  </div>
+                )}
+              </Panel>
+              <Panel title="ШТОРЫ" defaultOpen right={<Switch on={curtainsOn} onToggle={() => setCurtainsOn((v) => !v)} label="Шторы сияния" />}>
+                {curtainsOn && (
+                  <>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className={LABEL}>ЯРКОСТЬ ШТОР: {curtainIntensity}%</label>
+                        <input type="range" min={10} max={100} value={curtainIntensity} onChange={(e) => setCurtainIntensity(Number(e.target.value))} className="w-full accent-[var(--color-primary)]" />
+                      </div>
+                      <div>
+                        <label className={LABEL}>СКОРОСТЬ ШТОР: {(curtainSpeed / 100).toFixed(1)}×</label>
+                        <input type="range" min={20} max={250} value={curtainSpeed} onChange={(e) => setCurtainSpeed(Number(e.target.value))} className="w-full accent-[var(--color-primary)]" />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className={LABEL}>НАКЛОН ШТОР: {curtainAngle}°</label>
+                        <input type="range" min={-45} max={45} value={curtainAngle} onChange={(e) => setCurtainAngle(Number(e.target.value))} className="w-full accent-[var(--color-primary)]" />
+                      </div>
+                      <div>
+                        <label className={LABEL}>ШИРИНА: {curtainWidth}%</label>
+                        <input type="range" min={50} max={200} value={curtainWidth} onChange={(e) => setCurtainWidth(Number(e.target.value))} className="w-full accent-[var(--color-primary)]" />
+                      </div>
+                    </div>
+                    <div>
+                      <label className={LABEL}>СТОЛБЦЫ: {curtainCount}</label>
+                      <input type="range" min={3} max={8} value={curtainCount} onChange={(e) => setCurtainCount(Number(e.target.value))} className="w-full accent-[var(--color-primary)]" />
+                    </div>
+                  </>
+                )}
+              </Panel>
+              <Panel title="КИНО-ПОЛОСЫ И РЕТРО-КАМЕРА" defaultOpen>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-mono text-[10px] text-gray-300">КИНО-ПОЛОСЫ</span>
+                  <Switch on={barsOn} onToggle={() => setBarsOn((v) => !v)} label="Кино-полосы" />
+                </div>
+                {barsOn && (
+                  <div>
+                    <label className={LABEL}>ВЫСОТА ПОЛОС: {barsSize}%</label>
+                    <input type="range" min={3} max={25} value={barsSize} onChange={(e) => setBarsSize(Number(e.target.value))} className="w-full accent-[var(--color-primary)]" />
+                  </div>
+                )}
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-mono text-[10px] text-gray-300">РЕТРО-КАМЕРА С ДАТОЙ</span>
+                  <Switch on={camOn} onToggle={() => setCamOn((v) => !v)} label="Ретро-камера" />
+                </div>
+              </Panel>
+            </div>
+          )}
+
+          {/* ─── ЭФФЕКТЫ ─── */}
+          {section === 'effects' && (
+            <div className="space-y-3">
+              <span className="nx-eyebrow">ЭФФЕКТЫ</span>
+              <Panel title="ЭФФЕКТЫ ПОВЕРХ" defaultOpen>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-mono text-[10px] text-gray-300">КОСМИЧЕСКИЙ ВЕТЕР</span>
+                  <Switch on={windOn} onToggle={() => setWindOn((v) => !v)} label="Космический ветер" />
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-mono text-[10px] text-gray-300">ПАДАЮЩИЙ СНЕГ</span>
+                  <Switch on={snowOn} onToggle={() => setSnowOn((v) => !v)} label="Падающий снег" />
+                </div>
+                {(windOn || snowOn) && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className={LABEL}>ПЛОТНОСТЬ: {fxIntensity}%</label>
+                      <input type="range" min={15} max={100} value={fxIntensity} onChange={(e) => setFxIntensity(Number(e.target.value))} className="w-full accent-[var(--color-primary)]" />
+                    </div>
+                    <div>
+                      <label className={LABEL}>СКОРОСТЬ: {(fxSpeed / 100).toFixed(1)}×</label>
+                      <input type="range" min={20} max={250} value={fxSpeed} onChange={(e) => setFxSpeed(Number(e.target.value))} className="w-full accent-[var(--color-primary)]" />
+                    </div>
+                  </div>
+                )}
+                {([
+                  ['ЛИСТЬЯ', leavesOn, setLeavesOn, leavesIntensity, setLeavesIntensity, leavesSpeed, setLeavesSpeed],
+                  ['ДОЖДЬ', rainOn, setRainOn, rainIntensity, setRainIntensity, rainSpeed, setRainSpeed],
+                  ['ИСКРЫ', sparksOn, setSparksOn, sparksIntensity, setSparksIntensity, sparksSpeed, setSparksSpeed],
+                  ['БОКЕ-ПЫЛЬ', bokehOn, setBokehOn, bokehIntensity, setBokehIntensity, bokehSpeed, setBokehSpeed],
+                ] as [string, boolean, (v: boolean) => void, number, (v: number) => void, number, (v: number) => void][]).map(
+                  ([lb, on, set, int, setInt, spd, setSpd]) => (
+                    <div key={lb} className="space-y-1.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-mono text-[10px] text-gray-300">{lb}</span>
+                        <Switch on={on} onToggle={() => set(!on)} label={lb} />
+                      </div>
+                      {on && (
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className={LABEL}>ПЛОТНОСТЬ: {int}%</label>
+                            <input type="range" min={10} max={100} value={int} onChange={(e) => setInt(Number(e.target.value))} className="w-full accent-[var(--color-primary)]" />
+                          </div>
+                          <div>
+                            <label className={LABEL}>СКОРОСТЬ: {(spd / 100).toFixed(1)}×</label>
+                            <input type="range" min={20} max={250} value={spd} onChange={(e) => setSpd(Number(e.target.value))} className="w-full accent-[var(--color-primary)]" />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ),
+                )}
+              </Panel>
+            </div>
+          )}
+
+          {/* ─── СЦЕНЫ ─── */}
+          {section === 'scenes' && (
+            <div className="space-y-3">
+              <span className="nx-eyebrow">СЦЕНЫ</span>
+              <div className="glass rounded-xl p-2.5">
+                <div className="flex flex-wrap gap-1.5">
+                  {([['afisha', 'АФИША'], ['quote', 'ЦИТАТА'], ['announce', 'АНОНС'], ['post', 'ПОСТ ДНЯ']] as ['afisha' | 'quote' | 'announce' | 'post', string][]).map(([id, lb]) => (
+                    <button key={id} onClick={() => applyScene(id)} className={chip(false)}>{lb}</button>
+                  ))}
+                </div>
+                <p className="font-mono text-[9px] text-gray-600 mt-2">кнопка собирает целый образ: шрифт, цвета, рамку и эффекты</p>
+              </div>
+              <Panel title="МОИ ПРЕСЕТЫ" defaultOpen>
+                <div className="flex gap-1.5">
+                  <input value={presetName} onChange={(e) => setPresetName(e.target.value)} placeholder="Имя пресета" className={FIELD} maxLength={24} />
+                  <button onClick={saveMyPreset} className="btn-primary nx-press px-3 rounded-xl font-mono text-[10px] font-bold shrink-0">СОХРАНИТЬ</button>
+                </div>
+                {myPresets.length === 0 ? (
+                  <p className="font-mono text-[9px] text-gray-600">// сохраните текущий набор настроек</p>
+                ) : (
+                  <div className="space-y-1">
+                    {myPresets.map((p, i) => (
+                      <div key={`${p.name}-${i}`} className="flex items-center gap-1.5">
+                        <button onClick={() => applyMyPreset(p)} className="flex-1 text-left px-2 py-1.5 rounded-lg bg-white/[0.04] border border-white/5 font-mono text-[10px] text-gray-300 nx-press truncate">{p.name}</button>
+                        <button onClick={() => deleteMyPreset(i)} aria-label={`Удалить пресет ${p.name}`} className="w-7 h-7 rounded-md nx-press flex items-center justify-center text-gray-500 hover:text-red-400">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Panel>
+            </div>
+          )}
+
+          {/* ─── СЛОИ ─── */}
+          {section === 'layers' && (
+            <div className="space-y-3">
+              <span className="nx-eyebrow">СЛОИ</span>
+              <div className="glass rounded-xl p-2.5 space-y-2">
+                {([
+                  ['ФОТО', showPhoto, setShowPhoto, lockPhoto, setLockPhoto],
+                  ['ТЕКСТ', showText, setShowText, lockText, setLockText],
+                  ['ЛОГОТИП', showLogo, setShowLogo, lockLogo, setLockLogo],
+                  ['ЭФФЕКТЫ', showFx, setShowFx, false, () => {}],
+                  ['РАМКА', showFrame, setShowFrame, false, () => {}],
+                ] as [string, boolean, (v: boolean) => void, boolean, (v: boolean) => void][]).map(([lb, on, set, locked, setLock]) => (
+                  <div key={lb} className="flex items-center justify-between gap-2">
+                    <span className="font-mono text-[10px] text-gray-300">{lb}</span>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => set(!on)}
+                        aria-label={`${on ? 'Скрыть' : 'Показать'} слой ${lb}`}
+                        className="w-7 h-7 rounded-md nx-press flex items-center justify-center hover:bg-white/10"
+                        style={{ color: on ? 'var(--color-primary)' : '#666' }}
+                        title={on ? 'Скрыть' : 'Показать'}
+                      >
+                        {on ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                      </button>
+                      <button
+                        onClick={() => setLock(!locked)}
+                        aria-label={`${locked ? 'Снять замок' : 'Замок'} со слоя ${lb}`}
+                        className="w-7 h-7 rounded-md nx-press flex items-center justify-center hover:bg-white/10"
+                        style={{ color: locked ? '#ffd75f' : '#555' }}
+                        title={locked ? 'Замок — элемент не сдвинуть' : 'Поставить замок'}
+                      >
+                        {locked ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                <div>
+                  <label className={LABEL}>ЛОГОТИП ОТНОСИТЕЛЬНО ТЕКСТА</label>
+                  <div className="flex flex-wrap gap-1.5 mt-1">
+                    <button onClick={() => setLogoUnderText(false)} className={chip(!logoUnderText)} style={!logoUnderText ? { background: 'var(--color-primary)' } : undefined}>ПОВЕРХ</button>
+                    <button onClick={() => setLogoUnderText(true)} className={chip(logoUnderText)} style={logoUnderText ? { background: 'var(--color-primary)' } : undefined}>ПОД ТЕКСТОМ</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ─── ЭКСПОРТ ─── */}
+          {section === 'export' && (
+            <div className="space-y-3">
+              <span className="nx-eyebrow">ЭКСПОРТ</span>
+              <div className="glass rounded-xl p-2.5 space-y-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={exportPng}
+                    disabled={!!exporting}
+                    className="btn-primary nx-press px-3.5 py-2 min-h-[38px] rounded-xl font-mono text-[11px] font-bold disabled:opacity-50 flex items-center gap-1.5"
+                  >
+                    {exporting === 'png' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />} PNG
+                  </button>
+                  <button
+                    onClick={exportGif}
+                    disabled={!!exporting}
+                    className="nx-press px-3.5 py-2 min-h-[38px] rounded-xl font-mono text-[11px] font-bold flex items-center gap-1.5 disabled:opacity-50"
+                    style={{ background: 'rgba(0,212,255,0.15)', color: '#00d4ff', border: '1px solid rgba(0,212,255,0.3)' }}
+                    title="Анимированный GIF — рамка полыхает"
+                  >
+                    {exporting === 'gif' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null} GIF
+                  </button>
+                  <button
+                    onClick={exportWebp}
+                    disabled={!!exporting}
+                    className="nx-press px-3.5 py-2 min-h-[38px] rounded-xl font-mono text-[11px] font-bold flex items-center gap-1.5 disabled:opacity-50"
+                    style={{ background: 'rgba(0,255,136,0.12)', color: '#00ff88', border: '1px solid rgba(0,255,136,0.28)' }}
+                    title="Анимированный WebP — легче GIF"
+                  >
+                    {exporting === 'webp' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null} WEBP
+                  </button>
+                  {videoSupported() && (
+                    <button
+                      onClick={exportVideo}
+                      disabled={!!exporting}
+                      className="nx-press px-3.5 py-2 min-h-[38px] rounded-xl font-mono text-[11px] font-bold flex items-center gap-1.5 disabled:opacity-50"
+                      style={{ background: 'rgba(125,95,255,0.15)', color: '#7d5fff', border: '1px solid rgba(125,95,255,0.35)' }}
+                      title="Короткое видео (mp4, где поддерживается)"
+                    >
+                      {exporting === 'video' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null} ВИДЕО
+                    </button>
+                  )}
+                </div>
+                {videoSupported() && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="relative">
+                      <select
+                        value={videoSeconds}
+                        onChange={(e) => setVideoSeconds(Number(e.target.value))}
+                        className="appearance-none pl-2.5 pr-7 py-2 rounded-lg text-[10px] font-mono bg-white/5 border border-white/10 text-gray-300 min-h-[36px]"
+                        title="Длина видео"
+                      >
+                        {[2, 4, 6, 8, 10].map((s) => <option key={s} value={s}>{s} сек</option>)}
+                      </select>
+                      <ChevronDown className="w-3.5 h-3.5 text-gray-500 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    </div>
+                    <div className="relative">
+                      <select
+                        value={videoRes}
+                        onChange={(e) => setVideoRes(e.target.value as '720' | '1080')}
+                        className="appearance-none pl-2.5 pr-7 py-2 rounded-lg text-[10px] font-mono bg-white/5 border border-white/10 text-gray-300 min-h-[36px]"
+                        title="Разрешение видео"
+                      >
+                        <option value="1080">1080p</option>
+                        <option value="720">720p</option>
+                      </select>
+                      <ChevronDown className="w-3.5 h-3.5 text-gray-500 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
         </div>
       </div>
 
-      {/* ИСТОРИЯ ЭКСПОРТОВ — под рабочей областью */}
+      {/* ИСТОРИЯ ЭКСПОРТОВ */}
       <div className="glass rounded-xl p-2.5">
         <div className="flex items-center justify-between">
           <span className="nx-eyebrow">ИСТОРИЯ ЭКСПОРТОВ</span>
@@ -2275,7 +2117,7 @@ export default function FrameMaker() {
         )}
       </div>
 
-      {/* Спиннер экспорта (чистый CSS — не зависит от framer-motion) */}
+      {/* Спиннер экспорта */}
       {exporting && (
         <div
           className="fixed inset-0 z-[200] flex items-center justify-center"
