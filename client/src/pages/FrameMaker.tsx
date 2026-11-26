@@ -4,7 +4,8 @@ import { ArrowLeft, Sparkles, Upload, Move, Download, Pipette, Trash2, Eye, Chev
 import FrameCanvas from '../components/framemaker/FrameCanvas';
 import {
   FRAME_PRESETS, drawFrame, type FrameState, type FitMode, type PlateStyle, type PlateFill,
-  type FrameStyle, type FrameMode, type TextCase, type TextAnim,
+  type FrameStyle, type FrameMode, type TextCase, type TextAnim, type FrameLine, type Corner,
+  type NumStyle, type ShapeKind,
 } from '../components/framemaker/framePresets';
 import { exportFrameGif } from '../components/framemaker/exportGif';
 import { exportFrameVideo, videoSupported, extForMime } from '../components/framemaker/exportVideo';
@@ -395,6 +396,72 @@ export default function FrameMaker() {
   const [lockText, setLockText] = useState(false);
   const [lockLogo, setLockLogo] = useState(false);
 
+  const [text2On, setText2On] = useState(false);
+  const [text2, setText2] = useState('');
+  const [text2X, setText2X] = useState(0.5);
+  const [text2Y, setText2Y] = useState(0.3);
+  const [text2Angle, setText2Angle] = useState(0);
+  const [text2Font, setText2Font] = useState(FONTS[0].value);
+  const [text2Size, setText2Size] = useState(35);
+  const [text2Color, setText2Color] = useState(PALETTE[0]);
+  const [textShape2, setTextShape2] = useState<'straight' | 'circle'>('straight');
+  const [textGradOn, setTextGradOn] = useState(false);
+  const [textGrad1, setTextGrad1] = useState('#00ff88');
+  const [textGrad2, setTextGrad2] = useState('#00d4ff');
+  const [textGrad3, setTextGrad3] = useState('#7d5fff');
+  const [textGradAngle, setTextGradAngle] = useState(90);
+  const [shadowOn, setShadowOn] = useState(false);
+  const [shadowColor, setShadowColor] = useState('#000000');
+  const [shadowDx, setShadowDx] = useState(6);
+  const [shadowDy, setShadowDy] = useState(6);
+  const [shadowBlur, setShadowBlur] = useState(12);
+
+  const [badgeOn, setBadgeOn] = useState(false);
+  const [badgeText, setBadgeText] = useState('НОВИНКА');
+  const [badgeCorner, setBadgeCorner] = useState<Corner>('tr');
+  const [badgeBg, setBadgeBg] = useState('#ff4f78');
+  const [badgeColor, setBadgeColor] = useState('#ffffff');
+  const [numOn, setNumOn] = useState(false);
+  const [numText, setNumText] = useState('ТОП-5');
+  const [numStyle, setNumStyle] = useState<NumStyle>('outline');
+  const [numCorner, setNumCorner] = useState<Corner>('bl');
+  const [numColor, setNumColor] = useState('#ffd75f');
+  const [numSize, setNumSize] = useState(14);
+  const [wmOn, setWmOn] = useState(false);
+  const [wmText, setWmText] = useState('@nexus');
+  const [wmCorner, setWmCorner] = useState<Corner>('br');
+  const [wmOpacity, setWmOpacity] = useState(70);
+  const [qrOn, setQrOn] = useState(false);
+  const [qrData, setQrData] = useState('https://');
+  const [qrCorner, setQrCorner] = useState<Corner>('br');
+  const [qrSize, setQrSize] = useState(16);
+  const [qrRadius, setQrRadius] = useState(10);
+  const [qrImage, setQrImage] = useState<HTMLCanvasElement | null>(null);
+  const [shapeOn, setShapeOn] = useState(false);
+  const [shapeKind, setShapeKind] = useState<ShapeKind>('star');
+  const [shapeX, setShapeX] = useState(0.5);
+  const [shapeY, setShapeY] = useState(0.5);
+  const [shapeSize, setShapeSize] = useState(12);
+  const [shapeColor, setShapeColor] = useState('#ffd75f');
+  const [shapeRot, setShapeRot] = useState(0);
+
+  const [fBright, setFBright] = useState(0);
+  const [fContrast, setFContrast] = useState(0);
+  const [fSat, setFSat] = useState(0);
+  const [fTemp, setFTemp] = useState(0);
+  const [bgBlurOn, setBgBlurOn] = useState(false);
+  const [vigOn, setVigOn] = useState(false);
+  const [vigStrength, setVigStrength] = useState(50);
+  const [vigRadius, setVigRadius] = useState(50);
+  const [grainOn, setGrainOn] = useState(false);
+  const [grainIntensity, setGrainIntensity] = useState(35);
+  const [glitchOn, setGlitchOn] = useState(false);
+  const [glitchStrength, setGlitchStrength] = useState(40);
+  const [barsOn, setBarsOn] = useState(false);
+  const [barsSize, setBarsSize] = useState(10);
+  const [frameLine, setFrameLine] = useState<FrameLine>('solid');
+  const [camOn, setCamOn] = useState(false);
+
   const [videoSeconds, setVideoSeconds] = useState(4);
   const [videoRes, setVideoRes] = useState<'720' | '1080'>('1080');
   const [cleanPreview, setCleanPreview] = useState(false);
@@ -481,6 +548,67 @@ export default function FrameMaker() {
     showFx,
     showFrame,
     logoUnderText,
+    text2On,
+    text2,
+    text2X,
+    text2Y,
+    text2Angle,
+    text2Font,
+    text2Size: text2Size / 1000,
+    text2Color,
+    textShape: textShape2,
+    textGradOn,
+    textGrad1,
+    textGrad2,
+    textGrad3,
+    textGradAngle,
+    shadowOn,
+    shadowColor,
+    shadowDx,
+    shadowDy,
+    shadowBlur,
+    badgeOn,
+    badgeText,
+    badgeCorner,
+    badgeBg,
+    badgeColor,
+    numOn,
+    numText,
+    numStyle,
+    numCorner,
+    numColor,
+    numSize: numSize / 100,
+    wmOn,
+    wmText,
+    wmCorner,
+    wmOpacity: wmOpacity / 100,
+    qrImage,
+    qrCorner,
+    qrSize: qrSize / 100,
+    qrRadius: qrRadius / 100,
+    shapeOn,
+    shapeKind,
+    shapeX,
+    shapeY,
+    shapeSize: shapeSize / 100,
+    shapeColor,
+    shapeRot,
+    fBright: fBright / 100,
+    fContrast: fContrast / 100,
+    fSat: fSat / 100,
+    fTemp: fTemp / 100,
+    bgBlurOn,
+    vigOn,
+    vigStrength: vigStrength / 100,
+    vigRadius: vigRadius / 100,
+    grainOn,
+    grainIntensity: grainIntensity / 100,
+    glitchOn,
+    glitchStrength: glitchStrength / 100,
+    barsOn,
+    barsSize: barsSize / 100,
+    frameLine,
+    camOn,
   };
 
   // «чистый кадр» — превью без эффектов; экспорт всегда идёт по полному state
@@ -554,6 +682,23 @@ export default function FrameMaker() {
     neonOn: false, neonColor: '#00d4ff', neonIntensity: 0.55,
     curtainsOn: true, curtainIntensity: 0.55, curtainSpeed: 1, curtainAngle: 0, curtainWidth: 1, curtainCount: 5,
     showPhoto: true, showText: true, showLogo: true, showFx: true, showFrame: true,
+    text2On: false, text2: '', text2X: 0.5, text2Y: 0.3, text2Angle: 0, text2Font: FONTS[0].value, text2Size: 0.035, text2Color: PALETTE[0],
+    textShape: 'straight',
+    textGradOn: false, textGrad1: '#00ff88', textGrad2: '#00d4ff', textGrad3: '#7d5fff', textGradAngle: 90,
+    shadowOn: false, shadowColor: '#000000', shadowDx: 6, shadowDy: 6, shadowBlur: 12,
+    badgeOn: false, badgeText: 'НОВИНКА', badgeCorner: 'tr', badgeBg: '#ff4f78', badgeColor: '#ffffff',
+    numOn: false, numText: 'ТОП-5', numStyle: 'outline', numCorner: 'bl', numColor: '#ffd75f', numSize: 0.14,
+    wmOn: false, wmText: '@nexus', wmCorner: 'br', wmOpacity: 0.7,
+    qrImage: null, qrCorner: 'br', qrSize: 0.16, qrRadius: 0.1,
+    shapeOn: false, shapeKind: 'star', shapeX: 0.5, shapeY: 0.5, shapeSize: 0.12, shapeColor: '#ffd75f', shapeRot: 0,
+    fBright: 0, fContrast: 0, fSat: 0, fTemp: 0,
+    bgBlurOn: false,
+    vigOn: false, vigStrength: 0.5, vigRadius: 0.5,
+    grainOn: false, grainIntensity: 0.35,
+    glitchOn: false, glitchStrength: 0.4,
+    barsOn: false, barsSize: 0.1,
+    frameLine: 'solid',
+    camOn: false,
   });
 
   const applySnapshot = (s: FrameState) => {
@@ -584,6 +729,25 @@ export default function FrameMaker() {
     setImage(s.image); setLogo(s.logo);
     setLogoX(s.logoX); setLogoY(s.logoY); setLogoSize(Math.round(s.logoSize * 100));
     setLogoOpacity(Math.round(s.logoOpacity * 100)); setLogoRadius(Math.round(s.logoRadius * 100));
+    setText2On(s.text2On); setText2(s.text2); setText2X(s.text2X); setText2Y(s.text2Y); setText2Angle(s.text2Angle);
+    setText2Font(s.text2Font); setText2Size(Math.round(s.text2Size * 1000)); setText2Color(s.text2Color);
+    setTextShape2(s.textShape);
+    setTextGradOn(s.textGradOn); setTextGrad1(s.textGrad1); setTextGrad2(s.textGrad2); setTextGrad3(s.textGrad3); setTextGradAngle(s.textGradAngle);
+    setShadowOn(s.shadowOn); setShadowColor(s.shadowColor); setShadowDx(s.shadowDx); setShadowDy(s.shadowDy); setShadowBlur(s.shadowBlur);
+    setBadgeOn(s.badgeOn); setBadgeText(s.badgeText); setBadgeCorner(s.badgeCorner); setBadgeBg(s.badgeBg); setBadgeColor(s.badgeColor);
+    setNumOn(s.numOn); setNumText(s.numText); setNumStyle(s.numStyle); setNumCorner(s.numCorner); setNumColor(s.numColor); setNumSize(Math.round(s.numSize * 100));
+    setWmOn(s.wmOn); setWmText(s.wmText); setWmCorner(s.wmCorner); setWmOpacity(Math.round(s.wmOpacity * 100));
+    setQrImage(s.qrImage); setQrCorner(s.qrCorner); setQrSize(Math.round(s.qrSize * 100)); setQrRadius(Math.round(s.qrRadius * 100));
+    setShapeOn(s.shapeOn); setShapeKind(s.shapeKind); setShapeX(s.shapeX); setShapeY(s.shapeY);
+    setShapeSize(Math.round(s.shapeSize * 100)); setShapeColor(s.shapeColor); setShapeRot(s.shapeRot);
+    setFBright(Math.round(s.fBright * 100)); setFContrast(Math.round(s.fContrast * 100)); setFSat(Math.round(s.fSat * 100)); setFTemp(Math.round(s.fTemp * 100));
+    setBgBlurOn(s.bgBlurOn);
+    setVigOn(s.vigOn); setVigStrength(Math.round(s.vigStrength * 100)); setVigRadius(Math.round(s.vigRadius * 100));
+    setGrainOn(s.grainOn); setGrainIntensity(Math.round(s.grainIntensity * 100));
+    setGlitchOn(s.glitchOn); setGlitchStrength(Math.round(s.glitchStrength * 100));
+    setBarsOn(s.barsOn); setBarsSize(Math.round(s.barsSize * 100));
+    setFrameLine(s.frameLine);
+    setCamOn(s.camOn);
     setPresetId(s.preset.id);
     setTimeout(() => { applying.current = false; }, 80);
   };
@@ -647,7 +811,7 @@ export default function FrameMaker() {
     return Promise.resolve(c.toDataURL('image/jpeg', 0.82));
   };
 
-  const draftJson = JSON.stringify({ ...state, image: !!state.image, logo: !!state.logo, preset: state.preset.id, videoSeconds, videoRes });
+  const draftJson = JSON.stringify({ ...state, image: !!state.image, logo: !!state.logo, qrImage: null, preset: state.preset.id, videoSeconds, videoRes });
   useEffect(() => {
     const id = setTimeout(() => {
       void (async () => {
@@ -708,6 +872,126 @@ export default function FrameMaker() {
       undoStack.current = [defaultState()];
       setHistTick((n) => n + 1);
     }, 120);
+  };
+
+  // QR: перерисовываем холст при изменении данных
+  useEffect(() => {
+    if (!qrOn || !qrData.trim()) {
+      setQrImage(null);
+      return;
+    }
+    let alive = true;
+    void (async () => {
+      try {
+        const QR = await import('qrcode');
+        const c = document.createElement('canvas');
+        await QR.toCanvas(c, qrData.trim(), { width: 256, margin: 1, color: { dark: '#0a0a0f', light: '#ffffff' } });
+        if (alive) setQrImage(c);
+      } catch { /* некорректные данные */ }
+    })();
+    return () => { alive = false; };
+  }, [qrOn, qrData]);
+
+  // ── мои пресеты ──────────────────────────────────────────────
+  const PRESETS_KEY = 'nexus-frame-presets-v1';
+  const [presetName, setPresetName] = useState('');
+  const [myPresets, setMyPresets] = useState<Array<{ name: string; data: string }>>([]);
+  useEffect(() => {
+    try { setMyPresets(JSON.parse(localStorage.getItem(PRESETS_KEY) || '[]')); } catch { /* noop */ }
+  }, []);
+
+  const saveMyPreset = () => {
+    const name = presetName.trim() || `Пресет ${myPresets.length + 1}`;
+    const data = JSON.stringify({ ...JSON.parse(draftJson), image: false, logo: false, qrImage: null });
+    const next = [{ name, data }, ...myPresets].slice(0, 20);
+    setMyPresets(next);
+    try { localStorage.setItem(PRESETS_KEY, JSON.stringify(next)); } catch { /* квота */ }
+    setPresetName('');
+    showToast('Пресет сохранён', 'success');
+  };
+
+  const applyMyPreset = (p: { name: string; data: string }) => {
+    try {
+      const s = JSON.parse(p.data) as Partial<FrameState> & { preset?: string };
+      applySnapshot({
+        ...defaultState(),
+        ...s,
+        image: state.image,
+        logo: state.logo,
+        qrImage: state.qrImage,
+        preset: FRAME_PRESETS.find((x) => x.id === s.preset) || preset,
+      });
+      showToast(`Пресет «${p.name}» применён`, 'success');
+    } catch {
+      showToast('Пресет повреждён', 'error');
+    }
+  };
+
+  const deleteMyPreset = (idx: number) => {
+    const next = myPresets.filter((_, i) => i !== idx);
+    setMyPresets(next);
+    try { localStorage.setItem(PRESETS_KEY, JSON.stringify(next)); } catch { /* noop */ }
+  };
+
+  // ── сцены-шаблоны одним кликом ───────────────────────────────
+  const applyScene = (kind: 'afisha' | 'quote' | 'announce' | 'post') => {
+    const base: FrameState = { ...state };
+    const over: Partial<FrameState> = kind === 'afisha' ? {
+      textCase: 'upper', fontSize: 0.08, textGradOn: true, textGrad1: '#ffd75f', textGrad2: '#ff8a3d', textGrad3: '#ff4f78',
+      neonOn: false, plateOn: false, frameStyle: 'fire', frameMode: 'corners', barsOn: true, barsSize: 0.12,
+      badgeOn: true, badgeText: 'НОВИНКА', badgeCorner: 'tr', badgeBg: '#ff4f78', badgeColor: '#ffffff',
+      snowOn: false, windOn: true, bokehOn: true, bokehIntensity: 0.4, grainOn: true, grainIntensity: 0.3,
+    } : kind === 'quote' ? {
+      fontFamily: '"Caveat", cursive', fontSize: 0.075, textCase: 'none', textShape: 'straight',
+      plateOn: true, plateStyle: 'capsule', plateFill: 'gradient', plateBlur: 0.5, plateAlpha: 0.55,
+      shadowOn: true, shadowBlur: 18, shadowDx: 2, shadowDy: 3,
+      frameStyle: 'glass', vigOn: true, vigStrength: 0.55, vigRadius: 0.5, snowOn: true, fxIntensity: 0.4,
+    } : kind === 'announce' ? {
+      textCase: 'upper', fontSize: 0.07, frameStyle: 'ice', frameLine: 'double', frameMode: 'full',
+      barsOn: true, barsSize: 0.08, rainOn: true, rainIntensity: 0.5,
+      badgeOn: true, badgeText: 'СКОРО', badgeCorner: 'tl', badgeBg: '#00d4ff', badgeColor: '#0a0a0f',
+      numOn: true, numText: 'ТОП-5', numStyle: 'neon', numCorner: 'bl', numColor: '#ffd75f',
+    } : {
+      textCase: 'title', frameStyle: 'aurora', frameMode: 'full',
+      bokehOn: true, bokehIntensity: 0.5, wmOn: true, grainOn: true, grainIntensity: 0.25,
+      vigOn: true, vigStrength: 0.35, vigRadius: 0.6,
+    };
+    applySnapshot({ ...base, ...over });
+    showToast('Сцена применена', 'success');
+  };
+
+  // ── слоганы / дата / автоподгон в 2 строки ───────────────────
+  const SLOGANS = ['СЕВЕРНОЕ СИЯНИЕ', 'НОРИЛЬСК ЖДЁТ', 'ВИД НА ГОРОД', 'ПРИРОДА СЕВЕРА', 'ВПЕРЁД'];
+
+  const insertDate = () => {
+    const d = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const ds = `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()}`;
+    setText((t) => (t.trim() ? `${t} · ${ds}` : ds));
+  };
+
+  const fitTwoLines = () => {
+    const off = document.createElement('canvas').getContext('2d');
+    if (!off || !text.trim()) return;
+    const maxW = preset.w * 0.75;
+    const linesOf = (size: number) => {
+      off.font = `700 ${Math.round(preset.h * (size / 1000))}px ${fontFamily}`;
+      let lines = 1;
+      let cur = '';
+      for (const word of text.trim().split(/\s+/)) {
+        const test = cur ? `${cur} ${word}` : word;
+        if (off.measureText(test).width <= maxW || !cur) cur = test;
+        else {
+          lines += 1;
+          cur = word;
+        }
+      }
+      return lines;
+    };
+    let size = fontSize;
+    while (size > 22 && linesOf(size) > 2) size -= 2;
+    setFontSize(size);
+    showToast(`Размер подобран: ${size}`, 'success');
   };
 
   const exportPng = async () => {
@@ -879,6 +1163,35 @@ export default function FrameMaker() {
               </div>
             </div>
             <div>
+              <label className={LABEL}>ЛИНИЯ</label>
+              <div className="flex flex-wrap gap-1.5 mt-1">
+                {([['solid', 'ПЛОТНАЯ'], ['dashed', 'ПУНКТИР'], ['double', 'ДВОЙНАЯ']] as [FrameLine, string][]).map(([id, lb]) => (
+                  <button
+                    key={id}
+                    onClick={() => setFrameLine(id)}
+                    className={chip(frameLine === id)}
+                    style={frameLine === id ? { background: 'var(--color-primary)' } : undefined}
+                  >{lb}</button>
+                ))}
+              </div>
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-mono text-[10px] text-gray-300">КИНО-ПОЛОСЫ</span>
+              <Switch on={barsOn} onToggle={() => setBarsOn((v) => !v)} label="Кино-полосы" />
+            </div>
+            {barsOn && (
+              <div>
+                <label className={LABEL}>ВЫСОТА ПОЛОС: {barsSize}%</label>
+                <input type="range" min={3} max={25} value={barsSize}
+                  onChange={(e) => setBarsSize(Number(e.target.value))}
+                  className="w-full accent-[var(--color-primary)]" />
+              </div>
+            )}
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-mono text-[10px] text-gray-300">РЕТРО-КАМЕРА С ДАТОЙ</span>
+              <Switch on={camOn} onToggle={() => setCamOn((v) => !v)} label="Ретро-камера" />
+            </div>
+            <div>
               <label className={LABEL}>СКРУГЛЕНИЕ УГЛОВ: {preset.radius === 'circle' ? 'КРУГ' : `${frameRadius}%`}</label>
               <input type="range" min={0} max={12} step={0.5} value={frameRadius}
                 disabled={preset.radius === 'circle'}
@@ -1022,6 +1335,54 @@ export default function FrameMaker() {
               </div>
             </div>
           </Panel>
+
+          {/* Сцены-шаблоны */}
+          <Panel title="СЦЕНЫ" defaultOpen>
+            <div className="flex flex-wrap gap-1.5">
+              {([['afisha', 'АФИША'], ['quote', 'ЦИТАТА'], ['announce', 'АНОНС'], ['post', 'ПОСТ ДНЯ']] as ['afisha' | 'quote' | 'announce' | 'post', string][]).map(([id, lb]) => (
+                <button key={id} onClick={() => applyScene(id)} className={chip(false)}>{lb}</button>
+              ))}
+            </div>
+            <p className="font-mono text-[9px] text-gray-600">кнопка собирает целый образ: шрифт, цвета, рамку и эффекты</p>
+          </Panel>
+
+          {/* Мои пресеты */}
+          <Panel title="МОИ ПРЕСЕТЫ">
+            <div className="flex gap-1.5">
+              <input
+                value={presetName}
+                onChange={(e) => setPresetName(e.target.value)}
+                placeholder="Имя пресета"
+                className={FIELD}
+                maxLength={24}
+              />
+              <button
+                onClick={saveMyPreset}
+                className="btn-primary nx-press px-3 rounded-xl font-mono text-[10px] font-bold shrink-0"
+              >СОХРАНИТЬ</button>
+            </div>
+            {myPresets.length === 0 ? (
+              <p className="font-mono text-[9px] text-gray-600">// сохраните текущий набор настроек</p>
+            ) : (
+              <div className="space-y-1">
+                {myPresets.map((p, i) => (
+                  <div key={`${p.name}-${i}`} className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => applyMyPreset(p)}
+                      className="flex-1 text-left px-2 py-1.5 rounded-lg bg-white/[0.04] border border-white/5 font-mono text-[10px] text-gray-300 nx-press truncate"
+                    >{p.name}</button>
+                    <button
+                      onClick={() => deleteMyPreset(i)}
+                      aria-label={`Удалить пресет ${p.name}`}
+                      className="w-7 h-7 rounded-md nx-press flex items-center justify-center text-gray-500 hover:text-red-400"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Panel>
         </div>
 
         {/* ЦЕНТР: холст + экспорт */}
@@ -1035,6 +1396,8 @@ export default function FrameMaker() {
               onTextMove={(x, y) => { setTextX(x); setTextY(y); }}
               onAngleChange={(d) => setTextAngle(Math.round(d))}
               onLogoMove={(x, y) => { setLogoX(x); setLogoY(y); }}
+              onText2Move={(x, y) => { setText2X(x); setText2Y(y); }}
+              onShapeMove={(x, y) => { setShapeX(x); setShapeY(y); }}
               compareOn={compareOn}
               locks={{ photo: lockPhoto, text: lockText, logo: lockLogo }}
             />
@@ -1253,6 +1616,35 @@ export default function FrameMaker() {
               </div>
             </div>
 
+            {/* форма строки */}
+            <div>
+              <label className={LABEL}>ФОРМА СТРОКИ</label>
+              <div className="flex flex-wrap gap-1.5 mt-1">
+                <button
+                  onClick={() => setTextShape2('straight')}
+                  className={chip(textShape2 === 'straight')}
+                  style={textShape2 === 'straight' ? { background: 'var(--color-primary)' } : undefined}
+                >ПРЯМАЯ</button>
+                <button
+                  onClick={() => setTextShape2('circle')}
+                  className={chip(textShape2 === 'circle')}
+                  style={textShape2 === 'circle' ? { background: 'var(--color-primary)' } : undefined}
+                >ПО КРУГУ 360°</button>
+              </div>
+            </div>
+
+            {/* быстрые фразы */}
+            <div>
+              <label className={LABEL}>БЫСТРЫЕ ФРАЗЫ</label>
+              <div className="flex flex-wrap gap-1.5 mt-1">
+                {SLOGANS.map((s) => (
+                  <button key={s} onClick={() => setText(s)} className={chip(false)}>{s}</button>
+                ))}
+                <button onClick={insertDate} className={chip(false)} title="Вставить сегодняшнюю дату">+ ДАТА</button>
+                <button onClick={fitTwoLines} className={chip(false)} title="Подобрать размер шрифта под 2 строки">В 2 СТРОКИ</button>
+              </div>
+            </div>
+
             {/* анимация появления */}
             <div className="flex items-center justify-between gap-2">
               <span className="font-mono text-[10px] text-gray-300">АНИМАЦИЯ ТЕКСТА</span>
@@ -1260,7 +1652,7 @@ export default function FrameMaker() {
             </div>
             {textAnimOn && (
               <div className="flex flex-wrap gap-1.5">
-                {([['fade', 'ПОЯВЛЕНИЕ'], ['slide', 'СДВИГ'], ['type', 'ПЕЧАТЬ']] as [Exclude<TextAnim, 'none'>, string][]).map(([id, lb]) => (
+                {([['fade', 'ПОЯВЛЕНИЕ'], ['slide', 'СДВИГ'], ['type', 'ПЕЧАТЬ'], ['pulse', 'ПУЛЬС НЕОНА']] as [Exclude<TextAnim, 'none'>, string][]).map(([id, lb]) => (
                   <button
                     key={id}
                     onClick={() => setTextAnimKind(id)}
@@ -1285,6 +1677,336 @@ export default function FrameMaker() {
                 СБРОС
               </button>
             </div>
+          </Panel>
+
+          {/* Градиент и тень */}
+          <Panel
+            title="ГРАДИЕНТ И ТЕНЬ"
+            right={(
+              <div className="flex items-center gap-2">
+                <Switch on={textGradOn} onToggle={() => setTextGradOn((v) => !v)} label="Градиент текста" />
+                <Switch on={shadowOn} onToggle={() => setShadowOn((v) => !v)} label="Тень текста" />
+              </div>
+            )}
+          >
+            {textGradOn && (
+              <>
+                <div className="grid grid-cols-3 gap-2">
+                  {([['ЦВЕТ 1', textGrad1, setTextGrad1], ['ЦВЕТ 2', textGrad2, setTextGrad2], ['ЦВЕТ 3', textGrad3, setTextGrad3]] as [string, string, (c: string) => void][]).map(([lb, val, set]) => (
+                    <div key={lb}>
+                      <label className={LABEL}>{lb}</label>
+                      <input type="color" value={val} onChange={(e) => set(e.target.value)}
+                        className="w-full h-8 mt-1 rounded-md cursor-pointer bg-transparent border border-gray-700" />
+                    </div>
+                  ))}
+                </div>
+                <div>
+                  <label className={LABEL}>УГОЛ ГРАДИЕНТА: {textGradAngle}°</label>
+                  <input type="range" min={0} max={360} value={textGradAngle}
+                    onChange={(e) => setTextGradAngle(Number(e.target.value))}
+                    className="w-full accent-[var(--color-primary)]" />
+                </div>
+              </>
+            )}
+            {shadowOn && (
+              <>
+                <ColorField label="ЦВЕТ ТЕНИ" value={shadowColor} onChange={setShadowColor} />
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <label className={LABEL}>СДВИГ X: {shadowDx}</label>
+                    <input type="range" min={-20} max={20} value={shadowDx}
+                      onChange={(e) => setShadowDx(Number(e.target.value))}
+                      className="w-full accent-[var(--color-primary)]" />
+                  </div>
+                  <div>
+                    <label className={LABEL}>СДВИГ Y: {shadowDy}</label>
+                    <input type="range" min={-20} max={20} value={shadowDy}
+                      onChange={(e) => setShadowDy(Number(e.target.value))}
+                      className="w-full accent-[var(--color-primary)]" />
+                  </div>
+                  <div>
+                    <label className={LABEL}>РАЗМЫТИЕ: {shadowBlur}</label>
+                    <input type="range" min={0} max={40} value={shadowBlur}
+                      onChange={(e) => setShadowBlur(Number(e.target.value))}
+                      className="w-full accent-[var(--color-primary)]" />
+                  </div>
+                </div>
+              </>
+            )}
+          </Panel>
+
+          {/* Второй текст */}
+          <Panel
+            title="ВТОРОЙ ТЕКСТ"
+            right={<Switch on={text2On} onToggle={() => setText2On((v) => !v)} label="Второй текст" />}
+          >
+            {text2On && (
+              <>
+                <input
+                  value={text2}
+                  onChange={(e) => setText2(e.target.value)}
+                  placeholder="Заголовок или подпись"
+                  className={FIELD}
+                  maxLength={60}
+                />
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className={LABEL}>ШРИФТ</label>
+                    <select value={text2Font} onChange={(e) => setText2Font(e.target.value)} className={FIELD}>
+                      {FONTS.map((f) => <option key={f.label} value={f.value}>{f.label}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className={LABEL}>РАЗМЕР: {text2Size}</label>
+                    <input type="range" min={16} max={90} value={text2Size}
+                      onChange={(e) => setText2Size(Number(e.target.value))}
+                      className="w-full accent-[var(--color-primary)] mt-2" />
+                  </div>
+                </div>
+                <ColorField label="ЦВЕТ" value={text2Color} onChange={setText2Color} />
+                <div>
+                  <label className={LABEL}>НАКЛОН: {text2Angle}°</label>
+                  <input type="range" min={-40} max={40} value={text2Angle}
+                    onChange={(e) => setText2Angle(Number(e.target.value))}
+                    className="w-full accent-[var(--color-primary)]" />
+                </div>
+                <p className="font-mono text-[9px] text-gray-600">второй текст можно перетаскивать по кадру</p>
+              </>
+            )}
+          </Panel>
+
+          {/* Фотофильтры */}
+          <Panel title="ФОТОФИЛЬТРЫ И ФОНЫ">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className={LABEL}>ЯРКОСТЬ: {fBright}</label>
+                <input type="range" min={-100} max={100} value={fBright}
+                  onChange={(e) => setFBright(Number(e.target.value))}
+                  className="w-full accent-[var(--color-primary)]" />
+              </div>
+              <div>
+                <label className={LABEL}>КОНТРАСТ: {fContrast}</label>
+                <input type="range" min={-100} max={100} value={fContrast}
+                  onChange={(e) => setFContrast(Number(e.target.value))}
+                  className="w-full accent-[var(--color-primary)]" />
+              </div>
+              <div>
+                <label className={LABEL}>НАСЫЩЕННОСТЬ: {fSat}</label>
+                <input type="range" min={-100} max={100} value={fSat}
+                  onChange={(e) => setFSat(Number(e.target.value))}
+                  className="w-full accent-[var(--color-primary)]" />
+              </div>
+              <div>
+                <label className={LABEL}>ТЕМПЕРАТУРА: {fTemp}</label>
+                <input type="range" min={-100} max={100} value={fTemp}
+                  onChange={(e) => setFTemp(Number(e.target.value))}
+                  className="w-full accent-[var(--color-primary)]" />
+              </div>
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-mono text-[10px] text-gray-300">РАЗМЫТЫЙ ФОН ИЗ ФОТО</span>
+              <Switch on={bgBlurOn} onToggle={() => setBgBlurOn((v) => !v)} label="Размытый фон" />
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-mono text-[10px] text-gray-300">ВИНЬЕТКА</span>
+              <Switch on={vigOn} onToggle={() => setVigOn((v) => !v)} label="Виньетка" />
+            </div>
+            {vigOn && (
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className={LABEL}>СИЛА: {vigStrength}%</label>
+                  <input type="range" min={10} max={100} value={vigStrength}
+                    onChange={(e) => setVigStrength(Number(e.target.value))}
+                    className="w-full accent-[var(--color-primary)]" />
+                </div>
+                <div>
+                  <label className={LABEL}>РАДИУС: {vigRadius}%</label>
+                  <input type="range" min={10} max={100} value={vigRadius}
+                    onChange={(e) => setVigRadius(Number(e.target.value))}
+                    className="w-full accent-[var(--color-primary)]" />
+                </div>
+              </div>
+            )}
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-mono text-[10px] text-gray-300">ЗЕРНО ПЛЁНКИ</span>
+              <Switch on={grainOn} onToggle={() => setGrainOn((v) => !v)} label="Зерно плёнки" />
+            </div>
+            {grainOn && (
+              <div>
+                <label className={LABEL}>СИЛА ЗЕРНА: {grainIntensity}%</label>
+                <input type="range" min={5} max={100} value={grainIntensity}
+                  onChange={(e) => setGrainIntensity(Number(e.target.value))}
+                  className="w-full accent-[var(--color-primary)]" />
+              </div>
+            )}
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-mono text-[10px] text-gray-300">ГЛИТЧ-ХРОМАТИКА</span>
+              <Switch on={glitchOn} onToggle={() => setGlitchOn((v) => !v)} label="Глитч-хроматика" />
+            </div>
+            {glitchOn && (
+              <div>
+                <label className={LABEL}>СИЛА ГЛИТЧА: {glitchStrength}%</label>
+                <input type="range" min={5} max={100} value={glitchStrength}
+                  onChange={(e) => setGlitchStrength(Number(e.target.value))}
+                  className="w-full accent-[var(--color-primary)]" />
+              </div>
+            )}
+          </Panel>
+
+          {/* Декор */}
+          <Panel title="ДЕКОР: БЕЙДЖ / ЧИСЛО / QR">
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-mono text-[10px] text-gray-300">БЕЙДЖ-ТАБЛИЧКА</span>
+              <Switch on={badgeOn} onToggle={() => setBadgeOn((v) => !v)} label="Бейдж" />
+            </div>
+            {badgeOn && (
+              <>
+                <div className="flex flex-wrap gap-1.5">
+                  {['НОВИНКА', 'СКИДКА', 'ТОП', 'СОБЫТИЕ'].map((b) => (
+                    <button key={b} onClick={() => setBadgeText(b)} className={chip(badgeText === b)}>{b}</button>
+                  ))}
+                </div>
+                <input value={badgeText} onChange={(e) => setBadgeText(e.target.value)} className={FIELD} maxLength={20} />
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className={LABEL}>ФОН БЕЙДЖА</label>
+                    <input type="color" value={badgeBg} onChange={(e) => setBadgeBg(e.target.value)}
+                      className="w-full h-8 mt-1 rounded-md cursor-pointer bg-transparent border border-gray-700" />
+                  </div>
+                  <div>
+                    <label className={LABEL}>ТЕКСТ БЕЙДЖА</label>
+                    <input type="color" value={badgeColor} onChange={(e) => setBadgeColor(e.target.value)}
+                      className="w-full h-8 mt-1 rounded-md cursor-pointer bg-transparent border border-gray-700" />
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {([['tl', 'ВЛ ВВЕРХ'], ['tr', 'ВП ВВЕРХ'], ['bl', 'ВЛ ВНИЗ'], ['br', 'ВП ВНИЗ']] as [Corner, string][]).map(([id, lb]) => (
+                    <button key={id} onClick={() => setBadgeCorner(id)} className={chip(badgeCorner === id)}
+                      style={badgeCorner === id ? { background: 'var(--color-primary)' } : undefined}>{lb}</button>
+                  ))}
+                </div>
+              </>
+            )}
+
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-mono text-[10px] text-gray-300">КРУПНОЕ ЧИСЛО</span>
+              <Switch on={numOn} onToggle={() => setNumOn((v) => !v)} label="Крупное число" />
+            </div>
+            {numOn && (
+              <>
+                <input value={numText} onChange={(e) => setNumText(e.target.value)} className={FIELD} maxLength={12} />
+                <div className="flex flex-wrap gap-1.5">
+                  {([['outline', 'КОНТУР'], ['neon', 'НЕОН'], ['plate', 'ПЛАШКА']] as [NumStyle, string][]).map(([id, lb]) => (
+                    <button key={id} onClick={() => setNumStyle(id)} className={chip(numStyle === id)}
+                      style={numStyle === id ? { background: 'var(--color-primary)' } : undefined}>{lb}</button>
+                  ))}
+                  {([['tl', 'ВЛ ВВЕРХ'], ['tr', 'ВП ВВЕРХ'], ['bl', 'ВЛ ВНИЗ'], ['br', 'ВП ВНИЗ']] as [Corner, string][]).map(([id, lb]) => (
+                    <button key={id} onClick={() => setNumCorner(id)} className={chip(numCorner === id)}
+                      style={numCorner === id ? { background: 'var(--color-primary)' } : undefined}>{lb}</button>
+                  ))}
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className={LABEL}>ЦВЕТ</label>
+                    <input type="color" value={numColor} onChange={(e) => setNumColor(e.target.value)}
+                      className="w-full h-8 mt-1 rounded-md cursor-pointer bg-transparent border border-gray-700" />
+                  </div>
+                  <div>
+                    <label className={LABEL}>РАЗМЕР: {numSize}%</label>
+                    <input type="range" min={6} max={30} value={numSize}
+                      onChange={(e) => setNumSize(Number(e.target.value))}
+                      className="w-full accent-[var(--color-primary)] mt-2" />
+                  </div>
+                </div>
+              </>
+            )}
+
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-mono text-[10px] text-gray-300">ВОДЯНОЙ ЗНАК</span>
+              <Switch on={wmOn} onToggle={() => setWmOn((v) => !v)} label="Водяной знак" />
+            </div>
+            {wmOn && (
+              <>
+                <input value={wmText} onChange={(e) => setWmText(e.target.value)} className={FIELD} maxLength={30} />
+                <div className="flex flex-wrap gap-1.5">
+                  {([['tl', 'ВЛ ВВЕРХ'], ['tr', 'ВП ВВЕРХ'], ['bl', 'ВЛ ВНИЗ'], ['br', 'ВП ВНИЗ']] as [Corner, string][]).map(([id, lb]) => (
+                    <button key={id} onClick={() => setWmCorner(id)} className={chip(wmCorner === id)}
+                      style={wmCorner === id ? { background: 'var(--color-primary)' } : undefined}>{lb}</button>
+                  ))}
+                </div>
+                <div>
+                  <label className={LABEL}>ПРОЗРАЧНОСТЬ: {wmOpacity}%</label>
+                  <input type="range" min={10} max={100} value={wmOpacity}
+                    onChange={(e) => setWmOpacity(Number(e.target.value))}
+                    className="w-full accent-[var(--color-primary)]" />
+                </div>
+              </>
+            )}
+
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-mono text-[10px] text-gray-300">QR-КОД</span>
+              <Switch on={qrOn} onToggle={() => setQrOn((v) => !v)} label="QR-код" />
+            </div>
+            {qrOn && (
+              <>
+                <input value={qrData} onChange={(e) => setQrData(e.target.value)} className={FIELD} maxLength={200} placeholder="https://... или текст" />
+                <div className="flex flex-wrap gap-1.5">
+                  {([['tl', 'ВЛ ВВЕРХ'], ['tr', 'ВП ВВЕРХ'], ['bl', 'ВЛ ВНИЗ'], ['br', 'ВП ВНИЗ']] as [Corner, string][]).map(([id, lb]) => (
+                    <button key={id} onClick={() => setQrCorner(id)} className={chip(qrCorner === id)}
+                      style={qrCorner === id ? { background: 'var(--color-primary)' } : undefined}>{lb}</button>
+                  ))}
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className={LABEL}>РАЗМЕР: {qrSize}%</label>
+                    <input type="range" min={8} max={30} value={qrSize}
+                      onChange={(e) => setQrSize(Number(e.target.value))}
+                      className="w-full accent-[var(--color-primary)]" />
+                  </div>
+                  <div>
+                    <label className={LABEL}>СКРУГЛЕНИЕ: {qrRadius}%</label>
+                    <input type="range" min={0} max={50} value={qrRadius}
+                      onChange={(e) => setQrRadius(Number(e.target.value))}
+                      className="w-full accent-[var(--color-primary)]" />
+                  </div>
+                </div>
+              </>
+            )}
+
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-mono text-[10px] text-gray-300">СТИКЕР-ФИГУРА</span>
+              <Switch on={shapeOn} onToggle={() => setShapeOn((v) => !v)} label="Стикер-фигура" />
+            </div>
+            {shapeOn && (
+              <>
+                <div className="flex flex-wrap gap-1.5">
+                  {([['star', 'ЗВЕЗДА'], ['circle', 'КРУГ'], ['stamp', 'ПЛАШКА']] as [ShapeKind, string][]).map(([id, lb]) => (
+                    <button key={id} onClick={() => setShapeKind(id)} className={chip(shapeKind === id)}
+                      style={shapeKind === id ? { background: 'var(--color-primary)' } : undefined}>{lb}</button>
+                  ))}
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className={LABEL}>ЦВЕТ</label>
+                    <input type="color" value={shapeColor} onChange={(e) => setShapeColor(e.target.value)}
+                      className="w-full h-8 mt-1 rounded-md cursor-pointer bg-transparent border border-gray-700" />
+                  </div>
+                  <div>
+                    <label className={LABEL}>РАЗМЕР: {shapeSize}%</label>
+                    <input type="range" min={5} max={35} value={shapeSize}
+                      onChange={(e) => setShapeSize(Number(e.target.value))}
+                      className="w-full accent-[var(--color-primary)] mt-2" />
+                  </div>
+                </div>
+                <div>
+                  <label className={LABEL}>ПОВОРОТ: {shapeRot}°</label>
+                  <input type="range" min={-180} max={180} value={shapeRot}
+                    onChange={(e) => setShapeRot(Number(e.target.value))}
+                    className="w-full accent-[var(--color-primary)]" />
+                </div>
+                <p className="font-mono text-[9px] text-gray-600">фигуру можно перетаскивать по кадру</p>
+              </>
+            )}
           </Panel>
 
           {/* Плашка */}

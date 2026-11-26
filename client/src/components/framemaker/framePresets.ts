@@ -128,14 +128,97 @@ export interface FrameState {
   showLogo: boolean;
   showFx: boolean;
   showFrame: boolean;
+  /** второй текстовый блок (заголовок/подпись) */
+  text2On: boolean;
+  text2: string;
+  text2X: number;
+  text2Y: number;
+  text2Angle: number;
+  text2Font: string;
+  text2Size: number; // доля высоты
+  text2Color: string;
+  /** форма текста: прямая / по кругу */
+  textShape: TextShape2;
+  /** градиент по буквам */
+  textGradOn: boolean;
+  textGrad1: string;
+  textGrad2: string;
+  textGrad3: string;
+  textGradAngle: number;
+  /** тень текста */
+  shadowOn: boolean;
+  shadowColor: string;
+  shadowDx: number; // -20..20 (% px)
+  shadowDy: number;
+  shadowBlur: number; // 0..40 (% px)
+  /** бейдж-табличка */
+  badgeOn: boolean;
+  badgeText: string;
+  badgeCorner: Corner;
+  badgeBg: string;
+  badgeColor: string;
+  /** крупное число */
+  numOn: boolean;
+  numText: string;
+  numStyle: NumStyle;
+  numCorner: Corner;
+  numColor: string;
+  numSize: number; // % minDim
+  /** водяной знак */
+  wmOn: boolean;
+  wmText: string;
+  wmCorner: Corner;
+  wmOpacity: number;
+  /** QR-код (готовый холст) */
+  qrImage: HTMLCanvasElement | null;
+  qrCorner: Corner;
+  qrSize: number;
+  qrRadius: number;
+  /** стикер-фигура */
+  shapeOn: boolean;
+  shapeKind: ShapeKind;
+  shapeX: number;
+  shapeY: number;
+  shapeSize: number;
+  shapeColor: string;
+  shapeRot: number;
+  /** фильтры фото */
+  fBright: number; // -1..1
+  fContrast: number;
+  fSat: number;
+  fTemp: number;
+  /** размытый фон из фото */
+  bgBlurOn: boolean;
+  /** виньетка */
+  vigOn: boolean;
+  vigStrength: number; // 0..1
+  vigRadius: number; // 0..1
+  /** зерно плёнки */
+  grainOn: boolean;
+  grainIntensity: number;
+  /** глитч-хроматика */
+  glitchOn: boolean;
+  glitchStrength: number;
+  /** кино-полосы */
+  barsOn: boolean;
+  barsSize: number; // 0..0.25
+  /** линия рамки */
+  frameLine: FrameLine;
+  /** ретро-камера с датой */
+  camOn: boolean;
 }
 
 export type PlateStyle = 'capsule' | 'band';
 export type PlateFill = 'solid' | 'gradient';
 export type FrameStyle = 'aurora' | 'neon' | 'glass' | 'fire' | 'ice';
 export type FrameMode = 'full' | 'corners';
+export type FrameLine = 'solid' | 'dashed' | 'double';
 export type TextCase = 'none' | 'upper' | 'lower' | 'title';
-export type TextAnim = 'none' | 'fade' | 'slide' | 'type';
+export type TextAnim = 'none' | 'fade' | 'slide' | 'type' | 'pulse';
+export type TextShape2 = 'straight' | 'circle';
+export type Corner = 'tl' | 'tr' | 'bl' | 'br';
+export type NumStyle = 'outline' | 'neon' | 'plate';
+export type ShapeKind = 'star' | 'circle' | 'stamp';
 
 /** Габарит текстового блока для hit-test (в координатах холста) */
 export interface TextBBox {
@@ -144,6 +227,13 @@ export interface TextBBox {
   w: number;
   h: number;
   angle: number; // радианы
+}
+
+/** Что вернул drawFrame: габариты для перетаскивания */
+export interface FrameHit {
+  text: TextBBox | null;
+  text2: TextBBox | null;
+  shape: TextBBox | null;
 }
 
 export function shapePath(ctx: CanvasRenderingContext2D, w: number, h: number, preset: FramePreset, radius?: number) {
@@ -561,6 +651,7 @@ function drawAuroraFrame(ctx: CanvasRenderingContext2D, w: number, h: number, mi
     if (s.frameMode === 'corners') cornerBracketsPath(ctx, w, h, s.preset, s.frameRadius);
     else shapePath(ctx, w, h, s.preset, s.frameRadius);
   };
+  if (s.frameLine === 'dashed') ctx.setLineDash([minDim * 0.03, minDim * 0.02]);
 
   const conic = (phase: number, alphaMul: number): CanvasGradient | string => {
     const cg = (ctx as CanvasRenderingContext2D & {
@@ -628,6 +719,20 @@ function drawAuroraFrame(ctx: CanvasRenderingContext2D, w: number, h: number, mi
   ctx.strokeStyle = `rgba(255,255,255,${(0.4 + 0.4 * brightness).toFixed(3)})`;
   ctx.stroke();
   ctx.restore();
+
+  // двойная линия — внутренний контур чуть меньше
+  if (s.frameLine === 'double') {
+    ctx.save();
+    ctx.translate(w / 2, h / 2);
+    ctx.scale(0.962, 0.962);
+    ctx.translate(-w / 2, -h / 2);
+    path();
+    ctx.lineWidth = Math.max(1, minDim * 0.0038 * widthK);
+    ctx.strokeStyle = `rgba(255,255,255,${(0.3 + 0.35 * brightness).toFixed(3)})`;
+    ctx.stroke();
+    ctx.restore();
+  }
+  ctx.setLineDash([]);
 }
 
 /**
@@ -643,7 +748,7 @@ export function drawFrame(
   s: FrameState,
   t: number,
   bg?: string,
-): TextBBox | null {
+): FrameHit {
   const minDim = Math.min(w, h);
   ctx.clearRect(0, 0, w, h);
   if (bg) {
@@ -666,13 +771,43 @@ export function drawFrame(
     const dh = img.naturalHeight * sc;
     const dx = w / 2 + s.ox * w - dw / 2;
     const dy = h / 2 + s.oy * h - dh / 2;
+    const imgFilter = `brightness(${(1 + s.fBright * 0.6).toFixed(2)}) contrast(${(1 + s.fContrast * 0.7).toFixed(2)}) saturate(${(1 + s.fSat * 1.1).toFixed(2)})`;
     ctx.fillStyle = '#12141c';
     ctx.fillRect(0, 0, w, h);
-    ctx.drawImage(img, dx, dy, dw, dh);
+    if (s.bgBlurOn) {
+      // размытая копия во всю площадь + резкая поверх — эффект фокуса
+      ctx.save();
+      ctx.filter = `blur(${(minDim * 0.02).toFixed(1)}px) ${imgFilter}`;
+      ctx.drawImage(img, dx, dy, dw, dh);
+      ctx.restore();
+      const ins = 0.92;
+      ctx.save();
+      ctx.filter = imgFilter;
+      ctx.drawImage(img, dx + (dw * (1 - ins)) / 2, dy + (dh * (1 - ins)) / 2, dw * ins, dh * ins);
+      ctx.restore();
+    } else {
+      ctx.save();
+      ctx.filter = imgFilter;
+      ctx.drawImage(img, dx, dy, dw, dh);
+      ctx.restore();
+    }
+    // температура: тёплый/холодный оверлей
+    if (Math.abs(s.fTemp) > 0.02) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'soft-light';
+      ctx.fillStyle = s.fTemp > 0
+        ? `rgba(255,170,80,${(s.fTemp * 0.5).toFixed(3)})`
+        : `rgba(80,150,255,${(-s.fTemp * 0.5).toFixed(3)})`;
+      ctx.fillRect(0, 0, w, h);
+      ctx.restore();
+    }
+    if (s.glitchOn && s.glitchStrength > 0) drawGlitch(ctx, w, h, s, t);
   } else {
     ctx.fillStyle = '#12141c';
     ctx.fillRect(0, 0, w, h);
   }
+
+  if (s.vigOn && s.vigStrength > 0) drawVignette(ctx, w, h, s);
 
   // полярные шторы — атмосфера поверх фото, под текстом
   if (s.curtainsOn && s.curtainIntensity > 0) {
@@ -803,23 +938,60 @@ export function drawFrame(
       }
     };
 
-    // анимация: сдвиг снизу + проявление
+    // анимация: сдвиг снизу + проявление / пульсация неона
     const tcy = cy + (s.textAnim === 'slide' ? (1 - animE) * h * 0.055 : 0);
     const alphaA = s.textAnim === 'fade' || s.textAnim === 'slide' ? animE : 1;
+    const pulseK = s.textAnim === 'pulse' ? 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(t * 0.006)) : 1;
+
+    const isCircle = s.textShape === 'circle';
+    const paintBody = () => {
+      if (isCircle) drawCircleText(ctx, shown, 0, 0, px);
+      else paintLines();
+    };
+    const strokeBody = () => {
+      if (isCircle) drawCircleText(ctx, shown, 0, 0, px, true);
+      else strokeLines();
+    };
+    // заливка: сплошная или градиент по буквам
+    const textFill = (): string | CanvasGradient => {
+      if (s.textGradOn) {
+        const ga = (s.textGradAngle * Math.PI) / 180;
+        const half = Math.max(maxLineW, blockH) * 0.75;
+        const g = ctx.createLinearGradient(-Math.cos(ga) * half, -Math.sin(ga) * half, Math.cos(ga) * half, Math.sin(ga) * half);
+        g.addColorStop(0, s.textGrad1);
+        g.addColorStop(0.5, s.textGrad2);
+        g.addColorStop(1, s.textGrad3);
+        return g;
+      }
+      return s.textColor;
+    };
 
     // неоновое свечение — два прохода мягким цветом под основным текстом
     if (s.neonOn && s.neonIntensity > 0) {
       for (let pass = 0; pass < 2; pass++) {
         ctx.save();
-        ctx.globalAlpha = alphaA;
+        ctx.globalAlpha = alphaA * (0.55 + 0.45 * pulseK);
         ctx.translate(cx, tcy);
         ctx.rotate(angle);
         ctx.shadowColor = s.neonColor;
-        ctx.shadowBlur = px * (0.35 + s.neonIntensity * (pass === 0 ? 1.15 : 0.55));
+        ctx.shadowBlur = px * (0.35 + s.neonIntensity * pulseK * (pass === 0 ? 1.15 : 0.55));
         ctx.fillStyle = s.neonColor;
-        paintLines();
+        paintBody();
         ctx.restore();
       }
+    }
+
+    // тень текста — отдельный проход со смещением
+    if (s.shadowOn) {
+      ctx.save();
+      ctx.globalAlpha = alphaA;
+      ctx.translate(cx + (s.shadowDx / 100) * px, tcy + (s.shadowDy / 100) * px);
+      ctx.rotate(angle);
+      ctx.fillStyle = s.shadowColor;
+      ctx.shadowColor = s.shadowColor;
+      ctx.shadowBlur = (s.shadowBlur / 100) * px * 1.3;
+      paintBody();
+      ctx.restore();
     }
 
     ctx.save();
@@ -833,12 +1005,12 @@ export function drawFrame(
       ctx.strokeStyle = s.strokeColor;
       ctx.shadowColor = 'rgba(0,0,0,0.65)';
       ctx.shadowBlur = px * 0.25;
-      strokeLines();
+      strokeBody();
     }
     ctx.shadowColor = 'rgba(0,0,0,0.65)';
     ctx.shadowBlur = px * 0.25;
-    ctx.fillStyle = s.textColor;
-    paintLines();
+    ctx.fillStyle = textFill();
+    paintBody();
     ctx.shadowColor = 'transparent';
     ctx.shadowBlur = 0;
     ctx.restore();
@@ -847,7 +1019,55 @@ export function drawFrame(
     // габарит с учётом плашки — тащить можно за подложку
     const plateW = s.plateOn && !bandMode ? padX * 2 : 0;
     const plateH = s.plateOn ? (bandMode ? 0 : padY * 2) : 0;
-    bbox = { cx, cy, w: maxLineW + plateW, h: blockH + plateH, angle };
+    bbox = {
+      cx,
+      cy,
+      w: (isCircle ? Math.max(maxLineW / Math.PI, maxLineW * 0.5) : maxLineW) + plateW,
+      h: blockH + plateH + (isCircle ? maxLineW / Math.PI : 0),
+      angle,
+    };
+  }
+
+  // ── 2б. второй текстовый блок ──
+  let text2BBox: TextBBox | null = null;
+  if (s.text2On && s.text2.trim() && s.showText) {
+    const px2 = Math.round(h * s.text2Size);
+    ctx.font = `700 ${px2}px ${s.text2Font}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const shown2 = applyCase(s.text2.trim(), s.textCase);
+    const tw = ctx.measureText(shown2).width;
+    const cx2 = s.text2X * w;
+    const cy2 = s.text2Y * h;
+    const a2 = (s.text2Angle * Math.PI) / 180;
+    ctx.save();
+    ctx.translate(cx2, cy2);
+    ctx.rotate(a2);
+    if (s.shadowOn) {
+      ctx.save();
+      ctx.translate((s.shadowDx / 100) * px2, (s.shadowDy / 100) * px2);
+      ctx.fillStyle = s.shadowColor;
+      ctx.shadowColor = s.shadowColor;
+      ctx.shadowBlur = (s.shadowBlur / 100) * px2 * 1.3;
+      ctx.fillText(shown2, 0, 0);
+      ctx.restore();
+    }
+    ctx.shadowColor = 'rgba(0,0,0,0.6)';
+    ctx.shadowBlur = px2 * 0.22;
+    if (s.textGradOn) {
+      const ga = (s.textGradAngle * Math.PI) / 180;
+      const half = Math.max(tw, px2) * 0.75;
+      const g = ctx.createLinearGradient(-Math.cos(ga) * half, -Math.sin(ga) * half, Math.cos(ga) * half, Math.sin(ga) * half);
+      g.addColorStop(0, s.textGrad1);
+      g.addColorStop(0.5, s.textGrad2);
+      g.addColorStop(1, s.textGrad3);
+      ctx.fillStyle = g;
+    } else {
+      ctx.fillStyle = s.text2Color;
+    }
+    ctx.fillText(shown2, 0, 0);
+    ctx.restore();
+    text2BBox = { cx: cx2, cy: cy2, w: tw, h: px2 * 1.35, angle: a2 };
   }
 
   // ── 3. эффекты поверх фото и текста (внутри клипа) ──
@@ -862,6 +1082,27 @@ export function drawFrame(
 
   // логотип поверх текста (по умолчанию)
   if (!s.logoUnderText) paintLogo(ctx, s, w, h);
+
+  // угловые объекты и стикеры
+  if (s.badgeOn && s.badgeText.trim()) drawBadge(ctx, w, h, minDim, s);
+  if (s.numOn && s.numText.trim()) drawNum(ctx, w, h, minDim, s);
+  if (s.wmOn && s.wmText.trim()) drawWatermark(ctx, w, h, minDim, s);
+  if (s.qrImage) drawQr(ctx, w, h, minDim, s);
+  let shapeBox: TextBBox | null = null;
+  if (s.shapeOn) {
+    drawShape(ctx, w, h, minDim, s);
+    shapeBox = {
+      cx: s.shapeX * w,
+      cy: s.shapeY * h,
+      w: s.shapeSize * minDim * 1.35,
+      h: s.shapeSize * minDim * 1.35,
+      angle: (s.shapeRot * Math.PI) / 180,
+    };
+  }
+
+  if (s.grainOn && s.grainIntensity > 0) drawGrain(ctx, w, h, t, s.grainIntensity);
+  if (s.camOn) drawCamFrame(ctx, w, h, minDim, s);
+  if (s.barsOn && s.barsSize > 0.005) drawBars(ctx, w, h, s);
 
   ctx.restore();
 
@@ -881,7 +1122,7 @@ export function drawFrame(
     }
   }
 
-  return bbox;
+  return { text: bbox, text2: text2BBox, shape: shapeBox };
 }
 
 /** Логотип канала — поверх содержимого, но под рамкой */
@@ -899,6 +1140,268 @@ function paintLogo(ctx: CanvasRenderingContext2D, s: FrameState, w: number, h: n
     ctx.clip();
   }
   ctx.drawImage(s.logo, lbox.x, lbox.y, lbox.w, lbox.h);
+  ctx.restore();
+}
+
+/** Зерно плёнки — один раз генерим шумовой тайл */
+let grainTile: HTMLCanvasElement | null = null;
+function getGrainTile(): HTMLCanvasElement {
+  if (grainTile) return grainTile;
+  const c = document.createElement('canvas');
+  c.width = 128;
+  c.height = 128;
+  const g = c.getContext('2d');
+  if (g) {
+    const img = g.createImageData(128, 128);
+    for (let i = 0; i < img.data.length; i += 4) {
+      const v = Math.random() * 255;
+      img.data[i] = v;
+      img.data[i + 1] = v;
+      img.data[i + 2] = v;
+      img.data[i + 3] = 255;
+    }
+    g.putImageData(img, 0, 0);
+  }
+  grainTile = c;
+  return c;
+}
+
+function drawGrain(ctx: CanvasRenderingContext2D, w: number, h: number, t: number, intensity: number) {
+  const tile = getGrainTile();
+  const pattern = ctx.createPattern(tile, 'repeat');
+  if (!pattern) return;
+  ctx.save();
+  ctx.globalCompositeOperation = 'overlay';
+  ctx.globalAlpha = Math.min(0.5, intensity * 0.32);
+  ctx.translate((t * 0.37) % 128 - 128, (t * 0.23) % 128 - 128); // зерно «живое»
+  ctx.fillStyle = pattern;
+  ctx.fillRect(0, 0, w + 256, h + 256);
+  ctx.restore();
+}
+
+/** Глитч-хроматика: два призрачных копии фото со сдвигом и цветными дуотонами */
+function drawGlitch(ctx: CanvasRenderingContext2D, w: number, h: number, s: FrameState, t: number) {
+  const img = s.image;
+  if (!img) return;
+  const base = s.fitMode === 'cover'
+    ? Math.max(w / img.naturalWidth, h / img.naturalHeight)
+    : Math.min(w / img.naturalWidth, h / img.naturalHeight);
+  const sc = base * s.scale;
+  const dw = img.naturalWidth * sc;
+  const dh = img.naturalHeight * sc;
+  const dx = w / 2 + s.ox * w - dw / 2;
+  const dy = h / 2 + s.oy * h - dh / 2;
+  const off = (2 + s.glitchStrength * Math.min(w, h) * 0.012) * (0.7 + 0.3 * Math.sin(t * 0.004));
+  ctx.save();
+  ctx.globalCompositeOperation = 'screen';
+  ctx.globalAlpha = Math.min(0.55, s.glitchStrength * 0.38);
+  ctx.filter = 'sepia(1) saturate(6) hue-rotate(-30deg)'; // красный призрак
+  ctx.drawImage(img, dx - off, dy, dw, dh);
+  ctx.filter = 'sepia(1) saturate(6) hue-rotate(150deg)'; // голубой призрак
+  ctx.drawImage(img, dx + off, dy, dw, dh);
+  ctx.restore();
+}
+
+/** Виньетка — тёмные края с настраиваемой силой и радиусом */
+function drawVignette(ctx: CanvasRenderingContext2D, w: number, h: number, s: FrameState) {
+  const r = (Math.hypot(w, h) / 2) * (0.55 + s.vigRadius * 0.9);
+  const g = ctx.createRadialGradient(w / 2, h / 2, r * 0.35, w / 2, h / 2, r);
+  g.addColorStop(0, 'rgba(0,0,0,0)');
+  g.addColorStop(1, `rgba(0,0,0,${Math.min(0.85, s.vigStrength * 0.85).toFixed(3)})`);
+  ctx.save();
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, w, h);
+  ctx.restore();
+}
+
+/** Текст по кругу 360° */
+function drawCircleText(ctx: CanvasRenderingContext2D, text: string, cx: number, cy: number, px: number, stroke = false) {
+  const chars = [...text];
+  if (!chars.length) return;
+  const widths = chars.map((ch) => ctx.measureText(ch).width);
+  const total = widths.reduce((a, b) => a + b, 0) || 1;
+  const R = Math.max(total / (Math.PI * 2), px * 1.2);
+  let acc = -total / 2;
+  for (let i = 0; i < chars.length; i++) {
+    const a = ((acc + widths[i] / 2) / total) * Math.PI * 2 - Math.PI / 2;
+    acc += widths[i];
+    ctx.save();
+    ctx.translate(cx + R * Math.cos(a), cy + R * Math.sin(a));
+    ctx.rotate(a + Math.PI / 2);
+    if (stroke) ctx.strokeText(chars[i], 0, 0);
+    else ctx.fillText(chars[i], 0, 0);
+    ctx.restore();
+  }
+}
+
+/** Угловая точка для объектов в углах кадра */
+function cornerPos(corner: Corner, w: number, h: number, margin: number): [number, number] {
+  return [
+    corner === 'tr' || corner === 'br' ? w - margin : margin,
+    corner === 'bl' || corner === 'br' ? h - margin : margin,
+  ];
+}
+
+/** Бейдж-табличка в углу */
+function drawBadge(ctx: CanvasRenderingContext2D, w: number, h: number, minDim: number, s: FrameState) {
+  const px = Math.round(minDim * 0.038);
+  ctx.save();
+  ctx.font = `700 ${px}px ${s.fontFamily}`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  const tw = ctx.measureText(s.badgeText).width;
+  const pw = tw + px * 1.4;
+  const ph = px * 1.9;
+  const [x, y] = cornerPos(s.badgeCorner, w, h, minDim * 0.055);
+  const left = s.badgeCorner === 'tr' || s.badgeCorner === 'br' ? x - pw : x;
+  const top = s.badgeCorner === 'bl' || s.badgeCorner === 'br' ? y - ph : y;
+  ctx.fillStyle = s.badgeBg;
+  ctx.beginPath();
+  ctx.roundRect(left, top, pw, ph, ph / 2);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+  ctx.lineWidth = Math.max(1, minDim * 0.0025);
+  ctx.stroke();
+  ctx.fillStyle = s.badgeColor;
+  ctx.fillText(s.badgeText, left + pw / 2, top + ph / 2);
+  ctx.restore();
+}
+
+/** Крупное число тремя стилями */
+function drawNum(ctx: CanvasRenderingContext2D, w: number, h: number, minDim: number, s: FrameState) {
+  const px = Math.round(minDim * s.numSize);
+  ctx.save();
+  ctx.font = `700 ${px}px ${s.fontFamily}`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  const [x, y] = cornerPos(s.numCorner, w, h, minDim * 0.14);
+  if (s.numStyle === 'plate') {
+    const tw = ctx.measureText(s.numText).width;
+    ctx.fillStyle = 'rgba(10,14,24,0.78)';
+    ctx.beginPath();
+    ctx.roundRect(x - tw / 2 - px * 0.35, y - px * 0.75, tw + px * 0.7, px * 1.5, px * 0.3);
+    ctx.fill();
+  }
+  if (s.numStyle === 'neon') {
+    ctx.shadowColor = s.numColor;
+    ctx.shadowBlur = px * 0.55;
+  }
+  if (s.numStyle === 'outline') {
+    ctx.lineWidth = Math.max(2, px * 0.06);
+    ctx.strokeStyle = s.numColor;
+    ctx.strokeText(s.numText, x, y);
+    ctx.fillStyle = 'rgba(10,14,24,0.25)';
+  } else {
+    ctx.fillStyle = s.numColor;
+  }
+  ctx.fillText(s.numText, x, y);
+  ctx.restore();
+}
+
+/** Водяной знак мелким текстом в углу */
+function drawWatermark(ctx: CanvasRenderingContext2D, w: number, h: number, minDim: number, s: FrameState) {
+  const px = Math.round(minDim * 0.028);
+  ctx.save();
+  ctx.globalAlpha = Math.min(0.9, s.wmOpacity);
+  ctx.font = `500 ${px}px ${s.fontFamily}`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  const [x, y] = cornerPos(s.wmCorner, w, h, minDim * 0.045);
+  ctx.fillStyle = 'rgba(255,255,255,0.92)';
+  ctx.shadowColor = 'rgba(0,0,0,0.55)';
+  ctx.shadowBlur = px * 0.35;
+  ctx.fillText(s.wmText, x, y);
+  ctx.restore();
+}
+
+/** QR-код в углу */
+function drawQr(ctx: CanvasRenderingContext2D, w: number, h: number, minDim: number, s: FrameState) {
+  const img = s.qrImage;
+  if (!img) return;
+  const size = s.qrSize * minDim;
+  const [x, y] = cornerPos(s.qrCorner, w, h, minDim * 0.05);
+  const left = s.qrCorner === 'tr' || s.qrCorner === 'br' ? x - size : x;
+  const top = s.qrCorner === 'bl' || s.qrCorner === 'br' ? y - size : y;
+  ctx.save();
+  ctx.fillStyle = '#ffffff'; // белая подложка — QR должен читаться
+  ctx.beginPath();
+  ctx.roundRect(left - size * 0.08, top - size * 0.08, size * 1.16, size * 1.16, size * 0.12);
+  ctx.fill();
+  if (s.qrRadius > 0.01) {
+    ctx.beginPath();
+    ctx.roundRect(left, top, size, size, s.qrRadius * size);
+    ctx.clip();
+  }
+  ctx.drawImage(img, left, top, size, size);
+  ctx.restore();
+}
+
+/** Стикер-фигура: звезда / круг-штамп / плашка */
+function drawShape(ctx: CanvasRenderingContext2D, w: number, h: number, minDim: number, s: FrameState) {
+  const size = s.shapeSize * minDim;
+  ctx.save();
+  ctx.translate(s.shapeX * w, s.shapeY * h);
+  ctx.rotate((s.shapeRot * Math.PI) / 180);
+  ctx.fillStyle = s.shapeColor;
+  ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+  ctx.lineWidth = Math.max(1.5, minDim * 0.004);
+  if (s.shapeKind === 'star') {
+    ctx.beginPath();
+    for (let i = 0; i < 10; i++) {
+      const r = i % 2 === 0 ? size / 2 : size * 0.21;
+      const a = (i / 10) * Math.PI * 2 - Math.PI / 2;
+      const x = r * Math.cos(a);
+      const y = r * Math.sin(a);
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  } else if (s.shapeKind === 'circle') {
+    ctx.beginPath();
+    ctx.arc(0, 0, size / 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(0, 0, size * 0.36, 0, Math.PI * 2);
+    ctx.stroke();
+  } else {
+    ctx.beginPath();
+    ctx.roundRect(-size * 0.62, -size * 0.28, size * 1.24, size * 0.56, size * 0.16);
+    ctx.fill();
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/** Ретро-камера: светлая рамка + янтарная дата */
+function drawCamFrame(ctx: CanvasRenderingContext2D, w: number, h: number, minDim: number, _s: FrameState) {
+  const b = minDim * 0.035;
+  ctx.save();
+  ctx.strokeStyle = 'rgba(250,250,245,0.92)';
+  ctx.lineWidth = b;
+  ctx.strokeRect(b / 2, b / 2, w - b, h - b);
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const stamp = `${pad(now.getDate())}.${pad(now.getMonth() + 1)}.${now.getFullYear()}  ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  const px = Math.round(minDim * 0.042);
+  ctx.font = `700 ${px}px "JetBrains Mono", monospace`;
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'bottom';
+  ctx.fillStyle = 'rgba(255,176,42,0.95)';
+  ctx.shadowColor = 'rgba(0,0,0,0.5)';
+  ctx.shadowBlur = px * 0.3;
+  ctx.fillText(stamp, w - b * 1.6, h - b * 1.4);
+  ctx.restore();
+}
+
+/** Кино-полосы */
+function drawBars(ctx: CanvasRenderingContext2D, w: number, h: number, s: FrameState) {
+  const bh = h * Math.min(0.3, s.barsSize);
+  ctx.save();
+  ctx.fillStyle = '#05060a';
+  ctx.fillRect(0, 0, w, bh);
+  ctx.fillRect(0, h - bh, w, bh);
   ctx.restore();
 }
 
